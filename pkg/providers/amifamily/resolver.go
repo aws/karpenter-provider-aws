@@ -18,10 +18,13 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -34,6 +37,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
+	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -45,12 +50,23 @@ var DefaultEBS = v1.BlockDevice{
 }
 
 type Resolver interface {
-	Resolve(*v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
+	Resolve(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, []*cloudprovider.InstanceType, string, string, *Options, string, int32) ([]*LaunchTemplate, error)
 }
+
+// ENILimits holds ENI networking limits for an instance type.
+type ENILimits struct {
+	DefaultENIs int
+	IPv4PerENI  int
+}
+
+// ENILookup is a function that returns ENI limits for a given instance type name.
+type ENILookup func(instanceTypeName string) (ENILimits, bool)
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
 type DefaultResolver struct {
-	region string
+	region    string
+	eniLookup ENILookup
+	celEnv    *kubeletcel.CELEnvironment
 }
 
 // Options define the static launch template parameters
@@ -135,9 +151,11 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver(region string) *DefaultResolver {
+func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
 	return &DefaultResolver{
-		region: region,
+		region:    region,
+		eniLookup: eniLookup,
+		celEnv:    celEnv,
 	}
 }
 
@@ -145,7 +163,7 @@ func NewDefaultResolver(region string) *DefaultResolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 //
 //nolint:gocyclo
-func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
+func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -167,12 +185,17 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 		type launchTemplateParams struct {
 			efaCount int
 			maxPods  int
+			// resolvedKubeReserved and resolvedSystemReserved hold the evaluated resource values
+			// (serialized as "key1=val1,key2=val2" for comparability) when CEL expressions are used.
+			resolvedKubeReserved   string
+			resolvedSystemReserved string
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
 			reservationIDs           string
 			reservationType          v1.CapacityReservationType
 			reservationInterruptible bool
 		}
-		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(it *cloudprovider.InstanceType) launchTemplateParams {
+		// paramsForInstanceType computes the launch template grouping key for an instance type.
+		paramsForInstanceType := func(it *cloudprovider.InstanceType) (launchTemplateParams, error) {
 			var reservationType v1.CapacityReservationType
 			var reservationInterruptible bool
 			var reservationIDs []string
@@ -189,25 +212,69 @@ func (r DefaultResolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.N
 					}
 				}
 			}
+			var kubeReserved, systemReserved map[string]string
+			if nodeClass.Spec.Kubelet != nil {
+				// The kubelet config is an open map; parse it to read the reserved-capacity fields
+				// (which may hold CEL expressions) as typed values. A parse error leaves both nil,
+				// falling back to AMI-family defaults rather than failing template resolution here.
+				if parsed, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet); err == nil {
+					kubeReserved = parsed.KubeReserved
+					systemReserved = parsed.SystemReserved
+				}
+			}
+			// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static
+			// quantity entries so the launch template falls back to the AMI family defaults rather than
+			// configuring nodes from an expression the user hasn't opted into. This mirrors the scheduler's
+			// resolution path (instancetype.resolveResourceExpressions) so the two never diverge.
+			if !karpopts.FromContext(ctx).FeatureGates.NodeClassCEL {
+				kubeReserved = staticQuantities(kubeReserved)
+				systemReserved = staticQuantities(systemReserved)
+			}
+			// kubeReserved and systemReserved are resolved through the same shared CEL evaluation path
+			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
+			// scheduler, so the launch template configures exactly what the scheduler reserved.
+			celVars := func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) }
+			resolvedKubeReserved, err := r.celEnv.ResolveResourceMap(ctx, kubeReserved, celVars)
+			if err != nil {
+				return launchTemplateParams{}, serrors.Wrap(
+					fmt.Errorf("resolving kubeReserved, %w", err),
+					"instance-type", it.Name)
+			}
+			resolvedSystemReserved, err := r.celEnv.ResolveResourceMap(ctx, systemReserved, celVars)
+			if err != nil {
+				return launchTemplateParams{}, serrors.Wrap(
+					fmt.Errorf("resolving systemReserved, %w", err),
+					"instance-type", it.Name)
+			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
 					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),
 					0,
 				),
-				maxPods: int(it.Capacity.Pods().Value()),
+				maxPods:                int(it.Capacity.Pods().Value()),
+				resolvedKubeReserved:   serializeResourceMap(resolvedKubeReserved),
+				resolvedSystemReserved: serializeResourceMap(resolvedSystemReserved),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
 				reservationIDs:           strings.Join(reservationIDs, ","),
 				reservationType:          reservationType,
 				reservationInterruptible: reservationInterruptible,
+			}, nil
+		}
+		paramsToInstanceTypes := map[launchTemplateParams][]*cloudprovider.InstanceType{}
+		for _, it := range instanceTypes {
+			params, err := paramsForInstanceType(it)
+			if err != nil {
+				return nil, err
 			}
-		})
+			paramsToInstanceTypes[params] = append(paramsToInstanceTypes[params], it)
+		}
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved))...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -281,6 +348,8 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	tenancyType string,
 	placementGroupID string,
 	placementGroupPartition int32,
+	resolvedKubeReserved map[string]string,
+	resolvedSystemReserved map[string]string,
 ) []*LaunchTemplate {
 	kubeletConfigRaw := nodeClass.Spec.Kubelet.DeepCopy()
 	parsedKubeletConfig, _ := v1.ParseKubeletConfig(kubeletConfigRaw)
@@ -304,6 +373,24 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			kubeletConfigRaw = v1.KubeletConfiguration{}
 		}
 		kubeletConfigRaw["maxPods"] = v1.JSONValue(maxPods)
+	}
+	// kubeReserved/systemReserved may have been CEL expressions resolved per instance type upstream.
+	// Write the resolved quantities back onto both representations for the same reason as maxPods:
+	// the parsed struct feeds the flag-based bootstrappers and the raw map feeds nodeadm's inline
+	// kubelet config, so an unresolved expression left in either would reach the node verbatim.
+	if resolvedKubeReserved != nil {
+		parsedKubeletConfig.KubeReserved = resolvedKubeReserved
+		if kubeletConfigRaw == nil {
+			kubeletConfigRaw = v1.KubeletConfiguration{}
+		}
+		kubeletConfigRaw["kubeReserved"] = v1.JSONValue(resolvedKubeReserved)
+	}
+	if resolvedSystemReserved != nil {
+		parsedKubeletConfig.SystemReserved = resolvedSystemReserved
+		if kubeletConfigRaw == nil {
+			kubeletConfigRaw = v1.KubeletConfiguration{}
+		}
+		kubeletConfigRaw["systemReserved"] = v1.JSONValue(resolvedSystemReserved)
 	}
 	taints := lo.Flatten([][]corev1.Taint{
 		nodeClaim.Spec.Taints,
@@ -399,4 +486,102 @@ func isRestrictedLabel(label string) bool {
 		}
 	}
 	return false
+}
+
+// celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
+// using its requirements (CPU, memory labels) and an ENI lookup function.
+func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) (kubeletcel.InstanceTypeVars, error) {
+	req := it.Requirements.Get(v1.LabelInstanceCPU)
+	if req == nil {
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceCPU,
+		)
+	}
+	vcpus, err := strconv.ParseInt(req.Any(), 10, 64)
+	if err != nil {
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("parsing label, %w", err),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceCPU,
+			"value", req.Any(),
+		)
+	}
+	req = it.Requirements.Get(v1.LabelInstanceMemory)
+	if req == nil {
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceMemory,
+		)
+	}
+	memoryMiB, err := strconv.ParseInt(req.Any(), 10, 64)
+	if err != nil {
+		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
+			fmt.Errorf("parsing label, %w", err),
+			"instance-type", it.Name,
+			"label", v1.LabelInstanceMemory,
+			"value", req.Any(),
+		)
+	}
+	defaultENIs := int64(0)
+	ipsPerENI := int64(0)
+	if eniLookup != nil {
+		if limits, ok := eniLookup(it.Name); ok {
+			defaultENIs = int64(limits.DefaultENIs)
+			ipsPerENI = int64(limits.IPv4PerENI)
+		}
+	}
+	maxPods := it.Capacity.Pods().Value()
+	return kubeletcel.InstanceTypeVars{
+		VCPUs:        vcpus,
+		MemoryMiB:    memoryMiB,
+		DefaultENIs:  defaultENIs,
+		IPsPerENI:    ipsPerENI,
+		MaxPods:      maxPods,
+		InstanceType: it.Name,
+	}, nil
+}
+
+// staticQuantities returns the subset of a kubeReserved/systemReserved map whose values parse as
+// Kubernetes resource quantities, dropping the CEL-expression entries. It's used when the NodeClassCEL
+// gate is off so expression-valued entries fall back to the AMI family defaults rather than being resolved.
+func staticQuantities(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return m
+	}
+	return lo.PickBy(m, func(_ string, v string) bool {
+		_, err := resource.ParseQuantity(v)
+		return err == nil
+	})
+}
+
+// serializeResourceMap converts a resource map to a sorted, comparable string representation.
+func serializeResourceMap(m map[string]string) string {
+	if len(m) == 0 {
+		return ""
+	}
+	keys := lo.Keys(m)
+	sort.Strings(keys)
+	var parts []string
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, ",")
+}
+
+// deserializeResourceMap converts a serialized resource map string back to a map.
+func deserializeResourceMap(s string) map[string]string {
+	if s == "" {
+		return nil
+	}
+	result := make(map[string]string)
+	for _, part := range strings.Split(s, ",") {
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) == 2 {
+			result[kv[0]] = kv[1]
+		}
+	}
+	return result
 }

@@ -19,6 +19,7 @@ import (
 	"math"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -27,10 +28,8 @@ import (
 // uses for scheduling decisions and bootstrap scripting.
 type ParsedKubeletConfig struct {
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
-	// MaxPods is an integer or a CEL expression evaluated per instance type. It's typed as
-	// IntOrString rather than *int32 so that an expression parses instead of failing the whole
-	// config: ParseKubeletConfig is a single Unmarshal, so one field that won't decode loses
-	// every other field with it. Use MaxPodsValue for the resolved count.
+	// MaxPods is an integer or a CEL expression evaluated per instance type. 
+	// Use MaxPodsValue for the resolved count.
 	MaxPods                     *intstr.IntOrString        `json:"maxPods,omitempty"`
 	PodsPerCore                 *int32                     `json:"podsPerCore,omitempty"`
 	SystemReserved              map[string]string          `json:"systemReserved,omitempty"`
@@ -56,6 +55,66 @@ func ParseKubeletConfig(kc KubeletConfiguration) (*ParsedKubeletConfig, error) {
 	}
 	parsed := &ParsedKubeletConfig{}
 	return parsed, json.Unmarshal(data, parsed)
+}
+
+// MaxPodsInt returns the maxPods value as *int32 if it's set to an integer, or nil otherwise
+// (unset, or a CEL expression). It's a convenience for callers that need the static integer value
+// and handle expressions separately. Parsing the open map is the single source of truth; a value
+// that doesn't decode is treated as unset rather than surfacing the error here.
+func (kc KubeletConfiguration) MaxPodsInt() *int32 {
+	parsed, err := ParseKubeletConfig(kc)
+	if err != nil {
+		return nil
+	}
+	value, ok := parsed.MaxPodsValue()
+	if !ok {
+		return nil
+	}
+	return value
+}
+
+// HasExpressions reports whether any field holds a CEL expression rather than a static value. The
+// definition of "is an expression" must match what the evaluators actually treat as one: a
+// string-typed maxPods, or a kubeReserved/systemReserved value that isn't a parseable resource
+// quantity. A config that fails to parse is treated as having no expressions here; validation
+// surfaces the decode error separately.
+func (kc KubeletConfiguration) HasExpressions() bool {
+	parsed, err := ParseKubeletConfig(kc)
+	if err != nil {
+		return false
+	}
+	if parsed.MaxPods != nil && parsed.MaxPods.Type == intstr.String {
+		return true
+	}
+	return parsed.HasResourceExpressions()
+}
+
+// HasResourceExpressions reports whether kubeReserved or systemReserved holds a CEL expression -
+// that is, a value that isn't a parseable resource quantity. Callers use this to skip resolving
+// maxPods and building the reserved-capacity CEL variables when neither map has anything to evaluate.
+func (kc KubeletConfiguration) HasResourceExpressions() bool {
+	parsed, err := ParseKubeletConfig(kc)
+	if err != nil {
+		return false
+	}
+	return parsed.HasResourceExpressions()
+}
+
+// HasResourceExpressions reports whether kubeReserved or systemReserved holds a value that isn't a
+// parseable resource quantity, i.e. a CEL expression. Defined on the parsed config so callers that
+// already parsed the open map can reuse it without re-parsing.
+func (in *ParsedKubeletConfig) HasResourceExpressions() bool {
+	if in == nil {
+		return false
+	}
+	for _, m := range []map[string]string{in.KubeReserved, in.SystemReserved} {
+		for _, v := range m {
+			if _, err := resource.ParseQuantity(v); err != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // MaxPodsValue returns maxPods as a concrete count, reporting false if it isn't set or holds a

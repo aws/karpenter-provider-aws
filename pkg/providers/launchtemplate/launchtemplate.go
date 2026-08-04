@@ -172,7 +172,7 @@ func (p *DefaultProvider) EnsureAll(
 			}
 		}
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
 	if err != nil {
 		return nil, err
 	}

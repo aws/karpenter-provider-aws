@@ -286,9 +286,3 @@ In this example:
 * `maxPods` and `kubeReserved.cpu` hold expressions rather than static values, evaluated per instance type and resolved before they reach the kubelet
 
 Non-scheduling fields in the map are always passthrough regardless of expression usage.
-
-## Decision History
-
-The original proposal validated only field *names* against the upstream schema at reconciliation and left type and value errors for the node to reject at boot, surfacing them as a NodeClaim that never registers.
-
-A subsequent review considered reverting to a closed typed struct to preserve apply-time validation. The design settled between the two: keep the open map for version independence, but pin `k8s.io/kubelet` as a maintained dependency and decode against it in the controller, so type and semantic errors are caught before launch instead of at node registration. Node-boot failure remains only for values the pinned upstream type accepts but the node's kubelet does not.

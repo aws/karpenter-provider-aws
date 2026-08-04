@@ -55,6 +55,7 @@ import (
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	zonalshiftprovider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
@@ -106,6 +107,7 @@ type Operator struct {
 	EC2API                      *ec2.Client
 	ZonalShiftProvider          zonalshiftprovider.Provider
 	CABundle                    *string
+	CELEnvironment              *kubeletcel.CELEnvironment
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -187,7 +189,20 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
+	// celEnv is the single shared CEL environment (and compilation cache) for kubelet expression
+	// evaluation. It is injected into every component that compiles or evaluates expressions so they
+	// share the same environment and cache.
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	// instanceTypeProvider is forward-declared so the resolver's ENI lookup can source live EC2 network
+	// info (DescribeInstanceTypes) rather than the static vpclimits table. The closure captures the
+	// variable by reference and is only invoked at launch template resolution time, after assignment below.
+	var instanceTypeProvider *instancetype.DefaultProvider
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
+		if instanceTypeProvider == nil {
+			return amifamily.ENILimits{}, false
+		}
+		return instanceTypeProvider.ENILimits(name)
+	}, celEnv)
 	caBundle := lo.Must(GetCABundle(ctx, operator.GetConfig()))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
@@ -209,7 +224,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	instanceTypeProvider := instancetype.NewDefaultProvider(
+	instanceTypeProvider = instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
@@ -219,9 +234,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		capacityReservationProvider,
 		placementGroupProvider,
 		unavailableOfferingsCache,
-		instancetype.NewDefaultResolver(cfg.Region),
+		instancetype.NewDefaultResolver(cfg.Region, celEnv),
 		zsProvider,
 		operator.GetClient(),
+		celEnv,
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -239,13 +255,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		placementGroupProvider,
 		zsProvider,
 		// Instance cache entries never expire. The cache is actively refreshed by the garbage
-		// collection controller's List() every 2 minutes, and entries are explicitly removed
-		// when Get() returns NotFound from EC2. NoExpiration ensures cached instances in zonally
-		// shifted AZs remain available for the zonal shift guards in Get(), Delete(), and
-		// CreateTags(), even if List() cannot return instances from the impaired AZ.
-		// TODO: Add a cache garbage collector that reconciles entries against EC2 and the API
-		// server, evicting entries for instances that no longer exist in either. Note: removing
-		// NodeClaim finalizers to bypass Karpenter's lifecycle management is not supported.
+		// collection controller's List() every 2 minutes, and stale entries are evicted by
+		// List() for instances no longer returned by EC2. NoExpiration ensures cached instances
+		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
+		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
@@ -276,6 +289,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		EC2API:                      ec2api,
 		ZonalShiftProvider:          zsProvider,
 		CABundle:                    caBundle,
+		CELEnvironment:              celEnv,
 	}
 }
 

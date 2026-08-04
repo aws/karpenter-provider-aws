@@ -24,14 +24,17 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 
@@ -59,16 +62,18 @@ type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
-	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) *cloudprovider.InstanceType
+	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) (*cloudprovider.InstanceType, error)
 }
 
 type DefaultResolver struct {
 	region string
+	celEnv *kubeletcel.CELEnvironment
 }
 
-func NewDefaultResolver(region string) *DefaultResolver {
+func NewDefaultResolver(region string, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
 	return &DefaultResolver{
 		region: region,
+		celEnv: celEnv,
 	}
 }
 
@@ -89,7 +94,7 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	)
 }
 
-func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) *cloudprovider.InstanceType {
+func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) (*cloudprovider.InstanceType, error) {
 	// !!! Important !!!
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
@@ -99,9 +104,28 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		// If parsing fails, use empty defaults — validation will catch this at reconciliation time
 		parsed = &v1.ParsedKubeletConfig{}
 	}
-	// A maxPods CEL expression resolves per instance type elsewhere; an unresolved expression is
-	// treated as unset here so capacity falls back to the computed pod limit.
-	maxPods, _ := parsed.MaxPodsValue()
+	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
+	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
+	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
+	// expression, or the default). Fields come from the parsed open map rather than a typed struct.
+	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, parsed.MaxPods, amiFamily, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving maxPods, %w", err),
+			"instance-type", info.InstanceType)
+	}
+	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.KubeReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving kubeReserved, %w", err),
+			"instance-type", info.InstanceType)
+	}
+	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.SystemReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving systemReserved, %w", err),
+			"instance-type", info.InstanceType)
+	}
 	return NewInstanceType(
 		ctx,
 		info,
@@ -113,15 +137,142 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		nodeClass.NetworkInterfaces(),
 		maxPods,
 		parsed.PodsPerCore,
-		parsed.KubeReserved,
-		parsed.SystemReserved,
+		kubeReserved,
+		systemReserved,
 		parsed.EvictionHard,
 		parsed.EvictionSoft,
 		nodeClass.AMIFamily(),
 		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
 			return cr.InstanceType == string(info.InstanceType)
 		}),
-	)
+	), nil
+}
+
+// evaluateResourceExpressions validates the kubeReserved and systemReserved CEL expressions for the given
+// instance type, returning an error for the first expression that fails to evaluate or produces a negative value.
+func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.ParsedKubeletConfig, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
+	for _, resourceExpressions := range []struct {
+		field string
+		m     map[string]string
+	}{
+		{"kubeReserved", kc.KubeReserved},
+		{"systemReserved", kc.SystemReserved},
+	} {
+		for k, v := range resourceExpressions.m {
+			// Values that parse as valid Kubernetes resource quantities are used as-is, not evaluated.
+			if _, qErr := resource.ParseQuantity(v); qErr == nil {
+				continue
+			}
+			result, err := celEnv.EvaluateExpression(v, celVars)
+			if err != nil {
+				return serrors.Wrap(
+					fmt.Errorf("evaluating kubelet resource expression, %w", err),
+					"instance-type", info.InstanceType,
+					"field", resourceExpressions.field,
+					"key", k,
+					"expression", v,
+				)
+			}
+			if result < 0 {
+				return serrors.Wrap(
+					fmt.Errorf("kubelet resource expression evaluated to a negative value"),
+					"instance-type", info.InstanceType,
+					"field", resourceExpressions.field,
+					"key", k,
+					"expression", v,
+					"result", result,
+				)
+			}
+		}
+	}
+	return nil
+}
+
+// resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32. If it's an integer, it's
+// returned directly. If it's a string, it's evaluated as a CEL expression, returning an error if it fails
+// to evaluate or falls outside the valid int32 range.
+func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, amiFamily amifamily.AMIFamily, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (*int32, error) {
+	// A nil maxPods leaves the AMI family default in place.
+	if maxPods == nil {
+		return nil, nil
+	}
+	// An int is already concrete, and the CRD rejects a negative one. intstr.IntOrString has no third type,
+	// so an unrecognized Type is treated the same way rather than silently resolving to the default.
+	if maxPods.Type != intstr.String {
+		return &maxPods.IntVal, nil
+	}
+	// A string maxPods is a CEL expression, which is only honored when the NodeClassCEL gate is on. With the
+	// gate off, fall back to the AMI family default (nil) rather than evaluating it, so a gate-off cluster
+	// never launches nodes configured from an expression the user hasn't opted into. The validation controller
+	// rejects such a NodeClass separately; this guards the resolution path itself.
+	if !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return nil, nil
+	}
+	// The maxPods expression can't reference its own result, so max_pods exposes the default
+	celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces)
+	result, err := celEnv.EvaluateExpression(maxPods.StrVal, celVars)
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("evaluating maxPods expression, %w", err),
+			"instance-type", info.InstanceType,
+			"expression", maxPods.StrVal,
+		)
+	}
+	if result < 0 || result > math.MaxInt32 {
+		return nil, serrors.Wrap(
+			fmt.Errorf("maxPods expression evaluated to a value outside the valid range [0, %d]", math.MaxInt32),
+			"instance-type", info.InstanceType,
+			"expression", maxPods.StrVal,
+			"result", result,
+		)
+	}
+	return lo.ToPtr(int32(result)), nil
+}
+
+// resolveResourceExpressions evaluates CEL expressions in a resource map (kubeReserved or systemReserved).
+// Values that parse as valid Kubernetes resource quantities are left as-is.
+// Values that fail to parse as quantities are evaluated as CEL expressions.
+func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, resourceMap map[string]string, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (map[string]string, error) {
+	// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static quantity
+	// entries and drop the expressions, so a gate-off cluster falls back to the AMI family defaults for them
+	// rather than resolving an expression the user hasn't opted into. Mirrors the maxPods handling above.
+	if !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return lo.PickBy(resourceMap, func(_ string, v string) bool {
+			_, err := resource.ParseQuantity(v)
+			return err == nil
+		}), nil
+	}
+	return celEnv.ResolveResourceMap(ctx, resourceMap, func() (kubeletcel.InstanceTypeVars, error) {
+		return buildCELVars(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces), nil
+	})
+}
+
+// extractENILimits pulls the default ENI count and IPv4-addresses-per-ENI from the live EC2
+// network info (DescribeInstanceTypes). It is the single source of truth for these values so
+// that CEL evaluation during scheduling (buildCELVars) and during launch template resolution
+// (via the provider's ENILimits accessor) can never diverge.
+func extractENILimits(info ec2types.InstanceTypeInfo) (defaultENIs, ipsPerENI int64) {
+	if info.NetworkInfo != nil && info.NetworkInfo.NetworkCards != nil && info.NetworkInfo.DefaultNetworkCardIndex != nil {
+		defaultENIs = int64(lo.FromPtr(info.NetworkInfo.NetworkCards[lo.FromPtr(info.NetworkInfo.DefaultNetworkCardIndex)].MaximumNetworkInterfaces))
+	}
+	if info.NetworkInfo != nil && info.NetworkInfo.Ipv4AddressesPerInterface != nil {
+		ipsPerENI = int64(lo.FromPtr(info.NetworkInfo.Ipv4AddressesPerInterface))
+	}
+	return defaultENIs, ipsPerENI
+}
+
+// buildCELVars constructs the CEL variable bindings from EC2 instance type info.
+func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) kubeletcel.InstanceTypeVars {
+	defaultENIs, ipsPerENI := extractENILimits(info)
+	maxPodsVal := pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces).Value()
+	return kubeletcel.InstanceTypeVars{
+		VCPUs:        int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
+		MemoryMiB:    lo.FromPtr(info.MemoryInfo.SizeInMiB),
+		DefaultENIs:  defaultENIs,
+		IPsPerENI:    ipsPerENI,
+		MaxPods:      maxPodsVal,
+		InstanceType: string(info.InstanceType),
+	}
 }
 
 func NewInstanceType(

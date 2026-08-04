@@ -15,6 +15,7 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -154,6 +155,37 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			MaxPods: lo.ToPtr(intstr.FromInt32(1 + int32(dsCount))),
+		})
+
+		numPods := 3
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
+	})
+	It("should schedule pods onto separate nodes when maxPods is set as a CEL expression", func() {
+		// Requires the NodeClassCEL gate, which the e2e install enables via
+		// test/hack/e2e_scripts/install_karpenter.sh.
+		// Get the DS pod count and use it to calculate the DS pod overhead
+		dsCount := env.GetDaemonSetCount(nodePool)
+		// maxPods as a CEL expression string. min(110, 1+dsCount) resolves to 1+dsCount so each node
+		// fits exactly one test pod, mirroring the integer maxPods test while exercising the CEL path
+		// end-to-end (expression eval -> resolution -> real kubelet config on the node).
+		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			"maxPods": fmt.Sprintf("min(110, %d)", 1+dsCount),
 		})
 
 		numPods := 3

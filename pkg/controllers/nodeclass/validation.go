@@ -16,10 +16,12 @@ package nodeclass
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -36,11 +38,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -58,6 +63,9 @@ const (
 	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
 	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
 )
 
@@ -83,6 +91,7 @@ type Validation struct {
 	launchTemplateProvider launchtemplate.Provider
 	cache                  *cache.Cache
 	clk                    clock.Clock
+	celEnv                 *kubeletcel.CELEnvironment
 	dryRunDisabled         bool
 }
 
@@ -95,6 +104,7 @@ func NewValidationReconciler(
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
 	cache *cache.Cache,
+	celEnv *kubeletcel.CELEnvironment,
 	dryRunDisabled bool,
 ) *Validation {
 	return &Validation{
@@ -106,6 +116,7 @@ func NewValidationReconciler(
 		launchTemplateProvider: launchTemplateProvider,
 		cache:                  cache,
 		clk:                    clk,
+		celEnv:                 celEnv,
 		dryRunDisabled:         dryRunDisabled,
 	}
 }
@@ -129,10 +140,12 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 
-	// spec.kubelet is an open map the API server can't validate, so this is the only check it
-	// gets. ValidationSucceeded is a required condition, so a failure here blocks node launch
+	// spec.kubelet is an open map the API server can't validate, so this is the only structural check
+	// it gets. ValidationSucceeded is a required condition, so a failure here blocks node launch
 	// rather than letting configuration the kubelet would refuse reach an instance.
-	// See v1.ValidateKubeletConfig.
+	// See v1.ValidateKubeletConfig. This runs first because it's expression-aware -- it accepts a CEL
+	// expression in maxPods/kubeReserved/systemReserved and only rejects malformed shapes -- so the
+	// gate and per-instance-type checks below see a structurally valid config.
 	if errs := v1.ValidateKubeletConfig(nodeClass.Spec.Kubelet); len(errs) > 0 {
 		messages := make([]string, 0, len(errs))
 		for _, e := range errs {
@@ -144,6 +157,27 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			strings.Join(messages, "; "),
 		)
 		return reconcile.Result{}, nil
+	}
+
+	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
+	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
+	// defaults the user didn't ask for.
+	if nodeClass.Spec.Kubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonKubeletExpressionsDisabled,
+			"spec.kubelet contains a CEL expression, but the NodeClassCEL feature gate is disabled",
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
+	}
+
+	if err := validateKubeletExpressions(v.celEnv, nodeClass); err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonKubeletExpressionInvalid,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
@@ -168,6 +202,24 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			"Awaiting AMI, Instance Profile, Security Group, and Subnet resolution",
 		)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+	}
+
+	// Evaluate the kubelet CEL expressions against every known instance type. This catches per-instance-type evaluation failures
+	// (eval errors, negative results, int32 overflow) that the compile-only check above cannot, surfacing
+	// them on the status instead of silently misconfiguring nodes at resolution time.
+	if err := v.instanceTypeProvider.ValidateKubeletExpressions(ctx, nodeClass); err != nil {
+		// An empty instance-type cache is a transient readiness condition (e.g. before the first instance-type
+		// refresh completes), not a per-expression evaluation failure. Requeue instead of marking the NodeClass
+		// invalid with a TerminalError, which would leave a valid NodeClass stuck false with no requeue.
+		if errors.Is(err, instancetype.ErrInstanceTypesNotHydrated) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonKubeletExpressionEvalFailed,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating kubelet expressions, %w", err))
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
@@ -569,6 +621,49 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 	}
 
 	return selectedInstanceTypes
+}
+
+// validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
+func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
+	if nodeClass.Spec.Kubelet == nil {
+		return nil
+	}
+	// spec.kubelet is an open map; parse it into the typed struct to read the expression-bearing
+	// fields. A parse failure is surfaced by the structural ValidateKubeletConfig check upstream of
+	// this, so there's nothing left to validate here.
+	kc, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if err != nil {
+		return nil
+	}
+	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
+		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
+			return serrors.Wrap(
+				fmt.Errorf("validating expression, %w", err),
+				"field",
+				"spec.kubelet.maxPods")
+		}
+	}
+	for k, v := range kc.KubeReserved {
+		if _, qErr := resource.ParseQuantity(v); qErr != nil {
+			if err := celEnv.ValidateExpression(v); err != nil {
+				return serrors.Wrap(
+					fmt.Errorf("validating expression, %w", err),
+					"field",
+					fmt.Sprintf("spec.kubelet.kubeReserved[%s]", k))
+			}
+		}
+	}
+	for k, v := range kc.SystemReserved {
+		if _, qErr := resource.ParseQuantity(v); qErr != nil {
+			if err := celEnv.ValidateExpression(v); err != nil {
+				return serrors.Wrap(
+					fmt.Errorf("validating expression, %w", err),
+					"field",
+					fmt.Sprintf("spec.kubelet.systemReserved[%s]", k))
+			}
+		}
+	}
+	return nil
 }
 
 func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
