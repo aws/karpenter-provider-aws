@@ -276,19 +276,8 @@ type AMISelectorTerm struct {
 
 // KubeletConfiguration mirrors the upstream kubelet KubeletConfiguration as an open map.
 //
-// It's deliberately not a typed struct. Upstream declares maxPods and podsPerCore as
-// non-pointer int32 with omitempty, so a typed mirror couldn't tell "unset" from an explicit
-// 0 for the two fields Karpenter reads to make scheduling decisions. Keeping the map also
-// means new kubelet fields need no Go change to pass through to UserData.
-//
-// The tradeoff is that the Go type carries no field information, so the CRD schema for
-// spec.kubelet is an unconstrained object and the API server can't validate it at all -- not
-// from the type, and not with a CEL rule either, since it refuses to compile
-// x-kubernetes-validations against a map marked x-kubernetes-preserve-unknown-fields.
-// Validation happens in the controller instead: ValidateKubeletConfig decodes this against the
-// upstream kubelet type and surfaces failures as ValidationSucceeded=False, which blocks node
-// launch. That keeps the CRD unchanged as k8s.io/kubelet moves, at the cost of the user
-// reading a status condition rather than having their apply rejected.
+// The CRD schema for spec.kubelet is therefore an unconstrained object that the API server
+// can't validate. ValidateKubeletConfig does it instead, from the controller.
 // +kubebuilder:pruning:PreserveUnknownFields
 // +kubebuilder:validation:Type=object
 type KubeletConfiguration map[string]apiextensionsv1.JSON

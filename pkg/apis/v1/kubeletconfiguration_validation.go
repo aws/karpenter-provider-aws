@@ -53,17 +53,10 @@ var percentageOrQuantity = regexp.MustCompile(`^((\d{1,2}(\.\d{1,2})?|100(\.0{1,
 // ValidateKubeletConfig validates spec.kubelet against the upstream kubelet configuration type
 // that Karpenter compiles against, plus the semantic rules the upstream Go types can't express.
 //
-// spec.kubelet is an open map carrying x-kubernetes-preserve-unknown-fields, so the API server
-// does no validation of it at all: it can't check fields it has no schema for, and it refuses to
-// compile x-kubernetes-validations against such a map. Every rule below therefore has to live
-// here. Enumerating the fields in the CRD instead would move this to admission time, at the cost
-// of a much larger CRD and a schema change on every k8s.io/kubelet bump.
-//
-// Errors surface on the EC2NodeClass as ValidationSucceeded=False, which blocks node launch --
-// invalid configuration never reaches a node, though the user has to read the status to find out
-// rather than having their apply rejected.
-//
-// Bumping k8s.io/kubelet in go.mod is what makes newly released kubelet fields available.
+// spec.kubelet is an open map the API server does no validation of, so every rule has to live
+// here. Errors surface on the EC2NodeClass as ValidationSucceeded=False, which blocks node
+// launch, so invalid configuration never reaches a node. Bumping k8s.io/kubelet in go.mod is
+// what makes newly released kubelet fields available.
 func ValidateKubeletConfig(kc KubeletConfiguration) []error {
 	if len(kc) == 0 {
 		return nil

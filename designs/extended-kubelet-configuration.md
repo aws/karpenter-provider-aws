@@ -41,8 +41,6 @@ Multiple open issues demonstrate users blocked by the current 12-field limit:
 * **Every** key and its type are validated by decoding the map against the upstream Go type, plus the semantic rules the Go types can't express (which map keys are meaningful, value ranges, cross-field relationships)
 * Validation runs in the EC2NodeClass controller and surfaces as `ValidationSucceeded=False`, which blocks node launch
 
-The important property is *where* an error is caught. An earlier iteration of this design validated only field *names* against the upstream schema and let value and type errors reach the node, surfacing them as a kubelet that refuses to start and a NodeClaim that never registers. Decoding against the upstream Go type in the controller instead means a typo, a wrong type, or an out-of-range value is rejected before any instance is launched — the same class of error the old typed struct caught at admission, just one step later in the loop.
-
 ### Why Not a Typed Struct
 
 Two reasons, beyond version lag:
