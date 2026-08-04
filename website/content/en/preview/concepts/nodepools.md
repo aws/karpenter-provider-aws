@@ -467,7 +467,7 @@ For more information on weighting NodePools, see the [Weighted NodePools section
 * The `status.conditions.type` object reflects node status, such as `Initialized` or `Available`.
 * The status of the condition, `status.conditions.status`, indicates if the condition is `True` or `False`.
 * The `status.conditions.observedGeneration` indicates  if the instance is out of date with the current state of `.metadata.generation`.
-* The `status.conditions.lastTransitionTime` object contains a programatic identifier that indicates the time of the condition's previous transition.
+* The `status.conditions.lastTransitionTime` object contains a programmatic identifier that indicates the time of the condition's previous transition.
 * The `status.conditions.reason` object indicates the reason for the condition's previous transition.
 * The `status.conditions.message` object provides human-readable details about the condition's previous transition.
 

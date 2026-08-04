@@ -293,7 +293,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 **Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
 {{% /alert %}}
 
-* Support for the `v1beta1` compatiblity annotations have been dropped. Ensure you have completed migration before upgrading to `v1.1.0`. Refer to the [migration guide]({{<ref "../../v1.0/upgrading/v1-migration.md#kubelet-configuration-migration">}}) for more details.
+* Support for the `v1beta1` compatibility annotations have been dropped. Ensure you have completed migration before upgrading to `v1.1.0`. Refer to the [migration guide]({{<ref "../../v1.0/upgrading/v1-migration.md#kubelet-configuration-migration">}}) for more details.
 * `nodeClassRef.group` and `nodeClassRef.kind` are strictly required. Ensure these values are set for all `NodePools` / `NodeClaims` before upgrading.
 * Bottlerocket AMIFamily now supports `instanceStorePolicy: RAID0`. This means that Karpenter will auto-generate userData to RAID0 your instance store volumes (similar to AL2 and AL2023) when specifying this value.
   * Note: This userData configuration is _only_ valid on Bottlerocket v1.22.0+. If you are using an earlier version of a Bottlerocket image (< v1.22.0) with `amiFamily: Bottlerocket` and `instanceStorePolicy: RAID0`, nodes will fail to join the cluster.
@@ -317,7 +317,7 @@ Refer to the `v1` Migration Guide for the [full changelog]({{<ref "../../v1.0/up
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.37.3` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.37.3` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -339,7 +339,7 @@ v0.36.x introduces update to drift that restricts rollback. When rolling back fr
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.36.5` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.36.5` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -353,7 +353,7 @@ You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.35.8` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.35.8` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -371,7 +371,7 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.34.9` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.34.9` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -393,7 +393,7 @@ You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.33.8` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.33.8` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
