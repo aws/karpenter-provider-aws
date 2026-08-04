@@ -368,7 +368,8 @@ func ipCounts(options *amifamily.LaunchTemplate, ni *amifamily.ResolvedNetworkIn
 	}
 	if clusterIPFamily == corev1.IPv6Protocol {
 		ipv6PrefixCount = lo.Ternary(ni.SecondaryIPPrefixCount != nil, ni.SecondaryIPPrefixCount, options.IPPrefixCount)
-		ipv6AddressCount = lo.Ternary(ni.SecondaryIPCount != nil, ni.SecondaryIPCount, lo.ToPtr(int32(1)))
+		// only one of ipv6PrefixCount and ipv6AddressCount can be set, otherwise we will see InvalidParamter exceptions
+		ipv6AddressCount = lo.Ternary(ipv6PrefixCount != nil, nil, lo.ToPtr(int32(1)))
 	}
 	return ipv4PrefixCount, ipv6PrefixCount, secondaryPrivateIPCount, ipv6AddressCount
 }
