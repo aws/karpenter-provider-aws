@@ -29,23 +29,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-// KubeletExpressionsGate gates CEL expression support in EC2NodeClass spec.kubelet maxPods,
-// kubeReserved, and systemReserved. ALPHA.
-const KubeletExpressionsGate = "KubeletExpressions"
-
 func init() {
 	coreoptions.Injectables = append(coreoptions.Injectables, &Options{})
-	// Register in init() rather than through coreoperator.WithAdditionalFeatureGates so the gate is
-	// present for consumers that never construct an Operator: unit suites go through coretest.Options,
-	// which reads the registry directly, and docgen calls AddFlags directly, where the registry is what
-	// puts the gate in the --feature-gates usage string.
-	coreoptions.RegisterAdditionalFeatureGates(map[string]bool{KubeletExpressionsGate: false})
-}
-
-// KubeletExpressionsEnabled reports whether CEL expressions are permitted in EC2NodeClass
-// spec.kubelet fields.
-func KubeletExpressionsEnabled(ctx context.Context) bool {
-	return coreoptions.FromContext(ctx).FeatureGates.Additional[KubeletExpressionsGate]
 }
 
 type optionsKey struct{}

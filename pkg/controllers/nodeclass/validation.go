@@ -143,11 +143,11 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.
-	if nodeClass.Spec.Kubelet.HasExpressions() && !options.KubeletExpressionsEnabled(ctx) {
+	if nodeClass.Spec.Kubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionsDisabled,
-			fmt.Sprintf("spec.kubelet contains a CEL expression, but the %s feature gate is disabled", options.KubeletExpressionsGate),
+			"spec.kubelet contains a CEL expression, but the NodeClassCEL feature gate is disabled",
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
 	}

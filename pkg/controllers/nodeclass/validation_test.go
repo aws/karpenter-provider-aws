@@ -35,7 +35,6 @@ import (
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -239,10 +238,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		// Expressions are behind an alpha gate that is off by default, so every spec in this Context has to
 		// opt in. The gate-off rejection path is covered separately below.
 		BeforeEach(func() {
-			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{
-				ReservedCapacity: lo.ToPtr(true),
-				Additional:       map[string]bool{options.KubeletExpressionsGate: true},
-			}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
 		})
 		// The compile-only check (validateKubeletExpressions) runs before the required-condition gate and
 		// surfaces KubeletExpressionInvalid. The per-instance-type evaluation check runs after and surfaces
@@ -370,10 +368,9 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
 		It("should accept an expression once the gate is enabled", func() {
-			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{
-				ReservedCapacity: lo.ToPtr(true),
-				Additional:       map[string]bool{options.KubeletExpressionsGate: true},
-			}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
 			}

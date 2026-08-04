@@ -284,7 +284,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
 	// per-instance-type loop entirely. The same applies when expressions are gated off -- the validation
 	// controller has already rejected the NodeClass by this point.
-	if !kc.HasExpressions() || !options.KubeletExpressionsEnabled(ctx) {
+	if !kc.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}
 	p.muInstanceTypesInfo.RLock()
