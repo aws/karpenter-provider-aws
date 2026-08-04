@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -53,7 +54,17 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 		IsMutable: true,
 	})
 	if err != nil {
-		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("windows%s@%s", w.Version, amiVersion))
+		// Discriminate NotFound from transient errors: NotFound is a real "AMI doesn't
+		// exist for this alias" state and should short-circuit terminally; transient
+		// errors (throttling, 5xx, timeout) should requeue without flipping AMIsReady.
+		if errors.IsNotFound(err) {
+			return DescribeImageQuery{}, serrors.Wrap(&AMIsNotDiscoveredForAliasError{
+				error: fmt.Errorf("failed to discover any AMIs for alias"),
+			}, "alias", fmt.Sprintf("windows%s@%s", w.Version, amiVersion))
+		}
+		return DescribeImageQuery{}, serrors.Wrap(
+			fmt.Errorf("resolving ssm parameter for alias: %w", err),
+			"alias", fmt.Sprintf("windows%s@%s", w.Version, amiVersion))
 	}
 	return DescribeImageQuery{
 		Filters: []ec2types.Filter{{

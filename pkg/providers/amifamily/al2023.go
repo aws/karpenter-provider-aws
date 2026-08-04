@@ -27,6 +27,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -38,6 +39,8 @@ type AL2023 struct {
 
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string]Variant{}
+	allNotFound := true
+	var lastErr error
 	for arch, variants := range map[string][]Variant{
 		"x86_64": {VariantStandard, VariantNvidia, VariantNeuron},
 		"arm64":  {VariantStandard, VariantNvidia},
@@ -49,14 +52,28 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 				IsMutable: amiVersion == v1.AliasVersionLatest,
 			})
 			if err != nil {
+				if !errors.IsNotFound(err) {
+					allNotFound = false
+					lastErr = err
+				}
 				continue
 			}
 			ids[imageID] = variant
 		}
 	}
-	// Failed to discover any AMIs, we should short circuit AMI discovery
+	// Failed to discover any AMIs. If every error was NotFound, the alias truly has no
+	// matching AMI and we short-circuit with a terminal AMIsNotDiscoveredForAliasError.
+	// If any error was transient (throttling, 5xx, timeout), return a non-typed error so
+	// the controller requeues without flipping AMIsReady to False.
 	if len(ids) == 0 {
-		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf("failed to discover any AMIs for alias"), "alias", fmt.Sprintf("al2023@%s", amiVersion))
+		if allNotFound {
+			return DescribeImageQuery{}, serrors.Wrap(&AMIsNotDiscoveredForAliasError{
+				error: fmt.Errorf("failed to discover any AMIs for alias"),
+			}, "alias", fmt.Sprintf("al2023@%s", amiVersion))
+		}
+		return DescribeImageQuery{}, serrors.Wrap(
+			fmt.Errorf("resolving ssm parameters for alias: %w", lastErr),
+			"alias", fmt.Sprintf("al2023@%s", amiVersion))
 	}
 
 	return DescribeImageQuery{
