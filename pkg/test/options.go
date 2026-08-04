@@ -36,6 +36,7 @@ type OptionsFields struct {
 	DisableDryRun           *bool
 	AMIRefreshInterval      *time.Duration
 	SubnetRefreshInterval   *time.Duration
+	KubernetesVersion       *string
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -57,5 +58,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
 		AMIRefreshInterval:      lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:   lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
+		KubernetesVersion:       lo.FromPtrOr(opts.KubernetesVersion, ""),
 	}
 }
