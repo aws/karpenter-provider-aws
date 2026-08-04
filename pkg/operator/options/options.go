@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	cliflag "k8s.io/component-base/cli/flag"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
 
@@ -49,6 +50,12 @@ func KubeletExpressionsEnabled(ctx context.Context) bool {
 
 type optionsKey struct{}
 
+type FeatureGates struct {
+	inputStr string
+
+	NodeClassCEL bool
+}
+
 type Options struct {
 	ClusterCABundle         string
 	ClusterName             string
@@ -62,6 +69,7 @@ type Options struct {
 	EnableZonalShift        bool
 	AMIRefreshInterval      time.Duration
 	SubnetRefreshInterval   time.Duration
+	FeatureGates            FeatureGates
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -77,6 +85,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
+	fs.StringVar(&o.FeatureGates.inputStr, "aws-feature-gates", env.WithDefaultString("AWS_FEATURE_GATES", "NodeClassCEL=false"), "Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
@@ -86,10 +95,37 @@ func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
 		}
 		return fmt.Errorf("parsing flags, %w", err)
 	}
+	gates, err := ParseFeatureGates(o.FeatureGates.inputStr)
+	if err != nil {
+		return fmt.Errorf("parsing feature gates, %w", err)
+	}
+	o.FeatureGates = gates
 	if err := o.Validate(); err != nil {
 		return fmt.Errorf("validating options, %w", err)
 	}
 	return nil
+}
+
+func DefaultFeatureGates() FeatureGates {
+	return FeatureGates{
+		NodeClassCEL: false,
+	}
+}
+
+func ParseFeatureGates(gateStr string) (FeatureGates, error) {
+	gateMap := map[string]bool{}
+	gates := DefaultFeatureGates()
+
+	// Parses feature gates with the upstream mechanism. This is meant to be used with flag directly but this enables
+	// simple merging with environment vars. Unknown gates are ignored, matching karpenter-core's behavior.
+	if err := cliflag.NewMapStringBool(&gateMap).Set(gateStr); err != nil {
+		return gates, err
+	}
+	if val, ok := gateMap["NodeClassCEL"]; ok {
+		gates.NodeClassCEL = val
+	}
+
+	return gates, nil
 }
 
 func (o *Options) ToContext(ctx context.Context) context.Context {

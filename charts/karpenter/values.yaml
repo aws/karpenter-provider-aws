@@ -246,6 +246,8 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
-    # -- kubeletExpressions is ALPHA and is disabled by default.
-    # Setting this to true will allow CEL expressions in EC2NodeClass spec.kubelet maxPods, kubeReserved, and systemReserved.
-    kubeletExpressions: false
+  # -- AWS-specific Feature Gate configuration values.
+  awsFeatureGates:
+    # -- nodeClassCEL is ALPHA and is disabled by default.
+    # Setting this to true will enable CEL validation on EC2NodeClass resources.
+    nodeClassCEL: false
