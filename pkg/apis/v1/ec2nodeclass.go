@@ -65,6 +65,14 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:Minimum:=0
 	// +optional
 	IPPrefixCount *int32 `json:"ipPrefixCount,omitempty" hash:"ignore"`
+	// EnablePrefixDelegation controls whether prefix delegation is considered when calculating the maximum number of
+	// pods that can run on a node. When enabled, each usable IPv4 address on a Nitro instance's network interfaces is
+	// treated as a /28 prefix (16 addresses), matching the VPC CNI prefix delegation behavior. This only affects
+	// Karpenter's max-pods calculation and has no effect on non-Nitro instances. It is the operator's responsibility to
+	// ensure the VPC CNI is configured with ENABLE_PREFIX_DELEGATION=true. More information about prefix delegation here:
+	// https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html.
+	// +optional
+	EnablePrefixDelegation *bool `json:"enablePrefixDelegation,omitempty" hash:"ignore"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias', 'ssmParameter']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias) || has(x.ssmParameter))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
@@ -640,6 +648,10 @@ func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 
 func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
+}
+
+func (in *EC2NodeClass) EnablePrefixDelegation() *bool {
+	return in.Spec.EnablePrefixDelegation
 }
 
 func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {

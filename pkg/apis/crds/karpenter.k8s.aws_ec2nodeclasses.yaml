@@ -355,6 +355,15 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                enablePrefixDelegation:
+                  description: |-
+                    EnablePrefixDelegation controls whether prefix delegation is considered when calculating the maximum number of
+                    pods that can run on a node. When enabled, each usable IPv4 address on a Nitro instance's network interfaces is
+                    treated as a /28 prefix (16 addresses), matching the VPC CNI prefix delegation behavior. This only affects
+                    Karpenter's max-pods calculation and has no effect on non-Nitro instances. It is the operator's responsibility to
+                    ensure the VPC CNI is configured with ENABLE_PREFIX_DELEGATION=true. More information about prefix delegation here:
+                    https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html.
+                  type: boolean
                 instanceProfile:
                   description: |-
                     InstanceProfile is the AWS entity that instances use.
@@ -447,7 +456,6 @@ spec:
                     kubeReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       description: KubeReserved contains resources reserved for Kubernetes system components.
                       type: object
                       x-kubernetes-validations:
@@ -473,7 +481,6 @@ spec:
                     systemReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
                       type: object
                       x-kubernetes-validations:
