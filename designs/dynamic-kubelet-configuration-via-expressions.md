@@ -90,11 +90,11 @@ metadata:
 spec:
   kubelet:
     kubeReserved:
-      cpu: "max(60, vcpus * 30) * 1000000"
-      memory: "(11 * max_pods + 255) * 1048576"
+      cpu: "max(60, vcpus * 30)"
+      memory: "11 * max_pods + 255"
     systemReserved:
-      cpu: "max(20, vcpus * 10) * 1000000"
-      memory: "max(100, memory_mib / 64) * 1048576"
+      cpu: "max(20, vcpus * 10)"
+      memory: "max(100, memory_mib / 64)"
   amiSelectorTerms:
     - alias: al2023@latest
   ...
@@ -102,8 +102,10 @@ spec:
 
 With this configuration on a c6a.4xlarge (16 vCPUs, 30720 MiB):
 
-* kubeReserved.cpu = max(60, 16 * 30) * 1000000 = 480m
-* systemReserved.memory = max(100, 30720 / 64) * 1048576 = 480Mi
+* kubeReserved.cpu = max(60, 16 * 30) = 480 → `480m`
+* systemReserved.memory = max(100, 30720 / 64) = 480 → `480Mi`
+
+Expression results are bare numbers in the unit that key's static quantities are already written in — millicores for `cpu`, MiB for `memory` — so a formula reads like the value it replaces. 
 
 ### Prefix Delegation with Dynamic Pod Limits
 
@@ -124,9 +126,9 @@ spec:
 
 * Allow users to configure maxPods, kubeReserved, and systemReserved as a CEL expression evaluated per instance type
 * Ensure Karpenter evaluates expressions at scheduling time to maintain accurate capacity predictions for bin-packing
-* Ensure expression-based maxPods is passed through to nodeadm's `maxPodsExpression` field on AL2023 when supported
-* Ensure computed values from expressions are passed as static values in UserData for AMI families that do not support expression evaluation (AL2, Bottlerocket, Windows)
-* Validate expressions at EC2NodeClass admission time to provide early feedback on invalid syntax
+* Ensure computed values from expressions are passed as static values in UserData on every AMI family, so that the value the scheduler reserved is exactly the value the node is configured with
+* Ship the feature behind an alpha feature gate, disabled by default
+* Validate expressions on the EC2NodeClass — both compile-time (syntax/type) and per-instance-type evaluation — and surface failures on the NodeClass status
 
 ## Non-Goals
 
@@ -135,6 +137,14 @@ Below lists the non-goals for this RFC design. Each of these items represents po
 * Expression-based blockDeviceMappings (e.g., volume size scaling with instance size) — while this is a natural extension, it involves different subsystems and warrants a separate design
 * Supporting arbitrary kubelet flags as expressions — only maxPods, kubeReserved, and systemReserved are in scope
 * User-defined variables or custom functions in expressions — only built-in instance type properties are available
+
+## Feature Gate
+
+Expression support is alpha and gated off by default behind an AWS-specific feature gate, `NodeClassCEL`. AWS-specific gates are configured separately from the core Karpenter gates, via the `AWS_FEATURE_GATES` environment variable / `--aws-feature-gates` flag (Helm: `settings.awsFeatureGates.nodeClassCEL`), defaulting to `NodeClassCEL=false`.
+
+The CRD schema cannot gate expressions itself, since it has no view of operator flags — a string-typed `maxPods` is schema-valid whether or not the gate is on. Instead, the nodeclass validation controller rejects a NodeClass carrying an expression while the gate is disabled, setting `ValidationSucceeded=False` with reason `KubeletExpressionsDisabled`. Failing loudly here matters: silently ignoring the expression would launch nodes with the AMI family defaults the user didn't ask for.
+
+A NodeClass whose kubelet fields are all static literals is unaffected by the gate.
 
 ## Expression-Based Kubelet Configuration
 
@@ -150,15 +160,15 @@ spec:
     maxPods: "((default_enis - 1) * (ips_per_eni - 1)) + 2"
 
     # kubeReserved resource values accept either a Kubernetes resource quantity
-    # or a CEL expression string that evaluates to base units (nanocores, bytes).
+    # or a CEL expression string returning a bare number in that key's own unit.
     # Static:
     kubeReserved:
       cpu: "200m"
       memory: "512Mi"
     # OR Expression:
     kubeReserved:
-      cpu: "max(60, vcpus * 30) * 1000000"
-      memory: "(11 * max_pods + 255) * 1048576"
+      cpu: "max(60, vcpus * 30)"
+      memory: "11 * max_pods + 255"
 
     # systemReserved follows the same pattern as kubeReserved.
     # Static:
@@ -167,14 +177,37 @@ spec:
       memory: "256Mi"
     # OR Expression:
     systemReserved:
-      cpu: "max(20, vcpus * 10) * 1000000"
-      memory: "max(100, memory_mib / 64) * 1048576"
+      cpu: "max(20, vcpus * 10)"
+      memory: "max(100, memory_mib / 64)"
 ```
+
+`maxPods` changes type from `*int32` to `*intstr.IntOrString` (`x-kubernetes-int-or-string: true` in the CRD), so a single field accepts both forms. The former `minimum: 0` schema constraint is replaced by a CEL validation rule that only applies to the integer form — `type(self) != int || self >= 0` — since `minimum` is meaningless against a string. Because this is a type change to an already-hashed field, `EC2NodeClassHashVersion` is bumped to `v6`: the same unchanged value hashes differently under the new type.
+
+`kubeReserved`/`systemReserved` remain `map[string]string`, but the quantity-only `pattern` previously applied to their values by `hack/validation/kubelet.sh` is removed. CEL syntax is arbitrary, so a quantity pattern would reject valid expressions at admission before the controller could interpret them. The existing key allowlist and the `!startsWith('-')` negative check are retained.
 
 **Disambiguation logic (controller-side):**
 
 * For `maxPods`: if the JSON value is a number → static. If it's a string → attempt CEL compilation.
-* For `kubeReserved`/`systemReserved` values: attempt `resource.ParseQuantity()` first. If it succeeds → static quantity. If it fails → attempt CEL compilation. If both fail → validation error.
+* For `kubeReserved`/`systemReserved` values: attempt `resource.ParseQuantity()` first. If it succeeds → static quantity. If it fails → treat as a CEL expression and compile. If compilation fails → validation error.
+
+This disambiguation is centralized on the API type (`KubeletConfiguration.HasExpressions()` / `HasResourceExpressions()`) so that every caller — the gate check, validation, the scheduler, and the launch template resolver — agrees on what counts as an expression.
+
+### Expression Result Units and Rounding
+
+Expressions return a bare number, so a unit is attached per key — the same unit that key's static quantities already use:
+
+| Key | Unit | Example | Rounding |
+|-----|------|---------|----------|
+| `cpu` | millicores | `480` → `480m` | up to a multiple of 10m |
+| `memory` | mebibytes | `630` → `630Mi` | up to a multiple of 16Mi |
+| `ephemeral-storage` | gibibytes | `3` → `3Gi` | none |
+| `pid` | process count | `4096` → `4096` | none |
+
+For `cpu` the suffix is load-bearing: without it, `resource.ParseQuantity` reads a bare integer as *whole cores*, so `max(60, vcpus * 30)` would reserve 480 cores.
+
+Rounding collapses near-identical results into shared buckets, limiting launch template proliferation (see [Launch Template Generation](#launch-template-generation)). It is always *up* — a reservation is never smaller than the expression asked for — and the granularities match what users already hand-write, so the worst case is +9m of CPU and +15Mi of memory.
+
+Expressions may return an int or a double; doubles are truncated, and non-finite results (`+Inf`, `-Inf`, `NaN`) are rejected. An expression returning any other type fails to compile.
 
 ### Expression Language and Available Variables
 
@@ -187,21 +220,35 @@ The following variables are available in all kubelet expressions, populated from
 | `instance_type` | string | The EC2 instance type name | `"m5.4xlarge"` |
 | `vcpus` | int | Number of vCPUs | 16 |
 | `memory_mib` | int | Memory in MiB | 65536 |
-| `default_enis` | int | Maximum number of ENIs | 8 |
+| `default_enis` | int | Maximum network interfaces on the default network card | 8 |
 | `ips_per_eni` | int | IPv4 addresses per ENI | 30 |
-| `max_pods` | int | Karpenter's computed default maxPods (ENI-limited or 110) | 58 |
+| `max_pods` | int | The resolved maxPods for this instance type | 58 |
 
-The `max_pods` variable provides a self-referencing convenience — `kubeReserved` and `systemReserved` expressions can reference the resolved maxPods value (whether from a maxPods expression, a static maxPods value, or the default ENI-limited calculation).
+
+The `max_pods` variable lets `kubeReserved` and `systemReserved` expressions reference the resolved maxPods — from a maxPods expression, a static maxPods value, or Karpenter's default (ENI-limited or 110, then capped by `podsPerCore` where applicable). 
 
 ### Static vs Expression Values
 
 A field's value type determines behavior. There is no precedence or exclusivity logic — each field contains a single value that is either interpreted as a literal or evaluated as a CEL expression based on its JSON type. When neither `maxPods`, `kubeReserved`, nor `systemReserved` is set, Karpenter applies its internal defaults (ENI-limited maxPods, graduated kubeReserved formula) exactly as today.
 
+### Validation
+
+Validation happens in the nodeclass validation controller, in two stages, with failures surfaced on the `ValidationSucceeded` status condition rather than rejected at admission:
+
+1. **Compile-time**, per expression: the expression must parse, type-check against the declared variables, and have an output type of int or double. Failures set reason `KubeletExpressionInvalid`.
+2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value — non-negative, and within int32 range for maxPods. Failures set reason `KubeletExpressionEvalFailed`.
+
+The second stage exists because a compile-only check can't catch what depends on the instance type's actual values — division by a zero `ips_per_eni`, a subtraction that goes negative only on small instances, an overflow only on large ones. Both stages return a terminal error, so a NodeClass with a bad expression goes NotReady instead of launching misconfigured nodes.
+
+One case is deliberately not terminal: if the instance-type cache hasn't hydrated yet, evaluation-time validation requeues instead of failing, so a valid NodeClass isn't left stuck false during startup.
+
+CRD-level validation is intentionally minimal — the quantity `pattern` is removed and only the non-negative-integer rule on `maxPods` remains, since the schema can't distinguish a CEL expression from a malformed quantity.
+
 ### Testing Expressions Before Deployment
 
-Admission-time validation only catches syntax and type errors — it cannot tell whether an expression produces the *values* the operator intended. A logic mistake (for example, swapping a nested `min` for a `max`) compiles cleanly but could reserve an unexpectedly large fraction of a node's capacity on certain instance sizes. Operators need a way to preview the resolved values across their fleet before applying an expression to a live cluster.
+Validation only catches expressions that fail to compile or evaluate — it cannot tell whether an expression produces the *values* the operator intended. A logic mistake (for example, swapping a nested `min` for a `max`) compiles and evaluates cleanly but could reserve an unexpectedly large fraction of a node's capacity on certain instance sizes. Operators need a way to preview the resolved values across their fleet before applying an expression to a live cluster.
 
-To support this, we can provide a small standalone script that evaluates an expression against a list of instance types and prints the resolved result for each one — entirely offline, without provisioning any nodes. The script sets up the same CEL environment Karpenter uses (identical variable names, types, and functions), compiles the expression once, and evaluates it against each instance type's properties.
+To support this, we can provide a small standalone script that evaluates an expression against a list of instance types and prints the resolved result for each one — entirely offline, without provisioning any nodes. The script sets up the same CEL environment Karpenter uses (identical variable names, types, and functions), compiles the expression once, and evaluates it against each instance type's properties. This is not part of the initial implementation.
 
 ## Scheduling and Launch Behavior
 
@@ -211,62 +258,50 @@ Karpenter must evaluate expressions during instance type resolution to produce a
 
 For each instance type, the flow is:
 
-1. Build the CEL evaluation context with the instance type's properties (vCPUs, memory, ENI counts, etc.)
-2. If maxPods expression is set, evaluate it to produce the maxPods value for this instance type
-3. If kubeReserved expression is set, evaluate each resource expression to produce the kubeReserved map
-4. If systemReserved expression is set, evaluate each resource expression to produce the systemReserved map
+1. Resolve maxPods — either the static integer, or evaluate the expression against variables in which `max_pods` holds Karpenter's default
+2. Build the CEL variables for the reserved-resource expressions, now with `max_pods` set to the resolved value from step 1
+3. Evaluate each `kubeReserved` value that isn't a parseable quantity, producing the resolved kubeReserved map
+4. Do the same for `systemReserved`
 5. Use these computed values in `computeCapacity()` and `computeOverhead()` exactly as if they were static values
 
 This ensures the scheduler's capacity model matches what will actually be configured on the node.
 
-**Performance consideration:** CEL evaluation is lightweight. Expression compilation can be cached across evaluations since the expression text doesn't change between instance types.
+Because resolution can now fail, `Resolver.Resolve()` returns an error, which propagates up through the instance type provider. An instance type whose expressions can't be resolved is no longer silently dropped from the list — the failure surfaces instead.
+
+**Performance consideration:** CEL evaluation is lightweight. Compiled programs are cached by expression string in a single shared CEL environment, so an expression is compiled once and reused across every instance type. The cache uses a sliding TTL (refreshed on access) and only caches successful compilations, so a corrected expression isn't pinned to an earlier error. The environment is constructed once at operator startup and injected into the scheduler, the launch template resolver, and validation.
 
 ### Launch Template Generation
 
 At launch time, the expression results feed into UserData generation through the existing `resolveLaunchTemplates()` path in `pkg/providers/amifamily/resolver.go`.
 
-**Key change:** Today, instance types are grouped by maxPods value to minimize launch template proliferation (different maxPods = different UserData = different launch template). With expressions, every instance type may produce a unique maxPods value, potentially increasing the number of launch templates.
+**Key change:** Today, instance types are grouped by maxPods value to minimize launch template proliferation (different maxPods = different UserData = different launch template). With expressions, both maxPods *and* the reserved-resource values vary per instance type, so the grouping key is extended to include the resolved `kubeReserved` and `systemReserved` maps (serialized to a sorted `k=v,...` string to keep the key comparable). Instance types that resolve to identical values still share a launch template.
 
-**Mitigation strategies:**
+Two things limit the resulting proliferation:
 
-* For CEL expressions in `maxPods` with AL2023:
-  * Karpenter passes the expression string directly to nodeadm's `maxPodsExpression` field in the generated NodeConfig, allowing nodeadm to evaluate it at boot time
-  * Karpenter also evaluates the expression at scheduling time for accurate capacity predictions
-* For CEL expressions in `maxPods` with other AMI families (AL2, Bottlerocket, Windows):
-  * Karpenter evaluates the expression per-instance-type and passes the resulting integer as the static `--max-pods` flag
-* For `kubeReserved`/`systemReserved` on all AMI families:
-  * Karpenter always evaluates CEL expressions and passes computed static values in UserData (nodeadm does not support expressions for these fields)
+* Reserved-resource results are rounded up into shared buckets (10m of CPU, 16Mi of memory), collapsing near-identical values — see [Expression Result Units and Rounding](#expression-result-units-and-rounding).
+* Expressions are only evaluated when a value isn't already a parseable quantity, so a NodeClass mixing static and expression values only fans out on the expression ones.
+
+Because grouping now depends on evaluation, the grouping step can fail, and `Resolve()` takes a `context.Context` and returns the error rather than dropping the instance type.
 
 ### AMI Family Compatibility
 
-#### CEL Expressions in amazon-eks-ami NodeConfig
-
-The amazon-eks-ami project (https://github.com/awslabs/amazon-eks-ami) recently introduced a `maxPodsExpression` field in the nodeadm NodeConfig specification. This field accepts a CEL (Common Expression Language) expression that is evaluated on the node at boot time using the instance's actual properties:
-
-```yaml
-kind: NodeConfig
-apiVersion: node.eks.aws/v1alpha1
-spec:
-  kubelet:
-    config:
-      maxPodsExpression: "((default_enis - 1) * (ips_per_eni - 1)) + 2"
-```
-
-At boot, nodeadm resolves the instance type from IMDS, looks up the instance's networking properties, evaluates the expression, and passes the resulting integer as the kubelet `--max-pods` argument. This allows a single UserData template to produce correct per-instance-type values.
-
-Karpenter can leverage this mechanism for maxPods on AL2023 nodes, while also implementing expression evaluation at scheduling time to maintain accurate capacity predictions. For systemReserved and kubeReserved, which nodeadm does not yet support as expressions, Karpenter must evaluate expressions before launch and pass computed values in UserData.
+Karpenter evaluates every expression itself and writes concrete values into UserData on all AMI families. Nothing expression-shaped reaches the node. Concretely, the resolved values replace the expression in the `KubeletConfiguration` passed to the AMI family's UserData generation, so each family's existing static-value path is reused unchanged:
 
 | AMI Family | maxPods | kubeReserved | systemReserved |
 |------------|---------|--------------|----------------|
-| AL2023 (nodeadm) | Pass expression string to nodeadm `maxPodsExpression` if supported; otherwise evaluate and pass integer | Evaluate and pass computed value in inline kubelet config | Evaluate and pass computed value in inline kubelet config |
+| AL2023 (nodeadm) | Evaluate and pass integer in inline kubelet config | Evaluate and pass computed value in inline kubelet config | Evaluate and pass computed value in inline kubelet config |
 | AL2 (EKS bootstrap) | Evaluate and pass integer via `--max-pods` | Evaluate and pass computed value via `--kube-reserved` | Evaluate and pass computed value via `--system-reserved` |
 | Bottlerocket | Evaluate and pass integer via `settings.kubernetes.max-pods` | Evaluate and pass computed value via `settings.kubernetes.kube-reserved` | Evaluate and pass computed value via `settings.kubernetes.system-reserved` |
 | Windows | Evaluate and pass integer via `-MaxPods` | Evaluate and pass computed value via `-KubeletExtraArgs` | Evaluate and pass computed value via `-KubeletExtraArgs` |
 | Custom | Not applicable — user manages their own UserData | Not applicable | Not applicable |
 
+#### Delegating maxPods evaluation to nodeadm
+
+nodeadm's NodeConfig supports a [`maxPodsExpression`](https://github.com/awslabs/amazon-eks-ami) field that it evaluates at boot, which would let a single UserData template cover every instance type and eliminate the launch template fan-out for maxPods on AL2023. We are not using it initially: Karpenter must evaluate the expression at scheduling time regardless, so delegating to nodeadm means evaluating twice against two sources of instance-type data (`DescribeInstanceTypes` vs. nodeadm's IMDS view). Divergence would produce a node whose pod capacity disagrees with what the scheduler reserved — the exact failure this feature exists to prevent. This is a reasonable follow-up if launch template proliferation becomes a real problem, and would be additive.
+
 ## Drift
 
-Current drift mechanisms will still detect changes to expressions in the nodeclass, so no drift changes are needed.
+Current drift mechanisms will still detect changes to expressions in the nodeclass, so no drift changes are needed. Note that changing `maxPods` from `*int32` to `*intstr.IntOrString` changes how an unchanged value hashes, so `EC2NodeClassHashVersion` is bumped to `v6` — existing nodes are annotated with the new hash version rather than being treated as drifted.
 
 ## Alternative Solution: NodeOverlays
 
@@ -324,14 +359,16 @@ Using CEL expressions and changing the NodeClass instead would be a better fit s
 
 ### Expression Examples
 
+Reserved-resource expressions return millicores for `cpu` and MiB for `memory`, so no scale factor is needed.
+
 | Use Case | Field | Expression |
 |----------|-------|------------|
 | ENI-limited maxPods (default formula) | maxPods | `((default_enis - 1) * (ips_per_eni - 1)) + 2` |
 | ENI-limited with prefix delegation (16 IPs/prefix) | maxPods | `min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)` |
 | Fixed pods cap | maxPods | `min(110, max_pods)` |
-| Graduated CPU reservation (EKS recommended) | kubeReserved.cpu | `(min(vcpus, 1) * 60 + min(max(vcpus - 1, 0), 1) * 10 + min(max(vcpus - 2, 0), 2) * 5 + max(vcpus - 4, 0) * 2.5) * 1000000` |
-| Memory reservation scaled by pod count | kubeReserved.memory | `(11 * max_pods + 255) * 1048576` |
-| System memory as percentage of total | systemReserved.memory | `max(104857600, memory_mib * 1048576 / 64)` |
+| Graduated CPU reservation (EKS recommended) | kubeReserved.cpu | `min(vcpus, 1) * 60 + min(max(vcpus - 1, 0), 1) * 10 + min(max(vcpus - 2, 0), 2) * 5 + max(vcpus - 4, 0) * 2.5` |
+| Memory reservation scaled by pod count | kubeReserved.memory | `11 * max_pods + 255` |
+| System memory as percentage of total | systemReserved.memory | `max(100, memory_mib / 64)` |
 
 ### Default Karpenter Formulas as Expressions
 
@@ -339,15 +376,17 @@ For reference, Karpenter's internal default computations for kubeReserved (used 
 
 ```yaml
 kubeReserved:
-  # Graduated CPU reservation:
+  # Graduated CPU reservation, in millicores:
   # 6% of first core, 1% of next core, 0.5% of next 2 cores, 0.25% of remaining
-  cpu: "(min(vcpus, 1) * 60 + min(max(vcpus - 1, 0), 1) * 10 + min(max(vcpus - 2, 0), 2) * 5 + max(vcpus - 4, 0) * 2.5) * 1000000"
+  cpu: "min(vcpus, 1) * 60 + min(max(vcpus - 1, 0), 1) * 10 + min(max(vcpus - 2, 0), 2) * 5 + max(vcpus - 4, 0) * 2.5"
 
-  # Memory reservation: 11 MiB per pod + 255 MiB base
-  memory: "(11 * max_pods + 255) * 1048576"
+  # Memory reservation, in MiB: 11 MiB per pod + 255 MiB base
+  memory: "11 * max_pods + 255"
 ```
 
 These are provided for documentation purposes. When neither kubeReserved nor a kubeReserved expression is set, Karpenter applies these formulas internally without requiring users to specify them as expressions.
+
+Note that these expressions reproduce the defaults only up to rounding — the CPU formula can yield sub-10m steps, which are rounded up to the next 10m when written as a quantity.
 
 ### Supported CEL Functions
 
@@ -356,5 +395,7 @@ These are provided for documentation purposes. When neither kubeReserved nor a k
 * Logical: `&&`, `||`, `!`
 * Built-in: `max(a, b)`, `min(a, b)`, `int()`, `double()`
 * Conditional: `condition ? trueValue : falseValue`
+
+`max` and `min` are custom two-argument overloads registered on the environment (int/int, double/double, and the mixed int/double pairs, which return a double). They are not CEL's variadic list-based macros — `max(a, b, c)` is not supported.
 
 Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.  
