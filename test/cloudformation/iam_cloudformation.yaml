@@ -325,6 +325,9 @@ Resources:
               - pricing:GetProducts
               - eks:DescribeCluster
               - eks-auth:AssumeRoleForPodIdentity
+              - arc-zonal-shift:GetManagedResource
+              - arc-zonal-shift:StartZonalShift
+              - arc-zonal-shift:CancelZonalShift
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole

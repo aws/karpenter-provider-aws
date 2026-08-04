@@ -939,3 +939,23 @@ func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name s
 	})
 	Expect(err).ToNot(HaveOccurred())
 }
+
+func (env *Environment) EventuallyExpectClusterToZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeTrue())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectClusterToNotHaveZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting no zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeFalse())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
+}
