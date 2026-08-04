@@ -126,6 +126,49 @@ var _ = Describe("Options", func() {
 		Expect(opts.SubnetRefreshInterval).To(Equal(time.Minute))
 	})
 
+	Context("FeatureGates", func() {
+		BeforeEach(func() {
+			opts.AddFlags(fs)
+		})
+		It("should use defaults when the flag is absent", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+		})
+		It("should set gates from the CLI flag", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NodeClassCEL=true")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeTrue())
+		})
+		It("should set gates from the AWS_FEATURE_GATES env var", func() {
+			os.Setenv("AWS_FEATURE_GATES", "NodeClassCEL=true")
+			// Re-register flags so the default picks up the env var we just set.
+			fs = &coreoptions.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
+			opts.AddFlags(fs)
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeTrue())
+		})
+		It("should let the CLI flag beat the env var", func() {
+			os.Setenv("AWS_FEATURE_GATES", "NodeClassCEL=true")
+			fs = &coreoptions.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
+			opts.AddFlags(fs)
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NodeClassCEL=false")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+		})
+		It("should keep defaults for gates not listed in the flag", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "Hello=true")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+		})
+		It("should tolerate unknown gates", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "Hello=true,NodeClassCEL=true,World=false")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeTrue())
+		})
+	})
+
 	Context("Validation", func() {
 		BeforeEach(func() {
 			opts.AddFlags(fs)
@@ -169,4 +212,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
+	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
 }

@@ -24,6 +24,10 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
+type FeatureGates struct {
+	NodeClassCEL *bool
+}
+
 type OptionsFields struct {
 	ClusterCABundle         *string
 	ClusterName             *string
@@ -36,6 +40,7 @@ type OptionsFields struct {
 	DisableDryRun           *bool
 	AMIRefreshInterval      *time.Duration
 	SubnetRefreshInterval   *time.Duration
+	FeatureGates            FeatureGates
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -57,5 +62,8 @@ func Options(overrides ...OptionsFields) *options.Options {
 		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
 		AMIRefreshInterval:      lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:   lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
+		FeatureGates: options.FeatureGates{
+			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
+		},
 	}
 }
