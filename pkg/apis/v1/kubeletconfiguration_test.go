@@ -21,6 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
 var _ = Describe("KubeletConfiguration Expression Detection", func() {
@@ -36,7 +38,7 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 			Expect(v1.KubeletConfiguration{}.HasExpressions()).To(BeFalse())
 		})
 		It("should return false when every value is static", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
 				KubeReserved:   map[string]string{"cpu": "100m", "memory": "256Mi"},
 				SystemReserved: map[string]string{"cpu": "50m", "memory": "128Mi", "ephemeral-storage": "1Gi"},
@@ -44,23 +46,23 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 			Expect(kc.HasExpressions()).To(BeFalse())
 		})
 		It("should detect a string-typed maxPods expression", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10"))})
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10"))})
 			Expect(kc.HasExpressions()).To(BeTrue())
 		})
 		It("should not treat an integer maxPods as an expression", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(58))})
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(58))})
 			Expect(kc.HasExpressions()).To(BeFalse())
 		})
 		It("should detect a kubeReserved expression", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{KubeReserved: map[string]string{"cpu": "vcpus * 30"}})
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{KubeReserved: map[string]string{"cpu": "vcpus * 30"}})
 			Expect(kc.HasExpressions()).To(BeTrue())
 		})
 		It("should detect a systemReserved expression", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{SystemReserved: map[string]string{"memory": "max_pods * 11"}})
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{SystemReserved: map[string]string{"memory": "max_pods * 11"}})
 			Expect(kc.HasExpressions()).To(BeTrue())
 		})
 		It("should detect an expression mixed in with static quantities", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromInt32(110)),
 				KubeReserved: map[string]string{
 					"cpu":               "100m",
@@ -73,7 +75,7 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 		It("should ignore fields that never hold expressions", func() {
 			// Only maxPods, kubeReserved and systemReserved are evaluated as CEL. Eviction thresholds
 			// support percentages ("10%") that aren't valid quantities but are never CEL expressions.
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				EvictionHard: map[string]string{"memory.available": "10%"},
 				EvictionSoft: map[string]string{"memory.available": "15%"},
 				PodsPerCore:  lo.ToPtr[int32](10),
@@ -87,7 +89,7 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 			Expect(kc.HasResourceExpressions()).To(BeFalse())
 		})
 		It("should return false when a maxPods expression is the only expression", func() {
-			kc := v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:      lo.ToPtr(intstr.FromString("vcpus * 10")),
 				KubeReserved: map[string]string{"cpu": "100m"},
 			})
@@ -95,10 +97,10 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 			Expect(kc.HasExpressions()).To(BeTrue())
 		})
 		It("should detect expressions in either reserved map", func() {
-			Expect(v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Expect(test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved: map[string]string{"cpu": "vcpus * 30"},
 			}).HasResourceExpressions()).To(BeTrue())
-			Expect(v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Expect(test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				SystemReserved: map[string]string{"cpu": "vcpus * 30"},
 			}).HasResourceExpressions()).To(BeTrue())
 		})

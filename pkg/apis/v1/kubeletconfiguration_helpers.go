@@ -20,21 +20,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
-// MustMakeKubeletConfiguration constructs a KubeletConfiguration map from an arbitrary
-// struct or map by marshaling to JSON and back. This is intended for use in tests and
-// places where constructing the map from typed fields is more ergonomic.
-func MustMakeKubeletConfiguration(obj interface{}) KubeletConfiguration {
-	data, err := json.Marshal(obj)
-	if err != nil {
-		panic(err)
-	}
-	kc := KubeletConfiguration{}
-	if err := json.Unmarshal(data, &kc); err != nil {
-		panic(err)
-	}
-	return kc
-}
-
 // JSONValue is a helper to create an apiextensionsv1.JSON from any value.
 func JSONValue(v interface{}) apiextensionsv1.JSON {
 	raw, err := json.Marshal(v)

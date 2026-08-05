@@ -188,7 +188,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			}
 			wg.Wait()
 
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 			// Create a separate nodeClass for drift so that we can change the nodeClass later without it affecting
@@ -341,7 +341,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 
@@ -394,7 +394,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 
@@ -520,7 +520,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 
@@ -576,7 +576,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 			// Enable Expiration
@@ -640,7 +640,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 
@@ -691,7 +691,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(maxPodDensity),
 			})
 

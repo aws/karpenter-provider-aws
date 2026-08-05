@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -793,7 +794,7 @@ var _ = Describe("CEL/Validation", func() {
 	// The only thing admission enforces is the map's own shape, which is what these cover.
 	Context("Kubelet", func() {
 		It("should succeed for valid inputs", func() {
-			nc.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nc.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
 				PodsPerCore:    lo.ToPtr(int32(10)),
 				KubeReserved:   map[string]string{"cpu": "200m", "memory": "100Mi"},

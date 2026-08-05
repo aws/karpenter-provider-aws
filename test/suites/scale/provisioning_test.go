@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -178,7 +179,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 			"maxPods": int32(maxPodDensity),
 		})
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
@@ -212,7 +213,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 			"maxPods": int32(maxPodDensity),
 		})
 		test.ReplaceRequirements(nodePool,

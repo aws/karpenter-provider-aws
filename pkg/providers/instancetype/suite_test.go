@@ -973,7 +973,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		kc := &v1.ParsedKubeletConfig{}
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -999,7 +999,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		kc := &v1.ParsedKubeletConfig{}
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1087,7 +1087,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				kc := &v1.ParsedKubeletConfig{}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1117,7 +1117,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1143,7 +1143,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Context("Kube Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				kc := &v1.ParsedKubeletConfig{}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1178,7 +1178,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						string(corev1.ResourceEphemeralStorage): "2Gi",
 					},
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1220,7 +1220,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1252,7 +1252,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1284,7 +1284,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1316,7 +1316,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "50Mi",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1350,7 +1350,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1385,7 +1385,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1417,7 +1417,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1453,7 +1453,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10Gi",
 						},
 					}
-					nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1476,7 +1476,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			It("should take the default eviction threshold when none is specified", func() {
 				kc := &v1.ParsedKubeletConfig{}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1513,7 +1513,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1549,7 +1549,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "5%",
 					},
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1585,7 +1585,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1611,7 +1611,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			kc := &v1.ParsedKubeletConfig{}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
@@ -1661,7 +1661,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			kc := &v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1698,7 +1698,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				kc := &v1.ParsedKubeletConfig{
 					MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 				}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					t3Large,
 					fake.DefaultRegion,
@@ -1738,7 +1738,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			kc := &v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1776,7 +1776,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				kc := &v1.ParsedKubeletConfig{}
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 
 				it := instancetype.NewInstanceType(ctx,
 					t3Large,
@@ -1823,7 +1823,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(ok).To(Equal(true))
 			kc := &v1.ParsedKubeletConfig{}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
 				fake.DefaultRegion,
@@ -1856,7 +1856,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1887,7 +1887,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				PodsPerCore: lo.ToPtr(int32(4)),
 				MaxPods:     lo.ToPtr(intstr.FromInt32(20)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1916,7 +1916,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1945,7 +1945,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(0)),
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(kc)
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
@@ -2656,7 +2656,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// kubelet.systemReserved
 			// kubelet.evictionHard
 			// kubelet.maxPods
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved:   map[string]string{string(corev1.ResourceCPU): "1"},
 				SystemReserved: map[string]string{string(corev1.ResourceCPU): "1"},
 				EvictionHard:   map[string]string{"memory.available": "5%"},
@@ -2667,10 +2667,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			})
 			kubeletChanges := []v1.KubeletConfiguration{
-				v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}}),
-				v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}}),
-				v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{EvictionHard: map[string]string{"memory.available": "52%"}}),
-				v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(20))}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{EvictionHard: map[string]string{"memory.available": "52%"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(20))}),
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Adding the general set of to the instancetype into the cache
@@ -3660,7 +3660,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 				}))
-				nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": maxPods})
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": maxPods})
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3677,7 +3677,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "min(110, vcpus * 8)"})
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "min(110, vcpus * 8)"})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3699,7 +3699,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
 			}))
 			// This expression would evaluate to 7; a gate-off resolution must yield t3.large's default of 35.
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "7"})
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "7"})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 

@@ -255,19 +255,19 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionInvalid))
 			},
-			Entry("maxPods with a syntax error", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("maxPods with a syntax error", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("min(110,")),
 			})),
-			Entry("maxPods referencing an undefined variable", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("maxPods referencing an undefined variable", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("undefined_var + 1")),
 			})),
-			Entry("maxPods with a non-numeric (boolean) return type", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("maxPods with a non-numeric (boolean) return type", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("vcpus > 4")),
 			})),
-			Entry("kubeReserved with a syntax error", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("kubeReserved with a syntax error", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved: map[string]string{"cpu": "vcpus *"},
 			})),
-			Entry("systemReserved referencing an undefined variable", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("systemReserved referencing an undefined variable", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				SystemReserved: map[string]string{"memory": "bogus_var * 1048576"},
 			})),
 		)
@@ -284,18 +284,18 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
 			},
-			Entry("kubeReserved that evaluates to a negative value", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("kubeReserved that evaluates to a negative value", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved: map[string]string{"cpu": "0 - 1"},
 			})),
-			Entry("systemReserved that divides by zero", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("systemReserved that divides by zero", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				SystemReserved: map[string]string{"memory": "1048576 / (vcpus - vcpus)"},
 			})),
-			Entry("maxPods that evaluates to a negative value (out of range)", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("maxPods that evaluates to a negative value (out of range)", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("0 - 1")),
 			})),
 		)
 		It("should succeed validation when all kubelet expressions are valid", func() {
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:        lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
 				KubeReserved:   map[string]string{"cpu": "max(60, vcpus * 30)"},
 				SystemReserved: map[string]string{"memory": "max_pods * 11"},
@@ -317,7 +317,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			} {
 				nodeClass.StatusConditions().SetTrue(cond)
 			}
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
 			})
 			awsEnv.InstanceTypesProvider.Reset()
@@ -347,20 +347,20 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionsDisabled))
 				Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 			},
-			Entry("maxPods", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("maxPods", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
 			})),
-			Entry("kubeReserved", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("kubeReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved: map[string]string{"cpu": "max(60, vcpus * 30)"},
 			})),
-			Entry("systemReserved", v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			Entry("systemReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				SystemReserved: map[string]string{"memory": "max_pods * 11"},
 			})),
 		)
 		It("should not reject static kubelet values while the gate is disabled", func() {
 			// The gate only guards expressions -- integer maxPods and quantity-literal reservations must keep
 			// working untouched for every user who never opts in.
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
 				KubeReserved:   map[string]string{"cpu": "100m"},
 				SystemReserved: map[string]string{"memory": "100Mi"},
@@ -374,7 +374,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)

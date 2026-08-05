@@ -1293,7 +1293,7 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": int32(1),
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

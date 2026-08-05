@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 )
@@ -43,7 +44,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	Context("All kubelet configuration set", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:     lo.ToPtr(intstr.FromInt32(110)),
 				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
@@ -153,7 +154,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			MaxPods: lo.ToPtr(intstr.FromInt32(1 + int32(dsCount))),
 		})
 
@@ -184,7 +185,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// maxPods as a CEL expression string. min(110, 1+dsCount) resolves to 1+dsCount so each node
 		// fits exactly one test pod, mirroring the integer maxPods test while exercising the CEL path
 		// end-to-end (expression eval -> resolution -> real kubelet config on the node).
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 			"maxPods": fmt.Sprintf("min(110, %d)", 1+dsCount),
 		})
 
@@ -240,7 +241,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			PodsPerCore: lo.ToPtr(int32(math.Ceil(float64(2+dsCount) / 2))),
 		})
 
@@ -261,7 +262,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			},
 		)
 
-		nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr(int32(1))})
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr(int32(1))})
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),

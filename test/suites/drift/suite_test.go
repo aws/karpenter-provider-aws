@@ -305,7 +305,7 @@ var _ = Describe("Drift", Ordered, func() {
 			AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}},
 		}),
 		Entry("KubeletConfiguration", v1.EC2NodeClassSpec{
-			Kubelet: v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			Kubelet: test.MustMakeKubeletConfiguration(map[string]interface{}{
 				"evictionSoft":            map[string]string{"memory.available": "5%"},
 				"evictionSoftGracePeriod": map[string]string{"memory.available": "1m0s"},
 			}),

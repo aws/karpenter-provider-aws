@@ -20,6 +20,7 @@ import (
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -124,18 +125,18 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCHighThresholdPercent": int32(10),
 				"imageGCLowThresholdPercent":  int32(60),
 			})
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCHighThresholdPercent": int32(-10),
 			})
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
-			nodeClass.Spec.Kubelet = v1.MustMakeKubeletConfiguration(map[string]interface{}{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCLowThresholdPercent": int32(-10),
 			})
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
