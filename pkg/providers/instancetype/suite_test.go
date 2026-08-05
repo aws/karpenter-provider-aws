@@ -3618,6 +3618,68 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).To(HaveLen(len(expected)), "a resolver that never fails must not drop any instance type")
 		})
+		// These exercise the real DefaultResolver rather than the stub above. Validation normally rejects a
+		// NodeClass whose maxPods expression can't be resolved before it reaches resolution, but resolution
+		// can't rely on that (e.g. an instance type discovered after the validation pass), so it has to fail
+		// rather than quietly substitute the AMI family default.
+		DescribeTable("should fail resolution when the maxPods expression can't be resolved",
+			func(maxPods string) {
+				// Expressions are only resolved when the NodeClassCEL gate is on.
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+				}))
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString(maxPods))}
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).To(MatchError(ContainSubstring("resolving maxPods")))
+				Expect(instanceTypes).To(BeNil())
+			},
+			Entry("a negative result", "0 - 1"),
+			Entry("a result above math.MaxInt32", fmt.Sprintf("%d + 1", int64(math.MaxInt32))),
+			Entry("a runtime evaluation error", "1 / (vcpus - vcpus)"),
+		)
+		It("should resolve maxPods from an expression when it evaluates in range", func() {
+			// Expressions are only resolved when the NodeClassCEL gate is on.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString("min(110, vcpus * 8)"))}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			// m5.large has 2 vCPUs, so min(110, 16) resolves to 16 rather than the AMI family default.
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 16))
+		})
+		It("should use the default maxPods (not the expression result) when the gate is disabled", func() {
+			// With the NodeClassCEL gate off, the resolution path must not honor a CEL maxPods expression --
+			// it falls back to the AMI family default rather than evaluating it. The validation controller
+			// rejects such a NodeClass separately; this guards the resolution path itself so a gate-off
+			// cluster never launches nodes configured from an expression the user hasn't opted into.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+			}))
+			// This expression would evaluate to 7; a gate-off resolution must yield t3.large's default of 35.
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString("7"))}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "t3.large"
+			})
+			Expect(ok).To(BeTrue())
+			// t3.large defaults to 35 pods based on its network interfaces.
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+		})
 	})
 
 })

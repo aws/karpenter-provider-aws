@@ -329,8 +329,11 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 		})
 	})
 	Context("Kubelet Expression Feature Gate", func() {
-		// The default here is the shipped default -- the KubeletExpressions gate is absent from the suite's
-		// options, so these specs exercise exactly what a user gets without opting in.
+		BeforeEach(func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+			}))
+		})
 		DescribeTable("should reject a NodeClass carrying an expression while the gate is disabled",
 			func(kc *v1.KubeletConfiguration) {
 				nodeClass.Spec.Kubelet = kc

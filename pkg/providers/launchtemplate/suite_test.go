@@ -1720,6 +1720,38 @@ eviction-max-pod-grace-period = 10
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 40))
 				})
 			})
+			It("should drop expression-valued kubeReserved entries (keeping static ones) when the gate is disabled", func() {
+				// Gate off: the launch template resolver must not evaluate a CEL kubeReserved expression, mirroring
+				// the scheduler's resolution path. The static cpu entry is kept as-is; the memory expression is
+				// dropped so it falls back to the AMI family default rather than being resolved.
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+				}))
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					KubeReserved: map[string]string{
+						string(corev1.ResourceCPU):    "100m",
+						string(corev1.ResourceMemory): "vcpus * 100",
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				// The exact count depends on instance-type grouping and isn't what this test exercises. Assert
+				// it self-consistently -- every created launch template must be referenced by the fleet request --
+				// rather than pinning a magic number, then check each template's kubeReserved.
+				Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+				createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+				Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.KubeReserved).To(HaveKeyWithValue(corev1.ResourceCPU.String(), "100m"))
+					Expect(config.Settings.Kubernetes.KubeReserved).ToNot(HaveKey(corev1.ResourceMemory.String()))
+				})
+			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					ImageGCHighThresholdPercent: aws.Int32(50),

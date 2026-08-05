@@ -39,6 +39,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
+	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
@@ -216,6 +217,14 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 			if nodeClass.Spec.Kubelet != nil {
 				kubeReserved = nodeClass.Spec.Kubelet.KubeReserved
 				systemReserved = nodeClass.Spec.Kubelet.SystemReserved
+			}
+			// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static
+			// quantity entries so the launch template falls back to the AMI family defaults rather than
+			// configuring nodes from an expression the user hasn't opted into. This mirrors the scheduler's
+			// resolution path (instancetype.resolveResourceExpressions) so the two never diverge.
+			if !karpopts.FromContext(ctx).FeatureGates.NodeClassCEL {
+				kubeReserved = staticQuantities(kubeReserved)
+				systemReserved = staticQuantities(systemReserved)
 			}
 			// kubeReserved and systemReserved are resolved through the same shared CEL evaluation path
 			// (kubeletcel.ResolveResourceMap) against the same live-EC2-backed ENI lookup used by the
@@ -498,6 +507,19 @@ func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup
 		MaxPods:      maxPods,
 		InstanceType: it.Name,
 	}, nil
+}
+
+// staticQuantities returns the subset of a kubeReserved/systemReserved map whose values parse as
+// Kubernetes resource quantities, dropping the CEL-expression entries. It's used when the NodeClassCEL
+// gate is off so expression-valued entries fall back to the AMI family defaults rather than being resolved.
+func staticQuantities(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return m
+	}
+	return lo.PickBy(m, func(_ string, v string) bool {
+		_, err := resource.ParseQuantity(v)
+		return err == nil
+	})
 }
 
 // serializeResourceMap converts a resource map to a sorted, comparable string representation.

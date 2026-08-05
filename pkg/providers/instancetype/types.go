@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -111,7 +110,12 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
 	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
 	// expression, or the default).
-	maxPods := resolveMaxPods(ctx, d.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving maxPods, %w", err),
+			"instance-type", info.InstanceType)
+	}
 	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, kc.KubeReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
 		return nil, serrors.Wrap(
@@ -144,31 +148,6 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			return cr.InstanceType == string(info.InstanceType)
 		}),
 	), nil
-}
-
-// evaluateMaxPodsExpression validates the maxPods CEL expression (if any) for the given instance type,
-// returning an error if it fails to evaluate or falls outside the valid int32 range.
-func evaluateMaxPodsExpression(celEnv *kubeletcel.CELEnvironment, kc *v1.KubeletConfiguration, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
-	if kc.MaxPods == nil || kc.MaxPods.Type != intstr.String {
-		return nil
-	}
-	result, err := celEnv.EvaluateExpression(kc.MaxPods.StrVal, celVars)
-	if err != nil {
-		return serrors.Wrap(
-			fmt.Errorf("evaluating maxPods expression, %w", err),
-			"instance-type", info.InstanceType,
-			"expression", kc.MaxPods.StrVal,
-		)
-	}
-	if result < 0 || result > math.MaxInt32 {
-		return serrors.Wrap(
-			fmt.Errorf("maxPods expression evaluated to a value outside the valid range [0, %d]", math.MaxInt32),
-			"instance-type", info.InstanceType,
-			"expression", kc.MaxPods.StrVal,
-			"result", result,
-		)
-	}
-	return nil
 }
 
 // evaluateResourceExpressions validates the kubeReserved and systemReserved CEL expressions for the given
@@ -211,45 +190,60 @@ func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Kubel
 	return nil
 }
 
-// resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32.
-// If it's an integer, it's returned directly. If it's a string, it's evaluated as a CEL expression.
-func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, amiFamily amifamily.AMIFamily, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) *int32 {
+// resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32. If it's an integer, it's
+// returned directly. If it's a string, it's evaluated as a CEL expression, returning an error if it fails
+// to evaluate or falls outside the valid int32 range.
+func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, amiFamily amifamily.AMIFamily, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (*int32, error) {
+	// A nil maxPods leaves the AMI family default in place.
 	if maxPods == nil {
-		return nil
+		return nil, nil
 	}
-	switch maxPods.Type {
-	case intstr.Int:
-		return &maxPods.IntVal
-	case intstr.String:
-		// The maxPods expression can't reference its own result, so max_pods exposes the default
-		celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces)
-		result, err := celEnv.EvaluateExpression(maxPods.StrVal, celVars)
-		if err != nil {
-			log.FromContext(ctx).WithValues(
-				"instance-type", info.InstanceType,
-				"expression", maxPods.StrVal,
-			).Error(err, "failed to evaluate maxPods expression")
-			return nil
-		}
-		if result < 0 || result > math.MaxInt32 {
-			log.FromContext(ctx).WithValues(
-				"instance-type", info.InstanceType,
-				"expression", maxPods.StrVal,
-				"result", result,
-			).Error(fmt.Errorf("result is out of range [0, %d]", math.MaxInt32), "maxPods expression evaluated to an invalid value")
-			return nil
-		}
-		val := int32(result)
-		return &val
-	default:
-		return nil
+	// An int is already concrete, and the CRD rejects a negative one. intstr.IntOrString has no third type,
+	// so an unrecognized Type is treated the same way rather than silently resolving to the default.
+	if maxPods.Type != intstr.String {
+		return &maxPods.IntVal, nil
 	}
+	// A string maxPods is a CEL expression, which is only honored when the NodeClassCEL gate is on. With the
+	// gate off, fall back to the AMI family default (nil) rather than evaluating it, so a gate-off cluster
+	// never launches nodes configured from an expression the user hasn't opted into. The validation controller
+	// rejects such a NodeClass separately; this guards the resolution path itself.
+	if !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return nil, nil
+	}
+	// The maxPods expression can't reference its own result, so max_pods exposes the default
+	celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces)
+	result, err := celEnv.EvaluateExpression(maxPods.StrVal, celVars)
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("evaluating maxPods expression, %w", err),
+			"instance-type", info.InstanceType,
+			"expression", maxPods.StrVal,
+		)
+	}
+	if result < 0 || result > math.MaxInt32 {
+		return nil, serrors.Wrap(
+			fmt.Errorf("maxPods expression evaluated to a value outside the valid range [0, %d]", math.MaxInt32),
+			"instance-type", info.InstanceType,
+			"expression", maxPods.StrVal,
+			"result", result,
+		)
+	}
+	return lo.ToPtr(int32(result)), nil
 }
 
 // resolveResourceExpressions evaluates CEL expressions in a resource map (kubeReserved or systemReserved).
 // Values that parse as valid Kubernetes resource quantities are left as-is.
 // Values that fail to parse as quantities are evaluated as CEL expressions.
 func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, resourceMap map[string]string, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (map[string]string, error) {
+	// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static quantity
+	// entries and drop the expressions, so a gate-off cluster falls back to the AMI family defaults for them
+	// rather than resolving an expression the user hasn't opted into. Mirrors the maxPods handling above.
+	if !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return lo.PickBy(resourceMap, func(_ string, v string) bool {
+			_, err := resource.ParseQuantity(v)
+			return err == nil
+		}), nil
+	}
 	return celEnv.ResolveResourceMap(ctx, resourceMap, func() (kubeletcel.InstanceTypeVars, error) {
 		return buildCELVars(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces), nil
 	})

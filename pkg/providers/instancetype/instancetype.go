@@ -311,18 +311,18 @@ func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info e
 	if kc == nil {
 		return nil
 	}
-	// The maxPods expression evaluates against the default max_pods (it can't self-reference), while
-	// kubeReserved/systemReserved evaluate against the resolved maxPods.
-	maxPodsVars := buildCELVars(ctx, info, amiFamily, nil, kc.PodsPerCore, networkInterfaces)
-	if err := evaluateMaxPodsExpression(p.celEnv, kc, maxPodsVars, info); err != nil {
+	// Resolving maxPods evaluates its expression (against the default max_pods, since it can't self-reference)
+	// and range-checks the result, so it doubles as validation of the maxPods field. This is the same call
+	// Resolve makes, so an error here is exactly the error resolution would hit for this instance type.
+	resolvedMaxPods, err := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
+	if err != nil {
 		return err
 	}
-	// Building the reserved-capacity vars requires resolving maxPods for this instance type, which is
-	// wasted work when neither kubeReserved nor systemReserved holds an expression to evaluate against it.
+	// kubeReserved/systemReserved evaluate against the resolved maxPods. Building those vars is wasted work
+	// when neither field holds an expression to evaluate against it.
 	if !kc.HasResourceExpressions() {
 		return nil
 	}
-	resolvedMaxPods := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
 	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces)
 	return evaluateResourceExpressions(p.celEnv, kc, reservedVars, info)
 }
