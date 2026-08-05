@@ -450,8 +450,11 @@ spec:
                     kubeReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: KubeReserved contains resources reserved for Kubernetes system components.
+                      description: |-
+                        KubeReserved contains resources reserved for Kubernetes system components.
+                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+                        instance type. An expression returns a bare number in the unit that key's static quantities
+                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
@@ -459,12 +462,18 @@ spec:
                         - message: kubeReserved value cannot be a negative resource quantity
                           rule: self.all(x, !self[x].startsWith('-'))
                     maxPods:
+                      anyOf:
+                        - type: integer
+                        - type: string
                       description: |-
                         MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance.
-                      format: int32
-                      minimum: 0
-                      type: integer
+                        a worker node instance. When set to an integer, it is used as a static value.
+                        When set to a string, it is evaluated as a CEL expression per instance type with
+                        access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
+                      x-kubernetes-int-or-string: true
+                      x-kubernetes-validations:
+                        - message: maxPods must be a non-negative integer when set to an integer
+                          rule: type(self) != int || self >= 0
                     podsPerCore:
                       description: |-
                         PodsPerCore is an override for the number of pods that can run on a worker node
@@ -476,8 +485,11 @@ spec:
                     systemReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
+                      description: |-
+                        SystemReserved contains resources reserved for OS system daemons and kernel memory.
+                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+                        instance type. An expression returns a bare number in the unit that key's static quantities
+                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']

@@ -16,6 +16,7 @@ package instancetype
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -25,12 +26,15 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/offering"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -54,6 +58,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
+// ErrInstanceTypesNotHydrated is returned when the instance-type cache is empty.
+var ErrInstanceTypesNotHydrated = errors.New("no instance types found")
+
 type NodeClass interface {
 	client.Object
 	AMIFamily() string
@@ -73,6 +80,10 @@ type Provider interface {
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
 	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
+	// ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance
+	// type and returns an error describing the first per-instance-type evaluation failure. A compile-only check
+	// cannot catch these because the instance-type variables aren't known until an instance type is in hand.
+	ValidateKubeletExpressions(context.Context, NodeClass) error
 }
 
 type DefaultProvider struct {
@@ -98,6 +109,7 @@ type DefaultProvider struct {
 
 	placementGroupProvider placementgroup.Provider
 	offeringProvider       *offering.DefaultProvider
+	celEnv                 *kubeletcel.CELEnvironment
 }
 
 func NewDefaultProvider(
@@ -113,6 +125,7 @@ func NewDefaultProvider(
 	instanceTypesResolver Resolver,
 	zonalshiftProvider arczonalshift.Provider,
 	kubeClient client.Client,
+	celEnv *kubeletcel.CELEnvironment,
 	additionalResolvers ...offering.OfferingResolver,
 ) *DefaultProvider {
 	p := &DefaultProvider{
@@ -125,6 +138,7 @@ func NewDefaultProvider(
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
 		placementGroupProvider:  placementGroupProvider,
+		celEnv:                  celEnv,
 		offeringProvider: offering.NewDefaultProvider(
 			pricingProvider,
 			capacityReservationProvider,
@@ -163,13 +177,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		instanceTypes = lo.FilterMapToSlice(p.instanceTypesInfo, func(name ec2types.InstanceType, info ec2types.InstanceTypeInfo) (*cloudprovider.InstanceType, bool) {
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
+		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
+		for name := range p.instanceTypesInfo {
 			it, err := p.get(ctx, nodeClass, name)
 			if err != nil {
-				return nil, false
+				return nil, err
 			}
-			return it, true
-		})
+			instanceTypes = append(instanceTypes, it)
+		}
 		p.instanceTypesCache.SetDefault(key, instanceTypes)
 	}
 	// Offerings aren't cached along with the rest of the instance type info because reserved offerings need to have up to
@@ -221,7 +237,10 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 	if !ok {
 		return nil, fmt.Errorf("instance type %s not found in cache", name)
 	}
-	it := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
+	}
 	if it == nil {
 		return nil, fmt.Errorf("failed to generate instance type %s", name)
 	}
@@ -235,6 +254,77 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 		instanceTypeLabel: string(info.InstanceType),
 	})
 	return it, nil
+}
+
+// ENILimits returns the default ENI count and IPv4-addresses-per-ENI for an instance type, sourced from
+// the live EC2 network info (DescribeInstanceTypes) held in the provider's cache. It returns ok=false when
+// the instance type isn't present (e.g. the cache hasn't hydrated yet). This backs the amifamily resolver's
+// CEL evaluation so that kubeReserved expressions in the launch template use the same live ENI values as the
+// scheduler's reserved-capacity overhead calculation.
+func (p *DefaultProvider) ENILimits(name string) (amifamily.ENILimits, bool) {
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	info, ok := p.instanceTypesInfo[ec2types.InstanceType(name)]
+	if !ok {
+		return amifamily.ENILimits{}, false
+	}
+	defaultENIs, ipsPerENI := extractENILimits(info)
+	return amifamily.ENILimits{DefaultENIs: int(defaultENIs), IPv4PerENI: int(ipsPerENI)}, true
+}
+
+// ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance type.
+// It returns the first evaluation failure encountered so the caller can surface it on the NodeClass status,
+// rather than silently misconfiguring nodes at resolution time.
+func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeClass NodeClass) error {
+	kc := nodeClass.KubeletConfiguration()
+	if kc == nil {
+		return nil
+	}
+	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
+	// per-instance-type loop entirely. The same applies when expressions are gated off -- the validation
+	// controller has already rejected the NodeClass by this point.
+	if !kc.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return nil
+	}
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	if len(p.instanceTypesInfo) == 0 {
+		return ErrInstanceTypesNotHydrated
+	}
+	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
+	for _, info := range p.instanceTypesInfo {
+		if err := p.evaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// evaluateKubeletExpressions evaluates all CEL expressions in the kubelet configuration against the given
+// instance type's variables and returns an error describing the first expression that fails to evaluate,
+// produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
+// per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
+// expression evaluated to a usable value for this instance type.
+func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
+	if kc == nil {
+		return nil
+	}
+	// Resolving maxPods evaluates its expression (against the default max_pods, since it can't self-reference)
+	// and range-checks the result, so it doubles as validation of the maxPods field. This is the same call
+	// Resolve makes, so an error here is exactly the error resolution would hit for this instance type.
+	resolvedMaxPods, err := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
+	if err != nil {
+		return err
+	}
+	// kubeReserved/systemReserved evaluate against the resolved maxPods. Building those vars is wasted work
+	// when neither field holds an expression to evaluate against it.
+	if !kc.HasResourceExpressions() {
+		return nil
+	}
+	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces)
+	return evaluateResourceExpressions(p.celEnv, kc, reservedVars, info)
 }
 
 func (p *DefaultProvider) cacheKey(nodeClass NodeClass) string {

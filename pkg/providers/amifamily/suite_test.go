@@ -1224,8 +1224,8 @@ var _ = Describe("AMIResolver", func() {
 	DescribeTable(
 		"should set launch template metadata options correctly per region",
 		func(region string, expect *string) {
-			amiResolver := amifamily.NewDefaultResolver(region)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			amiResolver := amifamily.NewDefaultResolver(region, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).To(HaveLen(1))
 			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {
@@ -1239,8 +1239,8 @@ var _ = Describe("AMIResolver", func() {
 	)
 	Context("EnclaveEnabled", func() {
 		It("should set EnclaveEnabled to false by default when no resources are requested", func() {
-			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).ToNot(BeEmpty())
 			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
@@ -1251,8 +1251,8 @@ var _ = Describe("AMIResolver", func() {
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
 				v1.ResourceNitroSandbox: resource.MustParse("1"),
 			}
-			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).ToNot(BeEmpty())
 			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
@@ -1264,8 +1264,8 @@ var _ = Describe("AMIResolver", func() {
 				corev1.ResourceCPU:    resource.MustParse("2"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
 			}
-			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).ToNot(BeEmpty())
 			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {

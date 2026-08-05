@@ -106,6 +106,7 @@ func main() {
 			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,
 			lo.ToPtr(""),
+			op.CELEnvironment,
 		)...).
 		Start(ctx)
 	wg.Wait()

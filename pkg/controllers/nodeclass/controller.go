@@ -53,6 +53,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -94,9 +95,10 @@ func NewController(
 	validationCache *cache.Cache,
 	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
+	celEnv *kubeletcel.CELEnvironment,
 	disableDryRun bool,
 ) *Controller {
-	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
+	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, celEnv, disableDryRun)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
