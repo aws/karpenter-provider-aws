@@ -23,7 +23,7 @@ For example, if the NodePool sets limits that allow only a particular zone to be
 Constraints you can request include:
 
 * **Resource requests**: Request that certain amount of memory or CPU be available.
-* **Node selection**: Choose to run on a node that is has a particular label (`nodeSelector`).
+* **Node selection**: Choose to run on a node that has a particular label (`nodeSelector`).
 * **Node affinity**: Draws a pod to run on nodes with particular attributes (affinity).
 * **Topology spread**: Use topology spread to help ensure availability of the application.
 * **Pod affinity/anti-affinity**: Draws pods towards or away from topology domains based on the scheduling of other pods.
