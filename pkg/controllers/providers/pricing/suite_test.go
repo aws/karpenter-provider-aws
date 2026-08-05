@@ -534,4 +534,18 @@ var _ = Describe("Pricing", func() {
 			}
 		})
 	})
+	Context("Isolated VPC", func() {
+		It("should not call on demand pricing API when in isolated-vpc", func() {
+			provider := pricing.NewDefaultProvider(awsEnv.PricingAPI, awsEnv.EC2API, fake.DefaultRegion, true)
+			err := provider.UpdateOnDemandPricing(ctx)
+			Expect(err).To(BeNil())
+			Expect(awsEnv.PricingAPI.GetProductsBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should not call spot pricing API when in isolated-vpc", func() {
+			provider := pricing.NewDefaultProvider(awsEnv.PricingAPI, awsEnv.EC2API, fake.DefaultRegion, true)
+			err := provider.UpdateSpotPricing(ctx)
+			Expect(err).To(BeNil())
+			Expect(awsEnv.EC2API.DescribeSpotPriceHistoryBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+	})
 })

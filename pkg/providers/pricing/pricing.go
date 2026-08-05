@@ -386,6 +386,13 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, output *pricing.GetP
 
 // nolint: gocyclo
 func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
+	if p.isolatedVPC {
+		if p.cm.HasChanged("spot-prices", nil) {
+			log.FromContext(ctx).V(1).Info("running in an isolated VPC, spot pricing information will not be updated")
+		}
+		return nil
+	}
+
 	prices := map[ec2types.InstanceType]zonal{}
 
 	p.muSpot.Lock()
