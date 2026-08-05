@@ -19,6 +19,7 @@ import (
 	"math"
 
 	"github.com/samber/lo"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -155,4 +156,13 @@ func (in *ParsedKubeletConfig) DeepCopy() *ParsedKubeletConfig {
 		out.MaxPods = lo.ToPtr(*in.MaxPods)
 	}
 	return out
+}
+
+// JSONValue is a helper to create an apiextensionsv1.JSON from any value.
+func JSONValue(v interface{}) apiextensionsv1.JSON {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return apiextensionsv1.JSON{Raw: raw}
 }
