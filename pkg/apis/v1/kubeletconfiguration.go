@@ -28,7 +28,7 @@ import (
 // uses for scheduling decisions and bootstrap scripting.
 type ParsedKubeletConfig struct {
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
-	// MaxPods is an integer or a CEL expression evaluated per instance type. 
+	// MaxPods is an integer or a CEL expression evaluated per instance type.
 	// Use MaxPodsValue for the resolved count.
 	MaxPods                     *intstr.IntOrString        `json:"maxPods,omitempty"`
 	PodsPerCore                 *int32                     `json:"podsPerCore,omitempty"`

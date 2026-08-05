@@ -624,15 +624,18 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 }
 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
+//
+//nolint:gocyclo
 func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
 	if nodeClass.Spec.Kubelet == nil {
 		return nil
 	}
 	// spec.kubelet is an open map; parse it into the typed struct to read the expression-bearing
-	// fields. A parse failure is surfaced by the structural ValidateKubeletConfig check upstream of
-	// this, so there's nothing left to validate here.
-	kc, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
-	if err != nil {
+	// fields. Any parse error is intentionally ignored: the structural ValidateKubeletConfig check
+	// runs before this and has already reported it, so surfacing it again here would only duplicate
+	// that condition. A nil result just means there's nothing left to validate.
+	kc, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if kc == nil {
 		return nil
 	}
 	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
