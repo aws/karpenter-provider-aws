@@ -106,3 +106,132 @@ var _ = Describe("KubeletConfiguration Expression Detection", func() {
 		})
 	})
 })
+
+var _ = Describe("ParseKubeletConfig", func() {
+	// Extraction is the boundary between the open map and the 12 fields Karpenter interprets. A bug here
+	// either drops a field Karpenter needs for scheduling, or lets a malformed value through to a node.
+	It("should return an empty struct for a nil configuration", func() {
+		var kc v1.KubeletConfiguration
+		parsed, err := v1.ParseKubeletConfig(kc)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(parsed).To(Equal(&v1.ParsedKubeletConfig{}))
+	})
+	It("should return an empty struct for an empty configuration", func() {
+		parsed, err := v1.ParseKubeletConfig(v1.KubeletConfiguration{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(parsed).To(Equal(&v1.ParsedKubeletConfig{}))
+	})
+	It("should extract every interpreted field", func() {
+		parsed, err := v1.ParseKubeletConfig(v1.KubeletConfiguration{
+			"clusterDNS":                  v1.JSONValue([]string{"10.0.0.10"}),
+			"maxPods":                     v1.JSONValue(110),
+			"podsPerCore":                 v1.JSONValue(10),
+			"systemReserved":              v1.JSONValue(map[string]string{"cpu": "100m"}),
+			"kubeReserved":                v1.JSONValue(map[string]string{"memory": "256Mi"}),
+			"evictionHard":                v1.JSONValue(map[string]string{"memory.available": "5%"}),
+			"evictionSoft":                v1.JSONValue(map[string]string{"memory.available": "10%"}),
+			"evictionSoftGracePeriod":     v1.JSONValue(map[string]string{"memory.available": "1m"}),
+			"evictionMaxPodGracePeriod":   v1.JSONValue(30),
+			"imageGCHighThresholdPercent": v1.JSONValue(80),
+			"imageGCLowThresholdPercent":  v1.JSONValue(60),
+			"cpuCFSQuota":                 v1.JSONValue(false),
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(parsed.ClusterDNS).To(Equal([]string{"10.0.0.10"}))
+		Expect(parsed.MaxPods).To(Equal(lo.ToPtr(intstr.FromInt32(110))))
+		Expect(parsed.PodsPerCore).To(Equal(lo.ToPtr[int32](10)))
+		Expect(parsed.SystemReserved).To(Equal(map[string]string{"cpu": "100m"}))
+		Expect(parsed.KubeReserved).To(Equal(map[string]string{"memory": "256Mi"}))
+		Expect(parsed.EvictionHard).To(Equal(map[string]string{"memory.available": "5%"}))
+		Expect(parsed.EvictionSoft).To(Equal(map[string]string{"memory.available": "10%"}))
+		Expect(parsed.EvictionMaxPodGracePeriod).To(Equal(lo.ToPtr[int32](30)))
+		Expect(parsed.ImageGCHighThresholdPercent).To(Equal(lo.ToPtr[int32](80)))
+		Expect(parsed.ImageGCLowThresholdPercent).To(Equal(lo.ToPtr[int32](60)))
+		Expect(parsed.CPUCFSQuota).To(Equal(lo.ToPtr(false)))
+	})
+	It("should ignore passthrough fields it has no representation for", func() {
+		// A field only the kubelet library knows about parses cleanly into an empty struct: extraction
+		// pulls the 12 interpreted fields and leaves everything else to the raw map.
+		parsed, err := v1.ParseKubeletConfig(v1.KubeletConfiguration{
+			"serializeImagePulls":   v1.JSONValue(false),
+			"topologyManagerPolicy": v1.JSONValue("best-effort"),
+		})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(parsed).To(Equal(&v1.ParsedKubeletConfig{}))
+	})
+	It("should keep maxPods as a string when it holds a CEL expression", func() {
+		// maxPods is typed IntOrString precisely so an expression parses rather than failing the whole
+		// document. It stays a string here and is resolved per instance type downstream.
+		parsed, err := v1.ParseKubeletConfig(v1.KubeletConfiguration{"maxPods": v1.JSONValue("vcpus * 10")})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(parsed.MaxPods.Type).To(Equal(intstr.String))
+		Expect(parsed.MaxPods.StrVal).To(Equal("vcpus * 10"))
+		_, ok := parsed.MaxPodsValue()
+		Expect(ok).To(BeFalse(), "an expression has no concrete value until evaluated against an instance type")
+	})
+	It("should return an error for a field that doesn't decode", func() {
+		// A single wrong-typed field fails the one Unmarshal. The design leans on callers falling back to
+		// an empty struct rather than making scheduling decisions from a partial decode.
+		_, err := v1.ParseKubeletConfig(v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("ten")})
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("MaxPodsValue", func() {
+	It("should report a concrete integer", func() {
+		parsed := &v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(58))}
+		value, ok := parsed.MaxPodsValue()
+		Expect(ok).To(BeTrue())
+		Expect(lo.FromPtr(value)).To(BeNumerically("==", 58))
+	})
+	It("should report not-set for a nil receiver, unset maxPods, or an expression", func() {
+		var nilParsed *v1.ParsedKubeletConfig
+		_, ok := nilParsed.MaxPodsValue()
+		Expect(ok).To(BeFalse())
+
+		_, ok = (&v1.ParsedKubeletConfig{}).MaxPodsValue()
+		Expect(ok).To(BeFalse())
+
+		_, ok = (&v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10"))}).MaxPodsValue()
+		Expect(ok).To(BeFalse())
+	})
+})
+
+var _ = Describe("MaxPodsInt", func() {
+	It("should return the integer value for a literal maxPods", func() {
+		kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(58))})
+		Expect(lo.FromPtr(kc.MaxPodsInt())).To(BeNumerically("==", 58))
+	})
+	It("should return nil for an expression, and for a config that fails to decode", func() {
+		// MaxPodsInt is a convenience over the open map, so it swallows a decode error and reports unset
+		// rather than surfacing it; validation reports the malformed config separately.
+		Expect(test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10")),
+		}).MaxPodsInt()).To(BeNil())
+		Expect(v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("ten")}.MaxPodsInt()).To(BeNil())
+	})
+})
+
+var _ = Describe("ParsedKubeletConfig DeepCopy", func() {
+	It("should produce an independent copy", func() {
+		original := &v1.ParsedKubeletConfig{
+			MaxPods:      lo.ToPtr(intstr.FromInt32(110)),
+			CPUCFSQuota:  lo.ToPtr(true),
+			KubeReserved: map[string]string{"cpu": "100m"},
+		}
+		clone := original.DeepCopy()
+		Expect(clone).To(Equal(original))
+
+		// Mutating the clone's map and pointer fields must not reach back into the original.
+		clone.KubeReserved["cpu"] = "200m"
+		clone.MaxPods = lo.ToPtr(intstr.FromInt32(58))
+		clone.CPUCFSQuota = lo.ToPtr(false)
+		Expect(original.KubeReserved["cpu"]).To(Equal("100m"))
+		Expect(original.MaxPods).To(Equal(lo.ToPtr(intstr.FromInt32(110))))
+		Expect(lo.FromPtr(original.CPUCFSQuota)).To(BeTrue())
+	})
+	It("should return nil for a nil receiver", func() {
+		var nilParsed *v1.ParsedKubeletConfig
+		Expect(nilParsed.DeepCopy()).To(BeNil())
+	})
+})

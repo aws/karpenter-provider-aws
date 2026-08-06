@@ -1401,6 +1401,24 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(cpuCFSQuota).To(BeFalse())
 			}
 		})
+		It("should silently drop a passthrough field on AL2, since it builds flags from the parsed struct", func() {
+			// Known limitation (see designs/extended-kubelet-configuration.md, "Passthrough Coverage Is
+			// AMI-Family-Dependent"): the flag-based EKS bootstrap script builds --kubelet-extra-args from
+			// the 12 interpreted fields, so a field outside that set passes validation and is then dropped.
+			// This pins that behavior as intentional -- if AL2 ever gains a config file, this test should
+			// flip to asserting the field IS present, deliberately rather than by accident.
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{
+				"maxPods":               v1.JSONValue(42),           // interpreted -> reaches the node as a flag
+				"topologyManagerPolicy": v1.JSONValue("restricted"), // passthrough -> dropped on AL2
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--max-pods=42")
+			ExpectLaunchTemplatesCreatedWithUserDataNotContaining("topologyManagerPolicy", "restricted")
+		})
 		DescribeTable(
 			"should not pass any labels in restricted domains",
 			func(label string) {
@@ -2109,6 +2127,60 @@ eviction-max-pod-grace-period = 10
 						CPUCFSQuota: lo.ToPtr(false),
 					}),
 				)
+				DescribeTable(
+					"should pass through a field Karpenter doesn't interpret to the nodeadm inline config",
+					// The core promise of the open map: a kubelet field Karpenter has no Go representation for
+					// still reaches the node on AL2023, since nodeadm accepts arbitrary kubelet config. Every
+					// other bootstrap test here uses one of the 12 interpreted fields; these are the passthrough
+					// fields that only survive because the raw map is forwarded verbatim.
+					func(field string, value any) {
+						nodeClass.Spec.Kubelet = v1.KubeletConfiguration{field: v1.JSONValue(value)}
+						ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+						pod := coretest.UnschedulablePod()
+						ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+						ExpectScheduled(ctx, env.Client, pod)
+						for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+							configs := ExpectParseNodeConfigs(userData)
+							Expect(len(configs)).To(Equal(1))
+							raw, ok := configs[0].Spec.Kubelet.Config[field]
+							Expect(ok).To(BeTrue(), "passthrough field %q must reach the inline kubelet config", field)
+							expected := v1.JSONValue(value)
+							Expect(raw.Raw).To(MatchJSON(expected.Raw))
+						}
+					},
+					Entry("a string field (topologyManagerPolicy)", "topologyManagerPolicy", "best-effort"),
+					Entry("a boolean field (serializeImagePulls)", "serializeImagePulls", false),
+					Entry("a quantity-string field (containerLogMaxSize)", "containerLogMaxSize", "50Mi"),
+				)
+				It("should resolve maxPods into the inline config as a concrete count when the user set nothing", func() {
+					// The resolver fills maxPods on the raw map from the count resolved for the instance type,
+					// so an unset maxPods reaches nodeadm as a concrete integer rather than being omitted.
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						maxPods := ExpectParseNodeConfigKubeletField[int64](userData, "maxPods")
+						Expect(maxPods).To(BeNumerically(">", 0), "an unset maxPods must be defaulted to the resolved count, not omitted")
+					}
+				})
+				It("should resolve a maxPods CEL expression into the inline config as an integer, not the raw expression", func() {
+					// A CEL expression only has meaning against a specific instance type, so it must be
+					// evaluated before it reaches nodeadm. Shipping the raw string would fail at boot.
+					ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+						FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+					}))
+					// min(110, 20 * 2) resolves to 40 regardless of instance type, so the count is deterministic.
+					nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"maxPods": v1.JSONValue("min(110, 20 * 2)")}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						maxPods := ExpectParseNodeConfigKubeletField[int64](userData, "maxPods")
+						Expect(maxPods).To(BeNumerically("==", 40))
+					}
+				})
 			})
 			It("should set LocalDiskStrategy to Raid0 when specified by the InstanceStorePolicy", func() {
 				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
