@@ -29,10 +29,10 @@ import (
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
 type Options struct {
-	ClusterName     string
-	ClusterEndpoint string
-	ClusterCIDR     *string
-	KubeletConfig   *v1.ParsedKubeletConfig
+	ClusterName           string
+	ClusterEndpoint       string
+	ClusterCIDR           *string
+	KubeletConfig         *v1.ParsedKubeletConfig
 	UnparsedKubeletConfig v1.KubeletConfiguration `hash:"string"`
 	Taints                []corev1.Taint          `hash:"set"`
 	Labels                map[string]string       `hash:"set"`
