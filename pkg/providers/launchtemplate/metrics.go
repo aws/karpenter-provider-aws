@@ -33,9 +33,10 @@ const (
 )
 
 var (
-	// UserDataBytes is recorded when a launch template is created, which is the only time the user data
-	// is rendered. The launch template name is a hash that includes the user data, so any change to the
-	// rendered user data produces a new launch template and refreshes this gauge.
+	// UserDataBytes is recorded when the user data is rendered, just before ec2:CreateLaunchTemplate — so
+	// an oversized rendering is reported even though EC2 rejects the create, which is when the size matters
+	// most. The launch template name is a hash that includes the user data, so any change to the rendered
+	// user data produces a new launch template and refreshes this gauge.
 	UserDataBytes = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
 		prometheus.GaugeOpts{
