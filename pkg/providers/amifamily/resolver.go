@@ -183,6 +183,12 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 		// Reservations IDs are also included since we need to create a separate LaunchTemplate per reservation ID when
 		// launching reserved capacity. If it's a reserved capacity launch, we've already filtered the instance types
 		// further up the call stack.
+		//
+		// TODO: Track a future optimization for custom AMIs. The most common use-case for this feature is a customer
+		// with an AMI that has its own bespoke dynamic computation, requiring them to model Karpenter's values to match.
+		// In this case, their user-data is static across all instance types. Since user-data variance is the main vector
+		// that causes an increase in launch template count, removing the duplicated user-data entries for custom AMIs
+		// would alleviate the launch template cardinality concern for that common use-case.
 		type launchTemplateParams struct {
 			efaCount int
 			maxPods  int
