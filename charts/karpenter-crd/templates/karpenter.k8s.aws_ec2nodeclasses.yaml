@@ -389,6 +389,10 @@ spec:
                     systemReserved, evictionHard) and passes all others through to UserData unchanged.
                     Field names and types are validated by Karpenter, which reports a rejected configuration
                     on status.conditions as ValidationSucceeded=False rather than failing the apply.
+                    Kubelet is hashed separately in Hash() as a marshaled string rather than as part of the
+                    struct hash. Its values are raw JSON bytes (apiextensionsv1.JSON), and the struct hash uses
+                    SlicesAsSets, which would treat those byte slices as unordered multisets and collide configs
+                    that are byte-permutations of one another.
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
                 metadataOptions:

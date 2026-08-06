@@ -79,7 +79,10 @@ func NewDefaultResolver(region string, celEnv *kubeletcel.CELEnvironment) *Defau
 
 func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	kc := nodeClass.KubeletConfiguration()
-	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	// KubeletConfiguration values are raw JSON bytes (apiextensionsv1.JSON). Hashing the map with
+	// SlicesAsSets would treat those byte slices as unordered multisets, colliding configs that are
+	// byte-permutations of one another. Hash it as a string (via String) to avoid that.
+	kcHash, _ := hashstructure.Hash(kc.String(), hashstructure.FormatV2, nil)
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})

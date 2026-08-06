@@ -499,6 +499,22 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
+		It("should generate different launch template names based on the unparsed (passthrough) kubelet configuration", func() {
+			// UnparsedKubeletConfig holds raw JSON bytes. Hashing it as a set of bytes (rather than as a
+			// string) collides configs whose raw bytes are byte-permutations of one another, e.g. 12 vs 21.
+			kubeletChanges := []v1.KubeletConfiguration{
+				test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 12}),
+				test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 21}),
+				test.MustMakeKubeletConfiguration(map[string]interface{}{"registryPullQPS": 5}),
+			}
+			launchtemplateResult := []string{}
+			for _, kubelet := range kubeletChanges {
+				lt := &amifamily.LaunchTemplate{UserData: bootstrap.EKS{Options: bootstrap.Options{UnparsedKubeletConfig: kubelet}}}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 3))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
 		It("should generate different launch template names based on bootstrap configuration", func() {
 			bootstrapOptions := []*bootstrap.Options{
 				{},

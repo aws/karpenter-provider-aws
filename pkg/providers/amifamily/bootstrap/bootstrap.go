@@ -29,13 +29,17 @@ import (
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
 type Options struct {
-	ClusterName           string
-	ClusterEndpoint       string
-	ClusterCIDR           *string
-	KubeletConfig         *v1.ParsedKubeletConfig
-	UnparsedKubeletConfig v1.KubeletConfiguration
-	Taints                []corev1.Taint    `hash:"set"`
-	Labels                map[string]string `hash:"set"`
+	ClusterName     string
+	ClusterEndpoint string
+	ClusterCIDR     *string
+	KubeletConfig   *v1.ParsedKubeletConfig
+	// UnparsedKubeletConfig is hashed as a string (via its String method) rather than as a map of
+	// raw JSON bytes. SlicesAsSets, used when hashing the launch template, would otherwise treat
+	// each value's Raw []byte as an unordered multiset and collide configs that are byte-permutations
+	// of one another.
+	UnparsedKubeletConfig v1.KubeletConfiguration `hash:"string"`
+	Taints                []corev1.Taint          `hash:"set"`
+	Labels                map[string]string       `hash:"set"`
 	CABundle              *string
 	ContainerRuntime      *string
 	CustomUserData        *string

@@ -44,6 +44,16 @@ type ParsedKubeletConfig struct {
 	CPUCFSQuota                 *bool                      `json:"cpuCFSQuota,omitempty"`
 }
 
+// String returns the config as its marshaled JSON. It exists so KubeletConfiguration can be hashed
+// as a string rather than as a map of raw JSON bytes: hashstructure with SlicesAsSets treats each
+// value's Raw []byte as an unordered multiset, which collides configs that are byte-permutations of
+// one another. Callers hash String() (or tag the field hash:"string") to avoid that. json.Marshal
+// sorts map keys, so the output is stable regardless of map iteration order. It can't error here --
+// apiextensionsv1.JSON always marshals (to its Raw bytes or "null") and keys are strings.
+func (kc KubeletConfiguration) String() string {
+	return string(lo.Must(json.Marshal(kc)))
+}
+
 // ParseKubeletConfig unmarshals the unstructured kubelet config map into a typed struct
 // containing the fields Karpenter needs for scheduling and bootstrap.
 func ParseKubeletConfig(kc KubeletConfiguration) (*ParsedKubeletConfig, error) {
