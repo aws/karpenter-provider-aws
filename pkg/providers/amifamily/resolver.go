@@ -118,7 +118,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error)
-	UserData(kubeletConfig *v1.ParsedKubeletConfig, kubeletConfigRaw v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1.ParsedKubeletConfig, unparsedKubeletConfig v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -351,8 +351,8 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
 ) []*LaunchTemplate {
-	kubeletConfigRaw := nodeClass.Spec.Kubelet.DeepCopy()
-	parsedKubeletConfig, _ := v1.ParseKubeletConfig(kubeletConfigRaw)
+	unparsedKubeletConfig := nodeClass.Spec.Kubelet.DeepCopy()
+	parsedKubeletConfig, _ := v1.ParseKubeletConfig(unparsedKubeletConfig)
 	if parsedKubeletConfig == nil {
 		parsedKubeletConfig = &v1.ParsedKubeletConfig{}
 	}
@@ -369,10 +369,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		// We know that it's not possible to have values that would overflow int32 here since we control
 		// the maxPods values that we pass in here
 		parsedKubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
-		if kubeletConfigRaw == nil {
-			kubeletConfigRaw = v1.KubeletConfiguration{}
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
 		}
-		kubeletConfigRaw["maxPods"] = v1.JSONValue(maxPods)
+		unparsedKubeletConfig["maxPods"] = v1.JSONValue(maxPods)
 	}
 	// kubeReserved/systemReserved may have been CEL expressions resolved per instance type upstream.
 	// Write the resolved quantities back onto both representations for the same reason as maxPods:
@@ -380,17 +380,17 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	// kubelet config, so an unresolved expression left in either would reach the node verbatim.
 	if resolvedKubeReserved != nil {
 		parsedKubeletConfig.KubeReserved = resolvedKubeReserved
-		if kubeletConfigRaw == nil {
-			kubeletConfigRaw = v1.KubeletConfiguration{}
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
 		}
-		kubeletConfigRaw["kubeReserved"] = v1.JSONValue(resolvedKubeReserved)
+		unparsedKubeletConfig["kubeReserved"] = v1.JSONValue(resolvedKubeReserved)
 	}
 	if resolvedSystemReserved != nil {
 		parsedKubeletConfig.SystemReserved = resolvedSystemReserved
-		if kubeletConfigRaw == nil {
-			kubeletConfigRaw = v1.KubeletConfiguration{}
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
 		}
-		kubeletConfigRaw["systemReserved"] = v1.JSONValue(resolvedSystemReserved)
+		unparsedKubeletConfig["systemReserved"] = v1.JSONValue(resolvedSystemReserved)
 	}
 	taints := lo.Flatten([][]corev1.Taint{
 		nodeClaim.Spec.Taints,
@@ -421,8 +421,8 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				r.defaultClusterDNS(options, parsedKubeletConfig, kubeletConfigRaw),
-				kubeletConfigRaw,
+				r.defaultClusterDNS(options, parsedKubeletConfig, unparsedKubeletConfig),
+				unparsedKubeletConfig,
 				taints,
 				RejectForbiddenLabels(options.Labels),
 				options.CABundle,

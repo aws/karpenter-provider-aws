@@ -105,7 +105,7 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 // passthrough fields (any valid kubelet config field) are preserved without Karpenter needing to know about them.
 func (n Nodeadm) generateInlineKubeletConfiguration() map[string]runtime.RawExtension {
 	kubeConfigMap := map[string]runtime.RawExtension{}
-	for k, v := range n.KubeletConfigRaw {
+	for k, v := range n.UnparsedKubeletConfig {
 		kubeConfigMap[k] = runtime.RawExtension{Raw: v.Raw}
 	}
 	// Karpenter injects registerWithTaints so the kubelet registers the node with the

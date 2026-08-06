@@ -225,7 +225,7 @@ status:
 
 ## Bootstrap Integration
 
-The bootstrap layer receives both representations: the parsed struct (`KubeletConfig`) and the raw map (`KubeletConfigRaw`). AMI families consume different ones, so both exist rather than one being derived at the boundary.
+The bootstrap layer receives both representations: the parsed struct (`KubeletConfig`) and the raw map (`UnparsedKubeletConfig`). AMI families consume different ones, so both exist rather than one being derived at the boundary.
 
 Before either is handed to an AMI family, the launch template resolver fills in `maxPods` on both from the count already resolved for the instance type, if the user didn't set a literal integer. That covers two cases with one path: the user set nothing, and the user set a CEL expression that only has meaning against a specific instance type. Updating only the parsed struct would ship the unevaluated expression to a nodeadm-based node, or omit `maxPods` from its inline config entirely.
 
