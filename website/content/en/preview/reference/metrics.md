@@ -344,6 +344,12 @@ Total cost of the nodepool from Karpenter's perspective. Units are determined by
 The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 - Stability Level: ALPHA
 
+## Nodeclass Metrics
+
+### `karpenter_nodeclass_userdata_bytes`
+Size in bytes of the rendered user data (raw, pre-base64) for the EC2NodeClass
+- Stability Level: ALPHA
+
 ## Interruption Metrics
 
 ### `karpenter_interruption_received_messages_total`
