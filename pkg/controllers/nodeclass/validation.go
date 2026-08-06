@@ -428,10 +428,6 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 		nodeClass.Spec,
 		nodeClass.Annotations,
 		tags,
-		// Spec.Kubelet is hash:"ignore" so it's excluded from the struct hash above. Its values are
-		// raw JSON bytes, and SlicesAsSets would treat those byte slices as unordered multisets,
-		// colliding configs that are byte-permutations of one another. Hash it as a string (via
-		// String) so kubelet changes still bust this cache.
 		nodeClass.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)

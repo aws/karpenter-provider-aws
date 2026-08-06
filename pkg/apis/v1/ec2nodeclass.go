@@ -120,10 +120,6 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Type=object
 	// +optional
-	// Kubelet is hashed separately in Hash() as a marshaled string rather than as part of the
-	// struct hash. Its values are raw JSON bytes (apiextensionsv1.JSON), and the struct hash uses
-	// SlicesAsSets, which would treat those byte slices as unordered multisets and collide configs
-	// that are byte-permutations of one another.
 	Kubelet KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
@@ -550,10 +546,6 @@ func (in *EC2NodeClass) Hash(caBundle *string) string {
 		// doesn't trigger drift.
 		in.AMIFamily(),
 		lo.FromPtr(caBundle),
-		// Spec.Kubelet is excluded from the struct hash (hash:"ignore") and hashed here as a
-		// marshaled string. Its values are raw JSON bytes, and SlicesAsSets below would treat
-		// those byte slices as unordered multisets, colliding configs that are byte-permutations of
-		// one another. Hashing the marshaled bytes as a string avoids that.
 		in.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
