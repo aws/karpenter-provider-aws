@@ -63,6 +63,7 @@ const (
 	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration    = "InvalidKubeletConfiguration"
 	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
 	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
 	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
@@ -153,7 +154,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
-			"InvalidKubeletConfiguration",
+			ConditionReasonInvalidKubeletConfiguration,
 			strings.Join(messages, "; "),
 		)
 		return reconcile.Result{}, nil
