@@ -219,6 +219,18 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					}
 				}
 			}
+			// kubeReserved is resolved here from the raw NodeClass values rather than reused from the scheduler's
+			// it.Overhead.KubeReserved. Overhead's kube-reserved is always fully populated with cpu + memory +
+			// ephemeral-storage defaults (see kubeReservedResources), even when the user only configured a subset
+			// (e.g. only memory). Feeding that into user-data would emit
+			// `--kube-reserved cpu=...,memory=...,ephemeral-storage=...` for keys the user never set, overriding the
+			// AMI's/kubelet's own defaults on every node. The launch template must instead pass only the
+			// explicitly-configured values, so we re-resolve from spec here.
+			//
+			// systemReserved's Overhead (systemReservedResources) is a pure pass-through of the user's values, so it
+			// wouldn't hit the same problem, but we resolve it from spec too for symmetry with kubeReserved and to run
+			// it through the same shared CEL evaluation path below. That shared path is what keeps both values from
+			// diverging from what the scheduler reserved.
 			var kubeReserved, systemReserved map[string]string
 			if nodeClass.Spec.Kubelet != nil {
 				kubeReserved = nodeClass.Spec.Kubelet.KubeReserved
