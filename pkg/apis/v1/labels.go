@@ -37,6 +37,8 @@ func init() {
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceNitroEnclavesSupported,
+		LabelInstanceNitroTPMSupported,
+		LabelInstanceNitroTPMVersion,
 		LabelInstanceCategory,
 		LabelInstanceCapabilityFlex,
 		LabelInstanceFamily,
@@ -147,6 +149,8 @@ var (
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceNitroEnclavesSupported       = apis.Group + "/nitro-sandbox"
+	LabelInstanceNitroTPMSupported            = apis.Group + "/instance-nitro-tpm-supported"
+	LabelInstanceNitroTPMVersion              = apis.Group + "/instance-nitro-tpm-version"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
 	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
