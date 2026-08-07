@@ -370,8 +370,17 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
 		scheduling.NewRequirement(v1.LabelInstanceNitroEnclavesSupported, corev1.NodeSelectorOpIn, fmt.Sprint(info.NitroEnclavesSupport == ec2types.NitroEnclavesSupportSupported)),
+		scheduling.NewRequirement(v1.LabelInstanceNitroTPMSupported, corev1.NodeSelectorOpIn, fmt.Sprint(info.NitroTpmSupport == ec2types.NitroTpmSupportSupported)),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
+
+	// NitroTpmInfo is only populated for instance types which support NitroTPM. Instance types without NitroTPM
+	// support don't get the version label at all, rather than getting it with an empty value.
+	if info.NitroTpmInfo != nil && len(info.NitroTpmInfo.SupportedVersions) != 0 {
+		requirements.Add(scheduling.NewRequirement(v1.LabelInstanceNitroTPMVersion, corev1.NodeSelectorOpIn, info.NitroTpmInfo.SupportedVersions...))
+	} else {
+		requirements.Add(scheduling.NewRequirement(v1.LabelInstanceNitroTPMVersion, corev1.NodeSelectorOpDoesNotExist))
+	}
 
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.

@@ -107,6 +107,7 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", "17567831983996427", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", "5078825826133662844", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", "17001101224536964682", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("EnclaveOptions Enabled", "11000487401348801859", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: true}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
