@@ -3712,6 +3712,36 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// t3.large defaults to 35 pods based on its network interfaces.
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 		})
+		It("should resolve kubeReserved expressions into the instance type's reserved overhead", func() {
+			// The failure/gate-off cases above only prove an expression is rejected or dropped. This is the
+			// positive path: a kubeReserved CEL expression must resolve per instance type and land in the
+			// reserved overhead, which is what actually shrinks the node's allocatable.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"kubeReserved": map[string]string{
+					// m5.large has 2 vCPUs and 8192 MiB: cpu -> 60m (already a 10m multiple), memory ->
+					// 8192/100 = 81, rounded up to the next 16Mi -> 96Mi. Static entries in the same map
+					// must pass through untouched alongside the resolved expressions.
+					string(corev1.ResourceCPU):              "vcpus * 30",
+					string(corev1.ResourceMemory):           "memory_mib / 100",
+					string(corev1.ResourceEphemeralStorage): "3Gi",
+				},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("60m"))
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("96Mi"))
+			Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("3Gi"))
+		})
 	})
 
 })

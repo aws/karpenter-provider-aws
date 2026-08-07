@@ -1756,6 +1756,56 @@ eviction-max-pod-grace-period = 10
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 40))
 				})
 			})
+			It("should resolve a kubeReserved expression to the same value the scheduler reserves", func() {
+				// The scheduler reserves capacity via instancetype.evaluateResourceExpressions and the launch
+				// template configures the node via amifamily.ResolveResourceMap. Both are documented to be the
+				// single shared CEL path so the node reserves exactly what the scheduler accounted for; if they
+				// diverged, the scheduler would reserve X while the node reserved Y. Pin one instance type and
+				// assert the expression resolves identically on both paths.
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+				}))
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+				// m5.large: 2 vCPUs, 8192 MiB. cpu -> 60m (10m multiple), memory -> 8192/100 = 81 -> 96Mi.
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+					"kubeReserved": map[string]string{
+						string(corev1.ResourceCPU):    "vcpus * 30",
+						string(corev1.ResourceMemory): "memory_mib / 100",
+					},
+				})
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+					karpv1.NodeSelectorRequirementWithMinValues{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"m5.large"},
+					},
+				)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+
+				// Launch template path: what the node will actually configure.
+				userDatas := ExpectUserDataExistsFromCreatedLaunchTemplates()
+				Expect(userDatas).ToNot(BeEmpty())
+				nodeKubeReserved := ExpectParseNodeConfigKubeletField[corev1.ResourceList](userDatas[0], "kubeReserved")
+
+				// Scheduler path: what capacity was reserved when accounting for the same instance type.
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+
+				// The two paths must resolve the expression to identical quantities.
+				Expect(nodeKubeReserved.Cpu().String()).To(Equal("60m"))
+				Expect(nodeKubeReserved.Memory().String()).To(Equal("96Mi"))
+				Expect(it.Overhead.KubeReserved.Cpu().Cmp(*nodeKubeReserved.Cpu())).To(Equal(0),
+					"scheduler-reserved cpu must match the node's configured kubeReserved cpu")
+				Expect(it.Overhead.KubeReserved.Memory().Cmp(*nodeKubeReserved.Memory())).To(Equal(0),
+					"scheduler-reserved memory must match the node's configured kubeReserved memory")
+			})
 			It("should drop expression-valued kubeReserved entries (keeping static ones) when the gate is disabled", func() {
 				// Gate off: the launch template resolver must not evaluate a CEL kubeReserved expression, mirroring
 				// the scheduler's resolution path. The static cpu entry is kept as-is; the memory expression is
