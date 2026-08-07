@@ -424,6 +424,7 @@ NodePools have the following status conditions:
 | Condition Type      | Description                                                                                                                                       |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | NodeClassReady      | Underlying nodeClass is ready                                                                                                                     |
+| NodeRegistrationHealthy | Nodes launched by this NodePool are registering healthy against the current NodeClass generation.                                                                                     |
 | ValidationSucceeded | NodePool CRD validation succeeded                                                                                                                 |
 | Ready               | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
 
