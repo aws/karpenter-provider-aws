@@ -61,6 +61,7 @@ type NodeClass interface {
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ConnectionTracking() *v1.ConnectionTracking
 	CPUOptions() *v1.CPUOptions
+	EnclaveOptions() *v1.EnclaveOptions
 }
 
 type DefaultProvider struct {
