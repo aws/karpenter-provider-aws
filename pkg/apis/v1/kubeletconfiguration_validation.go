@@ -121,6 +121,9 @@ func validateKubeletSemantics(kc KubeletConfiguration) []error {
 			if !percentageOrQuantity.MatchString(signals[key]) {
 				errs = append(errs, fmt.Errorf("spec.kubelet.%s[%s]: %q must be a percentage or a resource quantity",
 					field, key, signals[key]))
+			} else if strings.HasPrefix(signals[key], "-") {
+				errs = append(errs, fmt.Errorf("spec.kubelet.%s[%s]: %q can't be a negative resource quantity",
+					field, key, signals[key]))
 			}
 		}
 	}
