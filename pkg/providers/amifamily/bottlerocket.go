@@ -77,17 +77,18 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1.ParsedKubeletConfig, unparsedKubeletConfig v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
-			ClusterName:         b.ClusterName,
-			ClusterEndpoint:     b.ClusterEndpoint,
-			KubeletConfig:       kubeletConfig,
-			Taints:              taints,
-			Labels:              labels,
-			CABundle:            caBundle,
-			CustomUserData:      customUserData,
-			InstanceStorePolicy: instanceStorePolicy,
+			ClusterName:           b.ClusterName,
+			ClusterEndpoint:       b.ClusterEndpoint,
+			KubeletConfig:         kubeletConfig,
+			UnparsedKubeletConfig: unparsedKubeletConfig,
+			Taints:                taints,
+			Labels:                labels,
+			CABundle:              caBundle,
+			CustomUserData:        customUserData,
+			InstanceStorePolicy:   instanceStorePolicy,
 		},
 		EnableDefaultMountPaths: version.SupportsDefaultBind(b.resolveAMIVersion()),
 	}

@@ -15,6 +15,7 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/imdario/mergo"
@@ -131,4 +132,19 @@ type TestNodeClass struct {
 
 func (t *TestNodeClass) InstanceProfileTags(clusterName string) map[string]string {
 	return nil
+}
+
+// MustMakeKubeletConfiguration constructs a KubeletConfiguration map from an arbitrary
+// struct or map by marshaling to JSON and back. This is intended for use in tests, where
+// constructing the open map from typed fields is more ergonomic.
+func MustMakeKubeletConfiguration(obj interface{}) v1.KubeletConfiguration {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	kc := v1.KubeletConfiguration{}
+	if err := json.Unmarshal(data, &kc); err != nil {
+		panic(err)
+	}
+	return kc
 }

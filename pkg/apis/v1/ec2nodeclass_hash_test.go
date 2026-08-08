@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,7 @@ import (
 var testCABundle = lo.ToPtr("test-ca-bundle")
 
 var _ = Describe("Hash", func() {
-	const staticHash = "2608468723537941485"
+	const staticHash = "11148166120438674859"
 	var nodeClass *v1.EC2NodeClass
 	BeforeEach(func() {
 		nodeClass = &v1.EC2NodeClass{
@@ -84,29 +85,29 @@ var _ = Describe("Hash", func() {
 		Entry("Base EC2NodeClass", staticHash, v1.EC2NodeClass{}),
 		// Static fields, expect changed hash from base
 
-		Entry("UserData", "2153344579995979450", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
-		Entry("Tags", "4608386791045313156", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-		Entry("Context", "11612053647989098410", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
-		Entry("DetailedMonitoring", "11845605438531206428", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-		Entry("InstanceStorePolicy", "6430637013089544585", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
-		Entry("AssociatePublicIPAddress", "6811176403923819181", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
-		Entry("MetadataOptions HTTPEndpoint", "8158886403801636337", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
-		Entry("MetadataOptions HTTPProtocolIPv6", "12355196004817691031", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
-		Entry("MetadataOptions HTTPPutResponseHopLimit", "8968306366664488826", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
-		Entry("MetadataOptions HTTPTokens", "12408995450371615650", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
-		Entry("BlockDeviceMapping DeviceName", "13986335469721503441", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
-		Entry("BlockDeviceMapping RootVolume", "14242690863945643402", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{RootVolume: true}}}}),
-		Entry("BlockDeviceMapping DeleteOnTermination", "12316454167870753581", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
-		Entry("BlockDeviceMapping Encrypted", "17753517657333560591", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
-		Entry("BlockDeviceMapping IOPS", "2249322442135400321", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
-		Entry("BlockDeviceMapping KMSKeyID", "12259594419287406661", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
-		Entry("BlockDeviceMapping SnapshotID", "1149563513090550380", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
-		Entry("BlockDeviceMapping Throughput", "12068199760789564545", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
-		Entry("BlockDeviceMapping VolumeType", "16361719363399715944", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
-		Entry("ConnectionTracking TCPEstablishedTimeout", "12177489405137904098", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
-		Entry("ConnectionTracking UDPStreamTimeout", "17567831983996427", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
-		Entry("ConnectionTracking UDPTimeout", "5078825826133662844", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
-		Entry("CPUOptions NestedVirtualization", "17001101224536964682", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("UserData", "11774429238106843388", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
+		Entry("Tags", "9327338697296909506", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+		Entry("Context", "2279761750428738028", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
+		Entry("DetailedMonitoring", "1936848126751988570", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+		Entry("InstanceStorePolicy", "16697988646989909967", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
+		Entry("AssociatePublicIPAddress", "16141801171825097963", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
+		Entry("MetadataOptions HTTPEndpoint", "14969742554812447671", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
+		Entry("MetadataOptions HTTPProtocolIPv6", "1581716956216772561", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
+		Entry("MetadataOptions HTTPPutResponseHopLimit", "14046948658064232764", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
+		Entry("MetadataOptions HTTPTokens", "1346719102507290084", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
+		Entry("BlockDeviceMapping DeviceName", "8979166653850509463", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
+		Entry("BlockDeviceMapping RootVolume", "8875796205856543692", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{RootVolume: true}}}}),
+		Entry("BlockDeviceMapping DeleteOnTermination", "1470935115846151531", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
+		Entry("BlockDeviceMapping Encrypted", "5252376125396833097", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
+		Entry("BlockDeviceMapping IOPS", "11651419893470054855", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
+		Entry("BlockDeviceMapping KMSKeyID", "1488385067008138755", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
+		Entry("BlockDeviceMapping SnapshotID", "12786013539168652330", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
+		Entry("BlockDeviceMapping Throughput", "1873429003468556999", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
+		Entry("BlockDeviceMapping VolumeType", "6743466905516550702", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("ConnectionTracking TCPEstablishedTimeout", "1619669030802245540", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
+		Entry("ConnectionTracking UDPStreamTimeout", "13743705849402595405", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
+		Entry("ConnectionTracking UDPTimeout", "17941926745862994490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
+		Entry("CPUOptions NestedVirtualization", "6157846767212910604", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
@@ -117,12 +118,12 @@ var _ = Describe("Hash", func() {
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should match static hash when updating blockDeviceMapping volumeSize", func() {
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-		Expect(nodeClass.Hash(testCABundle)).To(Equal("3564293065344858862"))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal("10372902467896351912"))
 	})
 	It("should match static hash for instanceProfile", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-		Expect(nodeClass.Hash(testCABundle)).To(Equal("3585768058063247698"))
+		Expect(nodeClass.Hash(testCABundle)).To(Equal("10323991363677716244"))
 	})
 	It("should match static hash when reordering tags", func() {
 		nodeClass.Spec.Tags = map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}
@@ -214,5 +215,21 @@ var _ = Describe("Hash", func() {
 			Spec: nodeClass.Spec,
 		}
 		Expect(nodeClass.Hash(testCABundle)).To(Equal(otherNodeClass.Hash(testCABundle)))
+	})
+	It("should change hash when kubelet configuration is updated", func() {
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 110})
+		hash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 220})
+		updatedHash := nodeClass.Hash(testCABundle)
+		Expect(hash).ToNot(Equal(updatedHash))
+	})
+	// Kubelet values are raw JSON bytes hashed with SlicesAsSets. Without hashing them as a
+	// marshaled string, distinct configs whose raw bytes are permutations of each other collide.
+	It("should not collide for kubelet configs that are byte-permutations of one another", func() {
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 12})
+		hash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": 21})
+		updatedHash := nodeClass.Hash(testCABundle)
+		Expect(hash).ToNot(Equal(updatedHash))
 	})
 })

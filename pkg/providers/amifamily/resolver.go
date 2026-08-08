@@ -17,7 +17,6 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"math"
 	"net"
 	"sort"
 	"strconv"
@@ -119,7 +118,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error)
-	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1.ParsedKubeletConfig, unparsedKubeletConfig v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -215,8 +214,13 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 			}
 			var kubeReserved, systemReserved map[string]string
 			if nodeClass.Spec.Kubelet != nil {
-				kubeReserved = nodeClass.Spec.Kubelet.KubeReserved
-				systemReserved = nodeClass.Spec.Kubelet.SystemReserved
+				// The kubelet config is an open map; parse it to read the reserved-capacity fields
+				// (which may hold CEL expressions) as typed values. A parse error leaves both nil,
+				// falling back to AMI-family defaults rather than failing template resolution here.
+				if parsed, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet); err == nil {
+					kubeReserved = parsed.KubeReserved
+					systemReserved = parsed.SystemReserved
+				}
 			}
 			// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static
 			// quantity entries so the launch template falls back to the AMI family defaults rather than
@@ -304,20 +308,26 @@ func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 	}
 }
 
-func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConfiguration) *v1.KubeletConfiguration {
+// defaultClusterDNS fills in clusterDNS from the discovered kube-dns address when the user hasn't
+// set it. It updates raw alongside the parsed config: nodeadm-based AMI families render the raw
+// map as inline kubelet config, so a default applied only to the parsed struct would be dropped
+// for them. raw is mutated in place, having already been deep-copied from the NodeClass.
+func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.ParsedKubeletConfig, raw v1.KubeletConfiguration) *v1.ParsedKubeletConfig {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
 	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
 		return kubeletConfig
 	}
+	clusterDNS := []string{opts.KubeDNSIP.String()}
+	if raw != nil {
+		raw["clusterDNS"] = v1.JSONValue(clusterDNS)
+	}
 	if kubeletConfig == nil {
-		return &v1.KubeletConfiguration{
-			ClusterDNS: []string{opts.KubeDNSIP.String()},
-		}
+		return &v1.ParsedKubeletConfig{ClusterDNS: clusterDNS}
 	}
 	newKubeletConfig := kubeletConfig.DeepCopy()
-	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
+	newKubeletConfig.ClusterDNS = clusterDNS
 	return newKubeletConfig
 }
 
@@ -341,22 +351,46 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
 ) []*LaunchTemplate {
-	kubeletConfig := &v1.KubeletConfiguration{}
-	if nodeClass.Spec.Kubelet != nil {
-		kubeletConfig = nodeClass.Spec.Kubelet.DeepCopy()
+	unparsedKubeletConfig := nodeClass.Spec.Kubelet.DeepCopy()
+	parsedKubeletConfig, _ := v1.ParseKubeletConfig(unparsedKubeletConfig)
+	if parsedKubeletConfig == nil {
+		parsedKubeletConfig = &v1.ParsedKubeletConfig{}
 	}
-	maxPodsInt32 := int32(min(maxPods, math.MaxInt32)) //nolint:gosec,G115 // maxPods is bounded by Kubernetes pod limits
-	if kubeletConfig.MaxPods == nil {
-		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(maxPodsInt32))
-	} else if kubeletConfig.MaxPods.Type == intstr.String {
-		kubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(maxPodsInt32))
+	// maxPods is the count already resolved for this instance type, so it stands in both when the
+	// user set nothing and when they set a CEL expression: bootstrap needs a concrete number, and
+	// an expression can't be evaluated without an instance type.
+	//
+	// Both representations are updated because AMI families consume different ones -- the parsed
+	// struct drives the flag-based bootstrappers, while nodeadm-based AL2023 passes the raw map
+	// through as inline kubelet config. Leaving the raw map alone would ship the unevaluated
+	// expression to the node, or omit maxPods entirely when it was defaulted here.
+	if _, ok := parsedKubeletConfig.MaxPodsValue(); !ok {
+		// nolint:gosec
+		// We know that it's not possible to have values that would overflow int32 here since we control
+		// the maxPods values that we pass in here
+		parsedKubeletConfig.MaxPods = lo.ToPtr(intstr.FromInt32(int32(maxPods)))
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
+		}
+		unparsedKubeletConfig["maxPods"] = v1.JSONValue(maxPods)
 	}
-	// Use resolved values for kubeReserved/systemReserved when expressions were evaluated
+	// kubeReserved/systemReserved may have been CEL expressions resolved per instance type upstream.
+	// Write the resolved quantities back onto both representations for the same reason as maxPods:
+	// the parsed struct feeds the flag-based bootstrappers and the raw map feeds nodeadm's inline
+	// kubelet config, so an unresolved expression left in either would reach the node verbatim.
 	if resolvedKubeReserved != nil {
-		kubeletConfig.KubeReserved = resolvedKubeReserved
+		parsedKubeletConfig.KubeReserved = resolvedKubeReserved
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
+		}
+		unparsedKubeletConfig["kubeReserved"] = v1.JSONValue(resolvedKubeReserved)
 	}
 	if resolvedSystemReserved != nil {
-		kubeletConfig.SystemReserved = resolvedSystemReserved
+		parsedKubeletConfig.SystemReserved = resolvedSystemReserved
+		if unparsedKubeletConfig == nil {
+			unparsedKubeletConfig = v1.KubeletConfiguration{}
+		}
+		unparsedKubeletConfig["systemReserved"] = v1.JSONValue(resolvedSystemReserved)
 	}
 	taints := lo.Flatten([][]corev1.Taint{
 		nodeClaim.Spec.Taints,
@@ -387,7 +421,8 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				r.defaultClusterDNS(options, kubeletConfig),
+				r.defaultClusterDNS(options, parsedKubeletConfig, unparsedKubeletConfig),
+				unparsedKubeletConfig,
 				taints,
 				RejectForbiddenLabels(options.Labels),
 				options.CABundle,

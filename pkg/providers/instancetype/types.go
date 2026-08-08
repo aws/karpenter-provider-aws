@@ -78,11 +78,8 @@ func NewDefaultResolver(region string, celEnv *kubeletcel.CELEnvironment) *Defau
 }
 
 func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
-	kc := &v1.KubeletConfiguration{}
-	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
-		kc = resolved
-	}
-	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kc := nodeClass.KubeletConfiguration()
+	kcHash, _ := hashstructure.Hash(kc.String(), hashstructure.FormatV2, nil)
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
@@ -102,27 +99,28 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 	// !!! Important !!!
-	kc := &v1.KubeletConfiguration{}
-	if resolved := nodeClass.KubeletConfiguration(); resolved != nil {
-		kc = resolved
+	parsed, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+	if err != nil {
+		// If parsing fails, use empty defaults — validation will catch this at reconciliation time
+		parsed = &v1.ParsedKubeletConfig{}
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
 	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
-	// expression, or the default).
-	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	// expression, or the default). Fields come from the parsed open map rather than a typed struct.
+	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, parsed.MaxPods, amiFamily, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving maxPods, %w", err),
 			"instance-type", info.InstanceType)
 	}
-	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, kc.KubeReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.KubeReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving kubeReserved, %w", err),
 			"instance-type", info.InstanceType)
 	}
-	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, kc.SystemReserved, amiFamily, maxPods, kc.PodsPerCore, nodeClass.NetworkInterfaces())
+	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.SystemReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving systemReserved, %w", err),
@@ -138,11 +136,11 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		nodeClass.InstanceStorePolicy(),
 		nodeClass.NetworkInterfaces(),
 		maxPods,
-		kc.PodsPerCore,
+		parsed.PodsPerCore,
 		kubeReserved,
 		systemReserved,
-		kc.EvictionHard,
-		kc.EvictionSoft,
+		parsed.EvictionHard,
+		parsed.EvictionSoft,
 		nodeClass.AMIFamily(),
 		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
 			return cr.InstanceType == string(info.InstanceType)
@@ -152,7 +150,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 
 // evaluateResourceExpressions validates the kubeReserved and systemReserved CEL expressions for the given
 // instance type, returning an error for the first expression that fails to evaluate or produces a negative value.
-func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.KubeletConfiguration, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
+func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.ParsedKubeletConfig, celVars kubeletcel.InstanceTypeVars, info ec2types.InstanceTypeInfo) error {
 	for _, resourceExpressions := range []struct {
 		field string
 		m     map[string]string

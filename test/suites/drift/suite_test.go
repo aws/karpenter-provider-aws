@@ -305,10 +305,10 @@ var _ = Describe("Drift", Ordered, func() {
 			AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}},
 		}),
 		Entry("KubeletConfiguration", v1.EC2NodeClassSpec{
-			Kubelet: &v1.KubeletConfiguration{
-				EvictionSoft:            map[string]string{"memory.available": "5%"},
-				EvictionSoftGracePeriod: map[string]metav1.Duration{"memory.available": {Duration: time.Minute}},
-			},
+			Kubelet: test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"evictionSoft":            map[string]string{"memory.available": "5%"},
+				"evictionSoftGracePeriod": map[string]string{"memory.available": "1m0s"},
+			}),
 		}),
 		Entry("NetworkInterfaces", v1.EC2NodeClassSpec{
 			NetworkInterfaces: []*v1.NetworkInterface{

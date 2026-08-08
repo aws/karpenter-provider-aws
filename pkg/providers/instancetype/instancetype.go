@@ -70,7 +70,7 @@ type NodeClass interface {
 	CPUOptions() *v1.CPUOptions
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
-	KubeletConfiguration() *v1.KubeletConfiguration
+	KubeletConfiguration() v1.KubeletConfiguration
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 	ConnectionTracking() *v1.ConnectionTracking
@@ -287,6 +287,13 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	if !kc.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}
+	// The kubelet config is an open map; parse it once into the typed struct the per-instance-type
+	// evaluators read from. A parse error can't happen here in practice -- HasExpressions above already
+	// parsed successfully -- but on the off chance it does, there's nothing to evaluate.
+	parsed, err := v1.ParseKubeletConfig(kc)
+	if err != nil {
+		return nil
+	}
 	p.muInstanceTypesInfo.RLock()
 	defer p.muInstanceTypesInfo.RUnlock()
 
@@ -295,7 +302,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := p.evaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+		if err := p.evaluateKubeletExpressions(ctx, info, parsed, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
 		}
 	}
@@ -307,7 +314,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 // produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
 // per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
 // expression evaluated to a usable value for this instance type.
-func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
+func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.ParsedKubeletConfig, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
 	if kc == nil {
 		return nil
 	}

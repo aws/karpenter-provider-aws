@@ -63,6 +63,7 @@ const (
 	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
 	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
 	ConditionReasonTagValidationFailed            = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration    = "InvalidKubeletConfiguration"
 	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
 	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
 	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
@@ -138,6 +139,25 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			)
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
+	}
+
+	// spec.kubelet is an open map the API server can't validate, so this is the only structural check
+	// it gets. ValidationSucceeded is a required condition, so a failure here blocks node launch
+	// rather than letting configuration the kubelet would refuse reach an instance.
+	// See v1.ValidateKubeletConfig. This runs first because it's expression-aware -- it accepts a CEL
+	// expression in maxPods/kubeReserved/systemReserved and only rejects malformed shapes -- so the
+	// gate and per-instance-type checks below see a structurally valid config.
+	if errs := v1.ValidateKubeletConfig(nodeClass.Spec.Kubelet); len(errs) > 0 {
+		messages := make([]string, 0, len(errs))
+		for _, e := range errs {
+			messages = append(messages, e.Error())
+		}
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonInvalidKubeletConfiguration,
+			strings.Join(messages, "; "),
+		)
+		return reconcile.Result{}, nil
 	}
 
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
@@ -408,6 +428,7 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 		nodeClass.Spec,
 		nodeClass.Annotations,
 		tags,
+		nodeClass.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }
@@ -605,11 +626,20 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 }
 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
+//
+//nolint:gocyclo
 func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
 	if nodeClass.Spec.Kubelet == nil {
 		return nil
 	}
-	kc := nodeClass.Spec.Kubelet
+	// spec.kubelet is an open map; parse it into the typed struct to read the expression-bearing
+	// fields. Any parse error is intentionally ignored: the structural ValidateKubeletConfig check
+	// runs before this and has already reported it, so surfacing it again here would only duplicate
+	// that condition. A nil result just means there's nothing left to validate.
+	kc, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if kc == nil {
+		return nil
+	}
 	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
 		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
 			return serrors.Wrap(
