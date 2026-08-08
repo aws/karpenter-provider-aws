@@ -145,29 +145,6 @@ func (in *ParsedKubeletConfig) MaxPodsValue() (*int32, bool) {
 	return lo.ToPtr(int32(value)), true
 }
 
-// DeepCopy returns a deep copy of ParsedKubeletConfig.
-func (in *ParsedKubeletConfig) DeepCopy() *ParsedKubeletConfig {
-	if in == nil {
-		return nil
-	}
-	data, err := json.Marshal(in)
-	if err != nil {
-		return &ParsedKubeletConfig{}
-	}
-	out := &ParsedKubeletConfig{}
-	if err := json.Unmarshal(data, out); err != nil {
-		return &ParsedKubeletConfig{}
-	}
-	// json round-trip doesn't preserve nil vs empty for CPUCFSQuota
-	if in.CPUCFSQuota != nil {
-		out.CPUCFSQuota = lo.ToPtr(*in.CPUCFSQuota)
-	}
-	if in.MaxPods != nil {
-		out.MaxPods = lo.ToPtr(*in.MaxPods)
-	}
-	return out
-}
-
 // JSONValue is a helper to create an apiextensionsv1.JSON from any value.
 func JSONValue(v interface{}) apiextensionsv1.JSON {
 	raw, err := json.Marshal(v)
