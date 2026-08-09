@@ -19,8 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/awslabs/operatorpkg/option"
-	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"

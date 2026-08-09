@@ -27,6 +27,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
+	"dario.cat/mergo"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
@@ -34,7 +35,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
-	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"

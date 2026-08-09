@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
