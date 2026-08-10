@@ -177,10 +177,14 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
+		parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+		if err != nil {
+			parsedKubelet = &v1.ParsedKubeletConfig{}
+		}
 		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
 		for name := range p.instanceTypesInfo {
-			it, err := p.get(ctx, nodeClass, name)
+			it, err := p.get(ctx, nodeClass, name, parsedKubelet)
 			if err != nil {
 				return nil, err
 			}
@@ -223,8 +227,11 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 		})
 	}
 	if instanceType == nil {
-		var err error
-		instanceType, err = p.get(ctx, nodeClass, name)
+		parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+		if err != nil {
+			parsedKubelet = &v1.ParsedKubeletConfig{}
+		}
+		instanceType, err = p.get(ctx, nodeClass, name, parsedKubelet)
 		if err != nil {
 			return nil, err
 		}
@@ -232,12 +239,12 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
 
-func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error) {
 	info, ok := p.instanceTypesInfo[name]
 	if !ok {
 		return nil, fmt.Errorf("instance type %s not found in cache", name)
 	}
-	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass, parsedKubelet)
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
 	}
@@ -281,17 +288,17 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	if kc == nil {
 		return nil
 	}
+	// The kubelet config is an open map; parse it once into the typed struct the per-instance-type
+	// evaluators read from, then reuse it for the expression check below. A parse error means there's
+	// nothing to evaluate.
+	parsed, err := v1.ParseKubeletConfig(kc)
+	if err != nil {
+		return nil
+	}
 	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
 	// per-instance-type loop entirely. The same applies when expressions are gated off -- the validation
 	// controller has already rejected the NodeClass by this point.
-	if !kc.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
-		return nil
-	}
-	// The kubelet config is an open map; parse it once into the typed struct the per-instance-type
-	// evaluators read from. A parse error can't happen here in practice -- HasExpressions above already
-	// parsed successfully -- but on the off chance it does, there's nothing to evaluate.
-	parsed, err := v1.ParseKubeletConfig(kc)
-	if err != nil {
+	if !parsed.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}
 	p.muInstanceTypesInfo.RLock()

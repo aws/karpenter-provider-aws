@@ -61,8 +61,8 @@ type ZoneData struct {
 type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(NodeClass) string
-	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data
-	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) (*cloudprovider.InstanceType, error)
+	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data. 
+	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error)
 }
 
 type DefaultResolver struct {
@@ -94,14 +94,15 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	)
 }
 
-func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass) (*cloudprovider.InstanceType, error) {
+func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass, parsed *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error) {
 	// !!! Important !!!
 	// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 	// !!! Important !!!
-	parsed, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
-	if err != nil {
-		// If parsing fails, use empty defaults — validation will catch this at reconciliation time
+	// parsed is the NodeClass' kubelet config, unmarshaled once by the caller and shared across every instance
+	// type. A nil value (e.g. the open map failed to parse) is treated as empty defaults -- validation surfaces
+	// the decode error separately at reconciliation time.
+	if parsed == nil {
 		parsed = &v1.ParsedKubeletConfig{}
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})

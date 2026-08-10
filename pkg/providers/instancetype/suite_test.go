@@ -3890,9 +3890,9 @@ func (r *failingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
 	return r.delegate.CacheKey(nodeClass)
 }
 
-func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass) (*corecloudprovider.InstanceType, error) {
+func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
 	if info.InstanceType == r.failOn {
 		return nil, fmt.Errorf("%s", r.failureText)
 	}
-	return r.delegate.Resolve(ctx, info, zones, nodeClass)
+	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }

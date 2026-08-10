@@ -94,10 +94,20 @@ func (kc KubeletConfiguration) HasExpressions() bool {
 	if err != nil {
 		return false
 	}
-	if parsed.MaxPods != nil && parsed.MaxPods.Type == intstr.String {
+	return parsed.HasExpressions()
+}
+
+// HasExpressions reports whether any field holds a CEL expression rather than a static value.
+// Defined on the parsed config so callers that already parsed the open map can reuse it without
+// re-parsing. See the open-map method for what counts as an expression.
+func (in *ParsedKubeletConfig) HasExpressions() bool {
+	if in == nil {
+		return false
+	}
+	if in.MaxPods != nil && in.MaxPods.Type == intstr.String {
 		return true
 	}
-	return parsed.HasResourceExpressions()
+	return in.HasResourceExpressions()
 }
 
 // HasResourceExpressions reports whether kubeReserved or systemReserved holds a CEL expression -
