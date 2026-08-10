@@ -132,6 +132,7 @@ var _ = Describe("InterruptionHandling", func() {
 			},
 		})
 		metrics.NodeClaimsDisruptedTotal.Reset()
+		interruption.ReceivedMessages.Reset()
 	})
 	Context("Processing Messages", func() {
 		It("should delete the NodeClaim when receiving a spot interruption warning", func() {
@@ -143,8 +144,25 @@ var _ = Describe("InterruptionHandling", func() {
 				metrics.ReasonLabel: "spot_interrupted",
 				"nodepool":          "default",
 			})
+			ExpectMetricCounterValue(interruption.ReceivedMessages, 1, map[string]string{
+				"message_type": "spot_interrupted",
+				"managed":      "true",
+			})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, nodeClaim)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should mark an interruption message for an instance not managed by the cluster as unmanaged", func() {
+			ExpectMessagesCreated(spotInterruptionMessage(fake.InstanceID()))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricCounterValue(interruption.ReceivedMessages, 1, map[string]string{
+				"message_type": "spot_interrupted",
+				"managed":      "false",
+			})
+			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete the NodeClaim when receiving a capacity reservation interruption warning", func() {
