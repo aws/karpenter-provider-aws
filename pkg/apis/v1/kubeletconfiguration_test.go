@@ -197,18 +197,30 @@ var _ = Describe("MaxPodsValue", func() {
 	})
 })
 
-var _ = Describe("MaxPodsInt", func() {
+// maxPodsInt resolves maxPods to a literal *int32, or nil when it's unset, a CEL expression, or a config
+// that fails to decode. It's a test-only convenience over the exported API; production reads the resolved
+// value straight off the parsed struct via MaxPodsValue.
+func maxPodsInt(kc v1.KubeletConfiguration) *int32 {
+	parsed, err := v1.ParseKubeletConfig(kc)
+	if err != nil {
+		return nil
+	}
+	value, _ := parsed.MaxPodsValue()
+	return value
+}
+
+var _ = Describe("maxPodsInt", func() {
 	It("should return the integer value for a literal maxPods", func() {
 		kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(58))})
-		Expect(lo.FromPtr(kc.MaxPodsInt())).To(BeNumerically("==", 58))
+		Expect(lo.FromPtr(maxPodsInt(kc))).To(BeNumerically("==", 58))
 	})
 	It("should return nil for an expression, and for a config that fails to decode", func() {
-		// MaxPodsInt is a convenience over the open map, so it swallows a decode error and reports unset
-		// rather than surfacing it; validation reports the malformed config separately.
-		Expect(test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+		// maxPodsInt swallows a decode error and reports unset rather than surfacing it; validation reports
+		// the malformed config separately.
+		Expect(maxPodsInt(test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			MaxPods: lo.ToPtr(intstr.FromString("vcpus * 10")),
-		}).MaxPodsInt()).To(BeNil())
-		Expect(v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("ten")}.MaxPodsInt()).To(BeNil())
+		}))).To(BeNil())
+		Expect(maxPodsInt(v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("ten")})).To(BeNil())
 	})
 })
 

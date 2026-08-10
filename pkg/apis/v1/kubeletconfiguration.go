@@ -68,22 +68,6 @@ func ParseKubeletConfig(kc KubeletConfiguration) (*ParsedKubeletConfig, error) {
 	return parsed, json.Unmarshal(data, parsed)
 }
 
-// MaxPodsInt returns the maxPods value as *int32 if it's set to an integer, or nil otherwise
-// (unset, or a CEL expression). It's a convenience for callers that need the static integer value
-// and handle expressions separately. Parsing the open map is the single source of truth; a value
-// that doesn't decode is treated as unset rather than surfacing the error here.
-func (kc KubeletConfiguration) MaxPodsInt() *int32 {
-	parsed, err := ParseKubeletConfig(kc)
-	if err != nil {
-		return nil
-	}
-	value, ok := parsed.MaxPodsValue()
-	if !ok {
-		return nil
-	}
-	return value
-}
-
 // HasExpressions reports whether any field holds a CEL expression rather than a static value. The
 // definition of "is an expression" must match what the evaluators actually treat as one: a
 // string-typed maxPods, or a kubeReserved/systemReserved value that isn't a parseable resource

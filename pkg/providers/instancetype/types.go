@@ -61,7 +61,7 @@ type ZoneData struct {
 type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(NodeClass) string
-	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data. 
+	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data.
 	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error)
 }
 
