@@ -1208,6 +1208,30 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(1))
 			Expect(amis[0].AmiID).To(Equal(amd64AMI))
 		})
+		It("should interpolate {kubernetesVersion} placeholder in AMI name filter", func() {
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Name: "my-ami-{kubernetesVersion}-*",
+					}},
+				},
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
+				{
+					Filters: []ec2types.Filter{
+						{
+							Name:   lo.ToPtr("name"),
+							Values: []string{fmt.Sprintf("my-ami-%s-*", k8sVersion)},
+						},
+					},
+					Owners: []string{
+						"amazon",
+						"self",
+					},
+				},
+			}, queries)
+		})
 	})
 })
 
