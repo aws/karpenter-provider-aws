@@ -3742,6 +3742,59 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("96Mi"))
 			Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("3Gi"))
 		})
+		It("should evaluate a max_pods reference in kubeReserved against the resolved maxPods expression", func() {
+			// The resolver evaluates maxPods first and threads its result into the reserved-resource CEL vars,
+			// so a kubeReserved expression that references max_pods sees the resolved maxPods -- not the
+			// AMI-family default. This ordering is load-bearing (see DefaultResolver.Resolve); assert it here
+			// so a reordering that fed the default into reserved expressions would be caught.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			// m5.large has 2 vCPUs, so maxPods resolves to min(110, 16) = 16. kubeReserved memory is then
+			// max_pods * 11 = 176 (already a 16Mi multiple). Were max_pods the AMI-family default rather than
+			// the resolved 16, the reserved memory would differ, so 176Mi proves the resolved value was used.
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods":      "min(110, vcpus * 8)",
+				"kubeReserved": map[string]string{string(corev1.ResourceMemory): "max_pods * 11"},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 16))
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("176Mi"))
+		})
+		It("should resolve systemReserved expressions into the instance type's reserved overhead", func() {
+			// systemReserved shares the resolution path with kubeReserved but lands in a different overhead
+			// field via a distinct passthrough (systemReservedResources), so it needs its own positive case.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				// m5.large has 2 vCPUs and 8192 MiB: cpu -> 60m (already a 10m multiple), memory ->
+				// 8192/100 = 81, rounded up to the next 16Mi -> 96Mi.
+				"systemReserved": map[string]string{
+					string(corev1.ResourceCPU):    "vcpus * 30",
+					string(corev1.ResourceMemory): "memory_mib / 100",
+				},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("60m"))
+			Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("96Mi"))
+		})
 	})
 
 })
