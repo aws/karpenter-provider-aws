@@ -234,6 +234,32 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 		})
 	})
+	Context("Kubelet Configuration Validation", func() {
+		// spec.kubelet is an open map the API server can't validate, so ValidateKubeletConfig performs the
+		// structural checks at reconcile time. This runs before the expression gate and required-condition
+		// checks, so it needs no additional setup, and it surfaces InvalidKubeletConfiguration on a rejection
+		// rather than returning a reconcile error (the config can't be fixed by a requeue).
+		DescribeTable("should set InvalidKubeletConfiguration when the kubelet config is structurally invalid",
+			func(kc v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonInvalidKubeletConfiguration))
+			},
+			Entry("imageGCHighThresholdPercent less than imageGCLowThresholdPercent", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCHighThresholdPercent: lo.ToPtr[int32](10),
+				ImageGCLowThresholdPercent:  lo.ToPtr[int32](60),
+			})),
+			Entry("imageGCHighThresholdPercent below 0", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCHighThresholdPercent: lo.ToPtr[int32](-10),
+			})),
+			Entry("imageGCLowThresholdPercent below 0", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCLowThresholdPercent: lo.ToPtr[int32](-10),
+			})),
+		)
+	})
 	Context("Kubelet Expression Validation", func() {
 		// Expressions are behind an alpha gate that is off by default, so every spec in this Context has to
 		// opt in. The gate-off rejection path is covered separately below.
