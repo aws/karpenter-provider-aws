@@ -257,7 +257,7 @@ func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "InvalidLaunchTemplateId.NotFound") {
 		return "LaunchTemplateNotFound", "Launch template used for instance launch wasn't found"
 	}
-	if IsUserDataTooLarge(err) || strings.Contains(err.Error(), "User data is limited to") {
+	if strings.Contains(err.Error(), "User data is limited to") {
 		return "UserDataSizeLimitExceeded", "Rendered user data exceeds the EC2 user data size limit"
 	}
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
