@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
@@ -124,22 +125,47 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
 		})
-		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
+		// spec.kubelet is an open map the API server can't validate, so an invalid kubelet
+		// configuration is accepted on apply and surfaced by the nodeclass controller as
+		// ValidationSucceeded=False rather than being rejected at admission time.
+		It("should mark ValidationSucceeded=False if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCHighThresholdPercent": int32(10),
 				"imageGCLowThresholdPercent":  int32(60),
 			})
-			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+			ExpectKubeletValidationFailed(nodeClass)
 		})
-		It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
+		It("should mark ValidationSucceeded=False if imageGCHighThresholdPercent is negative", func() {
 			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCHighThresholdPercent": int32(-10),
 			})
-			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+			ExpectKubeletValidationFailed(nodeClass)
+		})
+		It("should mark ValidationSucceeded=False if imageGCLowThresholdPercent is negative", func() {
 			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"imageGCLowThresholdPercent": int32(-10),
 			})
-			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+			ExpectKubeletValidationFailed(nodeClass)
 		})
 	})
 })
+
+// ExpectKubeletValidationFailed waits for the nodeclass controller to reject the applied
+// EC2NodeClass's kubelet configuration by reporting ValidationSucceeded=False. spec.kubelet is an
+// open map the API server can't validate, so an invalid config is accepted on apply and surfaced
+// at reconcile time rather than being rejected at admission. See v1.ValidateKubeletConfig.
+func ExpectKubeletValidationFailed(nodeClass *v1.EC2NodeClass) {
+	GinkgoHelper()
+	By("waiting for the EC2NodeClass to report ValidationSucceeded=False")
+	generation := nodeClass.Generation
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+		cond := nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded)
+		g.Expect(cond.IsFalse()).To(BeTrue())
+		g.Expect(cond.ObservedGeneration).To(Equal(generation))
+		g.Expect(cond.Reason).To(Equal("InvalidKubeletConfiguration"))
+	}).Should(Succeed())
+}
