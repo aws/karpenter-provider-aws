@@ -160,10 +160,11 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, nil
 	}
 
+	parsedKubelet, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.
-	if nodeClass.Spec.Kubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+	if parsedKubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionsDisabled,
@@ -172,7 +173,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
 	}
 
-	if err := validateKubeletExpressions(v.celEnv, nodeClass); err != nil {
+	if err := validateKubeletExpressions(v.celEnv, parsedKubelet); err != nil {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionInvalid,
@@ -628,15 +629,9 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
 //
 //nolint:gocyclo
-func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
-	if nodeClass.Spec.Kubelet == nil {
-		return nil
-	}
-	// spec.kubelet is an open map; parse it into the typed struct to read the expression-bearing
-	// fields. Any parse error is intentionally ignored: the structural ValidateKubeletConfig check
-	// runs before this and has already reported it, so surfacing it again here would only duplicate
-	// that condition. A nil result just means there's nothing left to validate.
-	kc, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.ParsedKubeletConfig) error {
+	// kc is the already-parsed kubelet config; a nil value (empty config or a parse error surfaced by
+	// the structural ValidateKubeletConfig check upstream) means there's nothing left to validate.
 	if kc == nil {
 		return nil
 	}

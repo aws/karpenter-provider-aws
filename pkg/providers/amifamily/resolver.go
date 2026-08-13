@@ -172,6 +172,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a v1.AMI, _ int) string { return a.ID })))
 	}
+	parsedKubelet, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		// In order to support reserved ENIs for CNI custom networking setups,
@@ -213,14 +214,12 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 				}
 			}
 			var kubeReserved, systemReserved map[string]string
-			if nodeClass.Spec.Kubelet != nil {
-				// The kubelet config is an open map; parse it to read the reserved-capacity fields
-				// (which may hold CEL expressions) as typed values. A parse error leaves both nil,
-				// falling back to AMI-family defaults rather than failing template resolution here.
-				if parsed, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet); err == nil {
-					kubeReserved = parsed.KubeReserved
-					systemReserved = parsed.SystemReserved
-				}
+			if parsedKubelet != nil {
+				// Read the reserved-capacity fields (which may hold CEL expressions) from the config
+				// parsed once above. A nil parsedKubelet leaves both nil, falling back to AMI-family
+				// defaults rather than failing template resolution here.
+				kubeReserved = parsedKubelet.KubeReserved
+				systemReserved = parsedKubelet.SystemReserved
 			}
 			// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static
 			// quantity entries so the launch template falls back to the AMI family defaults rather than
