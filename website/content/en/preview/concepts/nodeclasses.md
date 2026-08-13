@@ -371,10 +371,7 @@ Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<r
 While the gate is disabled, a NodeClass that carries an expression is rejected — its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
 {{% /alert %}}
 
-Each field independently accepts either its usual static value or an expression string — there is no separate expression field, and no precedence logic. Karpenter decides how to interpret the value from its type:
-
-* **`maxPods`**: a number is a static value; a string is compiled as an expression.
-* **`kubeReserved` / `systemReserved` values**: Karpenter first tries to parse the value as a Kubernetes resource quantity (e.g. `"200m"`, `"512Mi"`). If that succeeds it's static; if it fails, the value is compiled as an expression.
+Each field independently accepts either its usual static value or an expression string — there is no separate expression field, and no precedence logic. 
 
 When none of these fields is set, Karpenter applies its internal defaults (ENI-limited `maxPods`, graduated `kubeReserved`) exactly as it does today.
 
