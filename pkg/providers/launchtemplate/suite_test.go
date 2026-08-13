@@ -1855,6 +1855,52 @@ eviction-max-pod-grace-period = 10
 				Expect(it.Overhead.SystemReserved.Memory().Cmp(*nodeSystemReserved.Memory())).To(Equal(0),
 					"scheduler-reserved memory must match the node's configured systemReserved memory")
 			})
+			It("should resolve maxPods, kubeReserved, and systemReserved together when all are CEL expressions", func() {
+				// The per-field tests above cover each expression in isolation. This guards their coexistence in
+				// the open spec.kubelet map: all three must resolve on the same reconcile without interfering, so
+				// a single NodeClass mixing an int-valued (maxPods) and two map-valued (kube/systemReserved)
+				// expressions produces a fully-resolved node config.
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+				}))
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+				// m5.large: 2 vCPUs, 8192 MiB. maxPods min(110, 20*2) -> 40 (instance-type independent);
+				// cpu vcpus*30 -> 60m (10m multiple); memory memory_mib/100 = 81 -> 96Mi.
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+					"maxPods": "min(110, 20 * 2)",
+					"kubeReserved": map[string]string{
+						string(corev1.ResourceCPU):    "vcpus * 30",
+						string(corev1.ResourceMemory): "memory_mib / 100",
+					},
+					"systemReserved": map[string]string{
+						string(corev1.ResourceCPU):    "vcpus * 30",
+						string(corev1.ResourceMemory): "memory_mib / 100",
+					},
+				})
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+					karpv1.NodeSelectorRequirementWithMinValues{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{"m5.large"},
+					},
+				)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+
+				userDatas := ExpectUserDataExistsFromCreatedLaunchTemplates()
+				Expect(userDatas).ToNot(BeEmpty())
+				for _, userData := range userDatas {
+					Expect(ExpectParseNodeConfigKubeletField[int64](userData, "maxPods")).To(BeNumerically("==", 40))
+					kubeReserved := ExpectParseNodeConfigKubeletField[corev1.ResourceList](userData, "kubeReserved")
+					Expect(kubeReserved.Cpu().String()).To(Equal("60m"))
+					Expect(kubeReserved.Memory().String()).To(Equal("96Mi"))
+					systemReserved := ExpectParseNodeConfigKubeletField[corev1.ResourceList](userData, "systemReserved")
+					Expect(systemReserved.Cpu().String()).To(Equal("60m"))
+					Expect(systemReserved.Memory().String()).To(Equal("96Mi"))
+				}
+			})
 			It("should drop expression-valued kubeReserved entries (keeping static ones) when the gate is disabled", func() {
 				// Gate off: the launch template resolver must not evaluate a CEL kubeReserved expression, mirroring
 				// the scheduler's resolution path. The static cpu entry is kept as-is; the memory expression is

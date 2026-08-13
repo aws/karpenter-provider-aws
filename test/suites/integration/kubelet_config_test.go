@@ -208,6 +208,46 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 3)
 		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
+	It("should provision nodes when maxPods, kubeReserved, and systemReserved are all CEL expressions", func() {
+		// Requires the NodeClassCEL gate, which the e2e install enables via
+		// test/hack/e2e_scripts/install_karpenter.sh.
+		// Exercises all three expression-capable kubelet fields together, end-to-end: the expressions must
+		// evaluate, resolve per instance type, produce a valid kubelet config in UserData, and the kubelet
+		// must accept it and register the node. maxPods drives the behavioral check (min(110, 1+dsCount)
+		// resolves to 1+dsCount so each node fits exactly one test pod); the small reserved expressions must
+		// resolve without starving the node so pods still schedule.
+		dsCount := env.GetDaemonSetCount(nodePool)
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+			"maxPods": fmt.Sprintf("min(110, %d)", 1+dsCount),
+			"kubeReserved": map[string]string{
+				string(corev1.ResourceCPU):    "vcpus * 10",
+				string(corev1.ResourceMemory): "memory_mib / 100",
+			},
+			"systemReserved": map[string]string{
+				string(corev1.ResourceCPU):    "vcpus * 10",
+				string(corev1.ResourceMemory): "memory_mib / 100",
+			},
+		})
+
+		numPods := 3
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
+	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
