@@ -17,12 +17,16 @@ package v1
 import (
 	"encoding/json"
 	"math"
+	"reflect"
+	"slices"
+	"strings"
 
 	"github.com/samber/lo"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // ParsedKubeletConfig holds the extracted kubelet configuration fields that Karpenter
@@ -42,6 +46,35 @@ type ParsedKubeletConfig struct {
 	ImageGCHighThresholdPercent *int32                     `json:"imageGCHighThresholdPercent,omitempty"`
 	ImageGCLowThresholdPercent  *int32                     `json:"imageGCLowThresholdPercent,omitempty"`
 	CPUCFSQuota                 *bool                      `json:"cpuCFSQuota,omitempty"`
+}
+
+// managedKubeletFields is the set of kubelet config keys Karpenter extracts into ParsedKubeletConfig
+// and applies via bootstrap. It's derived from the struct's JSON tags so it can't drift from the
+// fields Karpenter actually maps. Keys outside this set are only honored by AMI families that render
+// the raw config through (see FeatureFlags.SupportsArbitraryKubeletConfig).
+var managedKubeletFields = func() sets.Set[string] {
+	fields := sets.New[string]()
+	t := reflect.TypeOf(ParsedKubeletConfig{})
+	for i := 0; i < t.NumField(); i++ {
+		if name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ","); name != "" && name != "-" {
+			fields.Insert(name)
+		}
+	}
+	return fields
+}()
+
+// UnmanagedKubeletFields returns the sorted keys present in the kubelet config that Karpenter does
+// not itself extract and apply. On AMI families that don't render the raw config through, these are
+// dropped rather than applied, so the validation controller rejects them for those families.
+func UnmanagedKubeletFields(kc KubeletConfiguration) []string {
+	unmanaged := []string{}
+	for key := range kc {
+		if !managedKubeletFields.Has(key) {
+			unmanaged = append(unmanaged, key)
+		}
+	}
+	slices.Sort(unmanaged)
+	return unmanaged
 }
 
 // String returns the config as its marshaled JSON. It exists so KubeletConfiguration can be hashed

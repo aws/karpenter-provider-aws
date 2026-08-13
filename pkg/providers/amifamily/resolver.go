@@ -136,6 +136,11 @@ type FeatureFlags struct {
 	PodsPerCoreEnabled           bool
 	EvictionSoftEnabled          bool
 	SupportsENILimitedPodDensity bool
+	// SupportsArbitraryKubeletConfig is true for families that render the raw kubelet config
+	// through to the node (nodeadm inline config), so any valid kubelet field is honored. Families
+	// that leave it false only apply the specific fields Karpenter maps to bootstrap flags/settings;
+	// the validation controller rejects unmapped fields for them rather than dropping them silently.
+	SupportsArbitraryKubeletConfig bool
 }
 
 // DefaultFamily provides default values for AMIFamilies that compose it
@@ -143,10 +148,11 @@ type DefaultFamily struct{}
 
 func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
-		UsesENILimitedMemoryOverhead: true,
-		PodsPerCoreEnabled:           true,
-		EvictionSoftEnabled:          true,
-		SupportsENILimitedPodDensity: true,
+		UsesENILimitedMemoryOverhead:   true,
+		PodsPerCoreEnabled:             true,
+		EvictionSoftEnabled:            true,
+		SupportsENILimitedPodDensity:   true,
+		SupportsArbitraryKubeletConfig: false,
 	}
 }
 

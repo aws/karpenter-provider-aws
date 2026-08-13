@@ -15,9 +15,12 @@ limitations under the License.
 package v1_test
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -245,5 +248,40 @@ var _ = Describe("ParsedKubeletConfig DeepCopy", func() {
 	It("should return nil for a nil receiver", func() {
 		var nilParsed *v1.ParsedKubeletConfig
 		Expect(nilParsed.DeepCopy()).To(BeNil())
+	})
+})
+
+var _ = Describe("UnmanagedKubeletFields", func() {
+	// These are the fields Karpenter extracts into ParsedKubeletConfig and applies via bootstrap. If a
+	// field is added there but this list isn't updated, the reflection-derived managed set would still
+	// pick it up -- this spec guards that derivation against silently treating a mapped field as unmanaged.
+	It("should treat every field Karpenter maps as managed", func() {
+		kc := test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+			ClusterDNS:                  []string{"10.0.0.10"},
+			MaxPods:                     lo.ToPtr(intstr.FromInt32(110)),
+			PodsPerCore:                 lo.ToPtr[int32](2),
+			SystemReserved:              map[string]string{"cpu": "50m"},
+			KubeReserved:                map[string]string{"cpu": "100m"},
+			EvictionHard:                map[string]string{"memory.available": "5%"},
+			EvictionSoft:                map[string]string{"memory.available": "10%"},
+			EvictionSoftGracePeriod:     map[string]metav1.Duration{"memory.available": {Duration: time.Minute}},
+			EvictionMaxPodGracePeriod:   lo.ToPtr[int32](60),
+			ImageGCHighThresholdPercent: lo.ToPtr[int32](80),
+			ImageGCLowThresholdPercent:  lo.ToPtr[int32](60),
+			CPUCFSQuota:                 lo.ToPtr(true),
+		})
+		Expect(v1.UnmanagedKubeletFields(kc)).To(BeEmpty())
+	})
+	It("should return passthrough fields Karpenter doesn't map, sorted", func() {
+		kc := v1.KubeletConfiguration{
+			"maxPods":             v1.JSONValue(110),
+			"serializeImagePulls": v1.JSONValue(false),
+			"registryPullQPS":     v1.JSONValue(int32(10)),
+		}
+		Expect(v1.UnmanagedKubeletFields(kc)).To(Equal([]string{"registryPullQPS", "serializeImagePulls"}))
+	})
+	It("should return empty for a nil or empty configuration", func() {
+		Expect(v1.UnmanagedKubeletFields(nil)).To(BeEmpty())
+		Expect(v1.UnmanagedKubeletFields(v1.KubeletConfiguration{})).To(BeEmpty())
 	})
 })

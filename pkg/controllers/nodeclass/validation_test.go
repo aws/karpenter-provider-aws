@@ -260,6 +260,73 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			})),
 		)
 	})
+	Context("Kubelet Field AMI Family Support", func() {
+		// Only AL2023 renders the raw kubelet config through to the node, so other families apply just
+		// the subset Karpenter maps to bootstrap and would silently drop the rest. These specs assert
+		// such fields are rejected with UnsupportedKubeletConfiguration rather than dropped, that AL2023
+		// still accepts them, and that Custom (which owns its own userdata) is exempt.
+		DescribeTable("should reject a kubelet field the AMI family won't apply",
+			func(family string, terms []v1.AMISelectorTerm, kc v1.KubeletConfiguration) {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+				nodeClass.Spec.AMISelectorTerms = terms
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				// Dropped fields can't be fixed by a requeue, so the failure must be terminal.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+			},
+			// registryPullQPS is a valid upstream kubelet field Karpenter doesn't map, so it's a passthrough
+			// field that only AL2023 honors.
+			Entry("passthrough field on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}),
+			Entry("passthrough field on Windows", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}),
+			// podsPerCore is a field Karpenter maps, but Bottlerocket has no setting to render it into.
+			Entry("podsPerCore on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr[int32](10)})),
+		)
+		It("should accept a passthrough field on AL2023, which renders the raw config through", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept podsPerCore on AL2023", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr[int32](10)})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("shouldn't flag fields the AMI family does apply", func() {
+			// Bottlerocket maps maxPods and kubeReserved, so these must not be reported as dropped.
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyBottlerocket)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:      lo.ToPtr(intstr.FromInt32(110)),
+				KubeReserved: map[string]string{"cpu": "100m"},
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+		})
+		It("should exempt the Custom AMI family, which owns its own userdata", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-12345"}}
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+		})
+	})
 	Context("Kubelet Expression Validation", func() {
 		// Expressions are behind an alpha gate that is off by default, so every spec in this Context has to
 		// opt in. The gate-off rejection path is covered separately below.

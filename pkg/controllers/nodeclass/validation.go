@@ -56,18 +56,19 @@ import (
 )
 
 const (
-	requeueAfterTime                              = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed            = "TagValidationFailed"
-	ConditionReasonInvalidKubeletConfiguration    = "InvalidKubeletConfiguration"
-	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
-	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
+	requeueAfterTime                               = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed             = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
+	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -180,6 +181,17 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
+	}
+
+	// Reject kubelet fields the NodeClass' AMI family won't apply. Without this they'd be dropped
+	// silently at bootstrap, launching a node that lacks the configuration the user set.
+	if err := validateKubeletFieldsSupported(nodeClass, parsedKubelet); err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonUnsupportedKubeletConfiguration,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(err)
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
@@ -664,6 +676,32 @@ func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Parsed
 		}
 	}
 	return nil
+}
+
+// validateKubeletFieldsSupported rejects kubelet config fields the NodeClass' AMI family won't apply.
+// Only families that render the raw config through (AL2023) honor every valid kubelet field; the rest
+// apply just the subset Karpenter maps to bootstrap, so any other field -- plus podsPerCore on families
+// that have no setting for it (Bottlerocket) -- would be dropped silently, launching a node without the
+// configuration the user set. Custom is exempt: it owns its userdata and ignores kubelet config entirely,
+// so there's nothing for Karpenter to guarantee.
+func validateKubeletFieldsSupported(nodeClass *v1.EC2NodeClass, parsed *v1.ParsedKubeletConfig) error {
+	if len(nodeClass.Spec.Kubelet) == 0 || nodeClass.AMIFamily() == v1.AMIFamilyCustom {
+		return nil
+	}
+	flags := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{}).FeatureFlags()
+	if flags.SupportsArbitraryKubeletConfig {
+		return nil
+	}
+	unsupported := sets.New(v1.UnmanagedKubeletFields(nodeClass.Spec.Kubelet)...)
+	// podsPerCore is a field Karpenter maps, but some families have no setting to render it into.
+	if parsed != nil && parsed.PodsPerCore != nil && !flags.PodsPerCoreEnabled {
+		unsupported.Insert("podsPerCore")
+	}
+	if unsupported.Len() == 0 {
+		return nil
+	}
+	return fmt.Errorf("spec.kubelet has fields not applied by the %s AMI family that would be silently dropped: %s",
+		nodeClass.AMIFamily(), strings.Join(sets.List(unsupported), ", "))
 }
 
 func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {
