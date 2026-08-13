@@ -18,11 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	kubeletconfigv1beta1 "k8s.io/kubelet/config/v1beta1"
 
 	// sigs.k8s.io/json reports unknown fields as errors rather than ignoring them, which
@@ -45,10 +46,29 @@ var evictionSignals = []string{
 // anything else is ignored rather than rejected by the kubelet itself.
 var reservedResources = []string{"cpu", "memory", "ephemeral-storage", "pid"}
 
-// percentageOrQuantity matches the two forms an eviction threshold may take: a percentage of the
-// relevant resource ("5%") or an absolute resource.Quantity ("500Mi"). The kubelet accepts both,
-// so constraining these to a Quantity alone would reject valid configuration.
-var percentageOrQuantity = regexp.MustCompile(`^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%|(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$`)
+// validateEvictionThreshold checks that an eviction threshold value is one of the two forms the
+// kubelet accepts: a percentage of the relevant resource ("5%") or a non-negative resource.Quantity
+// ("500Mi"). Constraining these to a Quantity alone would reject the percentage form the kubelet
+// honors. A "%" suffix selects the percentage branch; everything else is parsed as a Quantity.
+func validateEvictionThreshold(field, key, value string) error {
+	if pct, ok := strings.CutSuffix(value, "%"); ok {
+		// The kubelet reads a percentage as a fraction of the resource and rejects anything outside
+		// [0,100]. resource.ParseQuantity would accept the bare number too, so it's the range check
+		// that gives the percentage form meaning rather than making it a synonym for a quantity.
+		if v, err := strconv.ParseFloat(pct, 64); err != nil || v < 0 || v > 100 {
+			return fmt.Errorf("spec.kubelet.%s[%s]: %q must be a percentage or a resource quantity", field, key, value)
+		}
+		return nil
+	}
+	q, err := resource.ParseQuantity(value)
+	if err != nil {
+		return fmt.Errorf("spec.kubelet.%s[%s]: %q must be a percentage or a resource quantity", field, key, value)
+	}
+	if q.Sign() < 0 {
+		return fmt.Errorf("spec.kubelet.%s[%s]: %q can't be a negative resource quantity", field, key, value)
+	}
+	return nil
+}
 
 // ValidateKubeletConfig validates spec.kubelet against the upstream kubelet configuration type
 // that Karpenter compiles against, plus the semantic rules the upstream Go types can't express.
@@ -118,12 +138,8 @@ func validateKubeletSemantics(kc KubeletConfiguration) []error {
 			if field == "evictionSoftGracePeriod" {
 				continue
 			}
-			if !percentageOrQuantity.MatchString(signals[key]) {
-				errs = append(errs, fmt.Errorf("spec.kubelet.%s[%s]: %q must be a percentage or a resource quantity",
-					field, key, signals[key]))
-			} else if strings.HasPrefix(signals[key], "-") {
-				errs = append(errs, fmt.Errorf("spec.kubelet.%s[%s]: %q can't be a negative resource quantity",
-					field, key, signals[key]))
+			if err := validateEvictionThreshold(field, key, signals[key]); err != nil {
+				errs = append(errs, err)
 			}
 		}
 	}
