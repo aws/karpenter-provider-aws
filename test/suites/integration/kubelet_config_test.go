@@ -38,6 +38,7 @@ import (
 	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -248,6 +249,66 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 3)
 		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
+	DescribeTable("should resolve a maxPods CEL expression per instance type onto the node",
+		func(vcpus int32) {
+			// Requires the NodeClassCEL gate, which the e2e install enables via
+			// test/hack/e2e_scripts/install_karpenter.sh.
+			// maxPods = "vcpus * 8" resolves per instance type, so a node pinned to N vCPUs must report exactly
+			// N*8 allocatable pods. Unlike the pod-packing tests, this asserts the resolved value actually reached
+			// the real kubelet (--max-pods sets both Capacity and Allocatable pods), and that it was computed from
+			// this instance type's vCPU count rather than a single shared value. The multiplier comfortably
+			// exceeds the DaemonSet pod count so the node can still register and run a test pod.
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{fmt.Sprintf("%d", vcpus)},
+			})
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": "vcpus * 8",
+			})
+			pod := test.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Eventually(func(g Gomega) {
+				n := env.GetNode(node.Name)
+				g.Expect(n.Status.Allocatable.Pods().Value()).To(Equal(int64(vcpus) * 8))
+			}).Should(Succeed())
+		},
+		Entry("2 vCPUs", int32(2)),
+		Entry("4 vCPUs", int32(4)),
+	)
+	DescribeTable("should reserve resources per instance type when kubeReserved and systemReserved are CEL expressions",
+		func(vcpus int32) {
+			// Requires the NodeClassCEL gate, which the e2e install enables via
+			// test/hack/e2e_scripts/install_karpenter.sh.
+			// kubeReserved and systemReserved together reserve vcpus*(100+150)m of CPU. Reserved CPU is
+			// Capacity - Allocatable; we assert it's at least that resolved amount (a baseline system
+			// reservation only ever adds to it), which proves both expressions evaluated per instance type and
+			// reached the real kubelet, and that the reservation scales with the instance's vCPU count.
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{fmt.Sprintf("%d", vcpus)},
+			})
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"kubeReserved":   map[string]string{string(corev1.ResourceCPU): "vcpus * 100"},
+				"systemReserved": map[string]string{string(corev1.ResourceCPU): "vcpus * 150"},
+			})
+			pod := test.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Eventually(func(g Gomega) {
+				n := env.GetNode(node.Name)
+				reserved := n.Status.Capacity.Cpu().DeepCopy()
+				reserved.Sub(*n.Status.Allocatable.Cpu())
+				g.Expect(reserved.MilliValue()).To(BeNumerically(">=", int64(vcpus)*250))
+			}).Should(Succeed())
+		},
+		Entry("2 vCPUs", int32(2)),
+		Entry("4 vCPUs", int32(4)),
+	)
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
