@@ -261,25 +261,11 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.kubelet
 
-Karpenter provides the ability to configure the kubelet on provisioned nodes.
+Karpenter provides the ability to specify a few additional Kubelet arguments.
 These are all optional and provide support for additional customization and use cases.
 Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
-
-Any field of the upstream `KubeletConfiguration` for the Kubernetes version Karpenter was built
-against may be set. Karpenter reads the fields relevant to scheduling — `maxPods`, `podsPerCore`,
-`kubeReserved`, `systemReserved`, and `evictionHard` — and passes all others through to the node
-unchanged.
-
-Field names and values are validated by Karpenter rather than by the API server, so an invalid
-configuration is accepted on apply and reported on the EC2NodeClass afterwards:
-
-```sh
-kubectl get ec2nodeclass default -o jsonpath='{.status.conditions[?(@.type=="ValidationSucceeded")]}'
-```
-
-A NodeClass that fails this check does not become `Ready`, so no nodes launch from it until the
-configuration is corrected.
+The implemented fields are a subset of the full list of upstream kubelet configuration arguments.
 
 ```yaml
 kubelet:
@@ -313,8 +299,9 @@ kubelet:
 ```
 
 {{% alert title="Note" color="primary" %}}
-Fields beyond those shown above may be set directly in `spec.kubelet`. For example, `maxPods` and
-`registryPullQPS` can both be configured there:
+If you need to specify a field that isn't present in `spec.kubelet`, you can set it via custom [UserData]({{< ref "#specuserdata" >}}).
+For example, if you wanted to configure `maxPods` and `registryPullQPS` you would set the former through `spec.kubelet` and the latter through UserData.
+The following example achieves this with AL2023:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
@@ -324,11 +311,15 @@ spec:
     - alias: al2023@v20240807
   kubelet:
     maxPods: 42
-    registryPullQPS: 10
+  userData: |
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      kubelet:
+        config:
+          # Configured through UserData since unavailable in `spec.kubelet`
+          registryPullQPS: 10
 ```
-
-If you need a field newer than the kubelet version Karpenter was built against, set it via custom
-[UserData]({{< ref "#specuserdata" >}}) instead.
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
