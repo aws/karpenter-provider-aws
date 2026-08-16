@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.20.1
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -295,11 +295,66 @@ spec:
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
                     - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                connectionTracking:
+                  description: |-
+                    ConnectionTracking configures idle connection tracking timeouts for
+                    ENIs Karpenter provisions in the launch template. EFA-only interfaces
+                    are excluded. See ConnectionTracking.
+                  properties:
+                    tcpEstablishedTimeout:
+                      description: |-
+                        TCPEstablishedTimeout is the timeout (in seconds) for idle TCP connections
+                        in an established state.
+                        Value must be between 60 and 432,000 (5 days).
+                        If unset, EC2 applies its default which is 350 seconds for Nitro v6
+                        instance types (excluding P6e-GB200) and 432,000 seconds for other
+                        instance types.
+                      format: int32
+                      maximum: 432000
+                      minimum: 60
+                      type: integer
+                    udpStreamTimeout:
+                      description: |-
+                        UDPStreamTimeout is the timeout (in seconds) for idle UDP "stream" flows
+                        that have seen more than one request-response transaction.
+                        Value must be between 60 and 180.
+                        If unset, EC2 applies its default of 180 seconds.
+                      format: int32
+                      maximum: 180
+                      minimum: 60
+                      type: integer
+                    udpTimeout:
+                      description: |-
+                        UDPTimeout is the timeout (in seconds) for idle UDP flows that have seen
+                        traffic only in a single direction or a single request-response transaction.
+                        Value must be between 30 and 60.
+                        If unset, EC2 applies its default of 30 seconds.
+                      format: int32
+                      maximum: 60
+                      minimum: 30
+                      type: integer
+                  type: object
+                  x-kubernetes-validations:
+                    - message: at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set
+                      rule: has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
                     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                   type: string
+                cpuOptions:
+                  description: CPUOptions defines the CPU options for the instance.
+                  properties:
+                    nestedVirtualization:
+                      description: |-
+                        NestedVirtualization enables or disables nested virtualization on the instance.
+                        When enabled, Karpenter filters instance types to only those reporting
+                        "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+                      enum:
+                        - enabled
+                        - disabled
+                      type: string
+                  type: object
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
@@ -395,8 +450,11 @@ spec:
                     kubeReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: KubeReserved contains resources reserved for Kubernetes system components.
+                      description: |-
+                        KubeReserved contains resources reserved for Kubernetes system components.
+                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+                        instance type. An expression returns a bare number in the unit that key's static quantities
+                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
@@ -404,12 +462,18 @@ spec:
                         - message: kubeReserved value cannot be a negative resource quantity
                           rule: self.all(x, !self[x].startsWith('-'))
                     maxPods:
+                      anyOf:
+                        - type: integer
+                        - type: string
                       description: |-
                         MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance.
-                      format: int32
-                      minimum: 0
-                      type: integer
+                        a worker node instance. When set to an integer, it is used as a static value.
+                        When set to a string, it is evaluated as a CEL expression per instance type with
+                        access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
+                      x-kubernetes-int-or-string: true
+                      x-kubernetes-validations:
+                        - message: maxPods must be a non-negative integer when set to an integer
+                          rule: type(self) != int || self >= 0
                     podsPerCore:
                       description: |-
                         PodsPerCore is an override for the number of pods that can run on a worker node
@@ -421,8 +485,11 @@ spec:
                     systemReserved:
                       additionalProperties:
                         type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
+                      description: |-
+                        SystemReserved contains resources reserved for OS system daemons and kernel memory.
+                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+                        instance type. An expression returns a bare number in the unit that key's static quantities
+                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
                       type: object
                       x-kubernetes-validations:
                         - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']

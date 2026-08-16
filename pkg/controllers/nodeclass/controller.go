@@ -17,6 +17,7 @@ package nodeclass
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"go.uber.org/multierr"
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -51,6 +53,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -72,6 +75,8 @@ type Controller struct {
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
+var iamInstanceProfileNameRegex = regexp.MustCompile(`^[\w+=,.@-]+$`)
+
 func NewController(
 	clk clock.Clock,
 	kubeClient client.Client,
@@ -90,9 +95,10 @@ func NewController(
 	validationCache *cache.Cache,
 	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
+	celEnv *kubeletcel.CELEnvironment,
 	disableDryRun bool,
 ) *Controller {
-	validation := NewValidationReconciler(kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
+	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, celEnv, disableDryRun)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -101,12 +107,12 @@ func NewController(
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
-			NewAMIReconciler(amiProvider),
+			NewAMIReconciler(clk, amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
-			NewPlacementGroupReconciler(placementGroupProvider),
-			NewSubnetReconciler(subnetProvider),
-			NewSecurityGroupReconciler(securityGroupProvider),
-			NewInstanceProfileReconciler(instanceProfileProvider, region, recreationCache),
+			NewPlacementGroupReconciler(clk, placementGroupProvider),
+			NewSubnetReconciler(clk, subnetProvider),
+			NewSecurityGroupReconciler(clk, securityGroupProvider),
+			NewInstanceProfileReconciler(clk, instanceProfileProvider, region, recreationCache),
 			validation,
 		},
 	}
@@ -169,7 +175,8 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
-	out, err := c.instanceProfileProvider.ListNodeClassProfiles(ctx, nodeClass)
+	pathPrefix := instanceprofile.FormatPath("karpenter", c.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+	out, err := c.instanceProfileProvider.ListProfiles(ctx, pathPrefix)
 
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
@@ -181,6 +188,29 @@ func (c *Controller) cleanupInstanceProfiles(ctx context.Context, nodeClass *v1.
 		}
 	}
 	return nil
+}
+
+func (c *Controller) cleanupLegacyInstanceProfile(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
+	if !isValidIAMInstanceProfileName(legacyProfileName) {
+		log.FromContext(ctx).V(1).Info("skipping legacy instance profile cleanup, synthesized name is not IAM-valid", "instance-profile", legacyProfileName)
+		return nil
+	}
+	if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
+		return serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
+	}
+	return nil
+}
+
+func (c *Controller) cleanupManagedInstanceProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	// Instance profile cleanup should be skipped in isolated VPCs to avoid IAM calls.
+	if options.FromContext(ctx).IsolatedVPC {
+		return nil
+	}
+	if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
+		return err
+	}
+	return c.cleanupLegacyInstanceProfile(ctx, nodeClass)
 }
 
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
@@ -196,17 +226,8 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	// Instance profile cleanup should be skipped in isolated VPCs to avoid IAM calls.
-	if !options.FromContext(ctx).IsolatedVPC {
-		// Deletes karpenter managed instance profiles for this nodeclass
-		if err := c.cleanupInstanceProfiles(ctx, nodeClass); err != nil {
-			return reconcile.Result{}, err
-		}
-		// Ensure to clean up instance profile that may have been created pre-upgrade
-		legacyProfileName := nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, c.region)
-		if err := c.instanceProfileProvider.Delete(ctx, legacyProfileName); err != nil {
-			return reconcile.Result{}, serrors.Wrap(fmt.Errorf("deleting instance profile, %w", err), "instance-profile", legacyProfileName)
-		}
+	if err := c.cleanupManagedInstanceProfiles(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
@@ -227,6 +248,10 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 	}
 	c.validation.clearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
+}
+
+func isValidIAMInstanceProfileName(name string) bool {
+	return len(name) > 0 && len(name) <= 128 && iamInstanceProfileNameRegex.MatchString(name)
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {

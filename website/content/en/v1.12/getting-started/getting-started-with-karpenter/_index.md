@@ -48,7 +48,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="1.12.0"
+export KARPENTER_VERSION="1.12.1"
 export K8S_VERSION="1.35"
 ```
 
@@ -115,13 +115,13 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:1.12.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.12.1 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.12.0 \
-  --annotations version=1.12.0
+  --certificate-github-workflow-ref=refs/tags/v1.12.1 \
+  --annotations version=1.12.1
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
@@ -204,7 +204,7 @@ You can optionally enable the Zonal Shift integration with Karpenter which provi
 To do this, the EKS cluster must first be enabled for Zonal Shift. This can be done through the AWS Console, AWS CLI, or `eksctl`. For step-by-step instructions, see [Enable EKS zonal shift](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html).
 
 ```bash
-eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enable-zonal-shift=true
 ```
 
 Once the cluster has been enabled for Zonal Shift, you can use Zonal Shift controls to shift traffic and scaling operations. For more details see the [guide on using Zonal Shift with EKS.](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html) 
@@ -233,10 +233,12 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
     }
     ```
 
+    Karpenter also requires permission for `eks:DescribeCluster` when Zonal Shift is enabled. The standard onboarding's `KarpenterControllerEKSIntegrationPolicy` already grants this; if you manage IAM manually, make sure the controller role has `eks:DescribeCluster` on the cluster resource.
+
 2. **Enable Zonal Shift on the EKS cluster** if not already enabled:
 
     ```bash
-    eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+    eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enable-zonal-shift=true
     ```
 
 3. **Enable Zonal Shift in Karpenter** by upgrading the Helm release with the `settings.enableZonalShift` value:
@@ -247,6 +249,22 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
     ```
 
     Alternatively, set the `ENABLE_ZONAL_SHIFT=true` environment variable on the Karpenter controller deployment.
+
+### Next Steps: Validate with a Zonal Shift
+
+After enabling the integration, test that Karpenter correctly avoids launching nodes in a shifted zone by starting a zonal shift on your cluster. You can do this in one of two ways:
+
+- **Manual zonal shift**: [Start a zonal shift](https://docs.aws.amazon.com/r53recovery/latest/dg/arc-zonal-shift.start-cancel.html) from the ARC console or CLI to temporarily shift traffic away from one AZ.
+- **FIS experiment**: Create an [AWS FIS experiment](https://docs.aws.amazon.com/fis/latest/userguide/fis-actions-reference.html#recovery) using the `aws:arc:start-zonal-autoshift` action to simulate a zonal autoshift.
+
+While the shift is active, scale up a workload to trigger new node provisioning and verify that Karpenter only launches nodes in non-shifted zones:
+
+```bash
+kubectl scale deployment/inflate --replicas=5
+kubectl get nodeclaims -o wide
+```
+
+For more details on designing your cluster for AZ resilience, see [Learn about ARC zonal shift in Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html).
 
 ## Advanced Installation
 

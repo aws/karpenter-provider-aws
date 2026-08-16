@@ -26,6 +26,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -151,10 +152,20 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+
+	// ConnectionTracking configures idle connection tracking timeouts for
+	// ENIs Karpenter provisions in the launch template. EFA-only interfaces
+	// are excluded. See ConnectionTracking.
+	// +optional
+	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
+
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+	// CPUOptions defines the CPU options for the instance.
+	// +optional
+	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -271,10 +282,13 @@ type KubeletConfiguration struct {
 	//+optional
 	ClusterDNS []string `json:"clusterDNS,omitempty"`
 	// MaxPods is an override for the maximum number of pods that can run on
-	// a worker node instance.
-	// +kubebuilder:validation:Minimum:=0
+	// a worker node instance. When set to an integer, it is used as a static value.
+	// When set to a string, it is evaluated as a CEL expression per instance type with
+	// access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
+	// +kubebuilder:validation:XIntOrString
+	// +kubebuilder:validation:XValidation:message="maxPods must be a non-negative integer when set to an integer",rule="type(self) != int || self >= 0"
 	// +optional
-	MaxPods *int32 `json:"maxPods,omitempty"`
+	MaxPods *intstr.IntOrString `json:"maxPods,omitempty"`
 	// PodsPerCore is an override for the number of pods that can run on a worker node
 	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
 	// MaxPods is a lower value, that value will be used.
@@ -282,11 +296,17 @@ type KubeletConfiguration struct {
 	// +optional
 	PodsPerCore *int32 `json:"podsPerCore,omitempty"`
 	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
+	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+	// instance type. An expression returns a bare number in the unit that key's static quantities
+	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
 	// +kubebuilder:validation:XValidation:message="valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
 	// +kubebuilder:validation:XValidation:message="systemReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
 	// +optional
 	SystemReserved map[string]string `json:"systemReserved,omitempty"`
 	// KubeReserved contains resources reserved for Kubernetes system components.
+	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
+	// instance type. An expression returns a bare number in the unit that key's static quantities
+	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
 	// +kubebuilder:validation:XValidation:message="valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
 	// +kubebuilder:validation:XValidation:message="kubeReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
 	// +optional
@@ -377,6 +397,55 @@ type MetadataOptions struct {
 	// +kubebuilder:validation:Enum:={required,optional}
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
+}
+
+// CPUOptions contains parameters for specifying the CPU configuration for provisioned EC2 nodes.
+type CPUOptions struct {
+	// NestedVirtualization enables or disables nested virtualization on the instance.
+	// When enabled, Karpenter filters instance types to only those reporting
+	// "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+	// +kubebuilder:validation:Enum:={enabled,disabled}
+	// +optional
+	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
+}
+
+// ConnectionTracking configures idle connection tracking timeouts on ENIs
+// provisioned by Karpenter in the launch template: the primary ENI, any EFA
+// ENIs, and user-configured "interface" type network interfaces. EFA-only
+// interfaces are excluded. Secondary ENIs created at runtime by the CNI are
+// out of scope and must be configured through the CNI.
+// Connection tracking timeout configuration requires instances built on the
+// Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+// Idle connections left too long can exhaust the security group's connection
+// tracking table and lead to dropped packets.
+// +kubebuilder:validation:XValidation:message="at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set",rule="has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)"
+type ConnectionTracking struct {
+	// TCPEstablishedTimeout is the timeout (in seconds) for idle TCP connections
+	// in an established state.
+	// Value must be between 60 and 432,000 (5 days).
+	// If unset, EC2 applies its default which is 350 seconds for Nitro v6
+	// instance types (excluding P6e-GB200) and 432,000 seconds for other
+	// instance types.
+	// +kubebuilder:validation:Minimum:=60
+	// +kubebuilder:validation:Maximum:=432000
+	// +optional
+	TCPEstablishedTimeout *int32 `json:"tcpEstablishedTimeout,omitempty"`
+	// UDPStreamTimeout is the timeout (in seconds) for idle UDP "stream" flows
+	// that have seen more than one request-response transaction.
+	// Value must be between 60 and 180.
+	// If unset, EC2 applies its default of 180 seconds.
+	// +kubebuilder:validation:Minimum:=60
+	// +kubebuilder:validation:Maximum:=180
+	// +optional
+	UDPStreamTimeout *int32 `json:"udpStreamTimeout,omitempty"`
+	// UDPTimeout is the timeout (in seconds) for idle UDP flows that have seen
+	// traffic only in a single direction or a single request-response transaction.
+	// Value must be between 30 and 60.
+	// If unset, EC2 applies its default of 30 seconds.
+	// +kubebuilder:validation:Minimum:=30
+	// +kubebuilder:validation:Maximum:=60
+	// +optional
+	UDPTimeout *int32 `json:"udpTimeout,omitempty"`
 }
 
 type BlockDeviceMapping struct {
@@ -533,7 +602,8 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v5"
+// 4. An already-hashed field changes its type, since that changes the hash of an unchanged value
+const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
@@ -583,12 +653,62 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 	return in.Spec.NetworkInterfaces
 }
 
+func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
+	return in.Spec.ConnectionTracking
+}
+
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 	return in.Spec.PlacementGroupSelector
 }
 
 func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
 	return in.Spec.Kubelet
+}
+
+// MaxPodsInt returns the MaxPods value as *int32 if it's set to an integer, or nil otherwise.
+// This is a convenience for callers that need the static integer value and handle expressions separately.
+func (kc *KubeletConfiguration) MaxPodsInt() *int32 {
+	if kc == nil || kc.MaxPods == nil {
+		return nil
+	}
+	if kc.MaxPods.Type == intstr.Int {
+		return &kc.MaxPods.IntVal
+	}
+	return nil
+}
+
+// HasExpressions reports whether any field holds a CEL expression rather than a static value. The definition of "is an expression" must match what the evaluators actually treat as
+// one: a string-typed maxPods, or a kubeReserved/systemReserved value that isn't a parseable resource
+// quantity.
+func (kc *KubeletConfiguration) HasExpressions() bool {
+	if kc == nil {
+		return false
+	}
+	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
+		return true
+	}
+	return kc.HasResourceExpressions()
+}
+
+// HasResourceExpressions reports whether kubeReserved or systemReserved holds a CEL expression - that is,
+// a value that isn't a parseable resource quantity. Callers use this to skip resolving maxPods and building
+// the reserved-capacity CEL variables when neither map has anything to evaluate.
+func (kc *KubeletConfiguration) HasResourceExpressions() bool {
+	if kc == nil {
+		return false
+	}
+	for _, m := range []map[string]string{kc.KubeReserved, kc.SystemReserved} {
+		for _, v := range m {
+			if _, err := resource.ParseQuantity(v); err != nil {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (in *EC2NodeClass) CPUOptions() *CPUOptions {
+	return in.Spec.CPUOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

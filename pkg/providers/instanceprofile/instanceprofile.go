@@ -26,9 +26,6 @@ import (
 	cache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -36,10 +33,9 @@ import (
 
 type Provider interface {
 	Get(context.Context, string) (*iamtypes.InstanceProfile, error)
-	Create(context.Context, string, string, map[string]string, string, bool) error
+	Create(context.Context, string, string, map[string]string, string) error
 	Delete(context.Context, string) error
-	ListClusterProfiles(context.Context) ([]*iamtypes.InstanceProfile, error)
-	ListNodeClassProfiles(context.Context, *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error)
+	ListProfiles(context.Context, string) ([]*iamtypes.InstanceProfile, error)
 	IsProtected(string) bool
 	SetProtectedState(string, bool)
 }
@@ -72,6 +68,15 @@ func GetProfileCacheKey(profileName string) string {
 	return "instance-profile:" + profileName
 }
 
+// FormatPath builds an IAM path from segments, e.g. FormatPath("karpenter", region, clusterName, nodeClassUID)
+// returns "/karpenter/{region}/{clusterName}/{nodeClassUID}/".
+func FormatPath(segments ...string) string {
+	if len(segments) == 0 {
+		return "/"
+	}
+	return "/" + strings.Join(segments, "/") + "/"
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
 	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
@@ -92,8 +97,7 @@ func (p *DefaultProvider) Create(
 	instanceProfileName string,
 	roleName string,
 	tags map[string]string,
-	nodeClassUID string,
-	usePath bool,
+	path string,
 ) error {
 	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
 	// creation by the NodeClass controller when there's a missing role.
@@ -112,8 +116,8 @@ func (p *DefaultProvider) Create(
 			InstanceProfileName: lo.ToPtr(instanceProfileName),
 			Tags:                utils.IAMMergeTags(tags),
 		}
-		if usePath {
-			input.Path = lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, nodeClassUID))
+		if path != "" {
+			input.Path = lo.ToPtr(path)
 		}
 		o, err := p.iamapi.CreateInstanceProfile(ctx, input)
 		if err != nil {
@@ -209,27 +213,9 @@ func (p *DefaultProvider) Delete(ctx context.Context, instanceProfileName string
 	return nil
 }
 
-func (p *DefaultProvider) ListClusterProfiles(ctx context.Context) ([]*iamtypes.InstanceProfile, error) {
+func (p *DefaultProvider) ListProfiles(ctx context.Context, pathPrefix string) ([]*iamtypes.InstanceProfile, error) {
 	input := &iam.ListInstanceProfilesInput{
-		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/", p.region, options.FromContext(ctx).ClusterName)),
-	}
-
-	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)
-
-	var profiles []*iamtypes.InstanceProfile
-	for paginator.HasMorePages() {
-		out, err := paginator.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("listing instance profiles, %w", err)
-		}
-		profiles = append(profiles, lo.ToSlicePtr(out.InstanceProfiles)...)
-	}
-	return profiles, nil
-}
-
-func (p *DefaultProvider) ListNodeClassProfiles(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*iamtypes.InstanceProfile, error) {
-	input := &iam.ListInstanceProfilesInput{
-		PathPrefix: lo.ToPtr(fmt.Sprintf("/karpenter/%s/%s/%s/", p.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
+		PathPrefix: lo.ToPtr(pathPrefix),
 	}
 
 	paginator := iam.NewListInstanceProfilesPaginator(p.iamapi, input)

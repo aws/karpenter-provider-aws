@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -50,6 +51,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -95,7 +97,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -944,6 +946,46 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.CapacityReservationDrift))
 		})
+		It("should not drift when capacity reservation falls back to on-demand", func() {
+			// Reflect capacity reservation and in the instance
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
+				{
+					AvailabilityZone:      "test-zone-1a",
+					ID:                    "cr-foo",
+					InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+					InstanceType:          "m5.large",
+					OwnerID:               "012345678901",
+					State:                 v1.CapacityReservationStateActive,
+					ReservationType:       v1.CapacityReservationTypeDefault,
+				},
+			}
+			out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].SpotInstanceRequestId = nil
+			out.Reservations[0].Instances[0].CapacityReservationId = lo.ToPtr("cr-foo")
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+				CapacityReservationPreference: ec2types.CapacityReservationPreferenceCapacityReservationsOnly,
+			}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			// Populate instance cache
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+
+			// Remove capacity reservation from NodeClass status and in the instance
+			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			out = awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].SpotInstanceRequestId = nil
+			out.Reservations[0].Instances[0].CapacityReservationId = nil
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = nil
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+
+			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+		})
 		It("should not return drifted if the security groups match", func() {
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
@@ -1234,7 +1276,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
@@ -1251,9 +1293,9 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(11),
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: aws.Int32(1),
+				MaxPods: lo.ToPtr(intstr.FromInt32(1)),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -1281,7 +1323,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
 			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
-			Expect(len(bindings)).To(Equal(0))
+			Expect(len(bindings.Bindings)).To(Equal(0))
 		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
 			awsEnv.EC2API.Subnets.Store("test-zone-1a", ec2types.Subnet{
@@ -1300,7 +1342,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
@@ -1400,7 +1442,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
@@ -1417,7 +1459,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -1442,7 +1484,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -1470,7 +1512,7 @@ var _ = Describe("CloudProvider", func() {
 				{
 					Key:      corev1.LabelInstanceTypeStable,
 					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					Values:   []string{"p5.48xlarge"},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)

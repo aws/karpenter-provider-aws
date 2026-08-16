@@ -85,6 +85,17 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
+// counterValue returns the current value of a counter series, or 0 if the series
+// doesn't exist yet. Used to assert deltas around an action, since the prometheus
+// registry is process-global and accumulates across specs.
+func counterValue(name string, labels map[string]string) float64 {
+	metric, ok := FindMetricWithLabelValues(name, labels)
+	if !ok {
+		return 0
+	}
+	return metric.GetCounter().GetValue()
+}
+
 var _ = Describe("InstanceProvider", func() {
 	var nodeClass *v1.EC2NodeClass
 	var nodePool *karpv1.NodePool
@@ -122,6 +133,26 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	})
+	It("should return an ICE error when instance type truncation fails minValues validation", func() {
+		// Set minValues on topology zone higher than available zones (3) so Truncate fails
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				Key:       corev1.LabelTopologyZone,
+				Operator:  corev1.NodeSelectorOpExists,
+				MinValues: lo.ToPtr(50),
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(err.Error()).To(ContainSubstring("truncating instance types"))
+		Expect(instance).To(BeNil())
 	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
@@ -395,6 +426,105 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Throttling should not mark the reservation unavailable
 		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(1))
+	})
+	It("should emit a zone-dimensioned launch failure metric for each CreateFleet offering error", func() {
+		// Pin to on-demand so the emitted capacity_type dimension is deterministic.
+		nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeOnDemand},
+		})
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+				{
+					ErrorCode:    lo.ToPtr("RequestLimitExceeded"),
+					ErrorMessage: lo.ToPtr("Request limit exceeded."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.2xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// reason is the canonical classification from awserrors.ToReasonMessage.
+		labels := map[string]string{
+			"zone":          "test-zone-1a",
+			"zone_id":       "tstz1-1a",
+			"capacity_type": karpv1.CapacityTypeOnDemand,
+			"reason":        "RequestLimitExceeded",
+		}
+		before := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+
+		// zone_id is resolved from the NodeClass subnets, since CreateFleet errors don't echo it.
+		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+		Expect(after - before).To(Equal(float64(2)))
+	})
+	It("should record the generic launch failure reason and an empty zone_id for an unrecognized error in an unknown zone", func() {
+		nodeClaim.Spec.Requirements = append(nodeClaim.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpv1.CapacityTypeOnDemand},
+		})
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Instances: []ec2types.CreateFleetInstance{},
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("SomeBrandNewEC2ErrorCode"),
+					ErrorMessage: lo.ToPtr("unexpected."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.large",
+							AvailabilityZone: lo.ToPtr("unknown-zone-9z"),
+						},
+					},
+				},
+			},
+		})
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// An unrecognized code falls through to the generic "LaunchFailed" reason, and the
+		// zone is unresolvable (no matching NodeClass subnet) so zone_id is empty.
+		labels := map[string]string{
+			"zone":          "unknown-zone-9z",
+			"zone_id":       "",
+			"capacity_type": karpv1.CapacityTypeOnDemand,
+			"reason":        "LaunchFailed",
+		}
+		before := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).To(HaveOccurred())
+
+		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
+		Expect(after - before).To(Equal(float64(1)))
 	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
@@ -863,17 +993,56 @@ var _ = Describe("InstanceProvider", func() {
 			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 		})
 		It("should not call TerminateInstances for instances in a zonally shifted AZ", func() {
+			// Assert a delta around the action: the intentional zonal-shift skip must NOT be
+			// counted as a termination failure, regardless of any series other specs created.
+			labels := map[string]string{"zone": "test-zone-1a", "zone_id": "tstz1-1a"}
+			before := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+
 			err := awsEnv.InstanceProvider.Delete(ctx, instanceID)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
 			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 			Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+
+			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+			Expect(after - before).To(Equal(float64(0)))
 		})
 		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
 			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
 			Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should emit a zone-dimensioned termination failure metric when TerminateInstances errors", func() {
+			// Store an instance in a non-shifted zone so Delete proceeds to TerminateInstances.
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1b"),
+					AvailabilityZoneId: aws.String("tstz1-1b"),
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+			_, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Make TerminateInstances fail on every call. The batcher issues an aggregate
+			// call followed by a per-instance retry, so the error must persist across calls.
+			awsEnv.EC2API.TerminateInstancesBehavior.Error.Set(fmt.Errorf("RequestLimitExceeded"), fake.MaxCalls(0))
+
+			labels := map[string]string{
+				"zone":    "test-zone-1b",
+				"zone_id": "tstz1-1b",
+			}
+			before := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+
+			err = awsEnv.InstanceProvider.Delete(ctx, id)
+			Expect(err).To(HaveOccurred())
+
+			// Exactly 1, not more: the batcher's internal aggregate+retry is invisible to Delete,
+			// which increments the counter once.
+			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
+			Expect(after - before).To(Equal(float64(1)))
 		})
 		Context("Cache Miss", func() {
 			// When the instance cache is cold, Get() calls DescribeInstances which populates
@@ -908,6 +1077,86 @@ var _ = Describe("InstanceProvider", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(1))
 			})
+		})
+	})
+	Context("Cache Eviction", func() {
+		It("should evict cached instances that are no longer returned by List", func() {
+			// Store an instance in EC2 with the required tags for List() to find it
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1a"),
+					AvailabilityZoneId: aws.String("tstz1-1a"),
+				},
+				Tags: []ec2types.Tag{
+					{Key: aws.String(v1.NodePoolTagKey), Value: aws.String("default")},
+					{Key: aws.String(v1.LabelNodeClass), Value: aws.String("default")},
+					{Key: aws.String(v1.EKSClusterNameTagKey), Value: aws.String(options.FromContext(ctx).ClusterName)},
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+
+			// Populate the cache via Get
+			inst, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
+
+			// Remove the instance from EC2 (simulates spot reclaim)
+			awsEnv.EC2API.Instances.Delete(id)
+
+			// Call List — this should evict the stale cache entry
+			_, err = awsEnv.InstanceProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Now Get without SkipCache should go to EC2 and return NotFound
+			_, err = awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).To(HaveOccurred())
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+		})
+		It("should not evict cached instances in a zonally shifted AZ when not returned by List", func() {
+			// Store an instance in the shifted zone and populate the cache
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1a"),
+					AvailabilityZoneId: aws.String("tstz1-1a"),
+				},
+				Tags: []ec2types.Tag{
+					{Key: aws.String(v1.NodePoolTagKey), Value: aws.String("default")},
+					{Key: aws.String(v1.LabelNodeClass), Value: aws.String("default")},
+					{Key: aws.String(v1.EKSClusterNameTagKey), Value: aws.String(options.FromContext(ctx).ClusterName)},
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+
+			// Populate the cache via Get
+			inst, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
+
+			// Remove the instance from EC2
+			awsEnv.EC2API.Instances.Delete(id)
+
+			// Activate a zonal shift for tstz1-1a
+			awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+				ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+					{
+						AwayFrom:      aws.String("tstz1-1a"),
+						ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+						AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+					},
+				},
+			})
+			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+
+			// List should NOT evict because the zone is shifted
+			_, err = awsEnv.InstanceProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Get without SkipCache should still return the cached instance
+			inst, err = awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
 		})
 	})
 })

@@ -44,6 +44,8 @@ type LaunchTemplate struct {
 	InstanceTypes         []*cloudprovider.InstanceType
 	ImageID               string
 	CapacityReservationID string
+	// Optional to constrains fleet overrides to a single AZ.
+	Zone string
 }
 
 type LaunchMode int
@@ -107,6 +109,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 		LaunchTemplateName: lo.ToPtr(LaunchTemplateName(b.options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
 			BlockDeviceMappings: blockDeviceMappings(b.options.BlockDeviceMappings),
+			CpuOptions:          cpuOptions(b.options.CPUOptions),
 			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: lo.ToPtr(b.options.InstanceProfile),
 			},
@@ -134,6 +137,9 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
 			Placement:         b.buildPlacement(),
+			EnclaveOptions: &ec2types.LaunchTemplateEnclaveOptionsRequest{
+				Enabled: lo.ToPtr(b.options.EnclaveEnabled),
+			},
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{

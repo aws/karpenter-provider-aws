@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -50,6 +51,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -105,7 +107,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock)
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -368,6 +370,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Effect:   "NoSchedule",
 			}
 
+			// Force each pod onto its own node via hostname anti-affinity so that a multi-GPU
+			// instance type can't pack both pods together
+			antiAffinityLabels := map[string]string{"test-group": "equivalent-constraints"}
+			antiAffinity := []corev1.PodAffinityTerm{{
+				LabelSelector: &metav1.LabelSelector{MatchLabels: antiAffinityLabels},
+				TopologyKey:   corev1.LabelHostname,
+			}}
 			// constrain the packer to a single launch template type
 			rr := corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -379,7 +388,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t1, t2, t3},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -392,7 +403,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{
+				ObjectMeta:           metav1.ObjectMeta{Labels: antiAffinityLabels},
 				Tolerations:          []corev1.Toleration{t2, t3, t1},
+				PodAntiRequirements:  antiAffinity,
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod2)
@@ -407,7 +420,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(lts1.Equal(lts2)).To(BeTrue())
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(1))}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -476,7 +489,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
 				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
-				{MaxPods: aws.Int32(20)},
+				{MaxPods: lo.ToPtr(intstr.FromInt32(20))},
 			}
 			launchtemplateResult := []string{}
 			for _, kubelet := range kubeletChanges {
@@ -514,12 +527,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{DetailedMonitoring: true},
 				{EFACount: 12},
 				{CapacityType: "spot"},
+				{EnclaveEnabled: true},
 			}
 			launchtemplateResult := []string{}
 			for _, lt := range launchtemplates {
 				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
 			}
-			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 7))
 			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
 		})
 		It("should not generate different launch template names based on instance types", func() {
@@ -1041,7 +1055,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1095,7 +1109,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1114,7 +1128,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1123,7 +1137,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPods,
+				nodeClass.Spec.Kubelet.MaxPodsInt(),
 				nodeClass.Spec.Kubelet.PodsPerCore,
 				nodeClass.Spec.Kubelet.KubeReserved,
 				nodeClass.Spec.Kubelet.SystemReserved,
@@ -1147,7 +1161,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in NodePool", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(10)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(10))}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1310,7 +1324,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		It("should specify podsPerCore with maxPods enabled", func() {
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
-				MaxPods:     aws.Int32(100),
+				MaxPods:     lo.ToPtr(intstr.FromInt32(100)),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1501,7 +1515,7 @@ essential = true
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/br_userdata_input.golden")
@@ -1623,7 +1637,7 @@ essential = true
 			})
 			It("should override max pod grace period in user data", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods:                   aws.Int32(35),
+					MaxPods:                   lo.ToPtr(intstr.FromInt32(35)),
 					EvictionMaxPodGracePeriod: aws.Int32(10),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1667,7 +1681,7 @@ eviction-max-pod-grace-period = 10
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-					MaxPods: aws.Int32(10),
+					MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
@@ -1681,6 +1695,61 @@ eviction-max-pod-grace-period = 10
 					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
 					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
 					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 10))
+				})
+			})
+			It("should specify max pods value when passing maxPods as a CEL expression string", func() {
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+				}))
+				// min(110, 20 * 2) resolves to 40 independent of instance type, so the assertion is
+				// deterministic across whichever instance types get launch templates.
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					MaxPods: lo.ToPtr(intstr.FromString("min(110, 20 * 2)")),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 2))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.MaxPods).ToNot(BeNil())
+					Expect(*config.Settings.Kubernetes.MaxPods).To(BeNumerically("==", 40))
+				})
+			})
+			It("should drop expression-valued kubeReserved entries (keeping static ones) when the gate is disabled", func() {
+				// Gate off: the launch template resolver must not evaluate a CEL kubeReserved expression, mirroring
+				// the scheduler's resolution path. The static cpu entry is kept as-is; the memory expression is
+				// dropped so it falls back to the AMI family default rather than being resolved.
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+				}))
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					KubeReserved: map[string]string{
+						string(corev1.ResourceCPU):    "100m",
+						string(corev1.ResourceMemory): "vcpus * 100",
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				// The exact count depends on instance-type grouping and isn't what this test exercises. Assert
+				// it self-consistently -- every created launch template must be referenced by the fleet request --
+				// rather than pinning a magic number, then check each template's kubeReserved.
+				Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeNumerically("==", 1))
+				createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+				Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(config.Settings.Kubernetes.KubeReserved).To(HaveKeyWithValue(corev1.ResourceCPU.String(), "100m"))
+					Expect(config.Settings.Kubernetes.KubeReserved).ToNot(HaveKey(corev1.ResourceMemory.String()))
 				})
 			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
@@ -1803,7 +1872,7 @@ eviction-max-pod-grace-period = 10
 		})
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			})
 			It("should merge in custom user data", func() {
@@ -2059,7 +2128,7 @@ eviction-max-pod-grace-period = 10
 						Expect(err).To(BeNil())
 						nodeClass.Spec.UserData = lo.ToPtr(string(content))
 					}
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
 					ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2228,7 +2297,7 @@ eviction-max-pod-grace-period = 10
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 
-				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, options.FromContext(ctx).DisableDryRun)
+				controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 
 				pod := coretest.UnschedulablePod()
@@ -2356,7 +2425,7 @@ eviction-max-pod-grace-period = 10
 			BeforeEach(func() {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
 			})
 			It("should merge and bootstrap with custom user data", func() {
 				content, err := os.ReadFile("testdata/windows_userdata_input.golden")
@@ -2413,6 +2482,50 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
+			})
+		})
+	})
+	Context("Enclave Options", func() {
+		It("should default enclave options to disabled", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
+		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
+			// simulating what the scheduler sets when pods request that resource
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					Resources: karpv1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							v1.ResourceNitroSandbox: resource.MustParse("1"),
+						},
+					},
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: "karpenter.k8s.aws",
+						Kind:  "EC2NodeClass",
+						Name:  nodeClass.Name,
+					},
+				},
+			})
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+
+			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
 	})
@@ -2502,6 +2615,94 @@ eviction-max-pod-grace-period = 10
 				Entry("AssociatePublicIPAddress is set as true and EFA is true", true, true, true),
 				Entry("AssociatePublicIPAddress is set as false and EFA is false", true, false, false),
 			)
+		})
+		Context("Connection Tracking settings", func() {
+			DescribeTable(
+				"should set 'ConnectionTracking' based on EC2NodeClass",
+				func(connTrack *v1.ConnectionTracking, expected *ec2types.ConnectionTrackingSpecificationRequest) {
+					nodeClass.Spec.ConnectionTracking = connTrack
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].ConnectionTrackingSpecification).To(Equal(expected))
+				},
+				Entry("ConnectionTracking is nil", nil, nil),
+				Entry("ConnectionTracking with AWS defaults",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(432000)),
+						UDPStreamTimeout:      lo.ToPtr(int32(180)),
+						UDPTimeout:            lo.ToPtr(int32(30)),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(432000),
+						UdpStreamTimeout:      aws.Int32(180),
+						UdpTimeout:            aws.Int32(30),
+					},
+				),
+				Entry("ConnectionTracking with non-default TCP timeout",
+					&v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(86400)),
+					},
+					&ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+					},
+				),
+			)
+			Context("propagation across all ENIs", func() {
+				var expected *ec2types.ConnectionTrackingSpecificationRequest
+				BeforeEach(func() {
+					nodeClass.Spec.ConnectionTracking = &v1.ConnectionTracking{
+						TCPEstablishedTimeout: lo.ToPtr(int32(86400)),
+						UDPStreamTimeout:      lo.ToPtr(int32(120)),
+						UDPTimeout:            lo.ToPtr(int32(45)),
+					}
+					expected = &ec2types.ConnectionTrackingSpecificationRequest{
+						TcpEstablishedTimeout: aws.Int32(86400),
+						UdpStreamTimeout:      aws.Int32(120),
+						UdpTimeout:            aws.Int32(45),
+					}
+				})
+				It("should apply ConnectionTracking to every EFA ENI in the launch template", func() {
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+						},
+					})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">", 1))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						Expect(lo.FromPtr(ni.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+					}
+				})
+				It("should apply ConnectionTracking to every user-configured NetworkInterface in the launch template except efa-only", func() {
+					nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+					}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						if lo.FromPtr(ni.InterfaceType) == string(v1.InterfaceTypeEFAOnly) {
+							Expect(ni.ConnectionTrackingSpecification).To(BeNil())
+						} else {
+							Expect(ni.ConnectionTrackingSpecification).To(Equal(expected))
+						}
+					}
+				})
+			})
 		})
 	})
 	Context("Network Interfaces", func() {

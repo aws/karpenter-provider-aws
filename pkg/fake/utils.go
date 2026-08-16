@@ -195,6 +195,10 @@ func MakeInstances() []ec2types.InstanceTypeInfo {
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
 	for _, it := range pricing.NewDefaultProvider(nil, nil, "us-east-1", true).InstanceTypes() {
+		// a1 instances are incompatible with AL2023 (the default test AMI family)
+		if strings.HasPrefix(string(it), "a1.") {
+			continue
+		}
 		instanceTypes = append(instanceTypes, ec2types.InstanceTypeInfo{
 			InstanceType: it,
 			ProcessorInfo: &ec2types.ProcessorInfo{

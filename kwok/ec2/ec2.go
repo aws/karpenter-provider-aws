@@ -42,8 +42,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/kwok/apis/v1alpha1"
+	kwokutils "sigs.k8s.io/karpenter/kwok/utils"
 	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	"sigs.k8s.io/karpenter/pkg/test"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -912,7 +912,7 @@ func (c *Client) toNode(ctx context.Context, instance ec2types.Instance) *corev1
 		"al2023",
 		nil,
 	)
-	nodeName := fmt.Sprintf("kwok-%s-%d", test.RandomName(), rand.Uint32()) //nolint:gosec
+	nodeName := fmt.Sprintf("kwok-%s-%d", kwokutils.RandomName(), rand.Uint32()) //nolint:gosec
 
 	return &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{

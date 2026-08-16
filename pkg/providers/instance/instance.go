@@ -42,6 +42,7 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
+	karpentermetrics "sigs.k8s.io/karpenter/pkg/metrics"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
@@ -81,6 +82,7 @@ var (
 
 type Provider interface {
 	Create(context.Context, *v1.EC2NodeClass, *karpv1.NodeClaim, map[string]string, []*cloudprovider.InstanceType) (*Instance, error)
+	// Retrieves instance from a cache with no TTL or EC2. This defaults to cache, use SkipCache to force an EC2 lookup.
 	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
@@ -210,8 +212,8 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 	if len(instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
-	p.instanceCache.SetDefault(id, instances[0])
-	return instances[0], nil
+	p.instanceCache.SetDefault(id, instances[id])
+	return instances[id], nil
 }
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
@@ -245,10 +247,21 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 		out.Reservations = append(out.Reservations, page.Reservations...)
 	}
 	instances, err := instancesFromOutput(ctx, out)
-	for _, it := range instances {
-		p.instanceCache.SetDefault(it.ID, it)
+	for id, it := range instances {
+		p.instanceCache.SetDefault(id, it)
 	}
-	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
+	// Evict cached entries for instances no longer returned by EC2, unless they are in a
+	// zonally-shifted AZ where DescribeInstances may not return them.
+	for id, item := range p.instanceCache.Items() {
+		if _, live := instances[id]; live {
+			continue
+		}
+		if inst, ok := item.Object.(*Instance); ok && inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			continue
+		}
+		p.instanceCache.Delete(id)
+	}
+	return lo.Values(instances), cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
@@ -270,6 +283,11 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 		if _, err := p.ec2Batcher.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 			InstanceIds: []string{id},
 		}); err != nil {
+			// Intentional zonal-shift skips return earlier and are deliberately not counted here.
+			InstanceTerminationFailuresTotal.Inc(map[string]string{
+				zoneLabel:   out.Zone,
+				zoneIDLabel: out.ZoneID,
+			})
 			return err
 		}
 	}
@@ -324,7 +342,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	}
 	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(ctx, reqs, maxInstanceTypes)
 	if err != nil {
-		return nil, cloudprovider.NewCreateError(fmt.Errorf("truncating instance types, %w", err), "InstanceTypeFilteringFailed", "Error truncating instance types based on the passed-in requirements")
+		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("truncating instance types based on the passed-in requirements, %w", err))
 	}
 	return instanceTypes, nil
 }
@@ -401,7 +419,7 @@ func (p *DefaultProvider) launchInstance(
 			}
 		}
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)
+	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType, nodeClaim, instanceTypes, zonalSubnets, aws.ToString(createFleetOutput.FleetId), pgID, pgOpts)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		requestID, _ := awsmiddleware.GetRequestIDMetadata(createFleetOutput.ResultMetadata)
 		return ec2types.CreateFleetInstance{}, serrors.Wrap(
@@ -454,8 +472,19 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
+		// When a LT is zone-scoped, restrict overrides to only that zone so
+		// fleet doesn't attempt a cross-AZ launch. The override for subnets is
+		// also removed as the ENIs in the launch template must declare this field.
+		effectiveSubnets := zonalSubnets
+		if launchTemplate.Zone != "" {
+			if s, ok := zonalSubnets[launchTemplate.Zone]; ok {
+				effectiveSubnets = map[string]*subnet.Subnet{launchTemplate.Zone: s}
+			} else {
+				continue
+			}
+		}
 		launchTemplateConfig := ec2types.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, effectiveSubnets, requirements, launchTemplate.ImageID, launchTemplate.CapacityReservationID, launchTemplate.Zone != ""),
 			LaunchTemplateSpecification: &ec2types.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -478,6 +507,7 @@ func (p *DefaultProvider) getOverrides(
 	zonalSubnets map[string]*subnet.Subnet,
 	reqs scheduling.Requirements,
 	image, capacityReservationID string,
+	skipSubnetInOverrides bool,
 ) []ec2types.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
@@ -525,7 +555,7 @@ func (p *DefaultProvider) getOverrides(
 		}
 		overrides = append(overrides, ec2types.FleetLaunchTemplateOverridesRequest{
 			InstanceType: offering.parentInstanceTypeName,
-			SubnetId:     lo.ToPtr(subnet.ID),
+			SubnetId:     lo.Ternary(!skipSubnetInOverrides, lo.ToPtr(subnet.ID), nil),
 			ImageId:      lo.ToPtr(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
@@ -547,14 +577,29 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	capacityType string,
 	nodeClaim *karpv1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType,
+	zonalSubnets map[string]*subnet.Subnet,
 	fleetID string,
 	pgID string,
 	pgOpts []awscache.UnavailableOfferingsOption,
 ) {
 
 	for _, err := range errs {
-		subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId)
-		if awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
+		// CreateFleet errors carry the zone name but not the zone ID, so resolve it from
+		// the subnets the launch was built from.
+		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		var zoneID string
+		if s, ok := zonalSubnets[zone]; ok {
+			zoneID = s.ZoneID
+		}
+		reason, _ := awserrors.ToReasonMessage(fmt.Errorf("%s: %s", aws.ToString(err.ErrorCode), aws.ToString(err.ErrorMessage)))
+		InstanceLaunchFailuresTotal.Inc(map[string]string{
+			zoneLabel:                          zone,
+			zoneIDLabel:                        zoneID,
+			karpentermetrics.CapacityTypeLabel: capacityType,
+			karpentermetrics.ReasonLabel:       reason,
+		})
+
+		if subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
 			p.unavailableOfferings.MarkSubnetUnavailable(subnet)
 			// When a Subnet is ICEd we update the subnet provider's availableIPAddressCache to ensure
 			// this subnet is sorted last for future launches
@@ -735,7 +780,7 @@ func getCapacityReservationInterruptible(instanceTypes []*cloudprovider.Instance
 	return false
 }
 
-func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
+func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) (map[string]*Instance, error) {
 	if len(out.Reservations) == 0 {
 		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
@@ -745,11 +790,10 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 	if len(instances) == 0 {
 		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
-	// Get a consistent ordering for instances
-	sort.Slice(instances, func(i, j int) bool {
-		return aws.ToString(instances[i].InstanceId) < aws.ToString(instances[j].InstanceId)
-	})
-	return lo.Map(instances, func(i ec2types.Instance, _ int) *Instance { return NewInstance(ctx, i) }), nil
+	return lo.SliceToMap(instances, func(i ec2types.Instance) (string, *Instance) {
+		inst := NewInstance(ctx, i)
+		return inst.ID, inst
+	}), nil
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {

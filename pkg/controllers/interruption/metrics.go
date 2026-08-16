@@ -66,7 +66,7 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "instance_status_unhealthy_total",
-			Help:      "Count of unhealthy instance statuses detected from EC2 DescribeInstanceStatus. Broken down by status check category.",
+			Help:      "Count of unique unhealthy instance statuses detected from EC2 DescribeInstanceStatus. Broken down by status check category.",
 		},
 		[]string{categoryLabel},
 	)

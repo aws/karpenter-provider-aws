@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -179,7 +180,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+			MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
 		}
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			// With Prefix Delegation enabled, .large instances can have 434 pods.
@@ -213,7 +214,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+			MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
 		}
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{

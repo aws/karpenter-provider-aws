@@ -93,6 +93,7 @@ func main() {
 			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,
 			op.CABundle,
+			op.CELEnvironment,
 		)...).
 		Start(ctx)
 }
