@@ -94,6 +94,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				// Bottlerocket has no setting to render podsPerCore into
+				if strings.HasPrefix(alias, "bottlerocket@") {
+					delete(nodeClass.Spec.Kubelet, "podsPerCore")
+				}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
@@ -350,37 +354,5 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
 		env.EventuallyExpectUniqueNodeNames(selector, 2)
-	})
-	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-		// All pods should schedule to a single node since we are ignoring podsPerCore value
-		// This would normally schedule to 3 nodes if not using Bottlerocket
-		test.ReplaceRequirements(nodePool,
-			karpv1.NodeSelectorRequirementWithMinValues{
-				Key:      v1.LabelInstanceCPU,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"2"},
-			},
-		)
-
-		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr(int32(1))})
-		numPods := 6
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
 })
