@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	"fmt"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -133,6 +134,20 @@ func IgnoreUnauthorizedOperationError(err error) error {
 		return nil
 	}
 	return err
+}
+
+// APIErrorMessage returns the error code and message reported by EC2, along with whether err was an
+// AWS API error at all. Unlike ToReasonMessage, which maps errors onto a fixed set of well-known
+// reasons, this preserves the detail EC2 gave us (e.g. which volume was smaller than its snapshot)
+// so it can be surfaced verbatim on a status condition.
+func APIErrorMessage(err error) (string, bool) {
+	if err == nil {
+		return "", false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return fmt.Sprintf("%s: %s", apiErr.ErrorCode(), apiErr.ErrorMessage()), true
+	}
+	return "", false
 }
 
 func IsRateLimitedError(err error) bool {
