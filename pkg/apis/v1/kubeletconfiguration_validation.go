@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -66,6 +67,21 @@ func validateEvictionThreshold(field, key, value string) error {
 	}
 	if q.Sign() < 0 {
 		return fmt.Errorf("spec.kubelet.%s[%s]: %q can't be a negative resource quantity", field, key, value)
+	}
+	return nil
+}
+
+// validateEvictionGracePeriod checks that an evictionSoftGracePeriod value is a non-negative Go
+// duration ("30s", "2m"). The upstream type is a plain map[string]string with no duration
+// constraint, and the kubelet parses these with time.ParseDuration at runtime, so a malformed
+// value would otherwise pass validation here and only fail once it reached a node.
+func validateEvictionGracePeriod(field, key, value string) error {
+	d, err := time.ParseDuration(value)
+	if err != nil {
+		return fmt.Errorf("spec.kubelet.%s[%s]: %q must be a duration", field, key, value)
+	}
+	if d < 0 {
+		return fmt.Errorf("spec.kubelet.%s[%s]: %q can't be a negative duration", field, key, value)
 	}
 	return nil
 }
@@ -122,9 +138,10 @@ func validateAgainstUpstreamType(kc KubeletConfiguration) []error {
 func validateKubeletSemantics(kc KubeletConfiguration) []error {
 	var errs []error
 
-	// Eviction maps are keyed by eviction signal. evictionHard, evictionSoft, and
-	// evictionMinimumReclaim hold a percentage or a quantity; evictionSoftGracePeriod holds a
-	// duration, which the upstream type already constrains.
+	// Eviction maps are keyed by eviction signal. All four are map[string]string upstream with no
+	// value constraint, so their values are checked here: evictionHard, evictionSoft, and
+	// evictionMinimumReclaim hold a percentage or a quantity, while evictionSoftGracePeriod holds a
+	// duration.
 	for _, field := range []string{"evictionHard", "evictionSoft", "evictionSoftGracePeriod", "evictionMinimumReclaim"} {
 		signals, ok := decodeStringMap(kc, field)
 		if !ok {
@@ -136,6 +153,9 @@ func validateKubeletSemantics(kc KubeletConfiguration) []error {
 					field, key, strings.Join(evictionSignals, ", ")))
 			}
 			if field == "evictionSoftGracePeriod" {
+				if err := validateEvictionGracePeriod(field, key, signals[key]); err != nil {
+					errs = append(errs, err)
+				}
 				continue
 			}
 			if err := validateEvictionThreshold(field, key, signals[key]); err != nil {

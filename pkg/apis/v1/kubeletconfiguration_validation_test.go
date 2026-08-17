@@ -175,6 +175,20 @@ var _ = Describe("ValidateKubeletConfig", func() {
 		Entry("evictionSoft", "evictionSoft"),
 		Entry("evictionMinimumReclaim", "evictionMinimumReclaim"),
 	)
+	It("should reject an evictionSoftGracePeriod that isn't a duration", func() {
+		// Upstream types this as a plain map[string]string, so a malformed value would otherwise
+		// only fail once the kubelet parsed it on the node.
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"evictionSoft":            v1.JSONValue(map[string]string{"memory.available": "10%"}),
+			"evictionSoftGracePeriod": v1.JSONValue(map[string]string{"memory.available": "soon"}),
+		})).ToNot(BeEmpty())
+	})
+	It("should reject a negative evictionSoftGracePeriod", func() {
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"evictionSoft":            v1.JSONValue(map[string]string{"memory.available": "10%"}),
+			"evictionSoftGracePeriod": v1.JSONValue(map[string]string{"memory.available": "-1m"}),
+		})).ToNot(BeEmpty())
+	})
 	It("should reject an evictionSoft threshold with no matching grace period", func() {
 		// The kubelet ignores a soft threshold it has no grace period for, so the node would
 		// never evict on the signal the user configured.
