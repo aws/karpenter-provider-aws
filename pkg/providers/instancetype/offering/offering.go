@@ -57,7 +57,7 @@ type OfferingResolver interface {
 // inside each resolver for every instance type) avoids redundant work.
 type ResolveContext struct {
 	ZoneInfo        []v1.ZoneInfo    // NodeClass zonal information
-	cacheKeyBuilder *cacheKeyBuilder // pre-computed NodeClass cache key components
+	cacheKeyBuilder *cacheKeyBuilder // pre -computed NodeClass cache key components
 }
 
 type NodeClass interface {
