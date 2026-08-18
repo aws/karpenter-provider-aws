@@ -84,6 +84,9 @@ func UnmanagedKubeletFields(kc KubeletConfiguration) []string {
 // sorts map keys, so the output is stable regardless of map iteration order. It can't error here --
 // apiextensionsv1.JSON always marshals (to its Raw bytes or "null") and keys are strings.
 func (kc KubeletConfiguration) String() string {
+	if len(kc) == 0 {
+		return "null"
+	}
 	return string(lo.Must(json.Marshal(kc)))
 }
 
