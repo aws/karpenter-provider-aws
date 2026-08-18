@@ -55,20 +55,20 @@ jobs:
         with:
           script: |
             const commentBody = `**Preview deployment ready!**
-
+            
             **Preview URL:** ${process.env.PREVIEW_URL}
-
+            
             Built from commit \`${process.env.PR_COMMIT}\``;
-
+            
             const existingComment = (await github.rest.issues.listComments({
               issue_number: process.env.PR_NUMBER,
               owner: context.repo.owner,
               repo: context.repo.repo,
-            })).data.find(comment =>
-              comment.user.login === 'github-actions[bot]' &&
+            })).data.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
               comment.body.includes('**Preview deployment ready!**')
             );
-
+            
             if (existingComment) {
               await github.rest.issues.updateComment({
                 comment_id: existingComment.id,
