@@ -4,10 +4,27 @@ on:
     types: [submitted]
 jobs:
   approval-comment:
-    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')
+    if: |
+      startsWith(github.event.review.body, '/karpenter snapshot') ||
+      startsWith(github.event.review.body, '/karpenter scale') ||
+      startsWith(github.event.review.body, '/karpenter versionCompatibility')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: Check reviewer is org member
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.orgs.checkMembershipForUser({
+              org: context.repo.owner,
+              username: context.payload.review.user.login
+            }).catch(error => {
+              if (error.status === 404) {
+                core.setFailed('Reviewer is not an org member');
+                return;
+              }
+              throw error;
+            });
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
@@ -19,7 +36,7 @@ jobs:
           mkdir -p /tmp/artifacts
           { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: artifacts
           path: /tmp/artifacts
