@@ -19,6 +19,34 @@ jobs:
           mkdir -p /tmp/artifacts
           { echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/website-metadata.txt
           cat /tmp/artifacts/website-metadata.txt
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: hack/docs/parse-redirects/go.mod
+          check-latest: true
+      - uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # v2.6.0
+        with:
+          hugo-version: '0.120.3'
+          extended: true
+      # The site is built here, in the PR's own context, which holds no secrets. The privileged
+      # deploy workflow only ships this artifact, so it never executes PR code.
+      # https://gh.io/securely-using-pull_request_target
+      - name: Build the site into the artifact for the deploy workflow to ship
+        working-directory: website
+        env:
+          HUGO_ENV: production
+          HUGO_ENABLEGITINFO: true
+          TZ: America/Los_Angeles
+          HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+          NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+          # Amplify serves a branch at https://<branch>.<app-id>.amplifyapp.com
+          APP_ID: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          [[ -n "$APP_ID" ]] || { echo "::error::AMPLIFY_APP_ID_PREVIEW is unset"; exit 1; }
+          npm ci --prefer-offline
+          hugo --gc --minify --buildFuture \
+            -b "https://pr-$PULL_REQUEST_NUMBER.$APP_ID.amplifyapp.com" \
+            -d /tmp/artifacts/site
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: artifacts

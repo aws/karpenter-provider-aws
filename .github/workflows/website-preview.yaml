@@ -4,6 +4,9 @@ on:
     workflows: [ WebsitePreviewTrigger ]
     types: [ completed ]
 jobs:
+  # WebsitePreviewTrigger already built the site in the PR's own context. This job holds the
+  # Amplify role and a write token, so it only ever runs base repository code - it must not
+  # check out or execute anything from the PR. https://gh.io/securely-using-pull_request_target
   preview:
     permissions:
       id-token: write
@@ -18,29 +21,20 @@ jobs:
         run: |
           pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
           pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
+          # The artifact comes from a workflow a PR triggered, so validate it before it reaches
+          # a shell, the Amplify API or $GITHUB_ENV. See .github/security-notice.md
+          [[ "$pr_number" =~ ^[0-9]+$ ]] || { echo "::error::invalid PR number"; exit 1; }
+          [[ "$pr_commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::invalid commit sha"; exit 1; }
           {
             echo PR_COMMIT="$pr_commit"
             echo PR_NUMBER="$pr_number"
             echo BRANCH_NAME="pr-$pr_number"
+            echo PREVIEW_URL="https://pr-$pr_number.${{ vars.AMPLIFY_APP_ID_PREVIEW }}.amplifyapp.com"
           } >> "$GITHUB_ENV"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ env.PR_COMMIT }}
-          path: pr-content
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
-          aws-region: ${{ vars.AMPLIFY_REGION }}
-      - name: Get preview URL
-        run: |
-          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --query 'app.defaultDomain' --output text)
-          PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
-          echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
       - name: Deploy website
         uses: ./.github/actions/deploy-website
         with:
@@ -50,8 +44,7 @@ jobs:
           amplify-branch-name: ${{ env.BRANCH_NAME }}
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/
-          hugo-base-url: ${{ env.PREVIEW_URL }}
-          content-path: pr-content
+          site-path: /tmp/artifacts/site
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}
@@ -59,20 +52,20 @@ jobs:
         with:
           script: |
             const commentBody = `**Preview deployment ready!**
-            
+
             **Preview URL:** ${process.env.PREVIEW_URL}
-            
+
             Built from commit \`${process.env.PR_COMMIT}\``;
-            
+
             const existingComment = (await github.rest.issues.listComments({
               issue_number: process.env.PR_NUMBER,
               owner: context.repo.owner,
               repo: context.repo.repo,
-            })).data.find(comment => 
-              comment.user.login === 'github-actions[bot]' && 
+            })).data.find(comment =>
+              comment.user.login === 'github-actions[bot]' &&
               comment.body.includes('**Preview deployment ready!**')
             );
-            
+
             if (existingComment) {
               await github.rest.issues.updateComment({
                 comment_id: existingComment.id,
