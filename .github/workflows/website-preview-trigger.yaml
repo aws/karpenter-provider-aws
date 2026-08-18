@@ -51,3 +51,6 @@ jobs:
         with:
           name: artifacts
           path: /tmp/artifacts
+          # The rendered site rides along in here, so keep it only as long as the deploy
+          # workflow needs to pick it up
+          retention-days: 1
