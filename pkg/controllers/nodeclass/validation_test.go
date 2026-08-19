@@ -17,6 +17,7 @@ package nodeclass_test
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -25,11 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
@@ -441,7 +444,65 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				}, fake.MaxCalls(4))
 			}, nodeclass.ConditionReasonRunInstancesAuthFailed,
 				"Controller isn't authorized to call ec2:RunInstances: User is not authorized to perform this operation due to a service control policy"),
+			Entry("should update status condition as NotReady when RunInstances rejects the request", func() {
+				awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidBlockDeviceMapping",
+					Message: "Volume of size 2GB is smaller than snapshot 'snap-0123456789abcdef0', expect size>= 20GB",
+				}, fake.MaxCalls(4))
+			}, nodeclass.ConditionReasonRunInstancesValidationFailed,
+				"EC2 rejected the ec2:RunInstances dry run: InvalidBlockDeviceMapping: Volume of size 2GB is smaller than snapshot 'snap-0123456789abcdef0', expect size>= 20GB"),
+			Entry("should update status condition as NotReady when CreateFleet rejects the request", func() {
+				awsEnv.EC2API.CreateFleetBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidParameterCombination",
+					Message: "The parameter groupName cannot be used with the parameter subnet",
+				}, fake.MaxCalls(1))
+			}, nodeclass.ConditionReasonCreateFleetValidationFailed,
+				"EC2 rejected the ec2:CreateFleet dry run: InvalidParameterCombination: The parameter groupName cannot be used with the parameter subnet"),
+			Entry("should update status condition as NotReady when CreateLaunchTemplate rejects the request", func() {
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+					Code:    "InvalidParameterValue",
+					Message: "Invalid value 'not-a-device' for BlockDeviceMapping.DeviceName",
+				}, fake.MaxCalls(1))
+			}, nodeclass.ConditionReasonCreateLaunchTemplateValidationFailed,
+				"EC2 rejected the ec2:CreateLaunchTemplate request: InvalidParameterValue: Invalid value 'not-a-device' for BlockDeviceMapping.DeviceName"),
 		)
+		It("should requeue without failing validation when RunInstances returns a server error", func() {
+			// EC2's deserializers don't set a fault on the errors they return, so a server error is only
+			// recognizable by the status code of the response it was decoded from.
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&awshttp.ResponseError{
+				ResponseError: &smithyhttp.ResponseError{
+					Response: &smithyhttp.Response{Response: &http.Response{StatusCode: 503}},
+					Err:      &smithy.GenericAPIError{Code: "Unavailable", Message: "The service is unavailable. Please try again shortly."},
+				},
+			}, fake.MaxCalls(4))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			// Requeued rather than recorded: neither the success nor the failure path leaves the
+			// condition unknown with nothing cached.
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsUnknown()).To(BeTrue())
+			Expect(awsEnv.ValidationCache.Items()).To(BeEmpty())
+		})
+		It("should requeue without failing validation when RunInstances is throttled", func() {
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "EC2ThrottledException",
+			}, fake.MaxCalls(4))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			// Requeued rather than recorded: neither the success nor the failure path leaves the
+			// condition unknown with nothing cached.
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsUnknown()).To(BeTrue())
+			Expect(awsEnv.ValidationCache.Items()).To(BeEmpty())
+		})
+		It("should return the error when RunInstances fails with a non-AWS error", func() {
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(fmt.Errorf("connection reset by peer"), fake.MaxCalls(4))
+			ExpectApplied(ctx, env.Client, nodeClass)
+			_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeFalse())
+			Expect(awsEnv.ValidationCache.Items()).To(BeEmpty())
+		})
 		It("should succeed RunInstances validation when first subnet returns 500 but another subnet succeeds", func() {
 			// Fail the first RunInstances call (first subnet) with a server error,
 			// then let subsequent calls (remaining subnets) succeed via the default dry-run path
