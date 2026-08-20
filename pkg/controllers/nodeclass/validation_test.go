@@ -39,6 +39,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -311,6 +312,11 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:      lo.ToPtr(intstr.FromInt32(110)),
 				KubeReserved: map[string]string{"cpu": "100m"},
+	Context("UserData size", func() {
+		It("should surface an oversized user data rejection as UserDataSizeLimitExceeded", func() {
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    awserrors.InvalidUserDataMalformedCode,
+				Message: "User data is limited to 16384 bytes",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
@@ -325,6 +331,20 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonUserDataTooLarge))
+		})
+		It("should not surface a non-size InvalidUserData.Malformed rejection as UserDataSizeLimitExceeded", func() {
+			// Same error code, but a format (base64) message. Mislabeling this would tell the user to shrink
+			// user data that isn't too big, so it must fall through to the unexpected-error path.
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    awserrors.InvalidUserDataMalformedCode,
+				Message: "Invalid BASE64 encoding of user data.",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			Expect(ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUserDataTooLarge))
 		})
 	})
 	Context("Kubelet Expression Validation", func() {
