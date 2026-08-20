@@ -25,11 +25,11 @@ jobs:
           mkdir -p /tmp/artifacts
           echo "$PULL_REQUEST_NUMBER" >> /tmp/artifacts/website-metadata.txt
           cat /tmp/artifacts/website-metadata.txt
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: website/go.mod
           check-latest: true
-      - uses: peaceiris/actions-hugo@16361eb4acea8698b220b76c0d4e84e1fd22c61d # v2.6.0
+      - uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
         with:
           hugo-version: '0.120.3'
           extended: true
