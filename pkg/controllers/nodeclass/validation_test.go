@@ -337,11 +337,6 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:      lo.ToPtr(intstr.FromInt32(110)),
 				KubeReserved: map[string]string{"cpu": "100m"},
-	Context("UserData size", func() {
-		It("should surface an oversized user data rejection as UserDataSizeLimitExceeded", func() {
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
-				Code:    awserrors.InvalidUserDataMalformedCode,
-				Message: "User data is limited to 16384 bytes",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
@@ -356,6 +351,17 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+		})
+	})
+	Context("UserData size", func() {
+		It("should surface an oversized user data rejection as UserDataSizeLimitExceeded", func() {
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    awserrors.InvalidUserDataMalformedCode,
+				Message: "User data is limited to 16384 bytes",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonUserDataTooLarge))
 		})
