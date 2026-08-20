@@ -224,14 +224,14 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					}
 				}
 			}
-			var kubeReserved, systemReserved map[string]string
-			if parsedKubelet != nil {
-				// Read the reserved-capacity fields (which may hold CEL expressions) from the config
-				// parsed once above. A nil parsedKubelet leaves both nil, falling back to AMI-family
-				// defaults rather than failing template resolution here.
-				kubeReserved = parsedKubelet.KubeReserved
-				systemReserved = parsedKubelet.SystemReserved
+			// Read the reserved-capacity fields (which may hold CEL expressions) from the config parsed
+			// once above. ParseKubeletConfig returns a non-nil config whenever it returns no error, so
+			// reaching this is unlikely. Just here as a precaution.
+			if parsedKubelet == nil {
+				return launchTemplateParams{}, fmt.Errorf("kubelet configuration was not parsed")
 			}
+			kubeReserved := parsedKubelet.KubeReserved
+			systemReserved := parsedKubelet.SystemReserved
 			// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static
 			// quantity entries so the launch template falls back to the AMI family defaults rather than
 			// configuring nodes from an expression the user hasn't opted into. This mirrors the scheduler's
@@ -284,7 +284,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved))...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -360,18 +360,16 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	placementGroupPartition int32,
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
+	parsedKubelet *v1.ParsedKubeletConfig,
 ) []*LaunchTemplate {
-	// Re-parsed here rather than threaded down from Resolve because the fields below are mutated per
-	// launch template -- maxPods and the resolved reservations differ by instance type -- so each
-	// template needs its own copy. This isn't the decode-error path: Resolve fails the launch on a
-	// config that won't decode before reaching here. The nil guard only keeps the assignments below
-	// from dereferencing nil, since ParseKubeletConfig returns a non-nil config for every input it
-	// accepts.
+	// Copied rather than re-parsed because the fields below are mutated per launch template -- maxPods
+	// and the resolved reservations differ by instance type -- so each template needs its own copy.
+	// Taking the config Resolve already decoded, instead of decoding it a second time here, means there
+	// is no second failure path to swallow: the launch uses exactly the config that was validated, and
+	// a config that won't decode has already failed the launch upstream rather than silently resolving
+	// to Karpenter's defaults.
 	unparsedKubeletConfig := nodeClass.Spec.Kubelet.DeepCopy()
-	parsedKubeletConfig, _ := v1.ParseKubeletConfig(unparsedKubeletConfig)
-	if parsedKubeletConfig == nil {
-		parsedKubeletConfig = &v1.ParsedKubeletConfig{}
-	}
+	parsedKubeletConfig := parsedKubelet.DeepCopy()
 	// maxPods is the count already resolved for this instance type, so it stands in both when the
 	// user set nothing and when they set a CEL expression: bootstrap needs a concrete number, and
 	// an expression can't be evaluated without an instance type.

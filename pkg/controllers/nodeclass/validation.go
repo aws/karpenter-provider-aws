@@ -163,7 +163,20 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, nil
 	}
 
-	parsedKubelet, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	// A decode failure here means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read,
+	// which the "ValidateKubeletConfig/ParseKubeletConfig invariant" specs in pkg/apis/v1 exist to prevent.
+	// Checked rather than assumed because ParseKubeletConfig returns a partially populated config
+	// alongside the error, so ignoring it would validate a config that isn't the user's and could mark
+	// the NodeClass Ready with fields silently missing.
+	parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonInvalidKubeletConfiguration,
+			fmt.Sprintf("parsing spec.kubelet, %s", err),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("parsing spec.kubelet, %w", err))
+	}
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.

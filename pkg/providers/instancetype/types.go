@@ -101,9 +101,11 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// !!! Important !!!
 	// parsed is the NodeClass' kubelet config, unmarshaled once by the caller and shared across every instance
 	// type. The provider's callers never pass nil -- a config that won't decode fails in parseKubeletConfig
-	// before reaching here -- so this guard is only for other implementations of the interface.
+	// before reaching here, so this is just for precaution.
 	if parsed == nil {
-		parsed = &v1.ParsedKubeletConfig{}
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving instance type, kubelet configuration was not parsed"),
+			"instance-type", info.InstanceType)
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
