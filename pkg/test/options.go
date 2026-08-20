@@ -25,16 +25,17 @@ import (
 )
 
 type OptionsFields struct {
-	ClusterCABundle         *string
-	ClusterName             *string
-	ClusterEndpoint         *string
-	IsolatedVPC             *bool
-	EKSControlPlane         *bool
-	VMMemoryOverheadPercent *float64
-	InterruptionQueue       *string
-	ReservedENIs            *int
-	DisableDryRun           *bool
-	SubnetRefreshInterval   *time.Duration
+	ClusterCABundle              *string
+	ClusterName                  *string
+	ClusterEndpoint              *string
+	IsolatedVPC                  *bool
+	EKSControlPlane              *bool
+	VMMemoryOverheadPercent      *float64
+	InterruptionQueue            *string
+	ReservedENIs                 *int
+	DisableDryRun                *bool
+	SubnetRefreshInterval        *time.Duration
+	SecurityGroupRefreshInterval *time.Duration
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -45,15 +46,16 @@ func Options(overrides ...OptionsFields) *options.Options {
 		}
 	}
 	return &options.Options{
-		ClusterCABundle:         lo.FromPtrOr(opts.ClusterCABundle, ""),
-		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
-		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
-		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
-		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, false),
-		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
-		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),
-		ReservedENIs:            lo.FromPtrOr(opts.ReservedENIs, 0),
-		DisableDryRun:           lo.FromPtrOr(opts.DisableDryRun, false),
-		SubnetRefreshInterval:   lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
+		ClusterCABundle:              lo.FromPtrOr(opts.ClusterCABundle, ""),
+		ClusterName:                  lo.FromPtrOr(opts.ClusterName, "test-cluster"),
+		ClusterEndpoint:              lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
+		IsolatedVPC:                  lo.FromPtrOr(opts.IsolatedVPC, false),
+		EKSControlPlane:              lo.FromPtrOr(opts.EKSControlPlane, false),
+		VMMemoryOverheadPercent:      lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
+		InterruptionQueue:            lo.FromPtrOr(opts.InterruptionQueue, ""),
+		ReservedENIs:                 lo.FromPtrOr(opts.ReservedENIs, 0),
+		DisableDryRun:                lo.FromPtrOr(opts.DisableDryRun, false),
+		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
+		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),
 	}
 }

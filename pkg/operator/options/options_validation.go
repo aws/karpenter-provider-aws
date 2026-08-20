@@ -30,12 +30,20 @@ func (o *Options) Validate() error {
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
 		o.validateSubnetRefreshInterval(),
+		o.validateSecurityGroupRefreshInterval(),
 	)
 }
 
 func (o *Options) validateSubnetRefreshInterval() error {
 	if o.SubnetRefreshInterval < time.Minute {
 		return fmt.Errorf("subnet-refresh-interval must be at least 1m")
+	}
+	return nil
+}
+
+func (o *Options) validateSecurityGroupRefreshInterval() error {
+	if o.SecurityGroupRefreshInterval < time.Minute {
+		return fmt.Errorf("security-group-refresh-interval must be at least 1m")
 	}
 	return nil
 }
