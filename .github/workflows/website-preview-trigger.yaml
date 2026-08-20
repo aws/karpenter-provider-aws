@@ -44,15 +44,9 @@ jobs:
           TZ: America/Los_Angeles
           HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
           NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
-          # Amplify serves a branch at https://<branch>.<app-id>.amplifyapp.com
-          APP_ID: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          [[ -n "$APP_ID" ]] || { echo "::error::AMPLIFY_APP_ID_PREVIEW is unset"; exit 1; }
           npm ci --prefer-offline
-          hugo --gc --minify --buildFuture \
-            -b "https://pr-$PULL_REQUEST_NUMBER.$APP_ID.amplifyapp.com" \
-            -d /tmp/artifacts/site
+          hugo --gc --minify --buildFuture -d /tmp/artifacts/site
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: artifacts
