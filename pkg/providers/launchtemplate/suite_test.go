@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -106,7 +107,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -1139,6 +1140,37 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 	})
 	Context("User Data", func() {
+		It("should record the rendered user data size, keyed by nodeclass", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			m, ok := FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			Expect(ok).To(BeTrue())
+			// The gauge measures raw pre-base64 bytes, so it must match the decoded user data EC2 was sent
+			// rather than the encoded string. A NodeClass renders one launch template per max-pods value,
+			// so the gauge holds one of their sizes — assert membership rather than a specific template.
+			sizes := lo.Map(ExpectUserDataExistsFromCreatedLaunchTemplates(), func(ud string, _ int) float64 {
+				return float64(len(ud))
+			})
+			Expect(m.GetGauge().GetValue()).To(BeElementOf(sizes))
+			Expect(m.GetGauge().GetValue()).To(BeNumerically("<", 16384))
+		})
+		It("should delete the user data gauge when the nodeclass launch templates are deleted", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			_, ok := FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			Expect(ok).To(BeTrue())
+
+			Expect(awsEnv.LaunchTemplateProvider.DeleteAll(ctx, nodeClass)).To(Succeed())
+			// The series is removed rather than zeroed, so a deleted NodeClass doesn't look like one with
+			// empty user data.
+			_, ok = FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			Expect(ok).To(BeFalse())
+		})
 		It("should specify --use-max-pods=false when using ENI-based pod density", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

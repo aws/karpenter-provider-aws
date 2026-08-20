@@ -59,7 +59,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqstypes.Messa
 		MaxNumberOfMessages: int32(10),
 		VisibilityTimeout:   int32(20), // Seconds
 		WaitTimeSeconds:     int32(20), // Seconds, maximum for long polling
-		AttributeNames: []sqstypes.QueueAttributeName{
+		AttributeNames: []sqstypes.QueueAttributeName{ //nolint:staticcheck
 			sqstypes.QueueAttributeName(sqstypes.MessageSystemAttributeNameSentTimestamp),
 		},
 		MessageAttributeNames: []string{

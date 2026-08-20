@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/awslabs/operatorpkg/object"
@@ -96,7 +97,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
 })
 
 var _ = AfterSuite(func() {
