@@ -15,6 +15,9 @@ limitations under the License.
 package v1_test
 
 import (
+	"reflect"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -219,6 +222,18 @@ var _ = Describe("ValidateKubeletConfig", func() {
 			"imageGCLowThresholdPercent":  v1.JSONValue(70),
 		})).ToNot(BeEmpty())
 	})
+	// registerWithTaints is a legitimate kubelet field, so the decode against the upstream type
+	// accepts it. Bootstrap then overwrites it with the NodeClaim's taints, which would discard the
+	// user's value on the way to the node -- rejecting it is what keeps that from being silent.
+	It("should reject a field Karpenter sets itself", func() {
+		errs := v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"registerWithTaints": v1.JSONValue([]map[string]string{
+				{"key": "example.com/dedicated", "value": "gpu", "effect": "NoSchedule"},
+			}),
+		})
+		Expect(errs).To(HaveLen(1))
+		Expect(errs[0].Error()).To(ContainSubstring("registerWithTaints"))
+	})
 	It("should report every violation rather than stopping at the first", func() {
 		// The user sees these as one status condition message, so a config with several
 		// mistakes shouldn't take several apply-and-wait cycles to fix.
@@ -234,5 +249,64 @@ var _ = Describe("ValidateKubeletConfig", func() {
 		errs := v1.ValidateKubeletConfig(v1.KubeletConfiguration{"notAKubeletField": v1.JSONValue(true)})
 		Expect(errs).To(HaveLen(1))
 		Expect(errs[0].Error()).To(ContainSubstring("notAKubeletField"))
+	})
+})
+
+// Every consumer of the kubelet config -- instance type resolution and launch template resolution alike --
+// treats a ParseKubeletConfig failure as fatal, on the premise that ValidateKubeletConfig has already
+// rejected anything that can't decode and reported it on the EC2NodeClass. That premise is what keeps the
+// fatal path unreachable in normal operation, and nothing in the types enforces it:
+// ParsedKubeletConfig may type a field more strictly than the upstream KubeletConfiguration does, and
+// then only a hand-written semantic rule closes the gap. evictionSoftGracePeriod is that case today --
+// upstream types it map[string]string, so "5x" decodes there and is caught only by
+// validateEvictionGracePeriod. Deleting a rule like that one would open the gap silently, which is what
+// these specs exist to prevent.
+var _ = Describe("ValidateKubeletConfig/ParseKubeletConfig invariant", func() {
+	DescribeTable(
+		"should reject anything ParseKubeletConfig can't decode",
+		func(kubelet v1.KubeletConfiguration) {
+			// Asserted rather than assumed: an entry that no longer fails to decode silently stops
+			// testing the invariant instead of failing.
+			_, err := v1.ParseKubeletConfig(kubelet)
+			Expect(err).To(HaveOccurred(), "this input no longer fails ParseKubeletConfig, so the entry no longer covers the invariant")
+			Expect(v1.ValidateKubeletConfig(kubelet)).ToNot(BeEmpty(),
+				"ParseKubeletConfig rejects this but ValidateKubeletConfig accepts it, so it would reach the read path and be replaced by defaults with the user's value silently dropped")
+		},
+		// The one field ParsedKubeletConfig types more strictly than upstream, so the upstream decode
+		// can't catch it and a semantic rule must.
+		Entry("evictionSoftGracePeriod that isn't a duration", v1.KubeletConfiguration{
+			"evictionSoft":            v1.JSONValue(map[string]string{"memory.available": "5%"}),
+			"evictionSoftGracePeriod": v1.JSONValue(map[string]string{"memory.available": "5x"}),
+		}),
+		Entry("clusterDNS as a string rather than a list", v1.KubeletConfiguration{"clusterDNS": v1.JSONValue("10.0.0.10")}),
+		Entry("maxPods as a bool", v1.KubeletConfiguration{"maxPods": v1.JSONValue(true)}),
+		Entry("podsPerCore as a string", v1.KubeletConfiguration{"podsPerCore": v1.JSONValue("10")}),
+		Entry("kubeReserved with non-string values", v1.KubeletConfiguration{"kubeReserved": v1.JSONValue(map[string]int{"cpu": 1})}),
+		Entry("systemReserved with non-string values", v1.KubeletConfiguration{"systemReserved": v1.JSONValue(map[string]int{"cpu": 1})}),
+		Entry("evictionHard with non-string values", v1.KubeletConfiguration{"evictionHard": v1.JSONValue(map[string]int{"memory.available": 5})}),
+		Entry("evictionSoft with non-string values", v1.KubeletConfiguration{"evictionSoft": v1.JSONValue(map[string]int{"memory.available": 5})}),
+		Entry("evictionMaxPodGracePeriod as a string", v1.KubeletConfiguration{"evictionMaxPodGracePeriod": v1.JSONValue("30")}),
+		Entry("imageGCHighThresholdPercent as a string", v1.KubeletConfiguration{"imageGCHighThresholdPercent": v1.JSONValue("80")}),
+		Entry("imageGCLowThresholdPercent as a string", v1.KubeletConfiguration{"imageGCLowThresholdPercent": v1.JSONValue("70")}),
+		Entry("cpuCFSQuota as a string", v1.KubeletConfiguration{"cpuCFSQuota": v1.JSONValue("true")}),
+	)
+	// The table only covers the fields someone thought to list. A new field on ParsedKubeletConfig is
+	// precisely how the invariant would break -- one typed more strictly than upstream, with no semantic
+	// rule behind it -- so adding one has to fail here rather than pass unnoticed.
+	It("should have an entry above for every field of ParsedKubeletConfig", func() {
+		covered := []string{
+			"clusterDNS", "cpuCFSQuota", "evictionHard", "evictionMaxPodGracePeriod", "evictionSoft",
+			"evictionSoftGracePeriod", "imageGCHighThresholdPercent", "imageGCLowThresholdPercent",
+			"kubeReserved", "maxPods", "podsPerCore", "systemReserved",
+		}
+		var fields []string
+		t := reflect.TypeOf(v1.ParsedKubeletConfig{})
+		for i := 0; i < t.NumField(); i++ {
+			if name, _, _ := strings.Cut(t.Field(i).Tag.Get("json"), ","); name != "" && name != "-" {
+				fields = append(fields, name)
+			}
+		}
+		Expect(fields).To(ConsistOf(covered),
+			"ParsedKubeletConfig gained or lost a field: add an entry to the table above that fails ParseKubeletConfig for it, and confirm ValidateKubeletConfig rejects that input too")
 	})
 })

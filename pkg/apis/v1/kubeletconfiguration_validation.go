@@ -47,6 +47,15 @@ var evictionSignals = []string{
 // anything else is ignored rather than rejected by the kubelet itself.
 var reservedResources = []string{"cpu", "memory", "ephemeral-storage", "pid"}
 
+// karpenterOwnedFields are the kubelet config fields Karpenter sets itself, mapped to the reason it
+// has to. Bootstrap overwrites these unconditionally, so a user value would be discarded on the way
+// to the node with no error anywhere -- rejecting it here is what makes that visible. Fields
+// Karpenter only defaults, like clusterDNS and maxPods, aren't listed: those keep the value the user
+// set, so there's nothing to warn about.
+var karpenterOwnedFields = map[string]string{
+	"registerWithTaints": "Karpenter sets it from the NodeClaim's taints so the node registers unschedulable until it's ready",
+}
+
 // validateEvictionThreshold checks that an eviction threshold value is one of the two forms the
 // kubelet accepts: a percentage of the relevant resource ("5%") or a non-negative resource.Quantity
 // ("500Mi"). Constraining these to a Quantity alone would reject the percentage form the kubelet
@@ -137,6 +146,14 @@ func validateAgainstUpstreamType(kc KubeletConfiguration) []error {
 //nolint:gocyclo
 func validateKubeletSemantics(kc KubeletConfiguration) []error {
 	var errs []error
+
+	// A field Karpenter owns is rejected rather than accepted and then overwritten at bootstrap,
+	// which would drop the user's value with no error anywhere. See karpenterOwnedFields.
+	for _, field := range slices.Sorted(maps.Keys(karpenterOwnedFields)) {
+		if _, ok := kc[field]; ok {
+			errs = append(errs, fmt.Errorf("spec.kubelet.%s: can't be set, %s", field, karpenterOwnedFields[field]))
+		}
+	}
 
 	// Eviction maps are keyed by eviction signal. All four are map[string]string upstream with no
 	// value constraint, so their values are checked here: evictionHard, evictionSoft, and

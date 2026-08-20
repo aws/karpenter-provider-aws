@@ -177,9 +177,9 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+		parsedKubelet, err := parseKubeletConfig(nodeClass)
 		if err != nil {
-			parsedKubelet = &v1.ParsedKubeletConfig{}
+			return nil, err
 		}
 		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
@@ -227,9 +227,9 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 		})
 	}
 	if instanceType == nil {
-		parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+		parsedKubelet, err := parseKubeletConfig(nodeClass)
 		if err != nil {
-			parsedKubelet = &v1.ParsedKubeletConfig{}
+			return nil, err
 		}
 		instanceType, err = p.get(ctx, nodeClass, name, parsedKubelet)
 		if err != nil {
@@ -237,6 +237,22 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 		}
 	}
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
+}
+
+// parseKubeletConfig decodes the NodeClass' kubelet config, failing rather than falling back to empty
+// defaults when it won't decode.
+//
+// A failure here means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read. The
+// validation controller reports the same decode error on the EC2NodeClass as ValidationSucceeded=False,
+// so the reason is already visible to the user where they'd look for it; this error is what stops the
+// undecodable config from being acted on in the meantime. The "ValidateKubeletConfig/ParseKubeletConfig
+// invariant" specs in pkg/apis/v1 are what keep it from being reachable at all.
+func parseKubeletConfig(nodeClass NodeClass) (*v1.ParsedKubeletConfig, error) {
+	parsed, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+	if err != nil {
+		return nil, fmt.Errorf("parsing spec.kubelet, %w", err)
+	}
+	return parsed, nil
 }
 
 func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error) {

@@ -100,8 +100,8 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 	// !!! Important !!!
 	// parsed is the NodeClass' kubelet config, unmarshaled once by the caller and shared across every instance
-	// type. A nil value (e.g. the open map failed to parse) is treated as empty defaults -- validation surfaces
-	// the decode error separately at reconciliation time.
+	// type. The provider's callers never pass nil -- a config that won't decode fails in parseKubeletConfig
+	// before reaching here -- so this guard is only for other implementations of the interface. 
 	if parsed == nil {
 		parsed = &v1.ParsedKubeletConfig{}
 	}

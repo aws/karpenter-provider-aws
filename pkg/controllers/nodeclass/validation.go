@@ -685,12 +685,15 @@ func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Parsed
 	return nil
 }
 
-// validateKubeletFieldsSupported rejects kubelet config fields the NodeClass' AMI family won't apply.
+// validateKubeletFieldsSupported rejects kubelet config the NodeClass' AMI family won't fully apply.
 // Only families that render the raw config through (AL2023) honor every valid kubelet field; the rest
 // apply just the subset Karpenter maps to bootstrap, so any other field -- plus podsPerCore on families
 // that have no setting for it (Bottlerocket) -- would be dropped silently, launching a node without the
 // configuration the user set. Custom is exempt: it owns its userdata and ignores kubelet config entirely,
 // so there's nothing for Karpenter to guarantee.
+//
+// A field can also be applied only in part rather than dropped outright, which needs its own check
+// because the field is present in the config Karpenter maps and so looks supported.
 func validateKubeletFieldsSupported(nodeClass *v1.EC2NodeClass, parsed *v1.ParsedKubeletConfig) error {
 	if len(nodeClass.Spec.Kubelet) == 0 || nodeClass.AMIFamily() == v1.AMIFamilyCustom {
 		return nil
@@ -699,16 +702,30 @@ func validateKubeletFieldsSupported(nodeClass *v1.EC2NodeClass, parsed *v1.Parse
 	if flags.SupportsArbitraryKubeletConfig {
 		return nil
 	}
+	var messages []string
 	unsupported := sets.New(v1.UnmanagedKubeletFields(nodeClass.Spec.Kubelet)...)
 	// podsPerCore is a field Karpenter maps, but some families have no setting to render it into.
 	if parsed != nil && parsed.PodsPerCore != nil && !flags.PodsPerCoreEnabled {
 		unsupported.Insert("podsPerCore")
 	}
-	if unsupported.Len() == 0 {
+	if unsupported.Len() > 0 {
+		messages = append(messages, fmt.Sprintf("spec.kubelet has fields not applied by the %s AMI family that would be silently dropped: %s",
+			nodeClass.AMIFamily(), strings.Join(sets.List(unsupported), ", ")))
+	}
+	// These families pass clusterDNS to a single-valued bootstrap parameter (--dns-cluster-ip on AL2,
+	// -DNSClusterIP on Windows, cluster-dns-ip on Bottlerocket), so only the first entry reaches the
+	// kubelet and the rest are dropped. On AL2 the first entry also decides the node's --ip-family
+	// (see bootstrap.EKS.isIPv6), so a mixed IPv4/IPv6 list would have whichever entry came first
+	// silently choose for the whole node. Karpenter's own default is a single discovered kube-dns
+	// address, so this can only trip on a list the user set.
+	if parsed != nil && len(parsed.ClusterDNS) > 1 {
+		messages = append(messages, fmt.Sprintf("spec.kubelet.clusterDNS: the %s AMI family doesn't accept multiple entries, only one, but %d were set",
+			nodeClass.AMIFamily(), len(parsed.ClusterDNS)))
+	}
+	if len(messages) == 0 {
 		return nil
 	}
-	return fmt.Errorf("spec.kubelet has fields not applied by the %s AMI family that would be silently dropped: %s",
-		nodeClass.AMIFamily(), strings.Join(sets.List(unsupported), ", "))
+	return errors.New(strings.Join(messages, "; "))
 }
 
 func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {

@@ -3575,6 +3575,38 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
 		})
 	})
+	Context("Undecodable Kubelet Configuration", func() {
+		// An undecodable spec.kubelet is refused rather than answered from defaults. Substituting defaults
+		// would have Karpenter compute allocatable and pod capacity from values the user never set, so pods
+		// would be packed onto nodes that can't hold them and the node Karpenter asked for would stop
+		// matching the one it gets -- both silently. ValidateKubeletConfig rejects such a config first, so
+		// the user already has the reason on the EC2NodeClass; this is what keeps it from being acted on
+		// anyway in the meantime.
+		BeforeEach(func() {
+			// clusterDNS is a list, so a bare string decodes against the upstream kubelet type's field but
+			// not into ParsedKubeletConfig.
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"clusterDNS": v1.JSONValue("10.0.0.10")}
+		})
+		It("should fail List rather than resolve instance types from defaults", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("parsing spec.kubelet")))
+			Expect(instanceTypes).To(BeNil(), "instance types resolved from defaults would misreport allocatable for every pod scheduled against them")
+		})
+		It("should fail Get rather than resolve an instance type from defaults", func() {
+			instanceType, err := awsEnv.InstanceTypesProvider.Get(ctx, nodeClass, "m5.large")
+			Expect(err).To(MatchError(ContainSubstring("parsing spec.kubelet")))
+			Expect(instanceType).To(BeNil())
+		})
+		It("should resolve normally once the configuration is corrected", func() {
+			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			// The failure must not be cached or otherwise sticky: fixing the config has to be enough.
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"clusterDNS": v1.JSONValue([]string{"10.0.0.10"})}
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+		})
+	})
 	Context("Resolution Failures", func() {
 		// A resolution failure for a single instance type will fail the whole List call.
 		var newProviderWithFailingResolver func(resolver instancetype.Resolver) *instancetype.DefaultProvider

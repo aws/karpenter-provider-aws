@@ -286,7 +286,32 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Entry("passthrough field on Windows", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}),
 			// podsPerCore is a field Karpenter maps, but Bottlerocket has no setting to render it into.
 			Entry("podsPerCore on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr[int32](10)})),
+			// These families pass clusterDNS to a single-valued bootstrap parameter, so only the first
+			// entry would reach the kubelet and the rest would be dropped without an error anywhere.
+			Entry("multiple clusterDNS entries on AL2", v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
+			Entry("multiple clusterDNS entries on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
+			Entry("multiple clusterDNS entries on Windows", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
 		)
+		It("should accept multiple clusterDNS entries on AL2023, which renders the whole list", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept a single clusterDNS entry on a family that applies only one", func() {
+			// The single-entry case is the common one, including Karpenter's own discovered default,
+			// so the check above must not reject it.
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyBottlerocket)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10"}})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
 		It("should accept a passthrough field on AL2023, which renders the raw config through", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}

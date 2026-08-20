@@ -102,7 +102,6 @@ func (w Windows) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
 		UsesENILimitedMemoryOverhead: false,
 		PodsPerCoreEnabled:           true,
-		EvictionSoftEnabled:          true,
 		SupportsENILimitedPodDensity: false,
 	}
 }

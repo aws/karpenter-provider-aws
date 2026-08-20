@@ -134,7 +134,6 @@ type DefaultAMIOutput struct {
 type FeatureFlags struct {
 	UsesENILimitedMemoryOverhead bool
 	PodsPerCoreEnabled           bool
-	EvictionSoftEnabled          bool
 	SupportsENILimitedPodDensity bool
 	// SupportsArbitraryKubeletConfig is true for families that render the raw kubelet config
 	// through to the node (nodeadm inline config), so any valid kubelet field is honored. Families
@@ -150,7 +149,6 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	return FeatureFlags{
 		UsesENILimitedMemoryOverhead:   true,
 		PodsPerCoreEnabled:             true,
-		EvictionSoftEnabled:            true,
 		SupportsENILimitedPodDensity:   true,
 		SupportsArbitraryKubeletConfig: false,
 	}
@@ -178,7 +176,14 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a v1.AMI, _ int) string { return a.ID })))
 	}
-	parsedKubelet, _ := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	// A config that won't decode fails the launch rather than falling back to defaults. The validation
+	// controller rejects such a config before the NodeClass goes Ready, so reaching this is a bug -- but
+	// launching is the one path where guessing is unrecoverable: the node would come up with Karpenter's
+	// defaults instead of what the user set, and nothing downstream would notice the difference.
+	parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if err != nil {
+		return nil, fmt.Errorf("parsing kubelet configuration, %w", err)
+	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		// In order to support reserved ENIs for CNI custom networking setups,
@@ -356,6 +361,12 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
 ) []*LaunchTemplate {
+	// Re-parsed here rather than threaded down from Resolve because the fields below are mutated per
+	// launch template -- maxPods and the resolved reservations differ by instance type -- so each
+	// template needs its own copy. This isn't the decode-error path: Resolve fails the launch on a
+	// config that won't decode before reaching here. The nil guard only keeps the assignments below
+	// from dereferencing nil, since ParseKubeletConfig returns a non-nil config for every input it
+	// accepts.
 	unparsedKubeletConfig := nodeClass.Spec.Kubelet.DeepCopy()
 	parsedKubeletConfig, _ := v1.ParseKubeletConfig(unparsedKubeletConfig)
 	if parsedKubeletConfig == nil {
