@@ -28,82 +28,35 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 
 ### Termination Controller
 
-When a Karpenter node is deleted, the `karpenter.sh/termination` finalizer blocks deletion while the Termination Controller gracefully drains the node, waits for its volumes to detach, and terminates the underlying instance. This is modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown).
-
-#### Actors
-
-Node termination is coordinated by several controllers, each with a distinct responsibility:
-
-| Actor | Responsibility |
-| ----- | -------------- |
-| **NodeClaim Lifecycle Controller** | Watches NodeClaims. When a NodeClaim gets a `DeletionTimestamp`, stamps the `karpenter.sh/nodeclaim-termination-timestamp` annotation on the NodeClaim (equal to `DeletionTimestamp + spec.terminationGracePeriod`, if set) and deletes the associated Node so termination can begin. After the Node's finalizer is removed, ensures the cloud instance is deleted and removes the NodeClaim's finalizer. |
-| **Node Termination Controller** | Watches Nodes with a `DeletionTimestamp`. Adds the `karpenter.sh/disrupted:NoSchedule` taint, then progresses the node through drain, volume detachment, and instance termination. Publishes progress as NodeClaim status conditions (`Drained`, `VolumesDetached`, `InstanceTerminating`). |
-| **Terminator** | Helper used by the Node Termination Controller. Applies taints, groups pods by [eviction priority](#pod-eviction-priority), and hands evictable pods to the Eviction Queue. Also proactively deletes pods whose `terminationGracePeriodSeconds` would otherwise overrun the Node's `terminationGracePeriod`. |
-| **Eviction Queue** | Rate-limited worker queue that calls the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) for each pod with exponential backoff. `429 Too Many Requests` (a blocking PDB) and pods with multiple PDBs on them cause the pod to be re-queued; `404` and `409` responses drop the pod from the queue. Karpenter keeps retrying until the pod evicts or the Node's `terminationGracePeriod` elapses, at which point the pod is force-deleted. |
-| **Node Health Controller** | Runs when [Node Auto Repair]({{<ref "#node-auto-repair" >}}) is enabled. For unhealthy nodes, overwrites the `karpenter.sh/nodeclaim-termination-timestamp` annotation with the current time, forcing the Termination Controller to skip drain and volume-detachment waits. |
+When a Karpenter node is deleted, the `karpenter.sh/termination` finalizer blocks deletion while Karpenter gracefully drains the node, waits for its volumes to detach, and terminates the underlying instance. This is modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown).
 
 #### Workflow
 
-For a node with a `DeletionTimestamp`, the Termination Controller runs the following steps in order. Each phase is reflected as a status condition on the owning NodeClaim.
+For a node with a `DeletionTimestamp`, Karpenter runs the following steps in order. Each phase is reflected as a status condition on the owning NodeClaim.
 
 1. **Taint.** Add the `karpenter.sh/disrupted:NoSchedule` taint to prevent new pods from scheduling to the node, and add the `node.kubernetes.io/exclude-from-external-load-balancers=karpenter` label so the node is removed from load balancer target groups before it stops serving traffic.
 2. **Fast path for missing instances.** If the Node's `Ready` condition is not `True` **and** the underlying instance is no longer visible to the cloud provider, remove the finalizer immediately and skip the remaining phases. See [Fast path when the instance disappears](#fast-path-when-the-instance-disappears).
 3. **Drain** (`Drained: Unknown` with reason `Draining` → `Drained: True`). Evict all drainable pods via the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/), respecting PDBs. Pods are grouped by [priority](#pod-eviction-priority) and evicted one group at a time. Pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), and succeeded/failed pods are skipped. If the underlying NodeClaim disappears mid-drain, the Node's finalizer is removed and termination completes.
 4. **Volume detachment** (`VolumesDetached: Unknown` with reason `AwaitingVolumeDetachment` → `VolumesDetached: True`, or `VolumesDetached: False` with reason `TerminationGracePeriodElapsed`). Wait for all [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources belonging to drainable pods to be deleted by the Kubernetes attach-detach controller. Volumes belonging to non-drainable pods are not waited on. See [Volume detachment](#volume-detachment).
 5. **Instance termination** (`InstanceTerminating: True`). Call the cloud provider to terminate the instance, requeuing every 5 seconds until the cloud provider reports the instance as gone.
-6. **Finalizer removal.** Remove the `karpenter.sh/termination` finalizer from the Node so the API server can delete it. The NodeClaim Lifecycle Controller then removes the finalizer from the NodeClaim.
+6. **Finalizer removal.** Remove the `karpenter.sh/termination` finalizer from the Node so the API server can delete it. Karpenter then removes the finalizer from the NodeClaim.
 
 #### State diagram
 
-NodeClaim status conditions progress through the following states during termination. Reason strings shown are the values set by the controller. Transitions also emit Kubernetes events on the Node.
+NodeClaim status conditions progress through the following states during termination. Reason strings shown are the values Karpenter sets on the condition. Transitions also emit Kubernetes events on the Node.
 
-```
-Node.DeletionTimestamp set
-        │
-        ▼
-   Node tainted
-        │
-        │  Node.Ready != True  AND
-        │  cloud provider reports instance gone
-        ├─────────────────────────────────────────► finalizer removed (fast path)
-        │
-        ▼
-   Drained: Unknown  (Reason: Draining)
-        │
-        │  Drainable pods are evicted via the Kubernetes Eviction API.
-        │  If terminationGracePeriod is set, pods approaching their
-        │  own terminationGracePeriodSeconds boundary are proactively
-        │  deleted with a clamped grace period. All drainable pods
-        │  eventually clear the node, one way or the other.
-        │
-        ▼
-   Drained: True
-        │
-        ▼
-   VolumesDetached: Unknown  (Reason: AwaitingVolumeDetachment)
-        │
-        ├──► VolumesDetached: True                        (all VolumeAttachments deleted)
-        │
-        └──► VolumesDetached: False                       (terminationGracePeriod elapsed
-             (Reason: TerminationGracePeriodElapsed)       with pending attachments)
-        │
-        ▼
-   InstanceTerminating: True
-        │  cloud provider reports instance gone
-        ▼
-   finalizer removed
-```
+![Termination state diagram](/termination-state-diagram.png)
 
 #### Pod eviction priority
 
-The Terminator drains pods in strict priority order, matching the [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) ordering. Pods are placed into one of four groups, and a group with any remaining pods blocks all lower-priority groups until it fully drains:
+Karpenter drains pods in strict priority order, matching the [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) ordering. Pods are placed into one of four groups, and a group with any remaining pods blocks all lower-priority groups until it fully drains:
 
 1. **Non-critical, non-DaemonSet** — regular workload pods without a system priority class.
 2. **Non-critical, DaemonSet** — DaemonSet pods without a system priority class.
 3. **Critical, non-DaemonSet** — pods with `priorityClassName` of `system-cluster-critical` or `system-node-critical` that are not owned by a DaemonSet.
 4. **Critical, DaemonSet** — DaemonSet pods with `system-cluster-critical` or `system-node-critical`.
 
-A pod is considered evictable if it is not a static pod, does not tolerate the `karpenter.sh/disrupted:NoSchedule` taint, is not already terminating, and has not succeeded or failed. Pods with blocking PDBs remain in the Eviction Queue until the PDB allows the eviction or the Node's `terminationGracePeriod` elapses, at which point they are force-deleted; see [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}).
+A pod is considered evictable if it is not a static pod, does not tolerate the `karpenter.sh/disrupted:NoSchedule` taint, is not already terminating, and has not succeeded or failed. Eviction requests use the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/): blocking PDBs (`429 Too Many Requests`) and pods with multiple PDBs cause the eviction to be retried with exponential backoff; `404` and `409` responses drop the pod from the queue. Karpenter keeps retrying until the pod evicts or the Node's `terminationGracePeriod` elapses, at which point the pod is force-deleted; see [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}).
 
 #### Volume detachment
 
@@ -124,21 +77,17 @@ Karpenter checks `Ready` before consulting the cloud provider because eventual c
 
 #### How terminationGracePeriod is determined
 
-The `terminationGracePeriod` used at termination time is stored on the NodeClaim as the `karpenter.sh/nodeclaim-termination-timestamp` annotation (an RFC3339 timestamp). The annotation is set by:
+The effective node termination deadline is stored on the NodeClaim as the `karpenter.sh/nodeclaim-termination-timestamp` annotation (an RFC3339 timestamp). Karpenter sets this annotation via one of two paths:
 
-* **NodePool inheritance.** When a NodeClaim is created, `spec.template.spec.terminationGracePeriod` on the owning NodePool is copied to the NodeClaim's `spec.terminationGracePeriod`. When the NodeClaim gets a `DeletionTimestamp`, the NodeClaim Lifecycle Controller stamps the annotation as `DeletionTimestamp + spec.terminationGracePeriod`. See [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) for the user-facing configuration.
-* **Node Auto Repair override.** When [Node Auto Repair]({{<ref "#node-auto-repair" >}}) determines a node is unhealthy, the Health Controller overwrites the annotation with the current time, forcing the Termination Controller to skip drain and volume-detachment waits. If the annotation is already in the past, it is not overwritten.
-* **Unset.** If neither the NodePool nor the Health Controller sets a `terminationGracePeriod`, the annotation is absent and Karpenter waits indefinitely for drain and volume detachment.
+* **NodePool inheritance.** When a NodeClaim is created, `spec.template.spec.terminationGracePeriod` on the owning NodePool is copied to the NodeClaim's `spec.terminationGracePeriod`. When the NodeClaim gets a `DeletionTimestamp`, Karpenter stamps the annotation as `DeletionTimestamp + spec.terminationGracePeriod`. See [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) for the user-facing configuration.
+* **Node Auto Repair override.** When [Node Auto Repair]({{<ref "#node-auto-repair" >}}) determines a node is unhealthy, Karpenter overwrites the annotation with the current time, forcing termination to skip drain and volume-detachment waits. If the annotation is already in the past, it is not overwritten.
+* **Unset.** If neither path sets a `terminationGracePeriod`, the annotation is absent and Karpenter waits indefinitely for drain and volume detachment.
 
 #### terminationGracePeriod timeline
 
-The table below traces how the Node's `terminationGracePeriod`, a pod's `terminationGracePeriodSeconds`, and the Node's `DeletionTimestamp` interact. In this example the Node has `terminationGracePeriod: 1h` and a pod on it has `terminationGracePeriodSeconds: 900` (15 minutes).
+The diagram below traces how the Node's `terminationGracePeriod`, a pod's `terminationGracePeriodSeconds`, and the Node's `DeletionTimestamp` interact. In this example the Node has `terminationGracePeriod: 1h` and a pod on it has `terminationGracePeriodSeconds: 900` (15 minutes).
 
-| Time | Event |
-| ---- | ----- |
-| `t=0` | `Node.DeletionTimestamp` set. NodeClaim Lifecycle Controller stamps the `karpenter.sh/nodeclaim-termination-timestamp` annotation as `t + 1h`. Node Termination Controller taints the node, sets `Drained: Unknown` (`Reason: Draining`), and begins evicting pods via the Eviction API. |
-| `t=45m` | The Terminator sees that the pod is 15 minutes away from the annotation (`900s` before `t + 1h`), and calls `Delete` on the pod with `gracePeriodSeconds=900`. The pod's kubelet now has its full grace period to shut down before the node dies. |
-| `t=60m` | The Node's `terminationGracePeriod` elapses. The volume-detach wait is skipped if pending (`VolumesDetached: False` with `TerminationGracePeriodElapsed`); the cloud provider is called to terminate the instance even if pods or volumes remain. Node finalizer removed once the instance is gone. |
+![terminationGracePeriod timeline](/termination-tgp-timeline.png)
 
 Two important properties follow from this design:
 
