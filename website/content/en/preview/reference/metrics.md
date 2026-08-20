@@ -354,6 +354,12 @@ Count of unique unhealthy instance statuses detected from EC2 DescribeInstanceSt
 Count of messages deleted from the SQS queue.
 - Stability Level: STABLE
 
+## EC2NodeClasses Metrics
+
+### `karpenter_ec2nodeclasses_userdata_bytes`
+Size in bytes of the rendered user data (raw, pre-base64) for the EC2NodeClass
+- Stability Level: ALPHA
+
 ## Cluster Metrics
 
 ### `karpenter_cluster_utilization_percent`
