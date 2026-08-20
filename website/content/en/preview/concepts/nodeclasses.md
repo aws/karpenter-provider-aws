@@ -267,8 +267,8 @@ Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
 
 Any field of the upstream `KubeletConfiguration` for the Kubernetes version Karpenter was built
-against may be set. Karpenter reads the fields relevant to scheduling — `maxPods`, `podsPerCore`,
-`kubeReserved`, `systemReserved`, and `evictionHard` — and passes all others through to the node
+against may be set. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
+`kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
 unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
 configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
 
@@ -345,7 +345,7 @@ Any other field set on those families is rejected rather than silently dropped: 
 * `podsPerCore` is not applied by the `Bottlerocket` family.
 * `clusterDNS` accepts only one entry on these non-AL2023 families, not a list.
 
-The `Custom` AMI family is exempt from these checks. It ships without default userData, so Karpenter cannot know which fields your bootstrapping honors and applies none of them on your behalf — set them in [`spec.userData`]({{< ref "#specuserdata" >}}) as well.
+The `Custom` AMI family is exempt from these checks. It ships without default userData, so Karpenter cannot know which fields your bootstrapping honors and applies none of them on your behalf. Set them in [`spec.userData`]({{< ref "#specuserdata" >}}) as well.
 
 #### Pods Per Core
 
@@ -386,15 +386,15 @@ You should be aware of the CPU and memory default calculation when using Custom 
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#aws-specific-feature-gates" >}})
 
-`maxPods`, `kubeReserved`, and `systemReserved` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet — for example, so that `maxPods` scales with each instance type's ENI capacity, or `kubeReserved` scales with vCPU count — without fracturing into a separate NodeClass per instance size.
+`maxPods`, `kubeReserved`, and `systemReserved` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity or `kubeReserved` scale with vCPU count without fracturing into a separate NodeClass per instance size.
 
 {{% alert title="Feature Gate Required" color="warning" %}}
 Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}), which is disabled by default. Enable it with `--aws-feature-gates NodeClassCEL=true` (Helm: `settings.awsFeatureGates.nodeClassCEL: true`).
 
-While the gate is disabled, a NodeClass that carries an expression is rejected — its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
+While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
 {{% /alert %}}
 
-Each field independently accepts either its usual static value or an expression string — there is no separate expression field, and no precedence logic. 
+Each field independently accepts either its usual static value or an expression string, there is no separate expression field.
 
 When none of these fields is set, Karpenter applies its internal defaults (ENI-limited `maxPods`, graduated `kubeReserved`) exactly as it does today.
 
@@ -413,7 +413,7 @@ spec:
     - alias: al2023@latest
 ```
 
-With this configuration, an `m5.large` (3 ENIs, 10 IPs/ENI) resolves to `maxPods = ((3 - 1) * (10 - 1)) + 2 = 20`, while an `m5.24xlarge` (15 ENIs, 50 IPs/ENI) resolves to `688` — from the same NodeClass.
+With this configuration, from the same NodeClass, an `m5.large` (3 ENIs, 10 IPs/ENI) resolves to `maxPods = ((3 - 1) * (10 - 1)) + 2 = 20`, while an `m5.24xlarge` (15 ENIs, 50 IPs/ENI) resolves to `688`.
 
 #### Example: Reserved resources scaled by instance size
 
@@ -449,7 +449,7 @@ The following variables are populated from each instance type's information and 
 | `ips_per_eni`   | int    | IPv4 addresses per ENI                              | 30                   |
 | `max_pods`      | int    | The resolved `maxPods` for this instance type       | 58                   |
 
-`max_pods` lets `kubeReserved` and `systemReserved` expressions reference the resolved `maxPods` — whether that came from a `maxPods` expression, a static `maxPods` value, or Karpenter's default.
+`max_pods` lets `kubeReserved` and `systemReserved` expressions reference the resolved `maxPods` (whether that came from a `maxPods` expression, a static `maxPods` value, or Karpenter's default).
 
 #### Result units and rounding
 
@@ -472,7 +472,7 @@ Rounding is always *up*, so a reservation is never smaller than the expression a
 * Built-in: `max(a, b)`, `min(a, b)`, `int()`, `double()`
 * Conditional: `condition ? trueValue : falseValue`
 
-`max` and `min` are two-argument overloads only — `max(a, b, c)` is not supported. User-defined variables and custom functions are not available; only the built-in instance-type variables above may be referenced.
+`max` and `min` are two-argument overloads only. For example, `max(a, b, c)` is not supported. User-defined variables and custom functions are not available, so only the built-in instance-type variables above may be referenced.
 
 #### Common expressions
 
@@ -486,15 +486,15 @@ Rounding is always *up*, so a reservation is never smaller than the expression a
 
 #### Validation
 
-Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSucceeded` status condition — they are not rejected at admission. Validation happens in two stages:
+Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSucceeded` status condition. They are not rejected at admission. Validation happens in two stages:
 
 1. **Compile-time**, per expression: the expression must parse, type-check against the available variables, and return an int or double. Failures set reason `KubeletExpressionInvalid`.
 2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvalFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
 
-A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended* — test expressions against your target instance types before applying them to a live cluster.
+A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended*. Ensure to test expressions against your target instance types before applying them to a live cluster.
 
 {{% alert title="Note" color="primary" %}}
-Karpenter evaluates every expression itself at scheduling time and writes the resolved, concrete values into UserData on all AMI families — nothing expression-shaped reaches the node. This keeps the scheduler's capacity model in agreement with what each node is actually configured with.
+Karpenter evaluates every expression itself at scheduling time and writes the resolved, concrete values into UserData on all AMI families. Nothing expression-shaped reaches the node. This keeps the scheduler's capacity model in agreement with what each node is actually configured with.
 {{% /alert %}}
 
 ### Eviction Thresholds
