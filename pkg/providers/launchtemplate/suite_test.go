@@ -2559,6 +2559,39 @@ eviction-max-pod-grace-period = 10
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
+		It("should enable enclave options when enclaveOptions.enabled is true on the EC2NodeClass", func() {
+			// The generated instance type test data doesn't populate NitroEnclavesSupport, so mark the fake
+			// instance types as enclave-capable to get past the enclave compatibility filter.
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+			Expect(err).ToNot(HaveOccurred())
+			for i := range out.InstanceTypes {
+				out.InstanceTypes[i].NitroEnclavesSupport = ec2types.NitroEnclavesSupportSupported
+			}
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(out)
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+		It("should not enable enclave options when enclaveOptions.enabled is false on the EC2NodeClass", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
 	})
 	Context("Instance Metadata", func() {
 		It("should set the default instance metadata settings on instances", func() {

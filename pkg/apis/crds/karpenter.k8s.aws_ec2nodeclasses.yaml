@@ -355,6 +355,20 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                enclaveOptions:
+                  description: EnclaveOptions defines the AWS Nitro Enclaves options for the instance.
+                  properties:
+                    enabled:
+                      default: false
+                      description: |-
+                        Enabled controls whether AWS Nitro Enclaves are enabled on the instance.
+                        When true, Karpenter filters instance types to only those reporting
+                        NitroEnclavesSupport "supported" from DescribeInstanceTypes, and enables
+                        EnclaveOptions on the generated launch template. Note that enabling
+                        enclaves reserves CPU and memory for the enclave which is not visible to
+                        the kubelet; use a NodeOverlay to account for the reservation.
+                      type: boolean
+                  type: object
                 instanceProfile:
                   description: |-
                     InstanceProfile is the AWS entity that instances use.

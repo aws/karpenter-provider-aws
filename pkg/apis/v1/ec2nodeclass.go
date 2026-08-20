@@ -166,6 +166,9 @@ type EC2NodeClassSpec struct {
 	// CPUOptions defines the CPU options for the instance.
 	// +optional
 	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
+	// EnclaveOptions defines the AWS Nitro Enclaves options for the instance.
+	// +optional
+	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -407,6 +410,18 @@ type CPUOptions struct {
 	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
+}
+
+type EnclaveOptions struct {
+	// Enabled controls whether AWS Nitro Enclaves are enabled on the instance.
+	// When true, Karpenter filters instance types to only those reporting
+	// NitroEnclavesSupport "supported" from DescribeInstanceTypes, and enables
+	// EnclaveOptions on the generated launch template. Note that enabling
+	// enclaves reserves CPU and memory for the enclave which is not visible to
+	// the kubelet; use a NodeOverlay to account for the reservation.
+	// +kubebuilder:default:=false
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 // ConnectionTracking configures idle connection tracking timeouts on ENIs
@@ -709,6 +724,10 @@ func (kc *KubeletConfiguration) HasResourceExpressions() bool {
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 	return in.Spec.CPUOptions
+}
+
+func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
+	return in.Spec.EnclaveOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

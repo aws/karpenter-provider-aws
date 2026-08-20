@@ -175,6 +175,10 @@ spec:
   # Optional, configures detailed monitoring for the instance
   detailedMonitoring: true
 
+  # Optional, enables AWS Nitro Enclaves on the instance
+  enclaveOptions:
+    enabled: true
+
   # Optional, configures if the instance should be launched with an associated public IP address.
   # If not specified, the default value depends on the subnet's public IP auto-assign setting.
   associatePublicIPAddress: true
@@ -1669,6 +1673,24 @@ Enabling detailed monitoring controls the [EC2 detailed monitoring](https://docs
 spec:
   detailedMonitoring: true
 ```
+
+## spec.enclaveOptions
+
+`enclaveOptions.enabled` controls whether [AWS Nitro Enclaves](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html) are enabled on the instances that Karpenter launches. It maps to `EnclaveOptions.Enabled` on the generated launch template.
+
+```yaml
+spec:
+  enclaveOptions:
+    enabled: true
+```
+
+When enabled, Karpenter restricts the instance types it considers to those reporting `NitroEnclavesSupport: supported` from `DescribeInstanceTypes`. If a `NodePool` narrows requirements to instance types that don't support enclaves, no instance types will remain and provisioning will fail.
+
+Enclaves are also enabled implicitly, without setting this field, when a `NodeClaim` requests the `eks.amazonaws.com/nitro-sandbox` extended resource — for example, when scheduling pods that request it via the [Nitro Enclaves Kubernetes device plugin](https://github.com/aws/aws-nitro-enclaves-k8s-device-plugin). Set this field when you manage enclaves yourself (for example with `nitro-cli`) rather than through that device plugin.
+
+{{% alert title="Note" color="warning" %}}
+An enclave is carved out of the parent instance's CPUs and memory by the Nitro Enclaves allocator. Karpenter's scheduling does not account for that reservation, so the kubelet will report more allocatable capacity than is actually available to pods. Use a [NodeOverlay]({{< ref "./nodeoverlays.md" >}}) to subtract the capacity you allocate to enclaves.
+{{% /alert %}}
 
 ## spec.associatePublicIPAddress
 

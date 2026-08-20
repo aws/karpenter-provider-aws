@@ -1536,4 +1536,20 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
 	})
+
+	Context("EnclaveOptions", func() {
+		It("should succeed with enclaves enabled", func() {
+			nc.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with enclaves disabled", func() {
+			nc.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should default enabled to false with empty EnclaveOptions", func() {
+			nc.Spec.EnclaveOptions = &v1.EnclaveOptions{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			Expect(nc.Spec.EnclaveOptions.Enabled).To(BeFalse())
+		})
+	})
 })

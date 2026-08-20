@@ -410,8 +410,11 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
-			EnclaveEnabled:                   lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceNitroSandbox),
-			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
+			// Enclaves are enabled either explicitly through the EC2NodeClass, or implicitly when the
+			// NodeClaim requests the nitro-sandbox extended resource.
+			EnclaveEnabled: (nodeClass.Spec.EnclaveOptions != nil && nodeClass.Spec.EnclaveOptions.Enabled) ||
+				lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceNitroSandbox),
+			ConnectionTracking: nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
