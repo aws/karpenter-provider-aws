@@ -119,7 +119,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
 		if err := v.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
 			if awserrors.IsServerError(err) {
-				return reconcile.Result{Requeue: true}, nil
+				return reconcile.Result{Requeue: true}, nil //nolint:staticcheck
 			}
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
@@ -241,7 +241,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	launchTemplates, err := v.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes[:1], karpv1.CapacityTypeOnDemand, tags, string(tenancyType))
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return nil, reconcile.Result{Requeue: true}, nil
+			return nil, reconcile.Result{Requeue: true}, nil //nolint:staticcheck
 		}
 		if awserrors.IsUserDataTooLarge(err) {
 			log.FromContext(ctx).Error(err, "ec2:CreateLaunchTemplate rejected the rendered user data as exceeding the size limit")
@@ -279,7 +279,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 		o.Retryer = aws.NopRetryer{}
 	}); awserrors.IgnoreDryRunError(err) != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
-			return reconcile.Result{Requeue: true}, nil
+			return reconcile.Result{Requeue: true}, nil //nolint:staticcheck
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
@@ -322,7 +322,7 @@ func (v *Validation) validateRunInstancesAuthorization(
 	// If we get InstanceProfile NotFound, but we have a resolved instance profile in the status,
 	// this means there is most likely an eventual consistency issue and we just need to requeue
 	if awserrors.IsInstanceProfileNotFound(firstSubnetErr) || awserrors.IsRateLimitedError(firstSubnetErr) || awserrors.IsServerError(firstSubnetErr) {
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{Requeue: true}, nil //nolint:staticcheck
 	}
 	if awserrors.IgnoreUnauthorizedOperationError(firstSubnetErr) != nil {
 		// Dry run should only ever return UnauthorizedOperation or DryRunOperation so if we receive any other error
