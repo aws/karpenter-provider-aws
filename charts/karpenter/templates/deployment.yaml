@@ -185,6 +185,14 @@ spec:
             - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.subnetRefreshInterval }}
+            - name: SUBNET_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.securityGroupRefreshInterval }}
+            - name: SECURITY_GROUP_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

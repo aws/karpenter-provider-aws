@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
@@ -34,15 +35,17 @@ func init() {
 type optionsKey struct{}
 
 type Options struct {
-	ClusterCABundle         string
-	ClusterName             string
-	ClusterEndpoint         string
-	IsolatedVPC             bool
-	EKSControlPlane         bool
-	VMMemoryOverheadPercent float64
-	InterruptionQueue       string
-	ReservedENIs            int
-	DisableDryRun           bool
+	ClusterCABundle              string
+	ClusterName                  string
+	ClusterEndpoint              string
+	IsolatedVPC                  bool
+	EKSControlPlane              bool
+	VMMemoryOverheadPercent      float64
+	InterruptionQueue            string
+	ReservedENIs                 int
+	DisableDryRun                bool
+	SubnetRefreshInterval        time.Duration
+	SecurityGroupRefreshInterval time.Duration
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -55,6 +58,8 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
+	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
+	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
