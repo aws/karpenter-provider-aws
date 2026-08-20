@@ -101,7 +101,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// !!! Important !!!
 	// parsed is the NodeClass' kubelet config, unmarshaled once by the caller and shared across every instance
 	// type. The provider's callers never pass nil -- a config that won't decode fails in parseKubeletConfig
-	// before reaching here -- so this guard is only for other implementations of the interface. 
+	// before reaching here -- so this guard is only for other implementations of the interface.
 	if parsed == nil {
 		parsed = &v1.ParsedKubeletConfig{}
 	}

@@ -56,19 +56,20 @@ import (
 )
 
 const (
-	requeueAfterTime                              = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed            = "TagValidationFailed"
-	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
-	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
-  ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
-	ConditionReasonUserDataTooLarge               = "UserDataSizeLimitExceeded"
+	requeueAfterTime                               = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed             = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
+	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
 )
 
 var ValidationConditionMessages = map[string]string{
