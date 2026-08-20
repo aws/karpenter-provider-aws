@@ -17,3 +17,6 @@ go.work.sum
 
 # Binary output
 karpenter-provider-aws-*
+# Compiled local tool binaries (build outputs of hack/tools/*)
+/celtest
+/launchtemplate_counter
