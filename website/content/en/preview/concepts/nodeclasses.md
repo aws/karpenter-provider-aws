@@ -269,7 +269,8 @@ For more details on kubelet settings, see the [KubeletConfiguration reference](h
 Any field of the upstream `KubeletConfiguration` for the Kubernetes version Karpenter was built
 against may be set. Karpenter reads the fields relevant to scheduling — `maxPods`, `podsPerCore`,
 `kubeReserved`, `systemReserved`, and `evictionHard` — and passes all others through to the node
-unchanged.
+unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
+configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
 
 Field names and values are validated by Karpenter rather than by the API server, so an invalid
 configuration is accepted on apply and reported on the EC2NodeClass afterwards:
@@ -332,6 +333,19 @@ If you need a field newer than the kubelet version Karpenter was built against, 
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
+
+#### AMI Family Support
+
+Only the `AL2023` AMI family bootstraps nodes with a full kubelet configuration document, so it is the only family that can apply arbitrary `spec.kubelet` fields. The other managed families (`AL2`, `Bottlerocket`, `Windows2019`, `Windows2022`, `Windows2025`) bootstrap the kubelet through a fixed set of parameters, and are therefore limited to the 12 fields Karpenter maps explicitly:
+
+`clusterDNS`, `maxPods`, `podsPerCore`, `systemReserved`, `kubeReserved`, `evictionHard`, `evictionSoft`, `evictionSoftGracePeriod`, `evictionMaxPodGracePeriod`, `imageGCHighThresholdPercent`, `imageGCLowThresholdPercent`, `cpuCFSQuota`
+
+Any other field set on those families is rejected rather than silently dropped: the `ValidationSucceeded` status condition is set to `False` with reason `UnsupportedKubeletConfiguration`, and no nodes launch from the NodeClass until the unsupported fields are removed. Two field-level restrictions are enforced the same way, for the same reason:
+
+* `podsPerCore` is not applied by the `Bottlerocket` family.
+* `clusterDNS` accepts only one entry on these non-AL2023 families, not a list.
+
+The `Custom` AMI family is exempt from these checks. It ships without default userData, so Karpenter cannot know which fields your bootstrapping honors and applies none of them on your behalf — set them in [`spec.userData`]({{< ref "#specuserdata" >}}) as well.
 
 #### Pods Per Core
 
