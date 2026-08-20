@@ -20,20 +20,42 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/download-artifact
+      # WebsitePreviewTrigger builds the PR's own site, so the PR can run arbitrary code there and
+      # rewrite the metadata artifact after it is written. Take the commit from the event payload,
+      # which the PR cannot influence, and trust the PR number only once GitHub confirms that PR
+      # actually owns that commit - otherwise a PR could deploy over, comment on, or set a commit
+      # status against any other PR. See .github/security-notice.md
       - id: website-metadata
-        run: |
-          pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
-          pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
-          # The artifact comes from a workflow a PR triggered, so validate it before it reaches
-          # a shell, the Amplify API or $GITHUB_ENV. See .github/security-notice.md
-          [[ "$pr_number" =~ ^[0-9]+$ ]] || { echo "::error::invalid PR number"; exit 1; }
-          [[ "$pr_commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::invalid commit sha"; exit 1; }
-          {
-            echo PR_COMMIT="$pr_commit"
-            echo PR_NUMBER="$pr_number"
-            echo BRANCH_NAME="pr-$pr_number"
-            echo PREVIEW_URL="https://pr-$pr_number.${{ vars.AMPLIFY_APP_ID_PREVIEW }}.amplifyapp.com"
-          } >> "$GITHUB_ENV"
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          APP_ID: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
+        with:
+          script: |
+            const claimed = require('fs')
+              .readFileSync('/tmp/artifacts/website-metadata.txt', 'utf8')
+              .split('\n')[0].trim();
+            if (!/^[0-9]+$/.test(claimed)) {
+              core.setFailed(`malformed PR number in artifact: ${JSON.stringify(claimed)}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: Number(claimed),
+            });
+            if (pr.head.sha !== process.env.HEAD_SHA) {
+              core.setFailed(
+                `PR #${claimed} is at ${pr.head.sha}, but this run built ${process.env.HEAD_SHA}`
+              );
+              return;
+            }
+            core.exportVariable('PR_NUMBER', claimed);
+            core.exportVariable('PR_COMMIT', process.env.HEAD_SHA);
+            core.exportVariable('BRANCH_NAME', `pr-${claimed}`);
+            core.exportVariable(
+              'PREVIEW_URL', `https://pr-${claimed}.${process.env.APP_ID}.amplifyapp.com`
+            );
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"

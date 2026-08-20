@@ -14,13 +14,16 @@ jobs:
           # the commit status and the "built from commit" comment all describe the same commit
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      # Only the PR number, and the deploy workflow verifies even that against the API. The commit
+      # is not recorded here because the deploy workflow reads it from its own event payload, which
+      # this job cannot influence - anything written here is attacker-controlled once the PR's own
+      # build steps below start running
       - name: Save info about the PR as an artifact for other workflows that run on workflow_run to download them
         env:
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p /tmp/artifacts
-          { echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/website-metadata.txt
+          echo "$PULL_REQUEST_NUMBER" >> /tmp/artifacts/website-metadata.txt
           cat /tmp/artifacts/website-metadata.txt
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
