@@ -1296,6 +1296,12 @@ For more examples on configuring fields for different AMI families, see the [exa
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
+{{% alert title="Warning" color="warning" %}}
+During an [EKS cluster certificate authority (CA) rotation](https://docs.aws.amazon.com/eks/latest/userguide/certificate-authority-rotation.html#_updating_your_kubernetes_clients), your cluster goes through a dual trust period where its trust bundle contains two CA certificates: the outgoing CA and the successor CA. Karpenter embeds your cluster's CA data in the UserData it generates, so your total user data grows while both CAs are trusted.
+
+If your `spec.userData` is close to the [EC2 user data limit](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html), the addition of the successor CA can cause launch template creation to fail, which prevents Karpenter from provisioning new nodes. Karpenter does not compress user data, so reduce the size of your `spec.userData` before the dual trust period begins &mdash; for example, by baking configuration into your AMI or having your script fetch its contents at boot instead of inlining them.
+{{% /alert %}}
+
 ### AL2
 
 * Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
