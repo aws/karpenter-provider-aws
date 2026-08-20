@@ -398,7 +398,7 @@ Each field independently accepts either its usual static value or an expression 
 
 When none of these fields is set, Karpenter applies its internal defaults (ENI-limited `maxPods`, graduated `kubeReserved`) exactly as it does today.
 
-#### Example: ENI-based maxPods across a heterogeneous fleet
+#### Example
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
@@ -409,21 +409,7 @@ spec:
   kubelet:
     # Scale maxPods with each instance type's ENI capacity
     maxPods: "((default_enis - 1) * (ips_per_eni - 1)) + 2"
-  amiSelectorTerms:
-    - alias: al2023@latest
-```
-
-With this configuration, from the same NodeClass, an `m5.large` (3 ENIs, 10 IPs/ENI) resolves to `maxPods = ((3 - 1) * (10 - 1)) + 2 = 20`, while an `m5.24xlarge` (15 ENIs, 50 IPs/ENI) resolves to `688`.
-
-#### Example: Reserved resources scaled by instance size
-
-```yaml
-apiVersion: karpenter.k8s.aws/v1
-kind: EC2NodeClass
-metadata:
-  name: scaled-reservations
-spec:
-  kubelet:
+    # Scale reservations with instance size, and with the maxPods resolved above
     kubeReserved:
       cpu: "max(60, vcpus * 30)"
       memory: "11 * max_pods + 255"
@@ -434,20 +420,30 @@ spec:
     - alias: al2023@latest
 ```
 
-On a `c6a.4xlarge` (16 vCPUs, 30720 MiB) this resolves `kubeReserved.cpu` to `max(60, 16 * 30) = 480` → `480m` and `systemReserved.memory` to `max(100, 30720 / 64) = 480` → `480Mi`.
+Every node launched from this single NodeClass is configured from the instance type it landed on:
+
+| Resolved value          | `m5.large` (3 ENIs, 10 IPs/ENI, 2 vCPU, 8 GiB) | `m5.24xlarge` (15 ENIs, 50 IPs/ENI, 96 vCPU, 384 GiB) |
+|-------------------------|------------------------------------------------|-------------------------------------------------------|
+| `maxPods`               | 20                                             | 688                                                   |
+| `kubeReserved.cpu`      | `60m`                                          | `2880m`                                               |
+| `kubeReserved.memory`   | `480Mi`                                        | `7824Mi`                                              |
+| `systemReserved.cpu`    | `20m`                                          | `960m`                                                |
+| `systemReserved.memory` | `128Mi`                                        | `6144Mi`                                              |
+
+`kubeReserved.memory` on the `m5.large` shows both behaviors at work: `max_pods` picks up the `20` that the `maxPods` expression resolved to, and the resulting `11 * 20 + 255 = 475` is rounded up to `480Mi`, the next multiple of 16Mi.
 
 #### Available variables
 
 The following variables are populated from each instance type's information and are available in all kubelet expressions:
 
-| Variable        | Type   | Description                                         | Example (m5.4xlarge) |
-|-----------------|--------|-----------------------------------------------------|----------------------|
-| `instance_type` | string | The EC2 instance type name                          | `"m5.4xlarge"`       |
-| `vcpus`         | int    | Number of vCPUs                                     | 16                   |
-| `memory_mib`    | int    | Memory in MiB                                       | 65536                |
-| `default_enis`  | int    | Maximum network interfaces on the default network card | 8                 |
-| `ips_per_eni`   | int    | IPv4 addresses per ENI                              | 30                   |
-| `max_pods`      | int    | The resolved `maxPods` for this instance type       | 58                   |
+| Variable        | Type   | Description                                            |
+|-----------------|--------|--------------------------------------------------------|
+| `instance_type` | string | The EC2 instance type name                             |
+| `vcpus`         | int    | Number of vCPUs                                        |
+| `memory_mib`    | int    | Memory in MiB                                          |
+| `default_enis`  | int    | Maximum network interfaces on the default network card  |
+| `ips_per_eni`   | int    | IPv4 addresses per ENI                                 |
+| `max_pods`      | int    | The resolved `maxPods` for this instance type           |
 
 `max_pods` lets `kubeReserved` and `systemReserved` expressions reference the resolved `maxPods` (whether that came from a `maxPods` expression, a static `maxPods` value, or Karpenter's default).
 
