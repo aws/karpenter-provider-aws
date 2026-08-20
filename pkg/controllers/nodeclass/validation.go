@@ -67,12 +67,14 @@ const (
 	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
 	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
 	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge               = "UserDataSizeLimitExceeded"
 )
 
 var ValidationConditionMessages = map[string]string{
 	ConditionReasonCreateFleetAuthFailed:          "Controller isn't authorized to call ec2:CreateFleet",
 	ConditionReasonCreateLaunchTemplateAuthFailed: "Controller isn't authorized to call ec2:CreateLaunchTemplate",
 	ConditionReasonRunInstancesAuthFailed:         "Controller isn't authorized to call ec2:RunInstances",
+	ConditionReasonUserDataTooLarge:               "ec2:CreateLaunchTemplate rejected the rendered user data as too large",
 }
 
 // validationCacheEntry stores a failed validation result with both the condition reason and the
@@ -291,6 +293,12 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		if awserrors.IsRateLimitedError(err) || awserrors.IsServerError(err) {
 			return nil, reconcile.Result{Requeue: true}, nil
+		}
+		if awserrors.IsUserDataTooLarge(err) {
+			log.FromContext(ctx).Error(err, "ec2:CreateLaunchTemplate rejected the rendered user data as exceeding the size limit")
+			_, reasonMessage := awserrors.ToReasonMessage(err)
+			v.updateCacheOnFailure(nodeClass, tags, ConditionReasonUserDataTooLarge, reasonMessage)
+			return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 		}
 		if awserrors.IgnoreUnauthorizedOperationError(err) != nil {
 			// We should only ever receive UnauthorizedOperation so if we receive any other error it would be an unexpected state
