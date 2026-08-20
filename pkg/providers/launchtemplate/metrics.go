@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	nodeClassSubsystem = "nodeclass"
+	nodeClassSubsystem = "ec2nodeclasses"
 	nodeClassLabel     = "nodeclass"
 	// userDataMaxBytes is the ec2:CreateLaunchTemplate user data limit. EC2 is the authority here — we
 	// never gate provisioning on this locally, we only warn as it's approached so growth (cert bundles,
@@ -33,10 +33,12 @@ const (
 )
 
 var (
-	// UserDataBytes is recorded when the user data is rendered, just before ec2:CreateLaunchTemplate — so
-	// an oversized rendering is reported even though EC2 rejects the create, which is when the size matters
-	// most. The launch template name is a hash that includes the user data, so any change to the rendered
-	// user data produces a new launch template and refreshes this gauge.
+	// UserDataBytes is recorded when the user data is rendered, just before ec2:CreateLaunchTemplate, so an
+	// oversized rendering is still reported even though EC2 rejects the create. Only the create path writes
+	// the gauge, which stays current because launch templates are deleted from EC2 when their cache entry
+	// expires (cache.DefaultTTL), so the next EnsureAll re-creates and re-measures. A NodeClass has no series
+	// until it reaches this path — notably when dry-run validation is disabled, nothing calls EnsureAll until
+	// a node actually launches.
 	UserDataBytes = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
 		prometheus.GaugeOpts{

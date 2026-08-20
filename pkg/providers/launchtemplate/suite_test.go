@@ -1157,7 +1157,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 
-			m, ok := FindMetricWithLabelValues("karpenter_nodeclass_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			m, ok := FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
 			Expect(ok).To(BeTrue())
 			// The gauge measures raw pre-base64 bytes, so it must match the decoded user data EC2 was sent
 			// rather than the encoded string. A NodeClass renders one launch template per max-pods value,
@@ -1173,13 +1173,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			_, ok := FindMetricWithLabelValues("karpenter_nodeclass_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			_, ok := FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
 			Expect(ok).To(BeTrue())
 
 			Expect(awsEnv.LaunchTemplateProvider.DeleteAll(ctx, nodeClass)).To(Succeed())
 			// The series is removed rather than zeroed, so a deleted NodeClass doesn't look like one with
 			// empty user data.
-			_, ok = FindMetricWithLabelValues("karpenter_nodeclass_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
+			_, ok = FindMetricWithLabelValues("karpenter_ec2nodeclasses_userdata_bytes", map[string]string{"nodeclass": nodeClass.Name})
 			Expect(ok).To(BeFalse())
 		})
 		It("should specify --use-max-pods=false when using ENI-based pod density", func() {
