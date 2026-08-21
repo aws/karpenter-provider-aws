@@ -24,9 +24,9 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -110,14 +110,17 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass",rule="self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')"
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
-	// Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-	// They are a subset of the upstream types, recognizing not all options may be supported.
-	// Wherever possible, the types and names should reflect the upstream kubelet types.
-	// +kubebuilder:validation:XValidation:message="imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent",rule="has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true"
-	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
-	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
+	// Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+	// KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+	// see the k8s.io/kubelet version in go.mod for the exact set.
+	// Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
+	// systemReserved, evictionHard) and passes all others through to UserData unchanged.
+	// Field names and types are validated by Karpenter, which reports a rejected configuration
+	// on status.conditions as ValidationSucceeded=False rather than failing the apply.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
 	// +optional
-	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
+	Kubelet KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
@@ -271,83 +274,13 @@ type AMISelectorTerm struct {
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }
 
-// KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
-// They are a subset of the upstream types, recognizing not all options may be supported.
-// Wherever possible, the types and names should reflect the upstream kubelet types.
-// https://pkg.go.dev/k8s.io/kubelet/config/v1beta1#KubeletConfiguration
-// https://github.com/kubernetes/kubernetes/blob/9f82d81e55cafdedab619ea25cabf5d42736dacf/cmd/kubelet/app/options/options.go#L53
-type KubeletConfiguration struct {
-	// clusterDNS is a list of IP addresses for the cluster DNS server.
-	// Note that not all providers may use all addresses.
-	//+optional
-	ClusterDNS []string `json:"clusterDNS,omitempty"`
-	// MaxPods is an override for the maximum number of pods that can run on
-	// a worker node instance. When set to an integer, it is used as a static value.
-	// When set to a string, it is evaluated as a CEL expression per instance type with
-	// access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
-	// +kubebuilder:validation:XIntOrString
-	// +kubebuilder:validation:XValidation:message="maxPods must be a non-negative integer when set to an integer",rule="type(self) != int || self >= 0"
-	// +optional
-	MaxPods *intstr.IntOrString `json:"maxPods,omitempty"`
-	// PodsPerCore is an override for the number of pods that can run on a worker node
-	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-	// MaxPods is a lower value, that value will be used.
-	// +kubebuilder:validation:Minimum:=0
-	// +optional
-	PodsPerCore *int32 `json:"podsPerCore,omitempty"`
-	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
-	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
-	// instance type. An expression returns a bare number in the unit that key's static quantities
-	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
-	// +kubebuilder:validation:XValidation:message="valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
-	// +kubebuilder:validation:XValidation:message="systemReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
-	// +optional
-	SystemReserved map[string]string `json:"systemReserved,omitempty"`
-	// KubeReserved contains resources reserved for Kubernetes system components.
-	// Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
-	// instance type. An expression returns a bare number in the unit that key's static quantities
-	// use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
-	// +kubebuilder:validation:XValidation:message="valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
-	// +kubebuilder:validation:XValidation:message="kubeReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
-	// +optional
-	KubeReserved map[string]string `json:"kubeReserved,omitempty"`
-	// EvictionHard is the map of signal names to quantities that define hard eviction thresholds
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionHard map[string]string `json:"evictionHard,omitempty"`
-	// EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionSoft map[string]string `json:"evictionSoft,omitempty"`
-	// EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionSoftGracePeriod map[string]metav1.Duration `json:"evictionSoftGracePeriod,omitempty"`
-	// EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-	// response to soft eviction thresholds being met.
-	// +optional
-	EvictionMaxPodGracePeriod *int32 `json:"evictionMaxPodGracePeriod,omitempty"`
-	// ImageGCHighThresholdPercent is the percent of disk usage after which image
-	// garbage collection is always run. The percent is calculated by dividing this
-	// field value by 100, so this field must be between 0 and 100, inclusive.
-	// When specified, the value must be greater than ImageGCLowThresholdPercent.
-	// +kubebuilder:validation:Minimum:=0
-	// +kubebuilder:validation:Maximum:=100
-	// +optional
-	ImageGCHighThresholdPercent *int32 `json:"imageGCHighThresholdPercent,omitempty"`
-	// ImageGCLowThresholdPercent is the percent of disk usage before which image
-	// garbage collection is never run. Lowest disk usage to garbage collect to.
-	// The percent is calculated by dividing this field value by 100,
-	// so the field value must be between 0 and 100, inclusive.
-	// When specified, the value must be less than imageGCHighThresholdPercent
-	// +kubebuilder:validation:Minimum:=0
-	// +kubebuilder:validation:Maximum:=100
-	// +optional
-	ImageGCLowThresholdPercent *int32 `json:"imageGCLowThresholdPercent,omitempty"`
-	// CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
-	// +optional
-	CPUCFSQuota *bool `json:"cpuCFSQuota,omitempty"`
-}
+// KubeletConfiguration mirrors the upstream kubelet KubeletConfiguration as an open map.
+//
+// The CRD schema for spec.kubelet is therefore an unconstrained object that the API server
+// can't validate. ValidateKubeletConfig does it instead, from the controller.
+// +kubebuilder:pruning:PreserveUnknownFields
+// +kubebuilder:validation:Type=object
+type KubeletConfiguration map[string]apiextensionsv1.JSON
 
 // MetadataOptions contains parameters for specifying the exposure of the
 // Instance Metadata Service to provisioned EC2 nodes.
@@ -613,6 +546,7 @@ func (in *EC2NodeClass) Hash(caBundle *string) string {
 		// doesn't trigger drift.
 		in.AMIFamily(),
 		lo.FromPtr(caBundle),
+		in.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
@@ -661,50 +595,8 @@ func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 	return in.Spec.PlacementGroupSelector
 }
 
-func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
+func (in *EC2NodeClass) KubeletConfiguration() KubeletConfiguration {
 	return in.Spec.Kubelet
-}
-
-// MaxPodsInt returns the MaxPods value as *int32 if it's set to an integer, or nil otherwise.
-// This is a convenience for callers that need the static integer value and handle expressions separately.
-func (kc *KubeletConfiguration) MaxPodsInt() *int32 {
-	if kc == nil || kc.MaxPods == nil {
-		return nil
-	}
-	if kc.MaxPods.Type == intstr.Int {
-		return &kc.MaxPods.IntVal
-	}
-	return nil
-}
-
-// HasExpressions reports whether any field holds a CEL expression rather than a static value. The definition of "is an expression" must match what the evaluators actually treat as
-// one: a string-typed maxPods, or a kubeReserved/systemReserved value that isn't a parseable resource
-// quantity.
-func (kc *KubeletConfiguration) HasExpressions() bool {
-	if kc == nil {
-		return false
-	}
-	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
-		return true
-	}
-	return kc.HasResourceExpressions()
-}
-
-// HasResourceExpressions reports whether kubeReserved or systemReserved holds a CEL expression - that is,
-// a value that isn't a parseable resource quantity. Callers use this to skip resolving maxPods and building
-// the reserved-capacity CEL variables when neither map has anything to evaluate.
-func (kc *KubeletConfiguration) HasResourceExpressions() bool {
-	if kc == nil {
-		return false
-	}
-	for _, m := range []map[string]string{kc.KubeReserved, kc.SystemReserved} {
-		for _, v := range m {
-			if _, err := resource.ParseQuantity(v); err != nil {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
