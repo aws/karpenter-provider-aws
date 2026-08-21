@@ -27,6 +27,24 @@ go run ./hack/tools/celtest --instance-type t3.micro,m5.large,c6g.16xlarge --reg
   --kube-reserved cpu='max(60, vcpus * 30)' --kube-reserved memory='memory_mib / 100'
 ```
 
+From the manifest you are about to apply, rather than retyping its expressions as flags. `--kubelet-config`
+takes either a whole `EC2NodeClass` or a bare `spec.kubelet` block, in YAML or JSON:
+
+```bash
+go run ./hack/tools/celtest --kubelet-config nodeclass.yaml --instance-type m5.large --region us-west-2
+```
+
+Kubelet fields other than `maxPods`, `podsPerCore`, `kubeReserved`, and `systemReserved` are ignored: they are
+applied to the node verbatim and can't hold an expression, so there is nothing to preview about them. That
+holds for arbitrary upstream kubelet fields too, so a manifest with an open-ended kubelet config previews the
+same as a minimal one. The individual flags override the file, which is the quickest way to try one alternative
+against a config you already have:
+
+```bash
+go run ./hack/tools/celtest --kubelet-config nodeclass.yaml --max-pods-expr 'vcpus * 6' \
+  --instance-type m5.large --region us-west-2
+```
+
 ```
 m5.large
   inputs: vcpus=2 memory_mib=8192 default_enis=3 ips_per_eni=10 max_pods=29 instance_type="m5.large"
@@ -52,12 +70,17 @@ The tool exits non-zero if any expression would be dropped, so it can be used as
 - **Failures are dropped, not fatal.** An expression that fails to evaluate, goes negative, or (for `maxPods`)
   overflows int32 is reported as `DROPPED` with the reason, and the field falls back to its default.
 - **Static values are not evaluated.** A value that parses as a resource quantity (e.g. `100Mi`) is passed
-  through unchanged, so it does not appear in the report.
+  through unchanged, so it does not appear in the report — and it is not compile-checked either, so mixing
+  static and expression entries in one `kubeReserved` is fine.
+- **The `NodeClassCEL` feature gate must be on for any of this to apply.** The tool turns it on for itself,
+  since previewing expressions is its purpose, but a cluster with the gate off ignores every expression:
+  `maxPods` falls back to the AMI-family default and expression-valued reserved entries are dropped.
 
 ## Flags
 
 | Flag | Description |
 | --- | --- |
+| `--kubelet-config` | YAML or JSON file holding an `EC2NodeClass` or a bare `spec.kubelet` block; the flags below override its fields |
 | `--max-pods-expr` | CEL expression for `maxPods` |
 | `--kube-reserved key=expr` | `kubeReserved` entry, repeatable |
 | `--system-reserved key=expr` | `systemReserved` entry, repeatable |

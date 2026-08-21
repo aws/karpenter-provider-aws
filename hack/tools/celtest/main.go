@@ -33,10 +33,16 @@ limitations under the License.
 //
 //	go run ./hack/tools/celtest --instance-type m5.large,c6g.16xlarge,t3.micro --region us-west-2 \
 //	  --max-pods-expr 'vcpus * 8' --kube-reserved memory='memory_mib / 100'
+//
+// From the manifest about to be applied, rather than retyping its expressions as flags. The file is either a
+// whole EC2NodeClass or a bare spec.kubelet block, and the flags above override its fields:
+//
+//	go run ./hack/tools/celtest --kubelet-config nodeclass.yaml --instance-type m5.large --region us-west-2
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -51,6 +57,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/yaml"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
@@ -78,12 +85,13 @@ func (m mapFlag) Set(v string) error {
 }
 
 type config struct {
-	maxPodsExpr    string
-	kubeReserved   mapFlag
-	systemReserved mapFlag
-	podsPerCore    int
-	amiFamily      string
-	reservedENIs   int
+	kubeletConfigFile string
+	maxPodsExpr       string
+	kubeReserved      mapFlag
+	systemReserved    mapFlag
+	podsPerCore       int
+	amiFamily         string
+	reservedENIs      int
 
 	instanceTypes string
 	region        string
@@ -97,6 +105,7 @@ type config struct {
 
 func main() {
 	cfg := &config{kubeReserved: mapFlag{}, systemReserved: mapFlag{}}
+	flag.StringVar(&cfg.kubeletConfigFile, "kubelet-config", "", "YAML or JSON file holding a kubelet configuration, either an EC2NodeClass manifest or a bare spec.kubelet block; the flags below override its fields")
 	flag.StringVar(&cfg.maxPodsExpr, "max-pods-expr", "", "CEL expression for the kubelet maxPods field")
 	flag.Var(cfg.kubeReserved, "kube-reserved", "kubeReserved entry as key=expression (repeatable), e.g. cpu='max(60, vcpus * 30)'")
 	flag.Var(cfg.systemReserved, "system-reserved", "systemReserved entry as key=expression (repeatable)")
@@ -120,9 +129,12 @@ func main() {
 }
 
 func run(ctx context.Context, cfg *config) error {
-	kc := kubeletConfiguration(cfg)
+	kc, err := kubeletConfiguration(cfg)
+	if err != nil {
+		return err
+	}
 	if !kc.HasExpressions() {
-		return fmt.Errorf("no expressions to preview: pass --max-pods-expr, --kube-reserved, or --system-reserved\n" +
+		return fmt.Errorf("no expressions to preview: pass --kubelet-config, --max-pods-expr, --kube-reserved, or --system-reserved\n" +
 			"note that a value which parses as a resource quantity (e.g. \"100Mi\") is static and never evaluated")
 	}
 	ctx = injectOptions(ctx, cfg)
@@ -155,10 +167,17 @@ func run(ctx context.Context, cfg *config) error {
 	return nil
 }
 
-// kubeletConfiguration assembles the KubeletConfiguration the preview evaluates, mirroring what a user would
-// write in an EC2NodeClass.
-func kubeletConfiguration(cfg *config) *v1.KubeletConfiguration {
-	kc := &v1.KubeletConfiguration{}
+// kubeletConfiguration assembles the input the preview evaluates, mirroring what a user would write in an
+// EC2NodeClass. --kubelet-config supplies the base and the individual flags are layered on top of it, so a
+// manifest can be previewed as-is or with one field swapped out to try an alternative.
+func kubeletConfiguration(cfg *config) (instancetype.KubeletExpressionInput, error) {
+	kc := instancetype.KubeletExpressionInput{}
+	if cfg.kubeletConfigFile != "" {
+		var err error
+		if kc, err = loadKubeletConfig(cfg.kubeletConfigFile); err != nil {
+			return kc, err
+		}
+	}
 	if cfg.maxPodsExpr != "" {
 		kc.MaxPods = lo.ToPtr(intstr.FromString(cfg.maxPodsExpr))
 	}
@@ -171,7 +190,63 @@ func kubeletConfiguration(cfg *config) *v1.KubeletConfiguration {
 	if cfg.podsPerCore > 0 {
 		kc.PodsPerCore = lo.ToPtr(int32(cfg.podsPerCore))
 	}
-	return kc
+	return kc, nil
+}
+
+// kubeletFile is the JSON/YAML shape of an EC2NodeClass' kubelet block, narrowed to the fields a preview
+// reads. Decoding is deliberately lenient about the rest of the block: kubelet fields beyond these four are
+// applied verbatim to the node and can't hold a CEL expression, so there is nothing for this tool to say
+// about them. That also means an open-ended kubelet config -- one carrying arbitrary upstream kubelet fields
+// -- previews the same as a minimal one instead of failing to decode.
+type kubeletFile struct {
+	MaxPods        *intstr.IntOrString `json:"maxPods,omitempty"`
+	PodsPerCore    *int32              `json:"podsPerCore,omitempty"`
+	KubeReserved   map[string]string   `json:"kubeReserved,omitempty"`
+	SystemReserved map[string]string   `json:"systemReserved,omitempty"`
+}
+
+// nodeClassFile is just enough of an EC2NodeClass to locate its kubelet block, so --kubelet-config accepts a
+// whole NodeClass manifest as well as a bare kubelet block. Kind is read only to tell the two apart when the
+// kubelet block is missing, so that a manifest with nothing to preview says so instead of being silently
+// reinterpreted as a kubelet block.
+type nodeClassFile struct {
+	Kind string `json:"kind,omitempty"`
+	Spec struct {
+		Kubelet json.RawMessage `json:"kubelet,omitempty"`
+	} `json:"spec,omitempty"`
+}
+
+// loadKubeletConfig reads a kubelet configuration from a YAML or JSON file, accepting either a full
+// EC2NodeClass manifest or the contents of its spec.kubelet on its own.
+func loadKubeletConfig(path string) (instancetype.KubeletExpressionInput, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return instancetype.KubeletExpressionInput{}, fmt.Errorf("reading %s: %w", path, err)
+	}
+	// sigs.k8s.io/yaml converts to JSON before decoding, so a JSON file parses through the same path and
+	// intstr.IntOrString's own unmarshaller sees the original int-vs-string distinction that decides whether
+	// maxPods is a static count or an expression.
+	var nc nodeClassFile
+	if err := yaml.Unmarshal(raw, &nc); err != nil {
+		return instancetype.KubeletExpressionInput{}, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	block := raw
+	switch {
+	case len(nc.Spec.Kubelet) > 0:
+		block = nc.Spec.Kubelet
+	case nc.Kind != "":
+		return instancetype.KubeletExpressionInput{}, fmt.Errorf("%s in %s has no spec.kubelet block to preview", nc.Kind, path)
+	}
+	var kf kubeletFile
+	if err := yaml.Unmarshal(block, &kf); err != nil {
+		return instancetype.KubeletExpressionInput{}, fmt.Errorf("parsing the kubelet configuration in %s: %w", path, err)
+	}
+	return instancetype.KubeletExpressionInput{
+		MaxPods:        kf.MaxPods,
+		PodsPerCore:    kf.PodsPerCore,
+		KubeReserved:   kf.KubeReserved,
+		SystemReserved: kf.SystemReserved,
+	}, nil
 }
 
 // injectOptions puts the operator options the evaluation path reads onto the context: ReservedENIs feeds the
@@ -186,24 +261,12 @@ func injectOptions(ctx context.Context, cfg *config) context.Context {
 }
 
 // validate compile-checks every expression up front. Compilation catches syntax errors, unknown variables, and
-// a non-numeric result type; per-instance-type evaluation failures still surface later in the report.
-func validate(celEnv *kubeletcel.CELEnvironment, kc *v1.KubeletConfiguration) error {
-	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
-		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
-			return fmt.Errorf("maxPods: %w", err)
-		}
-	}
-	for _, m := range []struct {
-		field string
-		m     map[string]string
-	}{
-		{"kubeReserved", kc.KubeReserved},
-		{"systemReserved", kc.SystemReserved},
-	} {
-		for _, key := range sortedKeys(m.m) {
-			if err := celEnv.ValidateExpression(m.m[key]); err != nil {
-				return fmt.Errorf("%s[%s]: %w", m.field, key, err)
-			}
+// a non-numeric result type; per-instance-type evaluation failures still surface later in the report. Static
+// values are not compiled, since the controller never evaluates them.
+func validate(celEnv *kubeletcel.CELEnvironment, kc instancetype.KubeletExpressionInput) error {
+	for _, e := range kc.Expressions() {
+		if err := celEnv.ValidateExpression(e.Expression); err != nil {
+			return fmt.Errorf("%s: %w", e.Field, err)
 		}
 	}
 	return nil
@@ -307,10 +370,4 @@ func report(out *os.File, previews []instancetype.KubeletExpressionPreview) {
 func formatVars(v kubeletcel.InstanceTypeVars) string {
 	return fmt.Sprintf("vcpus=%d memory_mib=%d default_enis=%d ips_per_eni=%d max_pods=%d instance_type=%q",
 		v.VCPUs, v.MemoryMiB, v.DefaultENIs, v.IPsPerENI, v.MaxPods, v.InstanceType)
-}
-
-func sortedKeys(m map[string]string) []string {
-	keys := lo.Keys(m)
-	sort.Strings(keys)
-	return keys
 }
