@@ -419,17 +419,7 @@ spec:
     - alias: al2023@latest
 ```
 
-Every node launched from this single NodeClass is configured from the instance type it landed on:
-
-| Resolved value          | `m5.large` (3 ENIs, 10 IPs/ENI, 2 vCPU, 8 GiB) | `m5.24xlarge` (15 ENIs, 50 IPs/ENI, 96 vCPU, 384 GiB) |
-|-------------------------|------------------------------------------------|-------------------------------------------------------|
-| `maxPods`               | 20                                             | 688                                                   |
-| `kubeReserved.cpu`      | `60m`                                          | `2880m`                                               |
-| `kubeReserved.memory`   | `480Mi`                                        | `7824Mi`                                              |
-| `systemReserved.cpu`    | `20m`                                          | `960m`                                                |
-| `systemReserved.memory` | `128Mi`                                        | `6144Mi`                                              |
-
-`kubeReserved.memory` on the `m5.large` shows both behaviors at work: `max_pods` picks up the `20` that the `maxPods` expression resolved to, and the resulting `11 * 20 + 255 = 475` is rounded up to `480Mi`, the next multiple of 16Mi.
+Every node launched from this single NodeClass is configured from the instance type it landed on.
 
 #### Available variables
 
