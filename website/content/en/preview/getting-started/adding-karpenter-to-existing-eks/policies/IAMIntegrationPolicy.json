@@ -1,0 +1,77 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPassingInstanceRole",
+      "Effect": "Allow",
+      "Resource": "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}",
+      "Action": "iam:PassRole",
+      "Condition": {
+        "StringEquals": {
+          "iam:PassedToService": [
+            "ec2.amazonaws.com",
+            "ec2.amazonaws.com.cn"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileCreationActions",
+      "Effect": "Allow",
+      "Resource": "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:instance-profile/*",
+      "Action": [
+        "iam:CreateInstanceProfile"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "${CLUSTER_NAME}",
+          "aws:RequestTag/topology.kubernetes.io/region": "${AWS_DEFAULT_REGION}"
+        },
+        "StringLike": {
+          "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileTagActions",
+      "Effect": "Allow",
+      "Resource": "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:instance-profile/*",
+      "Action": [
+        "iam:TagInstanceProfile"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+          "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_DEFAULT_REGION}",
+          "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+          "aws:RequestTag/eks:eks-cluster-name": "${CLUSTER_NAME}",
+          "aws:RequestTag/topology.kubernetes.io/region": "${AWS_DEFAULT_REGION}"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+          "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    },
+    {
+      "Sid": "AllowScopedInstanceProfileActions",
+      "Effect": "Allow",
+      "Resource": "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:instance-profile/*",
+      "Action": [
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:DeleteInstanceProfile"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+          "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_DEFAULT_REGION}"
+        },
+        "StringLike": {
+          "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+        }
+      }
+    }
+  ]
+}
