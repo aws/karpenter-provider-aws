@@ -266,13 +266,12 @@ These are all optional and provide support for additional customization and use 
 Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
 
-Any field of the upstream `KubeletConfiguration` for the Kubernetes version Karpenter was built
-against may be set. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
+Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version are configurable. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
 `kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
 unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
 configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
 
-Field names and values are validated by Karpenter rather than by the API server, so an invalid
+Field names and values are validated by Karpenter, so an invalid
 configuration is accepted on apply and reported on the EC2NodeClass afterwards:
 
 ```sh
@@ -488,10 +487,6 @@ Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSuc
 2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvalFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
 
 A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended*. Ensure to test expressions against your target instance types before applying them to a live cluster.
-
-{{% alert title="Note" color="primary" %}}
-Karpenter evaluates every expression itself at scheduling time and writes the resolved, concrete values into UserData on all AMI families. Nothing expression-shaped reaches the node. This keeps the scheduler's capacity model in agreement with what each node is actually configured with.
-{{% /alert %}}
 
 ### Eviction Thresholds
 
