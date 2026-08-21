@@ -60,7 +60,7 @@ var (
 		"UnfulfillableCapacity",
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
-		"MaxFleetCountExceeded",
+		MaxFleetCountExceededErrorCode,
 		reservationCapacityExceededErrorCode,
 	)
 )
@@ -277,7 +277,7 @@ func ToReasonMessage(err error) (string, string) {
 	}
 	// ICE Errors come last in this list because we should return a generic ICE error if all of the errors that are returned from
 	// fleet are ICE errors
-	if strings.Contains(err.Error(), "MaxFleetCountExceeded") {
+	if strings.Contains(err.Error(), MaxFleetCountExceededErrorCode) {
 		return "FleetQuotaExceeded", "A fleet launch was requested but this would exceed your fleet request quota"
 	}
 	if strings.Contains(err.Error(), "PendingVerification") {
