@@ -159,7 +159,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 			profileName: {
 				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
 				InstanceProfileName: aws.String(profileName),
-				Path:                aws.String(instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
+				Path:                aws.String(instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
 				Roles: []iamtypes.Role{
 					{
 						RoleName: aws.String("role-A"),
@@ -305,7 +305,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 			cachedProfileName: {
 				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
 				InstanceProfileName: aws.String(cachedProfileName),
-				Path:                aws.String(instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
+				Path:                aws.String(instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(ctx).ClusterName, string(nodeClass.UID))),
 				Roles: []iamtypes.Role{
 					{
 						RoleName: aws.String("role-A"),
@@ -433,10 +433,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	})
 
 	It("should create a managed instance profile when switching from spec.instanceProfile to spec.role", func() {
-		// Regression for #9028: previously, when migrating from a static spec.instanceProfile
-		// to spec.role, status.InstanceProfile still held the static profile name and the
-		// reconciler kept reusing it. If the static profile was later deleted (e.g. by IaC
-		// cleanup), launches failed silently with credential errors.
 		staticProfileName := "user-static-profile"
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
 			staticProfileName: {
@@ -467,7 +463,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		// Status should no longer point at the user's static profile.
 		Expect(nodeClass.Status.InstanceProfile).NotTo(Equal(staticProfileName))
 		// And a managed profile should have been created under the karpenter IAM path.
-		managedPrefix := instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(ctx).ClusterName)
+		managedPrefix := instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(ctx).ClusterName)
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveKey(nodeClass.Status.InstanceProfile))
 		Expect(lo.FromPtr(awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Path)).To(HavePrefix(managedPrefix))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[nodeClass.Status.InstanceProfile].Roles).To(HaveLen(1))

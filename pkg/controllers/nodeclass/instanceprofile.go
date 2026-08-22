@@ -57,10 +57,30 @@ func (ip *InstanceProfile) protectProfile(profile string) {
 	}
 }
 
+func (ip *InstanceProfile) getCurrentRole(ctx context.Context, nodeClass *v1.EC2NodeClass) (string, bool, error) {
+	if nodeClass.Status.InstanceProfile == "" {
+		return "", false, nil
+	}
+
+	profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
+	if err != nil {
+		if awserrors.IsNotFound(err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
+	}
+
+	managedPathPrefix := instanceprofile.KarpenterPath(ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
+	currentProfileIsManaged := strings.HasPrefix(lo.FromPtr(profile.Path), managedPathPrefix) ||
+		nodeClass.Status.InstanceProfile == nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
+	if !currentProfileIsManaged || len(profile.Roles) == 0 {
+		return "", currentProfileIsManaged, nil
+	}
+	return lo.FromPtr(profile.Roles[0].RoleName), true, nil
+}
+
 func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
-		var currentRole string
-		var currentProfileIsManaged bool
 		oldProfileName := nodeClass.Status.InstanceProfile
 		// Use a short-lived cache to prevent instance profile recreation for the same role in the same EC2NodeClass
 		// in case of a status patch error in the EC2NodeClass controller
@@ -68,21 +88,9 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 			nodeClass.Status.InstanceProfile = profileName.(string)
 		}
 
-		// Get the current profile info if it exists
-		if nodeClass.Status.InstanceProfile != "" {
-			profile, err := ip.instanceProfileProvider.Get(ctx, nodeClass.Status.InstanceProfile)
-			if err != nil {
-				if !awserrors.IsNotFound(err) {
-					return reconcile.Result{}, fmt.Errorf("getting instance profile %s, %w", nodeClass.Status.InstanceProfile, err)
-				}
-			} else {
-				managedPathPrefix := instanceprofile.FormatPath("karpenter", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID))
-				currentProfileIsManaged = strings.HasPrefix(lo.FromPtr(profile.Path), managedPathPrefix) ||
-					nodeClass.Status.InstanceProfile == nodeClass.LegacyInstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
-				if currentProfileIsManaged && len(profile.Roles) > 0 {
-					currentRole = lo.FromPtr(profile.Roles[0].RoleName)
-				}
-			}
+		currentRole, currentProfileIsManaged, err := ip.getCurrentRole(ctx, nodeClass)
+		if err != nil {
+			return reconcile.Result{}, err
 		}
 
 		// Create a new managed profile if status references a user-managed profile or the
@@ -96,7 +104,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				newProfileName,
 				nodeClass.InstanceProfileRole(),
 				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
-				instanceprofile.FormatPath("karpenter", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID)),
+				instanceprofile.KarpenterPath(ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID)),
 			); err != nil {
 				// If we failed Create, we may have successfully created the instance profile but failed to either attach the new
 				// role or remove the existing role. To prevent runaway instance profile creation, we'll attempt to delete the
