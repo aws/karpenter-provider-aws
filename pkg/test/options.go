@@ -21,6 +21,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
@@ -31,6 +32,7 @@ type FeatureGates struct {
 type OptionsFields struct {
 	ClusterCABundle         *string
 	ClusterName             *string
+	ClusterNameTagKey       *string
 	ClusterEndpoint         *string
 	IsolatedVPC             *bool
 	EKSControlPlane         *bool
@@ -53,6 +55,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 	return &options.Options{
 		ClusterCABundle:         lo.FromPtrOr(opts.ClusterCABundle, ""),
 		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
+		ClusterNameTagKey:       lo.FromPtrOr(opts.ClusterNameTagKey, v1.EKSClusterNameTagKey),
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
 		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
 		EKSControlPlane:         lo.FromPtrOr(opts.EKSControlPlane, false),
