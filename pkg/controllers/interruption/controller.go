@@ -116,7 +116,12 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
-		MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
+		// No-op messages (empty body or unrecognized source/detail-type/version) don't
+		// carry a meaningful StartTime, so recording queue latency for them produces
+		// garbage values that skew the histogram.
+		if msg.Kind() != messages.NoOpKind {
+			MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
+		}
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
 	if err = multierr.Combine(errs...); err != nil {
