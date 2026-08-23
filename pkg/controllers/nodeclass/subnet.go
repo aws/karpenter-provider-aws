@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
@@ -45,6 +46,9 @@ func NewSubnetReconciler(clk clock.Clock, subnetProvider subnet.Provider) *Subne
 func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
+		if reason, msg, retryable := awserrors.ClassifyError(err); !retryable {
+			nodeClass.StatusConditions(status.WithClock(s.clk)).SetFalse(v1.ConditionTypeSubnetsReady, reason, msg)
+		}
 		return reconcile.Result{}, fmt.Errorf("getting subnets, %w", err)
 	}
 	if len(subnets) == 0 {
