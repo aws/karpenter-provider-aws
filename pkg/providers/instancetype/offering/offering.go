@@ -41,10 +41,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
-type Provider interface {
-	InjectOfferings(context.Context, []*cloudprovider.InstanceType, *v1.EC2NodeClass, []string) []*cloudprovider.InstanceType
-}
-
 // OfferingResolver is called during InjectOfferings to append additional offerings
 // to each instance type. Resolvers are called in registration order, each receiving
 // the offerings produced by the previous step.
