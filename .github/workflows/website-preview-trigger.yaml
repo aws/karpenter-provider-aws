@@ -10,16 +10,47 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Preview the PR head, not the merge commit checkout defaults to, so that the preview,
+          # the commit status and the "built from commit" comment all describe the same commit
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+      # Only the PR number, and the deploy workflow verifies even that against the API. The commit
+      # is not recorded here because the deploy workflow reads it from its own event payload, which
+      # this job cannot influence - anything written here is attacker-controlled once the PR's own
+      # build steps below start running
       - name: Save info about the PR as an artifact for other workflows that run on workflow_run to download them
         env:
           PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.pull_request.head.sha }}
         run: |
           mkdir -p /tmp/artifacts
-          { echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/website-metadata.txt
+          echo "$PULL_REQUEST_NUMBER" >> /tmp/artifacts/website-metadata.txt
           cat /tmp/artifacts/website-metadata.txt
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: website/go.mod
+          check-latest: true
+      - uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
+        with:
+          hugo-version: '0.120.3'
+          extended: true
+      # The site is built here, in the PR's own context, which holds no secrets. The privileged
+      # deploy workflow only ships this artifact, so it never executes PR code.
+      # https://gh.io/securely-using-pull_request_target
+      - name: Build the site into the artifact for the deploy workflow to ship
+        working-directory: website
+        env:
+          HUGO_ENV: production
+          HUGO_ENABLEGITINFO: true
+          TZ: America/Los_Angeles
+          HUGO_CACHEDIR: ${{ github.workspace }}/.hugo
+          NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+        run: |
+          npm ci --prefer-offline
+          hugo --gc --minify --buildFuture -d /tmp/artifacts/site
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: artifacts
           path: /tmp/artifacts
+          # The rendered site rides along in here, so keep it only as long as the deploy
+          # workflow needs to pick it up
+          retention-days: 1

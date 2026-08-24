@@ -93,6 +93,16 @@ spec:
 ```
 {{% /alert %}}
 
+### AWS-Specific Feature Gates
+
+Some features are specific to the AWS provider and are configured separately from the core Karpenter feature gates above. These are enabled through the `--aws-feature-gates` CLI flag or the `AWS_FEATURE_GATES` environment variable in the Karpenter deployment (Helm: `settings.awsFeatureGates`). For example: `--aws-feature-gates NodeClassCEL=true`.
+
+| Feature      | Default | Stage | Since    | Until |
+|--------------|---------|-------|----------|-------|
+| NodeClassCEL | false   | Alpha | v1.15.x  |       |
+
+`NodeClassCEL` enables [CEL expression support in `spec.kubelet`]({{<ref "../concepts/nodeclasses#dynamic-kubelet-configuration-via-expressions" >}}), allowing `maxPods`, `kubeReserved`, and `systemReserved` to be configured as per-instance-type expressions.
+
 ### Batching Parameters
 
 The batching parameters control how Karpenter batches an incoming stream of pending pods.  Reducing these values may trade off a slightly faster time from pending pod to node launch, in exchange for launching smaller nodes.  Increasing the values can do the inverse.  Karpenter provides reasonable defaults for these values, but if you have specific knowledge about your workloads you can tweak these parameters to match the expected rate of incoming pods.

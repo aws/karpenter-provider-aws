@@ -35,15 +35,17 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
 	Context("All kubelet configuration set", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				MaxPods:     lo.ToPtr(intstr.FromInt32(110)),
 				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
@@ -84,7 +86,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
 				ImageGCLowThresholdPercent:  lo.ToPtr(int32(10)),
 				CPUCFSQuota:                 lo.ToPtr(false),
-			}
+			})
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(alias string) {
@@ -92,6 +94,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					Skip("AL2 is not supported on versions > 1.32")
 				}
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				// Bottlerocket has no setting to render podsPerCore into
+				if strings.HasPrefix(alias, "bottlerocket@") {
+					delete(nodeClass.Spec.Kubelet, "podsPerCore")
+				}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
@@ -153,9 +159,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			MaxPods: lo.ToPtr(intstr.FromInt32(1 + int32(dsCount))),
-		}
+		})
 
 		numPods := 3
 		dep := test.Deployment(test.DeploymentOptions{
@@ -184,9 +190,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// maxPods as a CEL expression string. min(110, 1+dsCount) resolves to 1+dsCount so each node
 		// fits exactly one test pod, mirroring the integer maxPods test while exercising the CEL path
 		// end-to-end (expression eval -> resolution -> real kubelet config on the node).
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-			MaxPods: lo.ToPtr(intstr.FromString(fmt.Sprintf("min(110, %d)", 1+dsCount))),
-		}
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+			"maxPods": fmt.Sprintf("min(110, %d)", 1+dsCount),
+		})
 
 		numPods := 3
 		dep := test.Deployment(test.DeploymentOptions{
@@ -207,6 +213,106 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreatedNodeCount("==", 3)
 		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
+	It("should provision nodes when maxPods, kubeReserved, and systemReserved are all CEL expressions", func() {
+		// Requires the NodeClassCEL gate, which the e2e install enables via
+		// test/hack/e2e_scripts/install_karpenter.sh.
+		// Exercises all three expression-capable kubelet fields together, end-to-end: the expressions must
+		// evaluate, resolve per instance type, produce a valid kubelet config in UserData, and the kubelet
+		// must accept it and register the node. maxPods drives the behavioral check (min(110, 1+dsCount)
+		// resolves to 1+dsCount so each node fits exactly one test pod); the small reserved expressions must
+		// resolve without starving the node so pods still schedule.
+		dsCount := env.GetDaemonSetCount(nodePool)
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+			"maxPods": fmt.Sprintf("min(110, %d)", 1+dsCount),
+			"kubeReserved": map[string]string{
+				string(corev1.ResourceCPU):    "vcpus * 10",
+				string(corev1.ResourceMemory): "memory_mib / 100",
+			},
+			"systemReserved": map[string]string{
+				string(corev1.ResourceCPU):    "vcpus * 10",
+				string(corev1.ResourceMemory): "memory_mib / 100",
+			},
+		})
+
+		numPods := 3
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
+	})
+	DescribeTable("should resolve a maxPods CEL expression per instance type onto the node",
+		func(vcpus int32) {
+			// Requires the NodeClassCEL gate, which the e2e install enables via
+			// test/hack/e2e_scripts/install_karpenter.sh.
+			// maxPods = "vcpus * 8" resolves per instance type, so a node pinned to N vCPUs must report exactly
+			// N*8 allocatable pods. Unlike the pod-packing tests, this asserts the resolved value actually reached
+			// the real kubelet (--max-pods sets both Capacity and Allocatable pods), and that it was computed from
+			// this instance type's vCPU count rather than a single shared value. The multiplier comfortably
+			// exceeds the DaemonSet pod count so the node can still register and run a test pod.
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{fmt.Sprintf("%d", vcpus)},
+			})
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": "vcpus * 8",
+			})
+			pod := test.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Eventually(func(g Gomega) {
+				n := env.GetNode(node.Name)
+				g.Expect(n.Status.Allocatable.Pods().Value()).To(Equal(int64(vcpus) * 8))
+			}).Should(Succeed())
+		},
+		Entry("2 vCPUs", int32(2)),
+		Entry("4 vCPUs", int32(4)),
+	)
+	DescribeTable("should reserve resources per instance type when kubeReserved and systemReserved are CEL expressions",
+		func(vcpus int32) {
+			// Requires the NodeClassCEL gate, which the e2e install enables via
+			// test/hack/e2e_scripts/install_karpenter.sh.
+			// kubeReserved and systemReserved together reserve vcpus*(100+150)m of CPU. Reserved CPU is
+			// Capacity - Allocatable; we assert it's at least that resolved amount (a baseline system
+			// reservation only ever adds to it), which proves both expressions evaluated per instance type and
+			// reached the real kubelet, and that the reservation scales with the instance's vCPU count.
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCPU,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{fmt.Sprintf("%d", vcpus)},
+			})
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"kubeReserved":   map[string]string{string(corev1.ResourceCPU): "vcpus * 100"},
+				"systemReserved": map[string]string{string(corev1.ResourceCPU): "vcpus * 150"},
+			})
+			pod := test.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Eventually(func(g Gomega) {
+				n := env.GetNode(node.Name)
+				reserved := n.Status.Capacity.Cpu().DeepCopy()
+				reserved.Sub(*n.Status.Allocatable.Cpu())
+				g.Expect(reserved.MilliValue()).To(BeNumerically(">=", int64(vcpus)*250))
+			}).Should(Succeed())
+		},
+		Entry("2 vCPUs", int32(2)),
+		Entry("4 vCPUs", int32(4)),
+	)
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
@@ -240,45 +346,13 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 			PodsPerCore: lo.ToPtr(int32(math.Ceil(float64(2+dsCount) / 2))),
-		}
+		})
 
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
 		env.EventuallyExpectUniqueNodeNames(selector, 2)
-	})
-	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-		// All pods should schedule to a single node since we are ignoring podsPerCore value
-		// This would normally schedule to 3 nodes if not using Bottlerocket
-		test.ReplaceRequirements(nodePool,
-			karpv1.NodeSelectorRequirementWithMinValues{
-				Key:      v1.LabelInstanceCPU,
-				Operator: corev1.NodeSelectorOpIn,
-				Values:   []string{"2"},
-			},
-		)
-
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
-		numPods := 6
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
 })

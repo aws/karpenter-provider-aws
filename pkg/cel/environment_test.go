@@ -17,6 +17,7 @@ package cel_test
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -482,5 +483,54 @@ var _ = Describe("ValidateExpression", func() {
 	})
 	It("should reject a whitespace-only expression", func() {
 		Expect(celEnv.ValidateExpression("   ")).ToNot(Succeed())
+	})
+})
+
+var _ = Describe("concurrent use of the compilation cache", func() {
+	// A single CELEnvironment (and its compilation cache) is shared across the scheduler, the launch
+	// template resolver, and validation, so it is evaluated from many goroutines at once. compileCached
+	// is a check-then-act on go-cache, so this exercises that path under -race: run the suite with
+	// `go test -race ./pkg/cel/...` for the detector to observe it. Every result must still be correct;
+	// a data race or a cache slot clobbered by a concurrent writer would surface as a wrong value here.
+	It("should evaluate the same and different expressions concurrently without races or wrong results", func() {
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 16384, DefaultENIs: 4, IPsPerENI: 15, MaxPods: 58, InstanceType: "c5.xlarge"}
+		// A shared "hot" expression (all goroutines contend on the same cache slot) plus per-goroutine
+		// distinct expressions (concurrent inserts of new slots). Each carries the result it must produce.
+		type check struct {
+			expr string
+			want int64
+		}
+		shared := check{"max(60, vcpus * 30)", 120} // max(60, 120)
+		const goroutines = 32
+		const iterations = 200
+		var wg sync.WaitGroup
+		errs := make(chan error, goroutines*iterations)
+		for g := 0; g < goroutines; g++ {
+			// A distinct expression per goroutine whose result is 100 + g, so a clobbered cache slot
+			// (one goroutine's program served to another) produces a detectably wrong value.
+			distinct := check{fmt.Sprintf("100 + %d", g), int64(100 + g)}
+			wg.Add(1)
+			go func() {
+				defer GinkgoRecover()
+				defer wg.Done()
+				for i := 0; i < iterations; i++ {
+					for _, c := range []check{shared, distinct} {
+						got, err := celEnv.EvaluateExpression(c.expr, vars)
+						if err != nil {
+							errs <- fmt.Errorf("evaluating %q: %w", c.expr, err)
+							continue
+						}
+						if got != c.want {
+							errs <- fmt.Errorf("expression %q returned %d, want %d", c.expr, got, c.want)
+						}
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			Expect(err).ToNot(HaveOccurred())
+		}
 	})
 })
