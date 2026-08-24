@@ -28,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -1294,9 +1293,9 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(1)),
-			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(1),
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)

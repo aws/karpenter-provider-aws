@@ -24,9 +24,8 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 )
@@ -43,7 +42,7 @@ var _ = Describe("CNITests", func() {
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set max pods to 110 if maxPods is set in kubelet", func() {
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromInt32(110))}
+		nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": int32(110)})
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
