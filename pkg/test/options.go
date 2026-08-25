@@ -41,6 +41,7 @@ type OptionsFields struct {
 	AMIRefreshInterval      *time.Duration
 	SubnetRefreshInterval   *time.Duration
 	FeatureGates            FeatureGates
+	KubernetesVersion       *string
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -65,5 +66,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
 		},
+		KubernetesVersion:       lo.FromPtrOr(opts.KubernetesVersion, ""),
 	}
 }
