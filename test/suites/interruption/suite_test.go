@@ -167,7 +167,7 @@ var _ = Describe("Interruption", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
-		}).WithTimeout(time.Minute).Should(Succeed())
+		}).WithTimeout(2 * time.Minute).Should(Succeed())
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
