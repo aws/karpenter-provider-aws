@@ -77,6 +77,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
+			op.PredictionStore,
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

@@ -147,14 +147,14 @@ spec:
                           Represents a key's relationship to a set of values.
                           Valid operators are In, NotIn, Exists, DoesNotExist. Gt, Lt, Gte, and Lte.
                         enum:
-                          - Gte
-                          - Lte
                           - In
                           - NotIn
                           - Exists
                           - DoesNotExist
                           - Gt
                           - Lt
+                          - Gte
+                          - Lte
                         type: string
                       values:
                         description: |-
