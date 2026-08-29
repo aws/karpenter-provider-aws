@@ -125,7 +125,7 @@ func NewValidationReconciler(
 	}
 }
 
-// nolint:gocyclo
+// nolint:gocyclo,staticcheck
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
@@ -318,6 +318,7 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[s
 	)
 }
 
+//nolint:staticcheck
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -362,6 +363,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	return launchTemplates[0], reconcile.Result{}, nil
 }
 
+//nolint:staticcheck
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -391,6 +393,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 	return reconcile.Result{}, nil
 }
 
+//nolint:staticcheck
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
