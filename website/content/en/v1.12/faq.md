@@ -29,7 +29,30 @@ Karpenter has multiple mechanisms for configuring the [operating system]({{< ref
 Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
 
 ### What RBAC access is required?
-All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/role.yaml) files for details.
+All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/clusterrole.yaml), [aggregate-clusterrole.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/aggregate-clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v1.12.1/charts/karpenter/templates/role.yaml) files for details.
+
+### Why can't view or edit users see NodePools?
+The Helm chart ships `karpenter-admin`, which aggregates NodePools, NodeClaims, and EC2NodeClasses only to the default `admin` ClusterRole. Kubernetes RBAC aggregation flows `edit` → `admin`, not the reverse, so users bound to `view` or `edit` cannot get, list, or watch those objects.
+
+That is intentional. Those objects are cluster-scoped capacity resources, closer to Nodes (which `view` also omits) than to namespaced workload objects. If your operators need read access, install the following ClusterRole on the cluster. It is not a chart value.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter-view
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules:
+  - apiGroups: ["karpenter.sh"]
+    resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
+    verbs: ["get", "list", "watch"]
+```
+
+Do not add write verbs. Aggregating create, delete, or patch into `edit` would let any cluster-wide `edit` binding delete NodePools.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
