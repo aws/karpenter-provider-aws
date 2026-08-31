@@ -46,7 +46,7 @@ requirements:
   values: ['reserved', 'on-demand']
 ```
 
-Additionaly, Karpenter supports the following scheduling labels:
+Additionally, Karpenter supports the following scheduling labels:
 
 | Label                                                  | Example                       | Description                                       |
 | ------------------------------------------------------ | ----------------------------- | ------------------------------------------------- |
@@ -55,7 +55,7 @@ Additionaly, Karpenter supports the following scheduling labels:
 | `karpenter.k8s.aws/capacity-reservation-interruptible` | `true` or `false`             | Whether the capacity reservation is interruptible |
 
 These labels will only be present on reserved nodes.
-They are supported as NodePool requirements and as pod scheduling constaints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
+They are supported as NodePool requirements and as pod scheduling constraints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter does **not** support open matching for ODCRs.
@@ -96,7 +96,7 @@ From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capa
 > With 30 minutes (for instance types) or 60 minutes (for UltraServer types) left in your Capacity Block reservation, we begin terminating any instances that are running in the Capacity Block.
 > We use this time to clean up your instances before delivering the Capacity Block to the next customer.
 
-Karpenter will preemptively begin draining nodes launched for capacity blocks 10 minutes before EC2 begins termination, ensuring your workloads can gracefully terminate before reclaimation.
+Karpenter will preemptively begin draining nodes launched for capacity blocks 10 minutes before EC2 begins termination, ensuring your workloads can gracefully terminate before reclamation.
 
 ### Interruptible Capacity Reservations
 
@@ -107,7 +107,7 @@ From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/interrup
 > Running instances receive a 2-minute interruption warning through EventBridge events.
 > After the notice period, running instances in the reclaimed capacity enter a shutting down state and get terminated.
 
-Karpenter will begin draining nodes launched for IODCRs when the 2-minute interruption warning is recieved.
+Karpenter will begin draining nodes launched for IODCRs when the 2-minute interruption warning is received.
 
 ## Migrating From Previous Versions
 
