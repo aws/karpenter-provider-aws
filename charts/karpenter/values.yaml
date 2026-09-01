@@ -190,6 +190,32 @@ settings:
   preferencePolicy: Respect
   # -- How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met).
   minValuesPolicy: Strict
+  # -- Name of the ConfigMap in Karpenter's namespace that defines the node auto repair policies.
+  # If the ConfigMap is absent or invalid, the built-in default policies are used.
+  nodeRepairConfigMapName: karpenter-repair-policies
+  # -- Node auto repair policies. These defaults preserve the built-in policies used by Karpenter.
+  nodeRepairPolicies:
+    - conditionType: Ready
+      conditionStatus: "False"
+      tolerationDuration: 30m
+    - conditionType: Ready
+      conditionStatus: Unknown
+      tolerationDuration: 30m
+    - conditionType: AcceleratedHardwareReady
+      conditionStatus: "False"
+      tolerationDuration: 10m
+    - conditionType: StorageReady
+      conditionStatus: "False"
+      tolerationDuration: 30m
+    - conditionType: NetworkingReady
+      conditionStatus: "False"
+      tolerationDuration: 30m
+    - conditionType: KernelReady
+      conditionStatus: "False"
+      tolerationDuration: 30m
+    - conditionType: ContainerRuntimeReady
+      conditionStatus: "False"
+      tolerationDuration: 30m
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
