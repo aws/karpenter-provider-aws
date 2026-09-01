@@ -112,7 +112,7 @@ func (c *Controller) cleanupInactiveProfiles(ctx context.Context) error {
 		return err
 	}
 
-	clusterPathPrefix := instanceprofile.FormatPath("karpenter", c.region, options.FromContext(ctx).ClusterName)
+	clusterPathPrefix := instanceprofile.KarpenterPath(c.region, options.FromContext(ctx).ClusterName)
 	profiles, err := c.instanceProfileProvider.ListProfiles(ctx, clusterPathPrefix)
 	if err != nil {
 		return fmt.Errorf("listing instance profiles, %w", err)
