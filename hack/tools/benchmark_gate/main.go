@@ -15,14 +15,14 @@ limitations under the License.
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"math"
 	"os"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
+
+	"github.com/samber/lo"
+	benchparse "golang.org/x/tools/benchmark/parse"
 )
 
 // allocs/op and B/op are near-deterministic for a fixed input, but at large offering counts
@@ -32,16 +32,13 @@ const (
 	bytesTolerance  = 0.01  // 1%
 )
 
-// Matches e.g. "BenchmarkInjectOfferings/partition-pg-18  20  12389488 ns/op  20217200 B/op  187904 allocs/op"
-var lineRE = regexp.MustCompile(`^(Benchmark\S+)\s+\d+\s+([0-9.]+)\s+ns/op\s+(\d+)\s+B/op\s+(\d+)\s+allocs/op`)
-
 type metrics struct {
 	ns     float64
 	bytes  int64
 	allocs int64
 }
 
-// parse returns a map benchmark name -> metrics
+// parse reads a `go test -benchmem` output file into a map of benchmark name -> metrics
 func parse(path string) (map[string]metrics, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -49,27 +46,19 @@ func parse(path string) (map[string]metrics, error) {
 	}
 	defer f.Close()
 
-	results := map[string]metrics{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		m := lineRE.FindStringSubmatch(strings.TrimSpace(scanner.Text()))
-		if m == nil {
-			continue
-		}
-		ns, _ := strconv.ParseFloat(m[2], 64)
-		bytes, _ := strconv.ParseInt(m[3], 10, 64)
-		allocs, _ := strconv.ParseInt(m[4], 10, 64)
-		s := metrics{ns: ns, bytes: bytes, allocs: allocs}
-		if cur, ok := results[m[1]]; ok {
-			// We keep the min of each metric, bytes and allocations are nearly
-			// deterministic so this guard against a stray sample.
-			s.ns = min(cur.ns, s.ns)
-			s.bytes = min(cur.bytes, s.bytes)
-			s.allocs = min(cur.allocs, s.allocs)
-		}
-		results[m[1]] = s
+	set, err := benchparse.ParseSet(f)
+	if err != nil {
+		return nil, err
 	}
-	return results, scanner.Err()
+	return lo.MapValues(set, func(samples []*benchparse.Benchmark, _ string) metrics {
+		return lo.Reduce(samples, func(acc metrics, s *benchparse.Benchmark, i int) metrics {
+			m := metrics{ns: s.NsPerOp, bytes: int64(s.AllocedBytesPerOp), allocs: int64(s.AllocsPerOp)}
+			if i == 0 {
+				return m
+			}
+			return metrics{ns: min(acc.ns, m.ns), bytes: min(acc.bytes, m.bytes), allocs: min(acc.allocs, m.allocs)}
+		}, metrics{})
+	}), nil
 }
 
 func pct(old, new float64) float64 {
