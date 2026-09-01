@@ -3608,6 +3608,43 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(instanceTypes).ToNot(BeEmpty())
 		})
 	})
+	Context("Resolver Exclusions", func() {
+		// A resolver returning a nil instance type with no error is declining to offer that instance type at all.
+		// Unlike a resolution failure, that must not fail the whole List - otherwise a resolver that excludes any
+		// instance type takes the entire catalog down with it.
+		It("should skip an excluded instance type and return the rest from List", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})).To(BeFalse(), "an excluded instance type must not be listed")
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.xlarge"
+			})).To(BeTrue(), "excluding one instance type must not drop the others")
+		})
+		It("should report ErrInstanceTypeExcluded from Get for an excluded instance type", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			// Get reports the exclusion as an error rather than returning a nil instance type, since it injects
+			// offerings into the result and its callers dereference it.
+			instanceType, err := provider.Get(ctx, nodeClass, "m5.large")
+			Expect(err).To(MatchError(instancetype.ErrInstanceTypeExcluded))
+			Expect(instanceType).To(BeNil())
+		})
+	})
 	Context("Resolution Failures", func() {
 		// A resolution failure for a single instance type will fail the whole List call.
 		var newProviderWithFailingResolver func(resolver instancetype.Resolver) *instancetype.DefaultProvider
@@ -3962,6 +3999,45 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 		})
 	}
 	return offerings
+}
+
+// newProviderWithResolver builds an instance type provider backed by the given Resolver, sharing the test
+// environment's caches and dependencies.
+func newProviderWithResolver(resolver instancetype.Resolver) *instancetype.DefaultProvider {
+	return instancetype.NewDefaultProvider(
+		awsEnv.InstanceTypeCache,
+		awsEnv.OfferingCache,
+		awsEnv.DiscoveredCapacityCache,
+		awsEnv.EC2API,
+		awsEnv.SubnetProvider,
+		awsEnv.PricingProvider,
+		awsEnv.CapacityReservationProvider,
+		awsEnv.PlacementGroupProvider,
+		awsEnv.UnavailableOfferingsCache,
+		resolver,
+		awsEnv.ZonalShiftProvider,
+		env.Client,
+		awsEnv.CELEnvironment,
+	)
+}
+
+// excludingResolver is a test Resolver that declines to offer a single named instance type, returning a nil
+// instance type and no error the way a resolver that filters the catalog (e.g. against an allowlist) does.
+// Every other instance type is delegated to the real resolver.
+type excludingResolver struct {
+	delegate  instancetype.Resolver
+	excludeOn ec2types.InstanceType
+}
+
+func (r *excludingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
+	return r.delegate.CacheKey(nodeClass)
+}
+
+func (r *excludingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
+	if info.InstanceType == r.excludeOn {
+		return nil, nil
+	}
+	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }
 
 // failingResolver is a test Resolver that fails to resolve a single named instance type, standing in for a

@@ -61,6 +61,12 @@ import (
 // ErrInstanceTypesNotHydrated is returned when the instance-type cache is empty.
 var ErrInstanceTypesNotHydrated = errors.New("no instance types found")
 
+// ErrInstanceTypeExcluded is returned by Get for an instance type the Resolver excluded by returning a nil
+// instance type with no error. List skips those rather than failing, so that a resolver which declines to
+// offer some instance types doesn't take the whole catalog down with them. It is distinct from a resolution
+// failure, which stays fatal to List.
+var ErrInstanceTypeExcluded = errors.New("instance type excluded by resolver")
+
 type NodeClass interface {
 	client.Object
 	AMIFamily() string
@@ -181,10 +187,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		if err != nil {
 			return nil, err
 		}
-		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
+		// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
+		// instance type, not a failure to resolve one.
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
 		for name := range p.instanceTypesInfo {
 			it, err := p.get(ctx, nodeClass, name, parsedKubelet)
+			if errors.Is(err, ErrInstanceTypeExcluded) {
+				continue
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +276,10 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
 	}
 	if it == nil {
-		return nil, fmt.Errorf("failed to generate instance type %s", name)
+		// A nil instance type with no error is the Resolver declining to offer this instance type at all. It is
+		// reported as an error rather than a nil return so that Get's callers can't dereference a nil instance
+		// type; List recognizes the sentinel and skips.
+		return nil, fmt.Errorf("%w: %s", ErrInstanceTypeExcluded, name)
 	}
 	if cached, ok := p.discoveredCapacityCache.Get(discoveredCapacityCacheKey(it.Name, nodeClass)); ok {
 		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
