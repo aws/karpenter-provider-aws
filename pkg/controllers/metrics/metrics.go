@@ -49,7 +49,7 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
 			Name:      "instance_type_offering_price_estimate",
-			Help:      "Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.",
+			Help:      "Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone. This metric is not NodePool-specific; when NodeOverlays produce different prices across NodePools for the same offering labels, the emitted value reflects one reconciled estimate.",
 		},
 		[]string{
 			instanceTypeLabel,
