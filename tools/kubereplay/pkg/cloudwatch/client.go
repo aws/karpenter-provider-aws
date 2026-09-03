@@ -38,11 +38,16 @@ const pollInterval = 2 * time.Second
 
 // Client queries CloudWatch Logs using Logs Insights (StartQuery/GetQueryResults).
 //
-// Why Logs Insights instead of FilterLogEvents?
-// FilterLogEvents is not supported on INFREQUENT_ACCESS log groups, which is
-// the log class used by EKS audit logs in many deployments to reduce costs.
-// StartQuery/GetQueryResults works on both STANDARD and INFREQUENT_ACCESS
-// log groups, making kubereplay compatible with all EKS cluster configurations.
+// This replaces the previous FilterLogEvents-based implementation.
+// FilterLogEvents only works on STANDARD log groups and returns an error
+// on INFREQUENT_ACCESS log groups:
+//
+//	InvalidOperationException: FilterLogEvents is not supported for
+//	log-group-class INFREQUENT_ACCESS
+//
+// CloudWatch Logs Insights (StartQuery/GetQueryResults) works on both
+// STANDARD and INFREQUENT_ACCESS log group classes, making kubereplay
+// compatible with all EKS audit log configurations.
 type Client struct {
 	api        *cloudwatchlogs.Client
 	LogGroup   string
@@ -116,6 +121,8 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 
 // queryWindow runs a single Logs Insights query over the [start, end) window
 // and returns all matching audit events.
+// Logs Insights works on both STANDARD and INFREQUENT_ACCESS log group classes.
+// The query is semantically equivalent to the previous FilterLogEvents pattern.
 func (c *Client) queryWindow(ctx context.Context, start, end time.Time) ([]*parser.AuditEvent, error) {
 	// This query is equivalent to the FilterLogEvents pattern used previously,
 	// but expressed in Logs Insights QL which works on INFREQUENT_ACCESS log groups.
