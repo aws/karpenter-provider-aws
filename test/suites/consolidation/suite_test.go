@@ -490,7 +490,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 			nodePool := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyBalanced,
 						// Disable Consolidation until we're ready
 						ConsolidateAfter: karpv1.MustParseNillableDuration("Never"),
 					},
@@ -567,7 +567,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 			nodePool := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyBalanced,
 						// Disable Consolidation until we're ready
 						ConsolidateAfter: karpv1.MustParseNillableDuration("Never"),
 					},
@@ -714,7 +714,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 		nodePool := coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Disruption: karpv1.Disruption{
-					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+					ConsolidationPolicy: karpv1.ConsolidationPolicyBalanced,
 					// Disable Consolidation until we're ready
 					ConsolidateAfter: karpv1.MustParseNillableDuration("Never"),
 				},
@@ -862,7 +862,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyBalanced,
 						ConsolidateAfter:    karpv1.MustParseNillableDuration("0s"),
 					},
 					Template: karpv1.NodeClaimTemplate{
