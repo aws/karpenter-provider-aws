@@ -165,7 +165,10 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 			Values:   []string{"a1"},
 		},
 	}
-	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+	// TEMPORARY: default flipped to Balanced for a one-time verification that all
+	// existing e2e suites still pass under the Balanced consolidation policy.
+	// Revert to WhenEmptyOrUnderutilized before merge.
+	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyBalanced
 	nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("Never")
 	nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 	nodePool.Spec.Limits = karpv1.Limits(corev1.ResourceList{
