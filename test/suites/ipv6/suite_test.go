@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -81,7 +82,7 @@ var _ = Describe("IPv6", func() {
 	})
 	It("should provision an IPv6 node by discovering kubeletConfig kube-dns IP", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
 		pod := coretest.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
@@ -94,7 +95,7 @@ var _ = Describe("IPv6", func() {
 	})
 	It("should provision a static IPv6 prefix with node launch and set IPv6 as primary in the primary network interface", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
 		pod := coretest.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)

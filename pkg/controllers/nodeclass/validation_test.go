@@ -15,6 +15,7 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/smithy-go"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -37,6 +39,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -45,6 +48,7 @@ import (
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
@@ -52,7 +56,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	Context("Preconditions", func() {
 		var reconciler *nodeclass.Validation
 		BeforeEach(func() {
-			reconciler = nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, options.FromContext(ctx).DisableDryRun)
+			reconciler = nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
 			for _, cond := range []string{
 				v1.ConditionTypeAMIsReady,
 				v1.ConditionTypeInstanceProfileReady,
@@ -229,6 +233,298 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
+		})
+	})
+	Context("Kubelet Configuration Validation", func() {
+		// spec.kubelet is an open map the API server can't validate, so ValidateKubeletConfig performs the
+		// structural checks at reconcile time. This runs before the expression gate and required-condition
+		// checks, so it needs no additional setup, and it surfaces InvalidKubeletConfiguration on a rejection
+		// rather than returning a reconcile error (the config can't be fixed by a requeue).
+		DescribeTable("should set InvalidKubeletConfiguration when the kubelet config is structurally invalid",
+			func(kc v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonInvalidKubeletConfiguration))
+			},
+			Entry("imageGCHighThresholdPercent less than imageGCLowThresholdPercent", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCHighThresholdPercent: lo.ToPtr[int32](10),
+				ImageGCLowThresholdPercent:  lo.ToPtr[int32](60),
+			})),
+			Entry("imageGCHighThresholdPercent below 0", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCHighThresholdPercent: lo.ToPtr[int32](-10),
+			})),
+			Entry("imageGCLowThresholdPercent below 0", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				ImageGCLowThresholdPercent: lo.ToPtr[int32](-10),
+			})),
+		)
+	})
+	Context("Kubelet Field AMI Family Support", func() {
+		// Only AL2023 renders the raw kubelet config through to the node, so other families apply just
+		// the subset Karpenter maps to bootstrap and would silently drop the rest. These specs assert
+		// such fields are rejected with UnsupportedKubeletConfiguration rather than dropped, that AL2023
+		// still accepts them, and that Custom (which owns its own userdata) is exempt.
+		DescribeTable("should reject a kubelet field the AMI family won't apply",
+			func(family string, terms []v1.AMISelectorTerm, kc v1.KubeletConfiguration) {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+				nodeClass.Spec.AMISelectorTerms = terms
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				// Dropped fields can't be fixed by a requeue, so the failure must be terminal.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+			},
+			// registryPullQPS is a valid upstream kubelet field Karpenter doesn't map, so it's a passthrough
+			// field that only AL2023 honors.
+			Entry("passthrough field on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}),
+			Entry("passthrough field on Windows", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}),
+			// podsPerCore is a field Karpenter maps, but Bottlerocket has no setting to render it into.
+			Entry("podsPerCore on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr[int32](10)})),
+			// These families pass clusterDNS to a single-valued bootstrap parameter, so only the first
+			// entry would reach the kubelet and the rest would be dropped without an error anywhere.
+			Entry("multiple clusterDNS entries on AL2", v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
+			Entry("multiple clusterDNS entries on Bottlerocket", v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
+			Entry("multiple clusterDNS entries on Windows", v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}, test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})),
+		)
+		It("should accept multiple clusterDNS entries on AL2023, which renders the whole list", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10", "10.0.0.11"}})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept a single clusterDNS entry on a family that applies only one", func() {
+			// The single-entry case is the common one, including Karpenter's own discovered default,
+			// so the check above must not reject it.
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyBottlerocket)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"10.0.0.10"}})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept a passthrough field on AL2023, which renders the raw config through", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept podsPerCore on AL2023", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{PodsPerCore: lo.ToPtr[int32](10)})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("shouldn't flag fields the AMI family does apply", func() {
+			// Bottlerocket maps maxPods and kubeReserved, so these must not be reported as dropped.
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyBottlerocket)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:      lo.ToPtr(intstr.FromInt32(110)),
+				KubeReserved: map[string]string{"cpu": "100m"},
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+		})
+		It("should exempt the Custom AMI family, which owns its own userdata", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-12345"}}
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"registryPullQPS": v1.JSONValue(int32(10))}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUnsupportedKubeletConfiguration))
+		})
+	})
+	Context("UserData size", func() {
+		It("should surface an oversized user data rejection as UserDataSizeLimitExceeded", func() {
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    awserrors.InvalidUserDataMalformedCode,
+				Message: "User data is limited to 16384 bytes",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonUserDataTooLarge))
+		})
+		It("should not surface a non-size InvalidUserData.Malformed rejection as UserDataSizeLimitExceeded", func() {
+			// Same error code, but a format (base64) message. Mislabeling this would tell the user to shrink
+			// user data that isn't too big, so it must fall through to the unexpected-error path.
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.Error.Set(&smithy.GenericAPIError{
+				Code:    awserrors.InvalidUserDataMalformedCode,
+				Message: "Invalid BASE64 encoding of user data.",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			Expect(ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonUserDataTooLarge))
+		})
+	})
+	Context("Kubelet Expression Validation", func() {
+		// Expressions are behind an alpha gate that is off by default, so every spec in this Context has to
+		// opt in. The gate-off rejection path is covered separately below.
+		BeforeEach(func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+		})
+		// The compile-only check (validateKubeletExpressions) runs before the required-condition gate and
+		// surfaces KubeletExpressionInvalid. The per-instance-type evaluation check runs after and surfaces
+		// KubeletExpressionEvaluationFailed for expressions that compile but fail to evaluate.
+		DescribeTable("should set KubeletExpressionInvalid when an expression fails to compile",
+			func(kc v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionInvalid))
+			},
+			Entry("maxPods with a syntax error", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110,")),
+			})),
+			Entry("maxPods referencing an undefined variable", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("undefined_var + 1")),
+			})),
+			Entry("maxPods with a non-numeric (boolean) return type", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("vcpus > 4")),
+			})),
+			Entry("kubeReserved with a syntax error", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				KubeReserved: map[string]string{"cpu": "vcpus *"},
+			})),
+			Entry("systemReserved referencing an undefined variable", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				SystemReserved: map[string]string{"memory": "bogus_var * 1048576"},
+			})),
+		)
+		DescribeTable("should set KubeletExpressionEvaluationFailed when an expression compiles but fails evaluation",
+			func(kc v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				// A genuine evaluation failure is unfixable without a spec change, so it must be terminal
+				// (no requeue). This also guards the transient-cache carve-out from over-matching.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
+			},
+			Entry("kubeReserved that evaluates to a negative value", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				KubeReserved: map[string]string{"cpu": "0 - 1"},
+			})),
+			Entry("systemReserved that divides by zero", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				SystemReserved: map[string]string{"memory": "1048576 / (vcpus - vcpus)"},
+			})),
+			Entry("maxPods that evaluates to a negative value (out of range)", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("0 - 1")),
+			})),
+		)
+		It("should succeed validation when all kubelet expressions are valid", func() {
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:        lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+				KubeReserved:   map[string]string{"cpu": "max(60, vcpus * 30)"},
+				SystemReserved: map[string]string{"memory": "max_pods * 11"},
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should requeue instead of marking the NodeClass invalid when the instance-type cache is transiently empty", func() {
+			// Simulate the instance-type cache not yet being hydrated (e.g. before the first UpdateInstanceTypes
+			// refresh completes on startup). A valid expression should not be terminally failed in this case.
+			reconciler := nodeclass.NewValidationReconciler(env.Clock, env.Client, cloudProvider, awsEnv.EC2API, awsEnv.AMIResolver, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.ValidationCache, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
+			for _, cond := range []string{
+				v1.ConditionTypeAMIsReady,
+				v1.ConditionTypeInstanceProfileReady,
+				v1.ConditionTypeSecurityGroupsReady,
+				v1.ConditionTypeSubnetsReady,
+			} {
+				nodeClass.StatusConditions().SetTrue(cond)
+			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			})
+			awsEnv.InstanceTypesProvider.Reset()
+			result, err := reconciler.Reconcile(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			//nolint:staticcheck
+			Expect(result.Requeue).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
+		})
+	})
+	Context("Kubelet Expression Feature Gate", func() {
+		BeforeEach(func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+			}))
+		})
+		DescribeTable("should reject a NodeClass carrying an expression while the gate is disabled",
+			func(kc v1.KubeletConfiguration) {
+				nodeClass.Spec.Kubelet = kc
+				ExpectApplied(ctx, env.Client, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err).To(HaveOccurred())
+				// Nothing the controller can do will make this succeed, so it must not requeue forever.
+				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionsDisabled))
+				Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+			},
+			Entry("maxPods", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			})),
+			Entry("kubeReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				KubeReserved: map[string]string{"cpu": "max(60, vcpus * 30)"},
+			})),
+			Entry("systemReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				SystemReserved: map[string]string{"memory": "max_pods * 11"},
+			})),
+		)
+		It("should not reject static kubelet values while the gate is disabled", func() {
+			// The gate only guards expressions -- integer maxPods and quantity-literal reservations must keep
+			// working untouched for every user who never opts in.
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
+				KubeReserved:   map[string]string{"cpu": "100m"},
+				SystemReserved: map[string]string{"memory": "100Mi"},
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
+		It("should accept an expression once the gate is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
 	})
 	Context("Authorization Validation", func() {
@@ -611,6 +907,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			awsEnv.ValidationCache,
 			awsEnv.RecreationCache,
 			awsEnv.AMIResolver,
+			awsEnv.CELEnvironment,
 			true,
 		)
 		ExpectApplied(ctx, env.Client, nodeClass)

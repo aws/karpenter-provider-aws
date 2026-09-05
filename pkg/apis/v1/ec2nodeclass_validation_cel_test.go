@@ -15,21 +15,23 @@ limitations under the License.
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -786,207 +788,64 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("Windows2025", "windows2025@v1.0.0"),
 		)
 	})
+	// spec.kubelet is an open map with x-kubernetes-preserve-unknown-fields, so the API server
+	// neither knows its fields nor will compile CEL against it. It is validated in the reconcile
+	// loop instead -- see TestValidateKubeletConfig in kubeletconfiguration_validation_test.go.
+	// The only thing admission enforces is the map's own shape, which is what these cover.
 	Context("Kubelet", func() {
-		It("should fail on kubeReserved with invalid keys", func() {
-			nc.Spec.Kubelet = &v1.KubeletConfiguration{
-				KubeReserved: map[string]string{
-					string(corev1.ResourcePods): "2",
-				},
+		It("should succeed for valid inputs", func() {
+			nc.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
+				PodsPerCore:    lo.ToPtr(int32(10)),
+				KubeReserved:   map[string]string{"cpu": "200m", "memory": "100Mi"},
+				SystemReserved: map[string]string{"cpu": "200m", "memory": "100Mi"},
+				EvictionHard:   map[string]string{"memory.available": "5%"},
+			})
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should persist a field Karpenter has no Go representation for", func() {
+			// The passthrough guarantee: a field Karpenter knows nothing about survives a
+			// round-trip unaltered, which is what lets a user set a kubelet field newer than the
+			// one Karpenter was built against.
+			nc.Spec.Kubelet = v1.KubeletConfiguration{"serializeImagePulls": v1.JSONValue(false)}
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			Expect(persisted.Spec.Kubelet).To(HaveKey("serializeImagePulls"))
+		})
+		It("should admit a configuration the kubelet library rejects", func() {
+			// Nothing here is admission's job to catch: the API server has no schema for these
+			// fields, and strict validation can't help since an unknown field under a
+			// preserve-unknown-fields map isn't unknown to the API server at all. This is the
+			// reason validation lives in the controller, so it is asserted rather than assumed --
+			// admission accepts it, and ValidateKubeletConfig is what reports it.
+			nc.Spec.Kubelet = v1.KubeletConfiguration{
+				"notAKubeletField": v1.JSONValue(true),
+				"podsPerCore":      v1.JSONValue("ten"),
 			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			Expect(persisted.Spec.Kubelet).To(HaveKey("notAKubeletField"))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).ToNot(BeEmpty())
 		})
-		It("should fail on systemReserved with invalid keys", func() {
-			nc.Spec.Kubelet = &v1.KubeletConfiguration{
-				SystemReserved: map[string]string{
-					string(corev1.ResourcePods): "2",
-				},
+		It("should preserve a nested subtree unaltered", func() {
+			// logging nests three levels deep and mixes a duration string with a quantity, so it
+			// is the sharpest check that preserve-unknown-fields doesn't flatten or coerce
+			// anything on the way to storage.
+			logging := map[string]any{
+				"format":         "json",
+				"flushFrequency": "5s",
+				"options":        map[string]any{"json": map[string]any{"infoBufferSize": "100Mi", "splitStream": true}},
 			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		Context("Eviction Signals", func() {
-			Context("Eviction Hard", func() {
-				It("should succeed on evictionHard with valid keys", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available":   "5%",
-							"nodefs.available":   "10%",
-							"nodefs.inodesFree":  "15%",
-							"imagefs.available":  "5%",
-							"imagefs.inodesFree": "5%",
-							"pid.available":      "5%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).To(Succeed())
-				})
-				It("should fail on evictionHard with invalid keys", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory": "5%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid formatted percentage value in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "5%3",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid percentage value (too large) in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "110%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid quantity value in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "110GB",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-			})
-		})
-		Context("Eviction Soft", func() {
-			It("should succeed on evictionSoft with valid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available":   "5%",
-						"nodefs.available":   "10%",
-						"nodefs.inodesFree":  "15%",
-						"imagefs.available":  "5%",
-						"imagefs.inodesFree": "5%",
-						"pid.available":      "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available":   {Duration: time.Minute},
-						"nodefs.available":   {Duration: time.Second * 90},
-						"nodefs.inodesFree":  {Duration: time.Minute * 5},
-						"imagefs.available":  {Duration: time.Hour},
-						"imagefs.inodesFree": {Duration: time.Hour * 24},
-						"pid.available":      {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail on evictionSoft with invalid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory": "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid formatted percentage value in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "5%3",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid percentage value (too large) in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "110%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid quantity value in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "110GB",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when eviction soft doesn't have matching grace period", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "200Mi",
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-		})
-		Context("GCThresholdPercent", func() {
-			It("should succeed on a valid imageGCHighThresholdPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(10)),
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail when imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
-					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when imageGCLowThresholdPercent is greather than imageGCHighThresheldPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
-					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-		})
-		Context("Eviction Soft Grace Period", func() {
-			It("should succeed on evictionSoftGracePeriod with valid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available":   "5%",
-						"nodefs.available":   "10%",
-						"nodefs.inodesFree":  "15%",
-						"imagefs.available":  "5%",
-						"imagefs.inodesFree": "5%",
-						"pid.available":      "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available":   {Duration: time.Minute},
-						"nodefs.available":   {Duration: time.Second * 90},
-						"nodefs.inodesFree":  {Duration: time.Minute * 5},
-						"imagefs.available":  {Duration: time.Hour},
-						"imagefs.inodesFree": {Duration: time.Hour * 24},
-						"pid.available":      {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail on evictionSoftGracePeriod with invalid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when eviction soft grace period doesn't have matching threshold", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
+			nc.Spec.Kubelet = v1.KubeletConfiguration{"logging": v1.JSONValue(logging)}
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			var roundTripped map[string]any
+			Expect(json.Unmarshal(persisted.Spec.Kubelet["logging"].Raw, &roundTripped)).To(Succeed())
+			Expect(roundTripped).To(Equal(logging))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).To(BeEmpty())
 		})
 	})
 	Context("MetadataOptions", func() {

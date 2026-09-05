@@ -29,17 +29,18 @@ import (
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
 type Options struct {
-	ClusterName         string
-	ClusterEndpoint     string
-	ClusterCIDR         *string
-	KubeletConfig       *v1.KubeletConfiguration
-	Taints              []corev1.Taint    `hash:"set"`
-	Labels              map[string]string `hash:"set"`
-	CABundle            *string
-	ContainerRuntime    *string
-	CustomUserData      *string
-	InstanceStorePolicy *v1.InstanceStorePolicy
-	AMIVersion          string
+	ClusterName           string
+	ClusterEndpoint       string
+	ClusterCIDR           *string
+	KubeletConfig         *v1.ParsedKubeletConfig
+	UnparsedKubeletConfig v1.KubeletConfiguration `hash:"string"`
+	Taints                []corev1.Taint          `hash:"set"`
+	Labels                map[string]string       `hash:"set"`
+	CABundle              *string
+	ContainerRuntime      *string
+	CustomUserData        *string
+	InstanceStorePolicy   *v1.InstanceStorePolicy
+	AMIVersion            string
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {
@@ -48,8 +49,10 @@ func (o Options) kubeletExtraArgs() (args []string) {
 	if o.KubeletConfig == nil {
 		return lo.Compact(args)
 	}
-	if o.KubeletConfig.MaxPods != nil {
-		args = append(args, fmt.Sprintf("--max-pods=%d", lo.FromPtr(o.KubeletConfig.MaxPods)))
+	// Only a resolved integer becomes a kubelet flag: an unevaluated maxPods CEL expression would
+	// otherwise be passed to the kubelet verbatim.
+	if maxPods, ok := o.KubeletConfig.MaxPodsValue(); ok {
+		args = append(args, fmt.Sprintf("--max-pods=%d", lo.FromPtr(maxPods)))
 	}
 	if o.KubeletConfig.PodsPerCore != nil {
 		args = append(args, fmt.Sprintf("--pods-per-core=%d", lo.FromPtr(o.KubeletConfig.PodsPerCore)))

@@ -305,6 +305,44 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
 			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 	})
+	It("should return an ICE error when the spot max price is too low", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("SpotMaxPriceTooLow"),
+					ErrorMessage: lo.ToPtr("Your Spot request price of 0.001 is lower than the minimum required Spot request fulfillment price of 0.0406."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		// Filter down to a single instance type
+		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+			return i.Name == "m5.xlarge"
+		})
+
+		// Since all the capacity pools are ICEd. This should return back an ICE error
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+
+		// The spot offering should get ICEd when this error is received
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
+			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeFalse())
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
+	})
 	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
 		// Ensure that Karpenter believes a reservation is available, but the API returns no capacity when attempting to launch
@@ -1077,6 +1115,86 @@ var _ = Describe("InstanceProvider", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(awsEnv.EC2API.CreateTagsBehavior.CalledWithInput.Len()).To(Equal(1))
 			})
+		})
+	})
+	Context("Cache Eviction", func() {
+		It("should evict cached instances that are no longer returned by List", func() {
+			// Store an instance in EC2 with the required tags for List() to find it
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1a"),
+					AvailabilityZoneId: aws.String("tstz1-1a"),
+				},
+				Tags: []ec2types.Tag{
+					{Key: aws.String(v1.NodePoolTagKey), Value: aws.String("default")},
+					{Key: aws.String(v1.LabelNodeClass), Value: aws.String("default")},
+					{Key: aws.String(v1.EKSClusterNameTagKey), Value: aws.String(options.FromContext(ctx).ClusterName)},
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+
+			// Populate the cache via Get
+			inst, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
+
+			// Remove the instance from EC2 (simulates spot reclaim)
+			awsEnv.EC2API.Instances.Delete(id)
+
+			// Call List — this should evict the stale cache entry
+			_, err = awsEnv.InstanceProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Now Get without SkipCache should go to EC2 and return NotFound
+			_, err = awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).To(HaveOccurred())
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+		})
+		It("should not evict cached instances in a zonally shifted AZ when not returned by List", func() {
+			// Store an instance in the shifted zone and populate the cache
+			ec2Instance := test.EC2Instance(ec2types.Instance{
+				Placement: &ec2types.Placement{
+					AvailabilityZone:   aws.String("test-zone-1a"),
+					AvailabilityZoneId: aws.String("tstz1-1a"),
+				},
+				Tags: []ec2types.Tag{
+					{Key: aws.String(v1.NodePoolTagKey), Value: aws.String("default")},
+					{Key: aws.String(v1.LabelNodeClass), Value: aws.String("default")},
+					{Key: aws.String(v1.EKSClusterNameTagKey), Value: aws.String(options.FromContext(ctx).ClusterName)},
+				},
+			})
+			id := aws.ToString(ec2Instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, ec2Instance)
+
+			// Populate the cache via Get
+			inst, err := awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
+
+			// Remove the instance from EC2
+			awsEnv.EC2API.Instances.Delete(id)
+
+			// Activate a zonal shift for tstz1-1a
+			awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+				ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{
+					{
+						AwayFrom:      aws.String("tstz1-1a"),
+						ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+						AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+					},
+				},
+			})
+			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+
+			// List should NOT evict because the zone is shifted
+			_, err = awsEnv.InstanceProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Get without SkipCache should still return the cached instance
+			inst, err = awsEnv.InstanceProvider.Get(ctx, id)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(inst.ID).To(Equal(id))
 		})
 	})
 })
