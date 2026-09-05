@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	"errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -28,6 +29,10 @@ const (
 	RunInstancesInvalidParameterValueCode          = "InvalidParameterValue"
 	DryRunOperationErrorCode                       = "DryRunOperation"
 	UnauthorizedOperationErrorCode                 = "UnauthorizedOperation"
+	AccessDeniedErrorCode                          = "AccessDenied"
+	AccessDeniedExceptionErrorCode                 = "AccessDeniedException"
+	AuthFailureErrorCode                           = "AuthFailure"
+	LimitExceededErrorCode                         = "LimitExceeded"
 	RateLimitingErrorCode                          = "RequestLimitExceeded"
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
@@ -294,4 +299,34 @@ func ToReasonMessage(err error) (string, string) {
 		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
 	}
 	return "LaunchFailed", "Instance launch failed"
+}
+
+// ClassifyError inspects an AWS API error and, for known terminal codes,
+// returns a condition Reason, a user-facing Message, and retryable=false.
+// Callers use retryable=false as the signal to set a Ready-style status
+// condition to False (rather than leaving it Unknown for a retry). Codes
+// that are transient (or unrecognized) return retryable=true so the caller
+// keeps its existing retry behavior.
+//
+// Terminal codes surfaced here:
+//   - UnauthorizedOperation / AccessDenied / AccessDeniedException /
+//     AuthFailure — IAM misconfiguration; retrying without operator action
+//     will not succeed.
+//   - LimitExceeded — the account has hit an AWS service limit; requires a
+//     quota increase or resource cleanup to resolve.
+func ClassifyError(err error) (reason string, message string, retryable bool) {
+	if err == nil {
+		return "", "", true
+	}
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return "", "", true
+	}
+	switch apiErr.ErrorCode() {
+	case UnauthorizedOperationErrorCode, AccessDeniedErrorCode, AccessDeniedExceptionErrorCode, AuthFailureErrorCode:
+		return "Unauthorized", apiErr.ErrorMessage(), false
+	case LimitExceededErrorCode:
+		return "LimitExceeded", apiErr.ErrorMessage(), false
+	}
+	return "", "", true
 }
