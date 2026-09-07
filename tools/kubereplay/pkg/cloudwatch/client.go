@@ -33,28 +33,36 @@ import (
 // busy clusters.
 const DefaultWindowSize = 15 * time.Minute
 
-// pollInterval is how often GetQueryResults is polled while a query runs.
+// pollInterval is how often GetQueryResults is polled while a query is running.
 const pollInterval = 2 * time.Second
 
-// Client queries CloudWatch Logs using Logs Insights (StartQuery/GetQueryResults).
+// logGroupClass represents the CloudWatch log group storage class.
+type logGroupClass string
+
+const (
+	logGroupClassStandard         logGroupClass = "STANDARD"
+	logGroupClassInfrequentAccess logGroupClass = "INFREQUENT_ACCESS"
+	logGroupClassUnknown          logGroupClass = ""
+)
+
+// Client queries CloudWatch Logs for EKS audit events.
 //
-// This replaces the previous FilterLogEvents-based implementation.
-// FilterLogEvents only works on STANDARD log groups and returns an error
-// on INFREQUENT_ACCESS log groups:
+// It auto-detects the log group class on first use:
+//   - STANDARD:          uses FilterLogEvents (lower latency, supports filter patterns)
+//   - INFREQUENT_ACCESS: uses Logs Insights StartQuery/GetQueryResults
+//                        (FilterLogEvents is not supported on INFREQUENT_ACCESS)
 //
-//	InvalidOperationException: FilterLogEvents is not supported for
-//	log-group-class INFREQUENT_ACCESS
-//
-// CloudWatch Logs Insights (StartQuery/GetQueryResults) works on both
-// STANDARD and INFREQUENT_ACCESS log group classes, making kubereplay
-// compatible with all EKS audit log configurations.
+// Both code paths produce identical results. Users do not need to know or
+// configure the log group class — detection is transparent.
 type Client struct {
-	api        *cloudwatchlogs.Client
-	LogGroup   string
-	// WindowSize controls how the capture duration is split into Logs Insights
-	// queries. Each query returns at most 10,000 results; reduce WindowSize
-	// (e.g. to 5m) if you see the "hit 10,000 result cap" warning.
+	api      *cloudwatchlogs.Client
+	LogGroup string
+	// WindowSize controls query chunk size for the Logs Insights path.
+	// Only used when the log group is INFREQUENT_ACCESS.
+	// Reduce to 5m if you see "hit 10,000 result cap" on busy clusters.
 	WindowSize time.Duration
+	// logClass is populated on first call to StreamEvents via detectLogGroupClass.
+	logClass logGroupClass
 }
 
 // FetchOptions specifies the time range to capture.
@@ -64,7 +72,7 @@ type FetchOptions struct {
 }
 
 // NewClient creates a CloudWatch Logs client for the given EKS cluster.
-// The log group name follows the EKS convention: /aws/eks/<cluster>/cluster.
+// The log group follows EKS convention: /aws/eks/<cluster>/cluster.
 func NewClient(api *cloudwatchlogs.Client, clusterName string) *Client {
 	return &Client{
 		api:        api,
@@ -73,9 +81,10 @@ func NewClient(api *cloudwatchlogs.Client, clusterName string) *Client {
 	}
 }
 
-// StreamEvents queries EKS audit logs for workload events (deployments and jobs)
-// and emits them over a channel. The capture duration is split into WindowSize
-// chunks to stay under the 10,000 results-per-query Logs Insights limit.
+// StreamEvents queries EKS audit logs for workload events (deployments and jobs).
+// It auto-detects the log group class and uses the appropriate API:
+//   - STANDARD:          FilterLogEvents
+//   - INFREQUENT_ACCESS: StartQuery/GetQueryResults (Logs Insights)
 func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *parser.AuditEvent, <-chan error) {
 	eventCh := make(chan *parser.AuditEvent, 100)
 	errCh := make(chan error, 1)
@@ -84,50 +93,163 @@ func (c *Client) StreamEvents(ctx context.Context, opts FetchOptions) (<-chan *p
 		defer close(eventCh)
 		defer close(errCh)
 
-		windows := timeWindows(opts.StartTime, opts.EndTime, c.WindowSize)
-		for i, w := range windows {
-			select {
-			case <-ctx.Done():
-				errCh <- ctx.Err()
-				return
-			default:
-			}
+		// Detect log group class once before streaming.
+		if err := c.detectLogGroupClass(ctx); err != nil {
+			errCh <- err
+			return
+		}
+		fmt.Printf("  log group class: %s → using %s\n", c.logClass, c.apiName())
 
-			fmt.Printf("  [%d/%d] querying %s → %s\n",
-				i+1, len(windows),
-				w[0].Format("15:04:05"),
-				w[1].Format("15:04:05"),
-			)
-
-			events, err := c.queryWindow(ctx, w[0], w[1])
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			for _, event := range events {
-				select {
-				case eventCh <- event:
-				case <-ctx.Done():
-					errCh <- ctx.Err()
-					return
-				}
-			}
+		switch c.logClass {
+		case logGroupClassStandard:
+			c.streamViaFilterLogEvents(ctx, opts, eventCh, errCh)
+		default:
+			// INFREQUENT_ACCESS or any unknown future class — use Logs Insights.
+			c.streamViaLogsInsights(ctx, opts, eventCh, errCh)
 		}
 	}()
 
 	return eventCh, errCh
 }
 
-// queryWindow runs a single Logs Insights query over the [start, end) window
-// and returns all matching audit events.
-// Logs Insights works on both STANDARD and INFREQUENT_ACCESS log group classes.
-// The query is semantically equivalent to the previous FilterLogEvents pattern.
-func (c *Client) queryWindow(ctx context.Context, start, end time.Time) ([]*parser.AuditEvent, error) {
-	// This query is equivalent to the FilterLogEvents pattern used previously,
-	// but expressed in Logs Insights QL which works on INFREQUENT_ACCESS log groups.
-	// Note: deletecollection (bulk delete) is not captured — it does not include
-	// individual resource names in the audit log entry.
+// apiName returns a human-readable name of the API being used.
+func (c *Client) apiName() string {
+	if c.logClass == logGroupClassStandard {
+		return "FilterLogEvents"
+	}
+	return "Logs Insights (StartQuery/GetQueryResults)"
+}
+
+// detectLogGroupClass queries CloudWatch to determine the log group class.
+// Result is cached in c.logClass so detection only happens once per client.
+func (c *Client) detectLogGroupClass(ctx context.Context) error {
+	if c.logClass != logGroupClassUnknown {
+		return nil // already detected
+	}
+
+	out, err := c.api.DescribeLogGroups(ctx, &cloudwatchlogs.DescribeLogGroupsInput{
+		LogGroupNamePrefix: aws.String(c.LogGroup),
+		Limit:              aws.Int32(1),
+	})
+	if err != nil {
+		return fmt.Errorf("DescribeLogGroups %s: %w", c.LogGroup, err)
+	}
+
+	for _, lg := range out.LogGroups {
+		if aws.ToString(lg.LogGroupName) == c.LogGroup {
+			if lg.LogGroupClass == types.LogGroupClassInfrequentAccess {
+				c.logClass = logGroupClassInfrequentAccess
+			} else {
+				c.logClass = logGroupClassStandard
+			}
+			return nil
+		}
+	}
+
+	// Log group not found in results — default to STANDARD so FilterLogEvents
+	// is tried first; if it fails with an INFREQUENT_ACCESS error the caller
+	// will see a clear error message.
+	c.logClass = logGroupClassStandard
+	return nil
+}
+
+// ── STANDARD path: FilterLogEvents ────────────────────────────────────────────
+
+func (c *Client) streamViaFilterLogEvents(ctx context.Context, opts FetchOptions,
+	eventCh chan<- *parser.AuditEvent, errCh chan<- error) {
+
+	// Filter for deployments (create, update, patch, delete) and jobs (create, update, patch).
+	// deletecollection is not captured — it doesn't include individual resource names.
+	filterPattern := `{ ($.objectRef.resource = "deployments" && ($.verb = "create" || $.verb = "update" || $.verb = "patch" || $.verb = "delete")) || ($.objectRef.resource = "jobs" && ($.verb = "create" || $.verb = "update" || $.verb = "patch")) }`
+
+	var nextToken *string
+	for {
+		select {
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
+		default:
+		}
+
+		output, err := c.api.FilterLogEvents(ctx, &cloudwatchlogs.FilterLogEventsInput{
+			LogGroupName:        aws.String(c.LogGroup),
+			StartTime:           aws.Int64(opts.StartTime.UnixMilli()),
+			EndTime:             aws.Int64(opts.EndTime.UnixMilli()),
+			FilterPattern:       aws.String(filterPattern),
+			Limit:               aws.Int32(10000),
+			NextToken:           nextToken,
+			LogStreamNamePrefix: aws.String("kube-apiserver-audit"),
+		})
+		if err != nil {
+			errCh <- fmt.Errorf("FilterLogEvents: %w", err)
+			return
+		}
+
+		for _, event := range output.Events {
+			if event.Message == nil {
+				continue
+			}
+			var auditEvent parser.AuditEvent
+			if err := json.Unmarshal([]byte(*event.Message), &auditEvent); err != nil {
+				continue
+			}
+			select {
+			case eventCh <- &auditEvent:
+			case <-ctx.Done():
+				errCh <- ctx.Err()
+				return
+			}
+		}
+
+		if output.NextToken == nil {
+			return
+		}
+		nextToken = output.NextToken
+	}
+}
+
+// ── INFREQUENT_ACCESS path: Logs Insights ─────────────────────────────────────
+
+func (c *Client) streamViaLogsInsights(ctx context.Context, opts FetchOptions,
+	eventCh chan<- *parser.AuditEvent, errCh chan<- error) {
+
+	windows := timeWindows(opts.StartTime, opts.EndTime, c.WindowSize)
+	for i, w := range windows {
+		select {
+		case <-ctx.Done():
+			errCh <- ctx.Err()
+			return
+		default:
+		}
+
+		fmt.Printf("  [%d/%d] querying %s → %s\n",
+			i+1, len(windows),
+			w[0].Format("15:04:05"),
+			w[1].Format("15:04:05"),
+		)
+
+		events, err := c.queryWindowInsights(ctx, w[0], w[1])
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		for _, event := range events {
+			select {
+			case eventCh <- event:
+			case <-ctx.Done():
+				errCh <- ctx.Err()
+				return
+			}
+		}
+	}
+}
+
+// queryWindowInsights runs a single Logs Insights query over [start, end).
+// Equivalent to the FilterLogEvents pattern but works on INFREQUENT_ACCESS.
+func (c *Client) queryWindowInsights(ctx context.Context, start, end time.Time) ([]*parser.AuditEvent, error) {
+	// Semantically equivalent to the FilterLogEvents filterPattern above.
+	// deletecollection is not captured — it doesn't include individual resource names.
 	query := `fields @timestamp, @message
 | filter @logStream like /kube-apiserver-audit/
 | filter objectRef.resource in ["deployments", "jobs"]
@@ -153,7 +275,6 @@ func (c *Client) queryWindow(ctx context.Context, start, end time.Time) ([]*pars
 	for {
 		select {
 		case <-ctx.Done():
-			// Best-effort cancel the in-flight query before returning.
 			_, _ = c.api.StopQuery(context.Background(), &cloudwatchlogs.StopQueryInput{
 				QueryId: queryID,
 			})
@@ -180,10 +301,11 @@ func (c *Client) queryWindow(ctx context.Context, start, end time.Time) ([]*pars
 			return nil, fmt.Errorf("query %s timed out — reduce --window size", aws.ToString(queryID))
 		}
 
-		// Status is Complete.
+		// Complete.
 		if len(result.Results) == 10000 {
-			fmt.Printf("  WARNING: hit 10,000 result cap for window %s→%s — some events may be missing. "+
-				"Use a smaller --window value.\n", start.Format("15:04:05"), end.Format("15:04:05"))
+			fmt.Printf("  WARNING: hit 10,000 result cap for window %s→%s — "+
+				"some events may be missing. Use a smaller --window value.\n",
+				start.Format("15:04:05"), end.Format("15:04:05"))
 		}
 
 		var events []*parser.AuditEvent
@@ -202,6 +324,8 @@ func (c *Client) queryWindow(ctx context.Context, start, end time.Time) ([]*pars
 	}
 }
 
+// ── helpers ────────────────────────────────────────────────────────────────────
+
 // timeWindows splits [start, end) into chunks of at most windowSize.
 func timeWindows(start, end time.Time, windowSize time.Duration) [][2]time.Time {
 	var windows [][2]time.Time
@@ -215,7 +339,7 @@ func timeWindows(start, end time.Time, windowSize time.Duration) [][2]time.Time 
 	return windows
 }
 
-// rowField extracts the value of a named field from a Logs Insights result row.
+// rowField extracts a named field value from a Logs Insights result row.
 func rowField(row []types.ResultField, name string) string {
 	for _, f := range row {
 		if aws.ToString(f.Field) == name {
