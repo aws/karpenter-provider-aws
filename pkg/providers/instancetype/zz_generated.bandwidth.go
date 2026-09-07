@@ -55,17 +55,6 @@ var (
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
 		// r3.large has vague bandwidth information, bandwidth is Moderate
 		// r3.xlarge has vague bandwidth information, bandwidth is Moderate
-		// r9gd.12xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.24xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.48xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.8xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.medium is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.metal-48xl is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r9gd.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// t1.micro has vague bandwidth information, bandwidth is Very Low
 		// t2.2xlarge has vague bandwidth information, bandwidth is Moderate
 		// t2.large has vague bandwidth information, bandwidth is Low to Moderate
@@ -125,6 +114,8 @@ var (
 		"c9gd.medium":          550,
 		"m9g.medium":           550,
 		"m9gd.medium":          550,
+		"r9g.medium":           550,
+		"r9gd.medium":          550,
 		"x1e.xlarge":           625,
 		"a1.large":             750,
 		"c5.large":             750,
@@ -200,6 +191,8 @@ var (
 		"c9gd.large":           1000,
 		"m9g.large":            1000,
 		"m9gd.large":           1000,
+		"r9g.large":            1000,
+		"r9gd.large":           1000,
 		"t3.xlarge":            1024,
 		"t3a.xlarge":           1024,
 		"t4g.xlarge":           1024,
@@ -307,6 +300,8 @@ var (
 		"m9gd.xlarge":          2100,
 		"r5dn.large":           2100,
 		"r5n.large":            2100,
+		"r9g.xlarge":           2100,
+		"r9gd.xlarge":          2100,
 		"i7i.xlarge":           2343,
 		"i8g.xlarge":           2344,
 		"a1.2xlarge":           2500,
@@ -431,6 +426,8 @@ var (
 		"c9gd.2xlarge":         4250,
 		"m9g.2xlarge":          4250,
 		"m9gd.2xlarge":         4250,
+		"r9g.2xlarge":          4250,
+		"r9gd.2xlarge":         4250,
 		"i4g.2xlarge":          4687,
 		"i4i.2xlarge":          4687,
 		"i7i.2xlarge":          4687,
@@ -565,6 +562,8 @@ var (
 		"c9gd.4xlarge":         8500,
 		"m9g.4xlarge":          8500,
 		"m9gd.4xlarge":         8500,
+		"r9g.4xlarge":          8500,
+		"r9gd.4xlarge":         8500,
 		"c7i-flex.12xlarge":    9375,
 		"i4g.4xlarge":          9375,
 		"i4i.4xlarge":          9375,
@@ -732,6 +731,8 @@ var (
 		"c9gd.8xlarge":         17000,
 		"m9g.8xlarge":          17000,
 		"m9gd.8xlarge":         17000,
+		"r9g.8xlarge":          17000,
+		"r9gd.8xlarge":         17000,
 		"c6a.12xlarge":         18750,
 		"c6i.12xlarge":         18750,
 		"c6id.12xlarge":        18750,
@@ -894,6 +895,8 @@ var (
 		"r8gn.2xlarge":         25000,
 		"r8idn.4xlarge":        25000,
 		"r8in.4xlarge":         25000,
+		"r9g.12xlarge":         25000,
+		"r9gd.12xlarge":        25000,
 		"vt1.24xlarge":         25000,
 		"x1.32xlarge":          25000,
 		"x1e.32xlarge":         25000,
@@ -946,6 +949,8 @@ var (
 		"c9gd.16xlarge":        34000,
 		"m9g.16xlarge":         34000,
 		"m9gd.16xlarge":        34000,
+		"r9g.16xlarge":         34000,
+		"r9gd.16xlarge":        34000,
 		"g6e.16xlarge":         35000,
 		"c6a.24xlarge":         37500,
 		"c6i.24xlarge":         37500,
@@ -1107,6 +1112,8 @@ var (
 		"r8idb.12xlarge":       50000,
 		"r8idn.8xlarge":        50000,
 		"r8in.8xlarge":         50000,
+		"r9g.24xlarge":         50000,
+		"r9gd.24xlarge":        50000,
 		"u-3tb1.56xlarge":      50000,
 		"x2idn.16xlarge":       50000,
 		"x2iedn.16xlarge":      50000,
@@ -1206,8 +1213,6 @@ var (
 		"i3en.metal":           100000,
 		"i7i.48xlarge":         100000,
 		"i7i.metal-48xl":       100000,
-		"i7ie.48xlarge":        100000,
-		"i7ie.metal-48xl":      100000,
 		"i8g.48xlarge":         100000,
 		"im4gn.16xlarge":       100000,
 		"inf1.24xlarge":        100000,
@@ -1254,6 +1259,10 @@ var (
 		"r8idb.24xlarge":       100000,
 		"r8idn.16xlarge":       100000,
 		"r8in.16xlarge":        100000,
+		"r9g.48xlarge":         100000,
+		"r9g.metal-48xl":       100000,
+		"r9gd.48xlarge":        100000,
+		"r9gd.metal-48xl":      100000,
 		"u-12tb1.112xlarge":    100000,
 		"u-12tb1.metal":        100000,
 		"u-18tb1.112xlarge":    100000,
@@ -1319,6 +1328,8 @@ var (
 		"hpc7g.16xlarge":       200000,
 		"hpc7g.4xlarge":        200000,
 		"hpc7g.8xlarge":        200000,
+		"i7ie.48xlarge":        200000,
+		"i7ie.metal-48xl":      200000,
 		"m6idn.32xlarge":       200000,
 		"m6idn.metal":          200000,
 		"m6in.32xlarge":        200000,
