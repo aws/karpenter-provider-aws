@@ -72,6 +72,14 @@ updates:
         patterns:
           - '*'
   - package-ecosystem: github-actions
+    directory: .github/actions/deploy-website
+    schedule:
+      interval: weekly
+    groups:
+      action-deps:
+        patterns:
+          - '*'
+  - package-ecosystem: github-actions
     directory: .github/actions/download-artifact
     schedule:
       interval: weekly

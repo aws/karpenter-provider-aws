@@ -4,7 +4,13 @@ on:
     workflows: [ WebsitePreviewTrigger ]
     types: [ completed ]
 jobs:
+  # WebsitePreviewTrigger already built the site in the PR's own context. This job holds the
+  # Amplify role and a write token, so it only ever runs base repository code - it must not
+  # check out or execute anything from the PR. https://gh.io/securely-using-pull_request_target
   preview:
+    # A failed trigger means the PR's site never built, so there is nothing to ship and the
+    # error already surfaced on the PR's own check
+    if: github.event.workflow_run.conclusion == 'success'
     permissions:
       id-token: write
       contents: read
@@ -14,33 +20,46 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/download-artifact
+      # WebsitePreviewTrigger builds the PR's own site, so the PR can run arbitrary code there and
+      # rewrite the metadata artifact after it is written. Take the commit from the event payload,
+      # which the PR cannot influence, and trust the PR number only once GitHub confirms that PR
+      # actually owns that commit - otherwise a PR could deploy over, comment on, or set a commit
+      # status against any other PR. See .github/security-notice.md
       - id: website-metadata
-        run: |
-          pr_number="$(head -n 1 /tmp/artifacts/website-metadata.txt)"
-          pr_commit="$(tail -n 1 /tmp/artifacts/website-metadata.txt)"
-          {
-            echo PR_COMMIT="$pr_commit"
-            echo PR_NUMBER="$pr_number"
-            echo BRANCH_NAME="pr-$pr_number"
-          } >> "$GITHUB_ENV"
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          APP_ID: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
         with:
-          ref: ${{ env.PR_COMMIT }}
-          path: pr-content
+          script: |
+            const claimed = require('fs')
+              .readFileSync('/tmp/artifacts/website-metadata.txt', 'utf8')
+              .split('\n')[0].trim();
+            if (!/^[0-9]+$/.test(claimed)) {
+              core.setFailed(`malformed PR number in artifact: ${JSON.stringify(claimed)}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: Number(claimed),
+            });
+            if (pr.head.sha !== process.env.HEAD_SHA) {
+              core.setFailed(
+                `PR #${claimed} is at ${pr.head.sha}, but this run built ${process.env.HEAD_SHA}`
+              );
+              return;
+            }
+            core.exportVariable('PR_NUMBER', claimed);
+            core.exportVariable('PR_COMMIT', process.env.HEAD_SHA);
+            core.exportVariable('BRANCH_NAME', `pr-${claimed}`);
+            core.exportVariable(
+              'PREVIEW_URL', `https://pr-${claimed}.${process.env.APP_ID}.amplifyapp.com`
+            );
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
-          aws-region: ${{ vars.AMPLIFY_REGION }}
-      - name: Get preview URL
-        run: |
-          APP_DOMAIN=$(aws amplify get-app --app-id ${{ vars.AMPLIFY_APP_ID_PREVIEW }} --query 'app.defaultDomain' --output text)
-          PREVIEW_URL="https://${{ env.BRANCH_NAME }}.$APP_DOMAIN"
-          echo PREVIEW_URL="$PREVIEW_URL" >> "$GITHUB_ENV"
       - name: Deploy website
         uses: ./.github/actions/deploy-website
         with:
@@ -50,8 +69,7 @@ jobs:
           amplify-branch-name: ${{ env.BRANCH_NAME }}
           s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
           s3-prefix: pr-${{ env.PR_NUMBER }}/
-          hugo-base-url: ${{ env.PREVIEW_URL }}
-          content-path: pr-content
+          site-path: /tmp/artifacts/site
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PREVIEW_URL: ${{ env.PREVIEW_URL }}

@@ -163,7 +163,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval
 	subnetIPCacheTTL := max(awscache.AvailableIPAddressTTL, subnetRefreshInterval+(awscache.AvailableIPAddressTTL-awscache.DefaultTTL))
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(subnetRefreshInterval, awscache.DefaultCleanupInterval), cache.New(subnetIPCacheTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(options.FromContext(ctx).SecurityGroupRefreshInterval, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(
 		iam.NewFromConfig(cfg),
 		cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval),

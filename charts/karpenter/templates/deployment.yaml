@@ -202,6 +202,9 @@ spec:
           {{- with .Values.settings.kubernetesVersion }}
             - name: KUBERNETES_VERSION
               value: "{{ tpl (toString .) $ }}"
+          {{- with .Values.settings.securityGroupRefreshInterval }}
+            - name: SECURITY_GROUP_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}

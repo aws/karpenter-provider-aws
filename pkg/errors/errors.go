@@ -61,6 +61,7 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
 	)
 )

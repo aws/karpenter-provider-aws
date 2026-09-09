@@ -56,18 +56,20 @@ import (
 )
 
 const (
-	requeueAfterTime                              = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed          = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed         = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound        = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady           = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed            = "TagValidationFailed"
-	ConditionReasonKubeletExpressionInvalid       = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed    = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled     = "KubeletExpressionsDisabled"
-	ConditionReasonDryRunDisabled                 = "DryRunDisabled"
-	ConditionReasonUserDataTooLarge               = "UserDataSizeLimitExceeded"
+	requeueAfterTime                               = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed             = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
+	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -142,10 +144,43 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		}
 	}
 
+	// spec.kubelet is an open map the API server can't validate, so this is the only structural check
+	// it gets. ValidationSucceeded is a required condition, so a failure here blocks node launch
+	// rather than letting configuration the kubelet would refuse reach an instance.
+	// See v1.ValidateKubeletConfig. This runs first because it's expression-aware -- it accepts a CEL
+	// expression in maxPods/kubeReserved/systemReserved and only rejects malformed shapes -- so the
+	// gate and per-instance-type checks below see a structurally valid config.
+	if errs := v1.ValidateKubeletConfig(nodeClass.Spec.Kubelet); len(errs) > 0 {
+		messages := make([]string, 0, len(errs))
+		for _, e := range errs {
+			messages = append(messages, e.Error())
+		}
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonInvalidKubeletConfiguration,
+			strings.Join(messages, "; "),
+		)
+		return reconcile.Result{}, nil
+	}
+
+	// A decode failure here means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read,
+	// which the "ValidateKubeletConfig/ParseKubeletConfig invariant" specs in pkg/apis/v1 exist to prevent.
+	// Checked rather than assumed because ParseKubeletConfig returns a partially populated config
+	// alongside the error, so ignoring it would validate a config that isn't the user's and could mark
+	// the NodeClass Ready with fields silently missing.
+	parsedKubelet, err := v1.ParseKubeletConfig(nodeClass.Spec.Kubelet)
+	if err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonInvalidKubeletConfiguration,
+			fmt.Sprintf("parsing spec.kubelet, %s", err),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("parsing spec.kubelet, %w", err))
+	}
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.
-	if nodeClass.Spec.Kubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+	if parsedKubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionsDisabled,
@@ -154,13 +189,24 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
 	}
 
-	if err := validateKubeletExpressions(v.celEnv, nodeClass); err != nil {
+	if err := validateKubeletExpressions(v.celEnv, parsedKubelet); err != nil {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
 			ConditionReasonKubeletExpressionInvalid,
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
+	}
+
+	// Reject kubelet fields the NodeClass' AMI family won't apply. Without this they'd be dropped
+	// silently at bootstrap, launching a node that lacks the configuration the user set.
+	if err := validateKubeletFieldsSupported(nodeClass, parsedKubelet); err != nil {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonUnsupportedKubeletConfiguration,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(err)
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
@@ -416,6 +462,7 @@ func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) 
 		nodeClass.Spec,
 		nodeClass.Annotations,
 		tags,
+		nodeClass.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
 }
@@ -613,11 +660,14 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 }
 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
-func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1.EC2NodeClass) error {
-	if nodeClass.Spec.Kubelet == nil {
+//
+//nolint:gocyclo
+func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.ParsedKubeletConfig) error {
+	// kc is the already-parsed kubelet config; a nil value (empty config or a parse error surfaced by
+	// the structural ValidateKubeletConfig check upstream) means there's nothing left to validate.
+	if kc == nil {
 		return nil
 	}
-	kc := nodeClass.Spec.Kubelet
 	if kc.MaxPods != nil && kc.MaxPods.Type == intstr.String {
 		if err := celEnv.ValidateExpression(kc.MaxPods.StrVal); err != nil {
 			return serrors.Wrap(
@@ -647,6 +697,49 @@ func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, nodeClass *v1
 		}
 	}
 	return nil
+}
+
+// validateKubeletFieldsSupported rejects kubelet config the NodeClass' AMI family won't fully apply.
+// Only families that render the raw config through (AL2023) honor every valid kubelet field; the rest
+// apply just the subset Karpenter maps to bootstrap, so any other field -- plus podsPerCore on families
+// that have no setting for it (Bottlerocket) -- would be dropped silently, launching a node without the
+// configuration the user set. Custom is exempt: it owns its userdata and ignores kubelet config entirely,
+// so there's nothing for Karpenter to guarantee.
+//
+// A field can also be applied only in part rather than dropped outright, which needs its own check
+// because the field is present in the config Karpenter maps and so looks supported.
+func validateKubeletFieldsSupported(nodeClass *v1.EC2NodeClass, parsed *v1.ParsedKubeletConfig) error {
+	if len(nodeClass.Spec.Kubelet) == 0 || nodeClass.AMIFamily() == v1.AMIFamilyCustom {
+		return nil
+	}
+	flags := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{}).FeatureFlags()
+	if flags.SupportsArbitraryKubeletConfig {
+		return nil
+	}
+	var messages []string
+	unsupported := sets.New(v1.UnmanagedKubeletFields(nodeClass.Spec.Kubelet)...)
+	// podsPerCore is a field Karpenter maps, but some families have no setting to render it into.
+	if parsed != nil && parsed.PodsPerCore != nil && !flags.PodsPerCoreEnabled {
+		unsupported.Insert("podsPerCore")
+	}
+	if unsupported.Len() > 0 {
+		messages = append(messages, fmt.Sprintf("spec.kubelet has fields not applied by the %s AMI family that would be silently dropped: %s",
+			nodeClass.AMIFamily(), strings.Join(sets.List(unsupported), ", ")))
+	}
+	// These families pass clusterDNS to a single-valued bootstrap parameter (--dns-cluster-ip on AL2,
+	// -DNSClusterIP on Windows, cluster-dns-ip on Bottlerocket), so only the first entry reaches the
+	// kubelet and the rest are dropped. On AL2 the first entry also decides the node's --ip-family
+	// (see bootstrap.EKS.isIPv6), so a mixed IPv4/IPv6 list would have whichever entry came first
+	// silently choose for the whole node. Karpenter's own default is a single discovered kube-dns
+	// address, so this can only trip on a list the user set.
+	if parsed != nil && len(parsed.ClusterDNS) > 1 {
+		messages = append(messages, fmt.Sprintf("spec.kubelet.clusterDNS: the %s AMI family doesn't accept multiple entries, only one, but %d were set",
+			nodeClass.AMIFamily(), len(parsed.ClusterDNS)))
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+	return errors.New(strings.Join(messages, "; "))
 }
 
 func getNetworkInterfacesInput(ncNetworkInterfaces []*amifamily.ResolvedNetworkInterface, subnet *v1.Subnet) []ec2types.InstanceNetworkInterfaceSpecification {

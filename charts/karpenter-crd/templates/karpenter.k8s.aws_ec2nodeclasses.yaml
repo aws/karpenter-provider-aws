@@ -379,131 +379,18 @@ spec:
                   minimum: 0
                   type: integer
                 kubelet:
+                  additionalProperties:
+                    x-kubernetes-preserve-unknown-fields: true
                   description: |-
-                    Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-                    They are a subset of the upstream types, recognizing not all options may be supported.
-                    Wherever possible, the types and names should reflect the upstream kubelet types.
-                  properties:
-                    clusterDNS:
-                      description: |-
-                        clusterDNS is a list of IP addresses for the cluster DNS server.
-                        Note that not all providers may use all addresses.
-                      items:
-                        type: string
-                      type: array
-                    cpuCFSQuota:
-                      description: CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
-                      type: boolean
-                    evictionHard:
-                      additionalProperties:
-                        type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    evictionMaxPodGracePeriod:
-                      description: |-
-                        EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-                        response to soft eviction thresholds being met.
-                      format: int32
-                      type: integer
-                    evictionSoft:
-                      additionalProperties:
-                        type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    evictionSoftGracePeriod:
-                      additionalProperties:
-                        type: string
-                      description: EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    imageGCHighThresholdPercent:
-                      description: |-
-                        ImageGCHighThresholdPercent is the percent of disk usage after which image
-                        garbage collection is always run. The percent is calculated by dividing this
-                        field value by 100, so this field must be between 0 and 100, inclusive.
-                        When specified, the value must be greater than ImageGCLowThresholdPercent.
-                      format: int32
-                      maximum: 100
-                      minimum: 0
-                      type: integer
-                    imageGCLowThresholdPercent:
-                      description: |-
-                        ImageGCLowThresholdPercent is the percent of disk usage before which image
-                        garbage collection is never run. Lowest disk usage to garbage collect to.
-                        The percent is calculated by dividing this field value by 100,
-                        so the field value must be between 0 and 100, inclusive.
-                        When specified, the value must be less than imageGCHighThresholdPercent
-                      format: int32
-                      maximum: 100
-                      minimum: 0
-                      type: integer
-                    kubeReserved:
-                      additionalProperties:
-                        type: string
-                      description: |-
-                        KubeReserved contains resources reserved for Kubernetes system components.
-                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
-                        instance type. An expression returns a bare number in the unit that key's static quantities
-                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
-                          rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                        - message: kubeReserved value cannot be a negative resource quantity
-                          rule: self.all(x, !self[x].startsWith('-'))
-                    maxPods:
-                      anyOf:
-                        - type: integer
-                        - type: string
-                      description: |-
-                        MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance. When set to an integer, it is used as a static value.
-                        When set to a string, it is evaluated as a CEL expression per instance type with
-                        access to: vcpus, memory_mib, default_enis, ips_per_eni, max_pods, instance_type.
-                      x-kubernetes-int-or-string: true
-                      x-kubernetes-validations:
-                        - message: maxPods must be a non-negative integer when set to an integer
-                          rule: type(self) != int || self >= 0
-                    podsPerCore:
-                      description: |-
-                        PodsPerCore is an override for the number of pods that can run on a worker node
-                        instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-                        MaxPods is a lower value, that value will be used.
-                      format: int32
-                      minimum: 0
-                      type: integer
-                    systemReserved:
-                      additionalProperties:
-                        type: string
-                      description: |-
-                        SystemReserved contains resources reserved for OS system daemons and kernel memory.
-                        Values may be static resource quantities (e.g. "100Mi") or CEL expressions evaluated per
-                        instance type. An expression returns a bare number in the unit that key's static quantities
-                        use: millicores for cpu, MiB for memory, GiB for ephemeral-storage, and a plain count for pid.
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']
-                          rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                        - message: systemReserved value cannot be a negative resource quantity
-                          rule: self.all(x, !self[x].startsWith('-'))
+                    Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+                    KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+                    see the k8s.io/kubelet version in go.mod for the exact set.
+                    Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
+                    systemReserved, evictionHard) and passes all others through to UserData unchanged.
+                    Field names and types are validated by Karpenter, which reports a rejected configuration
+                    on status.conditions as ValidationSucceeded=False rather than failing the apply.
                   type: object
-                  x-kubernetes-validations:
-                    - message: imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent
-                      rule: 'has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true'
-                    - message: evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod
-                      rule: has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true
-                    - message: evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft
-                      rule: has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true
+                  x-kubernetes-preserve-unknown-fields: true
                 metadataOptions:
                   default:
                     httpEndpoint: enabled

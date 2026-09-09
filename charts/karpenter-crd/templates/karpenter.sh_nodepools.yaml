@@ -146,11 +146,12 @@ spec:
                         - message: '''schedule'' must be set with ''duration'''
                           rule: self.all(x, has(x.schedule) == has(x.duration))
                     consolidateAfter:
+                      default: 0s
                       description: |-
                         ConsolidateAfter is the duration the controller will wait
                         before attempting to terminate nodes that are underutilized.
                         Refer to ConsolidationPolicy for how underutilization is considered.
-                        When replicas is set, ConsolidateAfter is simply ignored
+                        When replicas is set, ConsolidateAfter is simply ignored.
                       pattern: ^(([0-9]+(s|m|h))+|Never)$
                       type: string
                     consolidationPolicy:
@@ -165,8 +166,6 @@ spec:
                         - WhenEmptyOrUnderutilized
                         - Balanced
                       type: string
-                  required:
-                    - consolidateAfter
                   type: object
                 limits:
                   additionalProperties:
@@ -313,14 +312,14 @@ spec:
                                   Represents a key's relationship to a set of values.
                                   Valid operators are In, NotIn, Exists, DoesNotExist. Gt, Lt, Gte, and Lte.
                                 enum:
-                                  - Gte
-                                  - Lte
                                   - In
                                   - NotIn
                                   - Exists
                                   - DoesNotExist
                                   - Gt
                                   - Lt
+                                  - Gte
+                                  - Lte
                                 type: string
                               values:
                                 description: |-
