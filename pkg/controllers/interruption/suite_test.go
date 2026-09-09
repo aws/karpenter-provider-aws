@@ -281,7 +281,8 @@ var _ = Describe("InterruptionHandling", func() {
 			})
 			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 0, nil)
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a no-op message")
 
 			// A well-formed interruption message should still record latency.
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
@@ -321,7 +322,8 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 0, nil)
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a message with no usable StartTime")
 		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
 			ExpectMessagesCreated(stateChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)), "creating"))
