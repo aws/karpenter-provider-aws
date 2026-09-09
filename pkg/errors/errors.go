@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	"errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -24,6 +25,9 @@ import (
 )
 
 const (
+	AccessDeniedErrorCode                           = "AccessDenied"
+	AccessDeniedExceptionErrorCode                 = "AccessDeniedException"
+	AuthFailureErrorCode                            = "AuthFailure"
 	launchTemplateNameNotFoundCode                 = "InvalidLaunchTemplateName.NotFoundException"
 	RunInstancesInvalidParameterValueCode          = "InvalidParameterValue"
 	DryRunOperationErrorCode                       = "DryRunOperation"
@@ -33,6 +37,8 @@ const (
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
 	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
 	InvalidUserDataMalformedCode                   = "InvalidUserData.Malformed"
+	MaxSpotInstanceCountExceededErrorCode          = "MaxSpotInstanceCountExceeded"
+	VcpuLimitExceededErrorCode                     = "VcpuLimitExceeded"
 )
 
 var (
@@ -65,6 +71,10 @@ var (
 		reservationCapacityExceededErrorCode,
 	)
 )
+
+func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
+	return lo.ToPtr(err.ErrorCode) != nil && unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
+}
 
 // IsNotFound returns true if the err is an AWS error (even if it's
 // wrapped) and is a known to mean "not found" (as opposed to a more
@@ -128,53 +138,6 @@ func IsUnauthorizedOperationError(err error) bool {
 		return apiErr.ErrorCode() == UnauthorizedOperationErrorCode
 	}
 	return false
-}
-
-func IgnoreUnauthorizedOperationError(err error) error {
-	if IsUnauthorizedOperationError(err) {
-		return nil
-	}
-	return err
-}
-
-func IsRateLimitedError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
-		return apiErr.ErrorCode() == RateLimitingErrorCode
-	}
-	return false
-}
-
-func IgnoreRateLimitedError(err error) error {
-	if IsRateLimitedError(err) {
-		return nil
-	}
-	return err
-}
-
-func IsServerError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
-		return apiErr.ErrorFault() == smithy.FaultServer
-	}
-	return false
-}
-
-func IgnoreServerError(err error) error {
-	if IsServerError(err) {
-		return nil
-	}
-	return err
-}
-
-// IsUnfulfillableCapacity returns true if the Fleet err means capacity is temporarily unavailable for launching. This
-// could be due to account limits, insufficient ec2 capacity, etc.
-func IsUnfulfillableCapacity(err ec2types.CreateFleetError) bool {
-	return unfulfillableCapacityErrorCodes.Has(*err.ErrorCode)
 }
 
 func IsServiceLinkedRoleCreationNotPermitted(err ec2types.CreateFleetError) bool {
@@ -294,4 +257,30 @@ func ToReasonMessage(err error) (string, string) {
 		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet"
 	}
 	return "LaunchFailed", "Instance launch failed"
+}
+
+// ClassifyError classifies an AWS error into a known reason and message and indicates whether it should be retried
+func ClassifyError(err error) (reason string, message string, retryable bool) {
+	if err == nil {
+		return "", "", true
+	}
+	var apiErr smithy.APIError
+	if !errors.As(err, &apiErr) {
+		return "", "", true
+	}
+	switch apiErr.ErrorCode() {
+	case UnauthorizedOperationErrorCode, AccessDeniedErrorCode, AccessDeniedExceptionErrorCode, AuthFailureErrorCode:
+		return "Unauthorized", apiErr.ErrorMessage(), false
+	case RateLimitingErrorCode:
+		return "RequestLimitExceeded", apiErr.ErrorMessage(), false
+	case MaxSpotInstanceCountExceededErrorCode:
+		return "SpotQuotaExceeded", "A spot instance launch was requested but this would exceed your spot instance quota", false
+	case MaxFleetCountExceededErrorCode:
+		return "FleetQuotaExceeded", "A fleet launch was requested but this would exceed your fleet request quota", false
+	case VcpuLimitExceededErrorCode:
+		return "VCPULimitExceeded", "An instance was requested that would exceed your VCPU quota", false
+	case InsufficientFreeAddressesInSubnetErrorCode:
+		return "InsufficientFreeAddressesInSubnet", "There are not enough free IP addresses to launch an instance in this subnet", false
+	}
+	return "", "", true
 }
