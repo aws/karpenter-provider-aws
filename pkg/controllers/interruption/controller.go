@@ -116,10 +116,12 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
-		// No-op messages (empty body or unrecognized source/detail-type/version) don't
-		// carry a meaningful StartTime, so recording queue latency for them produces
-		// garbage values that skew the histogram.
-		if msg.Kind() != messages.NoOpKind {
+		// Skip messages that can't yield a meaningful queue latency:
+		//   - NoOpKind (empty body or unrecognized source/detail-type/version)
+		//   - a zero StartTime (a well-formed body missing the EventBridge `time` field)
+		// Observing time.Since(zeroTime) saturates at maxDuration and permanently
+		// skews the histogram.
+		if msg.Kind() != messages.NoOpKind && !msg.StartTime().IsZero() {
 			MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
 		}
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
