@@ -288,6 +288,13 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 			ExpectSingletonReconciled(ctx, controller)
 			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 1, nil)
+			// Pin the actual observed value: the pre-fix bug would have recorded
+			// ~9.22e9 seconds (math.MaxInt64 nanoseconds), so anything on the order
+			// of test wall time (< 1h) is a real observation.
+			metric, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeTrue())
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically(">", 0))
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically("<", 3600))
 		})
 		It("should not observe MessageLatency when a well-formed message is missing the EventBridge time field", func() {
 			// A body that matches a known parser's source/detail-type/version but
