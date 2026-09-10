@@ -60,6 +60,10 @@ podAnnotations: {}
 podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
+  # -- Unhealthy pod eviction policy for the PodDisruptionBudget (`IfHealthyBudget` or `AlwaysAllow`).
+  # `AlwaysAllow` lets non-Ready pods (e.g. stuck on an unreachable node) be evicted regardless of the budget.
+  # Requires Kubernetes 1.27+; ignored on older clusters. Empty keeps the Kubernetes default (`IfHealthyBudget`).
+  unhealthyPodEvictionPolicy: ""
 # -- SecurityContext for the pod.
 podSecurityContext:
   fsGroup: 65532
