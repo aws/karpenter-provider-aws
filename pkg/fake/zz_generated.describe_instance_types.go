@@ -1106,14 +1106,6 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
 		{
-			InstanceType: "p5.48xlarge",
-			Location:     lo.ToPtr("test-zone-1a"),
-		},
-		{
-			InstanceType: "p5.48xlarge",
-			Location:     lo.ToPtr("test-zone-1b"),
-		},
-		{
 			InstanceType: "g4ad.16xlarge",
 			Location:     lo.ToPtr("test-zone-1a"),
 		},
@@ -1204,6 +1196,14 @@ var defaultDescribeInstanceTypeOfferingsOutput = &ec2.DescribeInstanceTypeOfferi
 		{
 			InstanceType: "m7i-flex.large",
 			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "p5.48xlarge",
+			Location:     lo.ToPtr("test-zone-1a"),
+		},
+		{
+			InstanceType: "p5.48xlarge",
+			Location:     lo.ToPtr("test-zone-1b"),
 		},
 		{
 			InstanceType: "t3.large",

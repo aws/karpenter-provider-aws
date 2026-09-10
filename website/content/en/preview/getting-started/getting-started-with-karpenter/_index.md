@@ -204,7 +204,7 @@ You can optionally enable the Zonal Shift integration with Karpenter which provi
 To do this, the EKS cluster must first be enabled for Zonal Shift. This can be done through the AWS Console, AWS CLI, or `eksctl`. For step-by-step instructions, see [Enable EKS zonal shift](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html).
 
 ```bash
-eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enable-zonal-shift=true
 ```
 
 Once the cluster has been enabled for Zonal Shift, you can use Zonal Shift controls to shift traffic and scaling operations. For more details see the [guide on using Zonal Shift with EKS.](https://docs.aws.amazon.com/eks/latest/userguide/zone-shift.html) 
@@ -238,7 +238,7 @@ If you are upgrading an existing Karpenter installation to v1.12.0+ and want to 
 2. **Enable Zonal Shift on the EKS cluster** if not already enabled:
 
     ```bash
-    eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enabled
+    eksctl utils update-zonal-shift-config --cluster=${CLUSTER_NAME} --enable-zonal-shift=true
     ```
 
 3. **Enable Zonal Shift in Karpenter** by upgrading the Helm release with the `settings.enableZonalShift` value:

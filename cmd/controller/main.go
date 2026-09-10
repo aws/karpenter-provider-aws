@@ -63,6 +63,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
+			op.PredictionStore,
 			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.InstanceProvider)),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
@@ -93,6 +94,7 @@ func main() {
 			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,
 			op.CABundle,
+			op.CELEnvironment,
 		)...).
 		Start(ctx)
 }

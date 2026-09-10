@@ -13,6 +13,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
 | AMI_REFRESH_INTERVAL | \-\-ami-refresh-interval | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. (default = 1m0s)|
+| AWS_FEATURE_GATES | \-\-aws-feature-gates | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL. (default = NodeClassCEL=false)|
 | BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
 | BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
@@ -44,6 +45,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | MIN_VALUES_POLICY | \-\-min-values-policy | Min values policy for scheduling. Options include 'Strict' for existing behavior where min values are strictly enforced or 'BestEffort' where Karpenter relaxes min values when it isn't satisfied. (default = Strict)|
 | PREFERENCE_POLICY | \-\-preference-policy | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' (default = Respect)|
 | RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
+| SECURITY_GROUP_REFRESH_INTERVAL | \-\-security-group-refresh-interval | How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m. (default = 1m0s)|
 | SUBNET_REFRESH_INTERVAL | \-\-subnet-refresh-interval | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. (default = 1m0s)|
 | VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
@@ -90,6 +92,16 @@ spec:
       -	Drifted
 ```
 {{% /alert %}}
+
+### AWS-Specific Feature Gates
+
+Some features are specific to the AWS provider and are configured separately from the core Karpenter feature gates above. These are enabled through the `--aws-feature-gates` CLI flag or the `AWS_FEATURE_GATES` environment variable in the Karpenter deployment (Helm: `settings.awsFeatureGates`). For example: `--aws-feature-gates NodeClassCEL=true`.
+
+| Feature      | Default | Stage | Since    | Until |
+|--------------|---------|-------|----------|-------|
+| NodeClassCEL | false   | Alpha | v1.15.x  |       |
+
+`NodeClassCEL` enables [CEL expression support in `spec.kubelet`]({{<ref "../concepts/nodeclasses#dynamic-kubelet-configuration-via-expressions" >}}), allowing `maxPods`, `kubeReserved`, and `systemReserved` to be configured as per-instance-type expressions.
 
 ### Batching Parameters
 

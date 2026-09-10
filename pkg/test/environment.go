@@ -32,6 +32,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -111,6 +112,7 @@ type Environment struct {
 	LaunchTemplateProvider      *launchtemplate.DefaultProvider
 	SSMProvider                 *ssmp.DefaultProvider
 	ZonalShiftProvider          *arczonalshift.DefaultProvider
+	CELEnvironment              *kubeletcel.CELEnvironment
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -164,11 +166,21 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
 	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache, placementGroupAvailabilityCache)
-	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
-	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
+	// instanceTypesProvider is forward-declared so the resolver's ENI lookup can source live EC2 network
+	// info rather than the static vpclimits table. The closure is only invoked at launch template
+	// resolution time, after assignment below.
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	var instanceTypesProvider *instancetype.DefaultProvider
+	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, func(name string) (amifamily.ENILimits, bool) {
+		if instanceTypesProvider == nil {
+			return amifamily.ENILimits{}, false
+		}
+		return instanceTypesProvider.ENILimits(name)
+	}, celEnv)
+	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, celEnv)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider, env.Client)
+	instanceTypesProvider = instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider, env.Client, celEnv)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
@@ -256,6 +268,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		VersionProvider:             versionProvider,
 		SSMProvider:                 ssmProvider,
 		ZonalShiftProvider:          zonalshiftProvider,
+		CELEnvironment:              celEnv,
 	}
 }
 

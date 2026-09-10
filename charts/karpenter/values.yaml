@@ -126,7 +126,7 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.14.0
+    tag: 1.14.1
     # -- SHA256 digest of the controller image.
     digest: sha256:723130949e4cab989461ff07d1be4cd781d63515432494641b33c235f300ae23
   # -- Additional environment variables for the controller pod.
@@ -225,6 +225,9 @@ settings:
   # -- How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of
   # DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.
   subnetRefreshInterval: 1m
+  # -- How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of
+  # DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.
+  securityGroupRefreshInterval: 1m
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
@@ -246,3 +249,8 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
+  # -- AWS-specific Feature Gate configuration values.
+  awsFeatureGates:
+    # -- nodeClassCEL is ALPHA and is disabled by default.
+    # Setting this to true will enable CEL validation on EC2NodeClass resources.
+    nodeClassCEL: false

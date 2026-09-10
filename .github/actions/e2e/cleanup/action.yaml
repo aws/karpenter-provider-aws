@@ -24,7 +24,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
@@ -37,7 +37,7 @@ runs:
         CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
         eksctl delete cluster --name "$CLUSTER_NAME" --timeout 60m --wait || true
-    - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version-file: test/hack/resource/go.mod
         cache-dependency-path: test/hack/resource/go.sum

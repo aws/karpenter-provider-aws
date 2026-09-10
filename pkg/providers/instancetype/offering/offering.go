@@ -49,7 +49,15 @@ type Provider interface {
 // to each instance type. Resolvers are called in registration order, each receiving
 // the offerings produced by the previous step.
 type OfferingResolver interface {
-	ResolveOfferings(ctx context.Context, it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, instanceTypeInfo ec2types.InstanceTypeInfo, nodeClass NodeClass, allZones sets.Set[string], shiftedZones sets.Set[string], pg *placementgroup.PlacementGroup) cloudprovider.Offerings
+	ResolveOfferings(ctx context.Context, it *cloudprovider.InstanceType, offerings cloudprovider.Offerings, instanceTypeInfo ec2types.InstanceTypeInfo, nodeClass NodeClass, allZones sets.Set[string], shiftedZones sets.Set[string], pg *placementgroup.PlacementGroup, rc *ResolveContext) cloudprovider.Offerings
+}
+
+// ResolveContext carries values that are computed once per InjectOfferings call and shared
+// across every instance type and resolver. Passing it explicitly (rather than recomputing it
+// inside each resolver for every instance type) avoids redundant work.
+type ResolveContext struct {
+	ZoneInfo        []v1.ZoneInfo    // NodeClass zonal information
+	cacheKeyBuilder *cacheKeyBuilder // pre-computed NodeClass cache key components
 }
 
 type NodeClass interface {
@@ -139,12 +147,18 @@ func (p *DefaultProvider) InjectOfferings(
 	var its []*cloudprovider.InstanceType
 	shiftedZones := p.zonalshiftProvider.ShiftedZones()
 
+	zoneInfo := nodeClass.ZoneInfo()
+	rc := &ResolveContext{
+		ZoneInfo:        zoneInfo,
+		cacheKeyBuilder: newCacheKeyBuilder(nodeClass, zoneInfo, shiftedZones, pg),
+	}
+
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
 		// Run offering resolvers in order (base → reserved → PG → extensions)
 		var offerings cloudprovider.Offerings
 		for _, resolver := range p.resolvers {
-			offerings = resolver.ResolveOfferings(ctx, it, offerings, info, nodeClass, allZones, shiftedZones, pg)
+			offerings = resolver.ResolveOfferings(ctx, it, offerings, info, nodeClass, allZones, shiftedZones, pg, rc)
 		}
 		// NOTE: By making this copy one level deep, we can modify the offerings without mutating the results from previous
 		// GetInstanceTypes calls. This should still be done with caution - it is currently done here in the provider, and

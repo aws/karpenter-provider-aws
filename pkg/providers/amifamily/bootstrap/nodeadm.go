@@ -87,11 +87,7 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 	if lo.FromPtr(n.InstanceStorePolicy) == v1.InstanceStorePolicyRAID0 {
 		config.Spec.Instance.LocalStorage.Strategy = admv1alpha1.LocalStorageRAID0
 	}
-	inlineConfig, err := n.generateInlineKubeletConfiguration()
-	if err != nil {
-		return "", err
-	}
-	config.Spec.Kubelet.Config = inlineConfig
+	config.Spec.Kubelet.Config = n.generateInlineKubeletConfiguration()
 	if arg := n.nodeLabelArg(); arg != "" {
 		config.Spec.Kubelet.Flags = []string{arg}
 	}
@@ -105,21 +101,19 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 }
 
 // generateInlineKubeletConfiguration returns a serialized form of the KubeletConfiguration specified by the Nodeadm
-// options, for use with nodeadm's NodeConfig struct.
-func (n Nodeadm) generateInlineKubeletConfiguration() (map[string]runtime.RawExtension, error) {
-	kubeConfigJSON, err := json.Marshal(n.KubeletConfig)
-	if err != nil {
-		return nil, err
-	}
+// options, for use with nodeadm's NodeConfig struct. It uses the raw unstructured map directly so that
+// passthrough fields (any valid kubelet config field) are preserved without Karpenter needing to know about them.
+func (n Nodeadm) generateInlineKubeletConfiguration() map[string]runtime.RawExtension {
 	kubeConfigMap := map[string]runtime.RawExtension{}
-	err = json.Unmarshal(kubeConfigJSON, &kubeConfigMap)
-	if err != nil {
-		return nil, err
+	for k, v := range n.UnparsedKubeletConfig {
+		kubeConfigMap[k] = runtime.RawExtension{Raw: v.Raw}
 	}
+	// Karpenter injects registerWithTaints so the kubelet registers the node with the
+	// taints from the NodeClaim spec, preventing premature scheduling before the node is ready.
 	kubeConfigMap["registerWithTaints"] = runtime.RawExtension{
 		Raw: lo.Must(json.Marshal(n.Taints)),
 	}
-	return kubeConfigMap, nil
+	return kubeConfigMap
 }
 
 // parseUserData returns a slice of MIMEEntrys corresponding to each entry in the custom UserData. If the custom

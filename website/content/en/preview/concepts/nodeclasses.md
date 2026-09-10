@@ -261,11 +261,25 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.kubelet
 
-Karpenter provides the ability to specify a few additional Kubelet arguments.
+Karpenter provides the ability to configure the kubelet on provisioned nodes.
 These are all optional and provide support for additional customization and use cases.
 Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
-The implemented fields are a subset of the full list of upstream kubelet configuration arguments.
+
+Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version are configurable. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
+`kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
+unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
+configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
+
+Field names and values are validated by Karpenter, so an invalid
+configuration is accepted on apply and reported on the EC2NodeClass afterwards:
+
+```sh
+kubectl get ec2nodeclass default -o jsonpath='{.status.conditions[?(@.type=="ValidationSucceeded")]}'
+```
+
+A NodeClass that fails this check does not become `Ready`, so no nodes launch from it until the
+configuration is corrected.
 
 ```yaml
 kubelet:
@@ -299,9 +313,8 @@ kubelet:
 ```
 
 {{% alert title="Note" color="primary" %}}
-If you need to specify a field that isn't present in `spec.kubelet`, you can set it via custom [UserData]({{< ref "#specuserdata" >}}).
-For example, if you wanted to configure `maxPods` and `registryPullQPS` you would set the former through `spec.kubelet` and the latter through UserData.
-The following example achieves this with AL2023:
+Fields beyond those shown above may be set directly in `spec.kubelet`. For example, `maxPods` and
+`registryPullQPS` can both be configured there:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
@@ -311,18 +324,27 @@ spec:
     - alias: al2023@v20240807
   kubelet:
     maxPods: 42
-  userData: |
-    apiVersion: node.eks.aws/v1alpha1
-    kind: NodeConfig
-    spec:
-      kubelet:
-        config:
-          # Configured through UserData since unavailable in `spec.kubelet`
-          registryPullQPS: 10
+    registryPullQPS: 10
 ```
+
+If you need a field newer than the kubelet version Karpenter was built against, set it via custom
+[UserData]({{< ref "#specuserdata" >}}) instead.
 
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
+
+#### AMI Family Support
+
+Only the `AL2023` AMI family bootstraps nodes with a full kubelet configuration document, so it is the only family that can apply arbitrary `spec.kubelet` fields. The other managed families (`AL2`, `Bottlerocket`, `Windows2019`, `Windows2022`, `Windows2025`) bootstrap the kubelet through a fixed set of parameters, and are therefore limited to the 12 fields Karpenter maps explicitly:
+
+`clusterDNS`, `maxPods`, `podsPerCore`, `systemReserved`, `kubeReserved`, `evictionHard`, `evictionSoft`, `evictionSoftGracePeriod`, `evictionMaxPodGracePeriod`, `imageGCHighThresholdPercent`, `imageGCLowThresholdPercent`, `cpuCFSQuota`
+
+Any other field set on those families is rejected rather than silently dropped: the `ValidationSucceeded` status condition is set to `False` with reason `UnsupportedKubeletConfiguration`, and no nodes launch from the NodeClass until the unsupported fields are removed. Two field-level restrictions are enforced the same way, for the same reason:
+
+* `podsPerCore` is not applied by the `Bottlerocket` family.
+* `clusterDNS` accepts only one entry on these non-AL2023 families, not a list.
+
+The `Custom` AMI family is exempt from these checks. It ships without default userData, so Karpenter cannot know which fields your bootstrapping honors and applies none of them on your behalf. Set them in [`spec.userData`]({{< ref "#specuserdata" >}}) as well.
 
 #### Pods Per Core
 
@@ -358,6 +380,103 @@ If `kubeReserved` is not specified, Karpenter will compute the default reserved 
 These defaults are based on the defaults on Karpenter's supported AMI families, which are not the same as the kubelet defaults.
 You should be aware of the CPU and memory default calculation when using Custom AMI Families. If they don't align, there may be a difference in Karpenter's computed allocatable ephemeral storage and the actually ephemeral storage available on the node.
 {{% /alert %}}
+
+### Dynamic Kubelet Configuration via Expressions
+
+<i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#aws-specific-feature-gates" >}})
+
+`maxPods`, `kubeReserved`, and `systemReserved` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity or `kubeReserved` scale with vCPU count without fracturing into a separate NodeClass per instance size.
+
+{{% alert title="Feature Gate Required" color="warning" %}}
+Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}), which is disabled by default. Enable it with `--aws-feature-gates NodeClassCEL=true` (Helm: `settings.awsFeatureGates.nodeClassCEL: true`).
+
+While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
+{{% /alert %}}
+
+Each field independently accepts either its usual static value or an expression string, there is no separate expression field.
+
+When none of these fields is set, Karpenter applies its internal defaults (ENI-limited `maxPods`, graduated `kubeReserved`) exactly as it does today.
+
+#### Example
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: general-purpose
+spec:
+  kubelet:
+    # Scale maxPods with each instance type's ENI capacity
+    maxPods: "((default_enis - 1) * (ips_per_eni - 1)) + 2"
+    # Scale reservations with instance size, and with the maxPods resolved above
+    kubeReserved:
+      cpu: "max(60, vcpus * 30)"
+      memory: "11 * max_pods + 255"
+    systemReserved:
+      cpu: "max(20, vcpus * 10)"
+      memory: "max(100, memory_mib / 64)"
+  amiSelectorTerms:
+    - alias: al2023@latest
+```
+
+Every node launched from this single NodeClass is configured from the instance type it landed on.
+
+#### Available variables
+
+The following variables are populated from each instance type's information and are available in all kubelet expressions:
+
+| Variable        | Type   | Description                                            |
+|-----------------|--------|--------------------------------------------------------|
+| `instance_type` | string | The EC2 instance type name                             |
+| `vcpus`         | int    | Number of vCPUs                                        |
+| `memory_mib`    | int    | Memory in MiB                                          |
+| `default_enis`  | int    | Maximum network interfaces on the default network card  |
+| `ips_per_eni`   | int    | IPv4 addresses per ENI                                 |
+| `max_pods`      | int    | The resolved `maxPods` for this instance type           |
+
+`max_pods` lets `kubeReserved` and `systemReserved` expressions reference the resolved `maxPods` (whether that came from a `maxPods` expression, a static `maxPods` value, or Karpenter's default).
+
+#### Result units and rounding
+
+Expressions return a bare number. Karpenter attaches the unit that the field's static quantities already use, so a formula reads like the value it replaces:
+
+| Key                 | Unit          | Example        | Rounding                    |
+|---------------------|---------------|----------------|-----------------------------|
+| `cpu`               | millicores    | `480` → `480m` | up to a multiple of 10m     |
+| `memory`            | mebibytes     | `630` → `630Mi`| up to a multiple of 16Mi    |
+| `ephemeral-storage` | gibibytes     | `3` → `3Gi`    | none                        |
+| `pid`               | process count | `4096` → `4096`| none                        |
+
+Rounding is always *up*, so a reservation is never smaller than the expression asked for. Doubles are truncated to an integer, and non-finite results (`+Inf`, `-Inf`, `NaN`) are rejected.
+
+#### Supported functions
+
+* Arithmetic: `+`, `-`, `*`, `/`, `%`
+* Comparison: `<`, `<=`, `>`, `>=`, `==`, `!=`
+* Logical: `&&`, `||`, `!`
+* Built-in: `max(a, b)`, `min(a, b)`, `int()`, `double()`
+* Conditional: `condition ? trueValue : falseValue`
+
+`max` and `min` are two-argument overloads only. For example, `max(a, b, c)` is not supported. User-defined variables and custom functions are not available, so only the built-in instance-type variables above may be referenced.
+
+#### Common expressions
+
+| Use Case                                          | Field              | Expression                                                              |
+|---------------------------------------------------|--------------------|-------------------------------------------------------------------------|
+| ENI-limited maxPods (default formula)             | `maxPods`          | `((default_enis - 1) * (ips_per_eni - 1)) + 2`                          |
+| ENI-limited with prefix delegation (16 IPs/prefix)| `maxPods`          | `min(250, ((default_enis - 1) * (ips_per_eni - 1)) * 16 + 2)`           |
+| Fixed pods cap                                    | `maxPods`          | `min(110, max_pods)`                                                    |
+| Memory reservation scaled by pod count            | `kubeReserved.memory` | `11 * max_pods + 255`                                                |
+| System memory as percentage of total             | `systemReserved.memory` | `max(100, memory_mib / 64)`                                        |
+
+#### Validation
+
+Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSucceeded` status condition. They are not rejected at admission. Validation happens in two stages:
+
+1. **Compile-time**, per expression: the expression must parse, type-check against the available variables, and return an int or double. Failures set reason `KubeletExpressionInvalid`.
+2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvalFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
+
+A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended*. Ensure to test expressions against your target instance types before applying them to a live cluster.
 
 ### Eviction Thresholds
 
@@ -1296,6 +1415,12 @@ For more examples on configuring fields for different AMI families, see the [exa
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
+{{% alert title="Warning" color="warning" %}}
+During an [EKS cluster certificate authority (CA) rotation](https://docs.aws.amazon.com/eks/latest/userguide/certificate-authority-rotation.html#_updating_your_kubernetes_clients), your cluster goes through a dual trust period where its trust bundle contains two CA certificates: the outgoing CA and the successor CA. Karpenter embeds your cluster's CA data in the UserData it generates, so your total user data grows while both CAs are trusted.
+
+If your `spec.userData` is close to the [EC2 user data limit](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html), the addition of the successor CA can cause launch template creation to fail, which prevents Karpenter from provisioning new nodes. Karpenter does not compress user data, so reduce the size of your `spec.userData` before the dual trust period begins &mdash; for example, by baking configuration into your AMI or having your script fetch its contents at boot instead of inlining them.
+{{% /alert %}}
+
 ### AL2
 
 * Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
@@ -1874,6 +1999,9 @@ NodeClasses have the following status conditions:
 | SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
 | InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
 | AMIsReady            | AMIs are discovered.                                                                                                                                                                                                              |
+| ValidationSucceeded  | EC2NodeClass validation succeeded.                                                                                                                                                                                                |
+| PlacementGroupReady  | Referenced placement groups are discovered.                                                                                                                                                                                       |
+| CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.
