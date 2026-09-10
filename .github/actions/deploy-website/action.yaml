@@ -60,7 +60,7 @@ runs:
       shell: bash
       run: |
         S3_PATH="s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}"
-        aws s3 sync ${{ inputs.site-path }}/ "$S3_PATH" --delete
+        aws s3 sync ${{ inputs.site-path }}/ "$S3_PATH" --delete --no-follow-symlinks
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
       if: github.event_name == 'workflow_run'
