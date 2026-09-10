@@ -517,6 +517,15 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: podLabels,
 						},
+						// Request enough memory to steer Karpenter away from the smallest
+						// instance types (e.g. t4g.nano/t4g.micro), whose kubelets can
+						// fail to register and flake this test on the pod-readiness wait.
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
 						TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
 							{
 								MaxSkew:           1,
