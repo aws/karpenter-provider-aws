@@ -154,6 +154,19 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 
 Karpenter is now active and ready to begin provisioning nodes.
 
+{{% alert title="Note" color="primary" %}}
+NodePools, EC2NodeClasses, and NodeClaims are standard Kubernetes custom resources. You can list and inspect them with `kubectl` the same way you would any other cluster resource:
+
+```bash
+kubectl get nodepools
+kubectl describe nodepool default
+kubectl get ec2nodeclasses
+kubectl describe ec2nodeclass default
+kubectl get nodeclaims
+kubectl describe nodeclaim <nodeclaim-name>
+```
+{{% /alert %}}
+
 ### 6. Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
