@@ -245,6 +245,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceCPU:                          "32",
 			v1.LabelInstanceCPUManufacturer:              "intel",
 			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "2500",
+			v1.LabelInstanceCPUBurstable:                 "false",
 			v1.LabelInstanceMemory:                       "131072",
 			v1.LabelInstanceEBSBandwidth:                 "9500",
 			v1.LabelInstanceNetworkBandwidth:             "50000",
@@ -314,6 +315,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceCPU:                          "32",
 			v1.LabelInstanceCPUManufacturer:              "intel",
 			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "2500",
+			v1.LabelInstanceCPUBurstable:                 "false",
 			v1.LabelInstanceMemory:                       "131072",
 			v1.LabelInstanceEBSBandwidth:                 "9500",
 			v1.LabelInstanceNetworkBandwidth:             "50000",
@@ -376,6 +378,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceSize:                         "xlarge",
 			v1.LabelInstanceCPU:                          "4",
 			v1.LabelInstanceCPUSustainedClockSpeedMhz:    "3600",
+			v1.LabelInstanceCPUBurstable:                 "false",
 			v1.LabelInstanceCPUManufacturer:              "amd",
 			v1.LabelInstanceMemory:                       "16384",
 			v1.LabelInstanceEBSBandwidth:                 "10000",
@@ -424,6 +427,47 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ResourceRequirements: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
 				Limits:   corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should schedule a burstable instance type with instance-cpu-burstable=true", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				corev1.LabelInstanceTypeStable: "t3.large",
+				v1.LabelInstanceCPUBurstable:   "true",
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCPUBurstable, "true"))
+	})
+	It("should schedule a standard instance type with instance-cpu-burstable=false", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				corev1.LabelInstanceTypeStable: "m5.large",
+				v1.LabelInstanceCPUBurstable:   "false",
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCPUBurstable, "false"))
+	})
+	It("should not schedule a burstable instance type when instance-cpu-burstable=true is excluded", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeSelector: map[string]string{
+				corev1.LabelInstanceTypeStable: "t3.large",
+			},
+			NodeRequirements: []corev1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceCPUBurstable,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values:   []string{"true"},
+				},
 			},
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
