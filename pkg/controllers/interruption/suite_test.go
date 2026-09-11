@@ -267,6 +267,64 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
+		It("should not observe MessageLatency for no-op messages", func() {
+			// Regression test for https://github.com/aws/karpenter-provider-aws/issues/9523.
+			// EventParser.Parse returns a bare noop.Message{} with a zero-valued
+			// StartTime for empty or unrecognized SQS bodies. Observing latency
+			// against that zero time produces math.MaxInt64-nanosecond values
+			// (~9.22e9 seconds) that permanently skew histogram averages.
+			interruption.MessageLatency.Reset()
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(""),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a no-op message")
+
+			// A well-formed interruption message should still record latency.
+			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 1, nil)
+			// Pin the actual observed value: the pre-fix bug would have recorded
+			// ~9.22e9 seconds (math.MaxInt64 nanoseconds), so anything on the order
+			// of test wall time (< 1h) is a real observation.
+			metric, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeTrue())
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically(">", 0))
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically("<", 3600))
+		})
+		It("should not observe MessageLatency when a well-formed message is missing the EventBridge time field", func() {
+			// A body that matches a known parser's source/detail-type/version but
+			// omits `time` unmarshals with StartTime==zero. Kind() is a valid
+			// message kind, so guarding only on Kind would still let time.Since
+			// saturate against the zero value and corrupt the histogram.
+			interruption.MessageLatency.Reset()
+			instanceID := lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))
+			body := fmt.Sprintf(`{
+				"version":     "0",
+				"account":     %q,
+				"detail-type": "EC2 Spot Instance Interruption Warning",
+				"id":          %q,
+				"region":      %q,
+				"resources":   ["arn:aws:ec2:%s:instance/%s"],
+				"source":      "aws.ec2",
+				"detail":      {"instance-id": %q, "instance-action": "terminate"}
+			}`, defaultAccountID, string(uuid.NewUUID()), fake.DefaultRegion, fake.DefaultRegion, instanceID, instanceID)
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(body),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a message with no usable StartTime")
+		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
 			ExpectMessagesCreated(stateChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)), "creating"))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
