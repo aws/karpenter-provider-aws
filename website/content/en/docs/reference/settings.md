@@ -34,6 +34,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate|
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
 | KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver (default = 200)|
+| KUBERNETES_VERSION | \-\-kubernetes-version | Override the Kubernetes version used for decision making. When set, Karpenter will use this version instead of auto-detecting via the K8s API or EKS DescribeCluster. This is useful for node version downgrades, e.g. to support EKS control plane version upgrade rollbacks. Expected format: major.minor (e.g. 1.30).|
 | LEADER_ELECTION_NAME | \-\-leader-election-name | Leader election name to create and monitor the lease if running outside the cluster (default = karpenter-leader-election)|
 | LEADER_ELECTION_NAMESPACE | \-\-leader-election-namespace | Leader election namespace to create and monitor the lease if running outside the cluster|
 | LOG_ERROR_OUTPUT_PATHS | \-\-log-error-output-paths | Optional comma separated paths for logging error output (default = stderr)|

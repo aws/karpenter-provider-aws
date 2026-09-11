@@ -67,7 +67,8 @@ var _ = Describe("Options", func() {
 			"--disable-dry-run",
 			"--ami-refresh-interval", "15m",
 			"--subnet-refresh-interval", "15m",
-			"--security-group-refresh-interval", "15m")
+			"--security-group-refresh-interval", "15m",
+      "--kubernetes-version", "1.28")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:              lo.ToPtr("env-bundle"),
@@ -81,6 +82,7 @@ var _ = Describe("Options", func() {
 			AMIRefreshInterval:           lo.ToPtr(15 * time.Minute),
 			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
 			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
+			KubernetesVersion:            lo.ToPtr("1.28"),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -94,6 +96,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("DISABLE_DRY_RUN", "false")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
 		os.Setenv("SUBNET_REFRESH_INTERVAL", "15m")
+		os.Setenv("KUBERNETES_VERSION", "1.29")
 		os.Setenv("SECURITY_GROUP_REFRESH_INTERVAL", "15m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
@@ -102,17 +105,18 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:              lo.ToPtr("env-bundle"),
-			ClusterName:                  lo.ToPtr("env-cluster"),
-			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:                  lo.ToPtr(true),
-			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
-			InterruptionQueue:            lo.ToPtr("env-cluster"),
-			ReservedENIs:                 lo.ToPtr(10),
-			DisableDryRun:                lo.ToPtr(false),
-			AMIRefreshInterval:           lo.ToPtr(30 * time.Minute),
-			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
+			ClusterCABundle:         lo.ToPtr("env-bundle"),
+			ClusterName:             lo.ToPtr("env-cluster"),
+			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:             lo.ToPtr(true),
+			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+			InterruptionQueue:       lo.ToPtr("env-cluster"),
+			ReservedENIs:            lo.ToPtr(10),
+			DisableDryRun:           lo.ToPtr(false),
+			AMIRefreshInterval:      lo.ToPtr(30 * time.Minute),
+			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
 			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
+			KubernetesVersion:       lo.ToPtr("1.29"),
 		}))
 	})
 
@@ -208,6 +212,24 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--subnet-refresh-interval", "30s")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when kubernetes-version is not in major.minor format", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--kubernetes-version", "v1.30.1")
+			Expect(err).To(HaveOccurred())
+		})
+		It("should fail when kubernetes-version is invalid", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--kubernetes-version", "invalid")
+			Expect(err).To(HaveOccurred())
+		})
+		It("should succeed when kubernetes-version is valid", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--kubernetes-version", "1.30")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.KubernetesVersion).To(Equal("1.30"))
+		})
+		It("should succeed when kubernetes-version is empty (auto-detect)", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.KubernetesVersion).To(Equal(""))
+		})
 		It("should fail when security-group-refresh-interval is less than 1m", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--security-group-refresh-interval", "30s")
 			Expect(err).To(HaveOccurred())
@@ -229,4 +251,5 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
 	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
 	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
+	Expect(optsA.KubernetesVersion).To(Equal(optsB.KubernetesVersion))
 }

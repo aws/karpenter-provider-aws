@@ -42,20 +42,21 @@ type FeatureGates struct {
 }
 
 type Options struct {
-	ClusterCABundle              string
-	ClusterName                  string
-	ClusterEndpoint              string
-	IsolatedVPC                  bool
-	EKSControlPlane              bool
-	VMMemoryOverheadPercent      float64
-	InterruptionQueue            string
-	ReservedENIs                 int
-	DisableDryRun                bool
-	EnableZonalShift             bool
-	AMIRefreshInterval           time.Duration
-	SubnetRefreshInterval        time.Duration
-	SecurityGroupRefreshInterval time.Duration
-	FeatureGates                 FeatureGates
+	ClusterCABundle         string
+	ClusterName             string
+	ClusterEndpoint         string
+	IsolatedVPC             bool
+	EKSControlPlane         bool
+	VMMemoryOverheadPercent float64
+	InterruptionQueue       string
+	ReservedENIs            int
+	DisableDryRun           bool
+	EnableZonalShift        bool
+	AMIRefreshInterval      time.Duration
+	SubnetRefreshInterval   time.Duration
+  SecurityGroupRefreshInterval time.Duration
+	FeatureGates            FeatureGates
+	KubernetesVersion       string
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -73,6 +74,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
 	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
 	fs.StringVar(&o.FeatureGates.inputStr, "aws-feature-gates", env.WithDefaultString("AWS_FEATURE_GATES", "NodeClassCEL=false"), "Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL.")
+	fs.StringVar(&o.KubernetesVersion, "kubernetes-version", env.WithDefaultString("KUBERNETES_VERSION", ""), "Override the Kubernetes version used for decision making. When set, Karpenter will use this version instead of auto-detecting via the K8s API or EKS DescribeCluster. This is useful for node version downgrades, e.g. to support EKS control plane version upgrade rollbacks. Expected format: major.minor (e.g. 1.30).")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {

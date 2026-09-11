@@ -29,19 +29,20 @@ type FeatureGates struct {
 }
 
 type OptionsFields struct {
-	ClusterCABundle              *string
-	ClusterName                  *string
-	ClusterEndpoint              *string
-	IsolatedVPC                  *bool
-	EKSControlPlane              *bool
-	VMMemoryOverheadPercent      *float64
-	InterruptionQueue            *string
-	ReservedENIs                 *int
-	DisableDryRun                *bool
-	AMIRefreshInterval           *time.Duration
-	SubnetRefreshInterval        *time.Duration
+	ClusterCABundle         *string
+	ClusterName             *string
+	ClusterEndpoint         *string
+	IsolatedVPC             *bool
+	EKSControlPlane         *bool
+	VMMemoryOverheadPercent *float64
+	InterruptionQueue       *string
+	ReservedENIs            *int
+	DisableDryRun           *bool
+	AMIRefreshInterval      *time.Duration
+	SubnetRefreshInterval   *time.Duration
 	SecurityGroupRefreshInterval *time.Duration
-	FeatureGates                 FeatureGates
+	FeatureGates            FeatureGates
+	KubernetesVersion       *string
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -67,5 +68,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
 		},
+		KubernetesVersion:       lo.FromPtrOr(opts.KubernetesVersion, ""),
 	}
 }
