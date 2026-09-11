@@ -1,0 +1,60 @@
+name: InstanceType Benchmarking
+on:
+  pull_request:
+    paths:
+      - "pkg/providers/instancetype/**.go"
+      - "pkg/providers/pricing/**.go"
+      - "pkg/fake/**.go"
+      - "hack/tools/benchmark_gate/**.go"
+      - ".github/workflows/instancetype-benchmarking.yaml"
+    branches:
+      - main
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws/karpenter-provider-aws'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so we can check out the base commit to benchmark it.
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Resolve base commit
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+          echo "BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+          echo "HEAD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Benchmark head
+        run: |
+          go test -tags=test_performance -run='^$' -bench=. -benchmem -count=6 \
+            ./pkg/providers/instancetype/ | tee head.txt
+      - name: Benchmark base
+        run: |
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::no base commit to compare against (BASE_SHA='$BASE_SHA'); cannot establish a baseline"
+            exit 1
+          fi
+          git checkout --quiet "$BASE_SHA"
+          go test -tags=test_performance -run='^$' -bench=. -benchmem -count=6 \
+            ./pkg/providers/instancetype/ | tee base.txt
+          git checkout --quiet "$HEAD_SHA"
+      - name: Gate on allocs/op + B/op
+        run: go run ./hack/tools/benchmark_gate base.txt head.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: instancetype-benchmarks
+          path: |
+            base.txt
+            head.txt
