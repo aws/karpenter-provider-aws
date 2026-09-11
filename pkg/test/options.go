@@ -25,7 +25,8 @@ import (
 )
 
 type FeatureGates struct {
-	NodeClassCEL *bool
+	NodeClassCEL     *bool
+	NVIDIADynamicMIG *bool
 }
 
 type OptionsFields struct {
@@ -65,7 +66,8 @@ func Options(overrides ...OptionsFields) *options.Options {
 		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
 		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),
 		FeatureGates: options.FeatureGates{
-			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
+			NodeClassCEL:     lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
+			NVIDIADynamicMIG: lo.FromPtrOr(opts.FeatureGates.NVIDIADynamicMIG, false),
 		},
 	}
 }

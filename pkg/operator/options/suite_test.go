@@ -145,6 +145,14 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+			// Off by default because the NVIDIA driver's own DynamicMIG gate is alpha and off by default.
+			Expect(opts.FeatureGates.NVIDIADynamicMIG).To(BeFalse())
+		})
+		It("should set NVIDIADynamicMIG independently of the other gates", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NVIDIADynamicMIG=true")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.NVIDIADynamicMIG).To(BeTrue())
+			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
 		})
 		It("should set gates from the CLI flag", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NodeClassCEL=true")

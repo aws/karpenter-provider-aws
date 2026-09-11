@@ -46,6 +46,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -326,6 +328,85 @@ var _ = Describe("CloudProvider", func() {
 		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
+	})
+	Context("DynamicResources", func() {
+		It("should populate DynamicResources from every DRA driver that applies", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// p5.48xlarge is the only instance type with hard-coded DRA metadata today, so it gets both
+			// the nvidia and dranet templates while everything else gets none.
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "p5.48xlarge" })
+			Expect(ok).To(BeTrue())
+			Expect(lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+				return t.Driver.Value()
+			})).To(ConsistOf(nvidiadra.DriverName, efadra.DriverName))
+			// Bindings are merged from the drivers too; only nvidia contributes any.
+			Expect(it.DynamicResources.AttributeBindings).To(HaveLen(2))
+
+			for _, other := range instanceTypes {
+				if other.Name != "p5.48xlarge" {
+					Expect(other.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+				}
+			}
+		})
+		It("should advertise only whole GPUs without the NVIDIADynamicMIG feature gate", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// H100 has an advertisable MIG layout, but the gate defaults off, so p5 gets whole GPUs and
+			// no counters. No pool-level input changes this: the gate alone decides.
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "p5.48xlarge" })
+			Expect(ok).To(BeTrue())
+			nvidia, ok := lo.Find(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(ok).To(BeTrue())
+			Expect(nvidia.Devices).To(HaveLen(8))
+			Expect(nvidia.SharedCounters).To(BeEmpty())
+		})
+		It("should keep the nvidia counter sets and devices in separate templates under the gate", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{NVIDIADynamicMIG: lo.ToPtr(true)}}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			// SharedCounters and Devices are mutually exclusive within one template, so merging several
+			// drivers' contributions must not collapse nvidia's two into one or drop either.
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "p5.48xlarge" })
+			Expect(ok).To(BeTrue())
+			nvidia := lo.Filter(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(nvidia).To(HaveLen(2))
+			counters, ok := lo.Find(nvidia, func(t *corecloudprovider.ResourceSliceTemplate) bool { return len(t.SharedCounters) > 0 })
+			Expect(ok).To(BeTrue())
+			Expect(counters.Devices).To(BeEmpty())
+			devices, ok := lo.Find(nvidia, func(t *corecloudprovider.ResourceSliceTemplate) bool { return len(t.Devices) > 0 })
+			Expect(ok).To(BeTrue())
+			Expect(devices.SharedCounters).To(BeEmpty())
+			// 8 whole GPUs plus 25 candidate placements on each.
+			Expect(counters.SharedCounters).To(HaveLen(8))
+			Expect(devices.Devices).To(HaveLen(208))
+			Expect(counters.Pool.Name).To(Equal(devices.Pool.Name))
+		})
+		It("should not populate DynamicResources when DRA requests are ignored", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(true)}))
+			// Core's switch sits above the gate, so nothing is populated even with partitions enabled.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{NVIDIADynamicMIG: lo.ToPtr(true)}}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			for _, it := range instanceTypes {
+				Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+			}
+		})
 	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"

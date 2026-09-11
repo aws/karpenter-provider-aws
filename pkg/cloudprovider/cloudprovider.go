@@ -49,8 +49,10 @@ import (
 	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 
@@ -70,6 +72,8 @@ type CloudProvider struct {
 	capacityReservationProvider capacityreservation.Provider
 	placementGroupProvider      placementgroup.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
+	nvidiaDRAProvider           nvidiadra.Provider
+	efaDRAProvider              efadra.Provider
 	caBundle                    *string
 }
 
@@ -95,6 +99,8 @@ func New(
 		placementGroupProvider:      placementGroupProvider,
 		recorder:                    recorder,
 		instanceTypeStore:           store,
+		nvidiaDRAProvider:           nvidiadra.NewDefaultProvider(),
+		efaDRAProvider:              efadra.NewDefaultProvider(),
 		caBundle:                    caBundle,
 	}
 }
@@ -218,6 +224,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
+	}
+	// Populate DRA DynamicResources for the instance types, based on the DRA drivers we support.
+	if err := c.populateDynamicResources(ctx, instanceTypes); err != nil {
+		return nil, fmt.Errorf("populating dynamic resources, %w", err)
 	}
 	return instanceTypes, nil
 }
