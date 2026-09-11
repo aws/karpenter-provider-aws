@@ -110,7 +110,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("InstanceProfileProvider", func() {
 	karpenterPath := func(nodeClassUID string) string {
-		return instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClassUID)
+		return instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(ctx).ClusterName, nodeClassUID)
 	}
 	DescribeTable(
 		"should support IAM roles",
@@ -261,12 +261,12 @@ var _ = Describe("InstanceProfileProvider", func() {
 						RoleName: aws.String("role-3"),
 					},
 				},
-				Path: lo.ToPtr(instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(otherClusterCtx).ClusterName, "some-uid")),
+				Path: lo.ToPtr(instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(otherClusterCtx).ClusterName, "some-uid")),
 			},
 		}
 
 		// List all cluster profiles
-		clusterPath := instanceprofile.FormatPath("karpenter", fake.DefaultRegion, options.FromContext(ctx).ClusterName)
+		clusterPath := instanceprofile.KarpenterPath(fake.DefaultRegion, options.FromContext(ctx).ClusterName)
 		profiles, err := awsEnv.InstanceProfileProvider.ListProfiles(ctx, clusterPath)
 		Expect(err).To(BeNil())
 
@@ -399,5 +399,15 @@ var _ = Describe("FormatPath", func() {
 		Entry("two segments", "/eks/us-west-2/", "eks", "us-west-2"),
 		Entry("three segments", "/karpenter/us-west-2/my-cluster/", "karpenter", "us-west-2", "my-cluster"),
 		Entry("four segments", "/karpenter/us-west-2/my-cluster/uid/", "karpenter", "us-west-2", "my-cluster", "uid"),
+	)
+})
+
+var _ = Describe("KarpenterPath", func() {
+	DescribeTable("should format managed instance profile paths",
+		func(expected string, segments ...string) {
+			Expect(instanceprofile.KarpenterPath("us-west-2", "my-cluster", segments...)).To(Equal(expected))
+		},
+		Entry("cluster path", "/karpenter/us-west-2/my-cluster/"),
+		Entry("NodeClass path", "/karpenter/us-west-2/my-cluster/uid/", "uid"),
 	)
 })
