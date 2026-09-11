@@ -36,5 +36,5 @@ func init() {
 	)
 
 	cloudprovider.ReservationIDLabel = LabelCapacityReservationID
-	cloudprovider.ReservedCapacityLabels.Insert(LabelCapacityReservationID, LabelCapacityReservationType)
+	cloudprovider.ReservedCapacityLabels.Insert(LabelCapacityReservationID, LabelCapacityReservationType, LabelInstanceMatchCriteria)
 }

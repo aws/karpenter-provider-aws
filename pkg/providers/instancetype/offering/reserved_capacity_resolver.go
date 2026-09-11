@@ -92,6 +92,7 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 				scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, reservation.AvailabilityZone),
 				scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpIn, reservation.ID),
 				scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
+				scheduling.NewRequirement(v1.LabelInstanceMatchCriteria, corev1.NodeSelectorOpIn, reservation.InstanceMatchCriteria),
 				scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 			),
 			Price:               price,

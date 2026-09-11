@@ -842,13 +842,18 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			// NOTE: We're not exercising capacity blocks because it isn't possible to provision them ad-hoc for the use in an
 			// integration test.
 			It("should schedule against a specific reservation type", func() {
-				selectors.Insert(v1.LabelCapacityReservationType)
+				selectors.Insert(v1.LabelCapacityReservationType, v1.LabelInstanceMatchCriteria)
 				pod := test.Pod(test.PodOptions{
 					NodeRequirements: []corev1.NodeSelectorRequirement{
 						{
 							Key:      v1.LabelCapacityReservationType,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{string(v1.CapacityReservationTypeDefault)},
+						},
+						{
+							Key:      v1.LabelInstanceMatchCriteria,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{string(ec2types.InstanceMatchCriteriaTargeted)},
 						},
 						// NOTE: Continue to select the xlarge instance to ensure we can use the large instance for the fallback test. ODCR
 						// capacity eventual consistency is inconsistent between different services (e.g. DescribeCapacityReservations and
@@ -868,11 +873,17 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				})
 				Expect(ok).To(BeTrue())
 				Expect(req.Values).To(ConsistOf(string(v1.CapacityReservationTypeDefault)))
+				matchCriteriaReq, ok := lo.Find(nc.Spec.Requirements, func(req karpv1.NodeSelectorRequirementWithMinValues) bool {
+					return req.Key == v1.LabelInstanceMatchCriteria
+				})
+				Expect(ok).To(BeTrue())
+				Expect(matchCriteriaReq.Values).To(ConsistOf(string(ec2types.InstanceMatchCriteriaTargeted)))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelInstanceMatchCriteria, string(ec2types.InstanceMatchCriteriaTargeted)))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
 			})
 			It("should fall back when compatible capacity reservations are exhausted", func() {
