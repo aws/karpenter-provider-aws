@@ -104,6 +104,8 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", "12786013539168652330", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", "1873429003468556999", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", "6743466905516550702", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("EnclaveOptions Enabled", "7236976372141148292", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: true}}}),
+		Entry("EnclaveOptions Disabled", "12655667132181172925", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: false}}}),
 		Entry("ConnectionTracking TCPEstablishedTimeout", "1619669030802245540", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
 		Entry("ConnectionTracking UDPStreamTimeout", "13743705849402595405", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", "17941926745862994490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
@@ -133,6 +135,11 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.BlockDeviceMappings[0], nodeClass.Spec.BlockDeviceMappings[1] = nodeClass.Spec.BlockDeviceMappings[1], nodeClass.Spec.BlockDeviceMappings[0]
 		Expect(nodeClass.Hash(testCABundle)).To(Equal(staticHash))
 	})
+	It("should distinguish omitted enclave options from explicitly disabled", func() {
+		omittedHash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+		Expect(nodeClass.Hash(testCABundle)).ToNot(Equal(omittedHash))
+	})
 	DescribeTable("should change hash when static fields are updated", func(changes v1.EC2NodeClass) {
 		hash := nodeClass.Hash(testCABundle)
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
@@ -158,6 +165,7 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("EnclaveOptions Enabled", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{EnclaveOptions: &v1.EnclaveOptions{Enabled: true}}}),
 		Entry("ConnectionTracking TCPEstablishedTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}}}),
 		Entry("ConnectionTracking UDPStreamTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
