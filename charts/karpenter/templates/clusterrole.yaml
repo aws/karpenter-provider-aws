@@ -32,6 +32,9 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["ec2nodeclasses"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
   # Write
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["ec2nodeclasses", "ec2nodeclasses/status"]

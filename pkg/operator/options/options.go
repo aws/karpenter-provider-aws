@@ -52,6 +52,7 @@ type Options struct {
 	ReservedENIs                 int
 	DisableDryRun                bool
 	EnableZonalShift             bool
+	NodeRepairConfigMapName      string
 	AMIRefreshInterval           time.Duration
 	SubnetRefreshInterval        time.Duration
 	SecurityGroupRefreshInterval time.Duration
@@ -69,6 +70,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
+	fs.StringVar(&o.NodeRepairConfigMapName, "node-repair-configmap-name", env.WithDefaultString("NODE_REPAIR_CONFIGMAP_NAME", "karpenter-repair-policies"), "Name of the ConfigMap in Karpenter's namespace that defines the node auto repair policies. If absent or invalid, the built-in default policies are used.")
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
 	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
