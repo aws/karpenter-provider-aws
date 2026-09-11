@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -531,6 +532,60 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			}))
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+		// SSM error discrimination: NotFound (terminal) vs transient (requeue)
+		Context("SSM error discrimination for alias resolution", func() {
+			It("should set AMIsReady=False with reason AMIsNotFoundForAlias when all AL2023 SSM lookups return ParameterNotFound", func() {
+				// Inject a smithy ParameterNotFound error so every SSM lookup returns NotFound.
+				// The allNotFound flag stays true → AMIsNotDiscoveredForAliasError is returned
+				// → controller sets condition False with reason AMIsNotFoundForAlias and treats it as terminal.
+				awsEnv.SSMAPI.WantErr = &smithy.GenericAPIError{Code: "ParameterNotFound", Message: "parameter not found"}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+				Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).To(Equal("AMIsNotFoundForAlias"))
+			})
+			It("should not set AMIsNotFoundForAlias condition and should requeue when AL2023 SSM returns a transient error", func() {
+				// Inject a plain (non-smithy) error so IsNotFound returns false.
+				// allNotFound becomes false → the error propagates as non-typed → controller requeues
+				// without flipping AMIsReady to False with the AMIsNotFoundForAlias reason.
+				awsEnv.SSMAPI.WantErr = fmt.Errorf("simulated transient SSM error: throttling")
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+				// Condition must NOT be set to False with AMIsNotFoundForAlias: a transient error
+				// means the AMIs might exist but SSM was temporarily unavailable.
+				if cond := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady); cond != nil {
+					Expect(cond.Reason).NotTo(Equal("AMIsNotFoundForAlias"))
+				}
+			})
+			It("should set AMIsReady=False with reason AMIsNotFoundForAlias when the Windows2022 SSM lookup returns ParameterNotFound", func() {
+				// Windows has a single SSM call (not a loop); verify the same discrimination applies.
+				awsEnv.SSMAPI.WantErr = &smithy.GenericAPIError{Code: "ParameterNotFound", Message: "parameter not found"}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+				Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).To(Equal("AMIsNotFoundForAlias"))
+			})
+			It("should not set AMIsNotFoundForAlias condition and should requeue when Bottlerocket SSM returns a transient error", func() {
+				awsEnv.SSMAPI.WantErr = fmt.Errorf("simulated transient SSM error: throttling")
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+				if cond := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady); cond != nil {
+					Expect(cond.Reason).NotTo(Equal("AMIsNotFoundForAlias"))
+				}
+			})
 		})
 	})
 	It("should resolve amiSelector AMIs and requirements into status when all SSM parameters don't resolve", func() {
