@@ -361,11 +361,17 @@ spec:
                 enclaveOptions:
                   description: |-
                     EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
-                    If omitted, defaults to false.
+                    When enclaveOptions is omitted, Nitro Enclaves are disabled unless a NodeClaim requests
+                    the `eks.amazonaws.com/nitro-sandbox` resource.
+                    When enclaveOptions is specified, enabled is required.
+                    Setting enabled to false causes the NodeClaim launch to fail before EC2 instance creation
+                    when the NodeClaim requests the `eks.amazonaws.com/nitro-sandbox` resource.
                   properties:
                     enabled:
                       description: Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
                       type: boolean
+                  required:
+                    - enabled
                   type: object
                 instanceProfile:
                   description: |-

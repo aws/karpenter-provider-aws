@@ -115,6 +115,10 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
+  # Optional, enables Nitro Enclaves on launched instances
+  enclaveOptions:
+    enabled: true
+
   # Optional, the terms are exclusive
   placementGroupSelector:
     name: my-pg
@@ -1806,6 +1810,61 @@ This value is a boolean field that controls whether instances created by Karpent
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
+
+## spec.enclaveOptions
+
+The `enclaveOptions` field controls whether Karpenter enables AWS Nitro Enclaves in the generated EC2 launch template.
+
+```yaml
+spec:
+  enclaveOptions:
+    enabled: true
+```
+
+{{% alert title="Note" color="primary" %}}
+The behavior depends on whether `enclaveOptions` is specified:
+
+- When omitted, Nitro Enclaves are disabled unless a NodeClaim requests `eks.amazonaws.com/nitro-sandbox`, preserving the existing behavior.
+- When specified, `enabled` is required.
+- When `enabled` is `true`, Karpenter enables Nitro Enclaves and excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`.
+- When `enabled` is `false`, Nitro Enclaves are explicitly disabled. A NodeClaim requesting `eks.amazonaws.com/nitro-sandbox` with this EC2NodeClass fails before EC2 instance creation with reason `NitroEnclavesDisabled`. Karpenter retries the NodeClaim until its launch timeout, and the workload remains pending until the conflict is resolved.
+
+Adding, removing, or changing `enclaveOptions` participates in EC2NodeClass drift, so it replaces affected NodeClaims according to the NodePool's disruption settings.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter does not install the Nitro Enclaves CLI or device plugin, configure the allocator, or reserve enclave CPU, memory, or hugepages. Configure these on the node and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet; see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) for details.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+[Nitro Enclaves are not supported in AWS Local Zones, AWS Wavelength Zones, or AWS Outposts](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html). Configure `subnetSelectorTerms` to resolve only subnets in standard Availability Zones. Karpenter filters instance types based on EC2's `NitroEnclavesSupport` value, but does not filter these unsupported locations. EC2 can reject launch attempts that target them. If only unsupported locations match, the workload remains pending.
+{{% /alert %}}
+
+### Example
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: enclave-enabled
+spec:
+  amiFamily: AL2023
+  enclaveOptions:
+    enabled: true
+  amiSelectorTerms:
+    - alias: al2023@latest
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+```
+
+The example uses `@latest` for brevity; follow the [AMI pinning guidance]({{< ref "../tasks/managing-amis#pinning-amis" >}}) for production.
+
+For detailed configuration examples, including the default device-plugin label and expected extended resources, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}).
 
 ## spec.ipPrefixCount
 

@@ -156,7 +156,11 @@ type EC2NodeClassSpec struct {
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
-	// If omitted, defaults to false.
+	// When enclaveOptions is omitted, Nitro Enclaves are disabled unless a NodeClaim requests
+	// the `eks.amazonaws.com/nitro-sandbox` resource.
+	// When enclaveOptions is specified, enabled is required.
+	// Setting enabled to false causes the NodeClaim launch to fail before EC2 instance creation
+	// when the NodeClaim requests the `eks.amazonaws.com/nitro-sandbox` resource.
 	// +optional
 	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 
@@ -477,7 +481,8 @@ type BlockDevice struct {
 
 type EnclaveOptions struct {
 	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
-	Enabled *bool `json:"enabled,omitempty"`
+	// +required
+	Enabled bool `json:"enabled"`
 }
 
 // InstanceStorePolicy enumerates options for configuring instance store disks.
@@ -610,6 +615,10 @@ func (in *EC2NodeClass) KubeletConfiguration() KubeletConfiguration {
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 	return in.Spec.CPUOptions
+}
+
+func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
+	return in.Spec.EnclaveOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

@@ -49,9 +49,7 @@ var _ = Describe("Launch Template Deletion", func() {
 
 var _ = Describe("Nitro Enclaves", func() {
 	It("should launch instances with Nitro Enclaves enabled", func() {
-		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{
-			Enabled: aws.Bool(true),
-		}
+		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

@@ -38,6 +38,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -106,7 +107,6 @@ type LaunchTemplate struct {
 	CapacityType                     string
 	CapacityReservationID            string
 	CapacityReservationType          v1.CapacityReservationType
-	EnclaveOptions                   *v1.EnclaveOptions
 	CapacityReservationInterruptible bool
 	Tenancy                          string
 	PlacementGroupID                 string
@@ -170,6 +170,10 @@ func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.C
 //nolint:gocyclo
 func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
+	enclaveEnabled, err := resolveEnclaveEnabled(nodeClass, nodeClaim)
+	if err != nil {
+		return nil, err
+	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
@@ -285,10 +289,21 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled)...)
 		}
 	}
 	return resolvedTemplates, nil
+}
+
+func resolveEnclaveEnabled(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (bool, error) {
+	_, nitroSandboxRequested := nodeClaim.Spec.Resources.Requests[v1.ResourceNitroSandbox]
+	if nodeClass.Spec.EnclaveOptions == nil {
+		return nitroSandboxRequested, nil
+	}
+	if !nodeClass.Spec.EnclaveOptions.Enabled && nitroSandboxRequested {
+		return false, fmt.Errorf("%w but NodeClaim requests %q", awserrors.ErrNitroEnclavesDisabled, v1.ResourceNitroSandbox)
+	}
+	return nodeClass.Spec.EnclaveOptions.Enabled, nil
 }
 
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {
@@ -362,6 +377,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
 	parsedKubelet *v1.ParsedKubeletConfig,
+	enclaveEnabled bool,
 ) []*LaunchTemplate {
 	// Copied rather than re-parsed because the fields below are mutated per launch template -- maxPods
 	// and the resolved reservations differ by instance type -- so each template needs its own copy.
@@ -447,21 +463,20 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			),
 			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
 			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
+			CPUOptions:                       nodeClass.Spec.CPUOptions,
 			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
 			AMIID:                            amiID,
 			InstanceTypes:                    instanceTypes,
 			EFACount:                         efaCount,
+			NetworkInterfaces:                ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces),
 			CapacityType:                     capacityType,
 			CapacityReservationID:            id,
 			CapacityReservationType:          capacityReservationType,
-			EnclaveOptions:                   nodeClass.Spec.EnclaveOptions,
-			Tenancy:                          tenancyType,
-			CPUOptions:                       nodeClass.Spec.CPUOptions,
-			NetworkInterfaces:                ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces),
 			CapacityReservationInterruptible: capacityReservationInterruptible,
+			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
-			EnclaveEnabled:                   lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceNitroSandbox),
+			EnclaveEnabled:                   enclaveEnabled,
 			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {

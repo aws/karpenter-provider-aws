@@ -393,15 +393,6 @@ func connectionTrackingSpec(ct *v1.ConnectionTracking) *ec2types.ConnectionTrack
 	}
 }
 
-func enclaveOptions(options *v1.EnclaveOptions) *ec2types.LaunchTemplateEnclaveOptionsRequest {
-	if options == nil {
-		return nil
-	}
-	return &ec2types.LaunchTemplateEnclaveOptionsRequest{
-		Enabled: options.Enabled,
-	}
-}
-
 func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2types.LaunchTemplateBlockDeviceMappingRequest {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
