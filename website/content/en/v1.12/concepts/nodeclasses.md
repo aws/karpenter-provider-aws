@@ -57,7 +57,7 @@ spec:
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
   # Optional, dictates UserData generation and default block device mappings.
-  # May be ommited when using an `alias` amiSelectorTerm, otherwise required.
+  # May be omitted when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
@@ -782,7 +782,7 @@ alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
 
-The following commands can be used to determine the versions availble for an alias in your region:
+The following commands can be used to determine the versions available for an alias in your region:
 
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
