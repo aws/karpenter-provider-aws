@@ -165,6 +165,24 @@ var _ = Describe("CompatibilityTest", func() {
 		)
 	})
 
+	Context("NitroEnclavesCompatibility", func() {
+		DescribeTable("should gate instance types on NitroEnclavesSupport when enclaves are enabled",
+			func(enclaveOptions *v1.EnclaveOptions, support ec2types.NitroEnclavesSupport, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.NitroEnclavesSupport = support
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				nc.enclaveOptions = enclaveOptions
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil EnclaveOptions passes regardless of support", nil, ec2types.NitroEnclavesSupportUnsupported, true),
+			Entry("enabled + supported", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupportSupported, true),
+			Entry("enabled + unsupported", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupportUnsupported, false),
+			Entry("enabled + unset support", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupport(""), false),
+			Entry("disabled passes regardless", &v1.EnclaveOptions{Enabled: false}, ec2types.NitroEnclavesSupportUnsupported, true),
+		)
+	})
+
 	Context("ConnectionTrackingCompatibility", func() {
 		DescribeTable("should filter non-Nitro instances when ConnectionTracking is set",
 			func(hypervisor ec2types.InstanceTypeHypervisor, connTrack *v1.ConnectionTracking, expected bool) {
@@ -198,6 +216,7 @@ type mockNodeClass struct {
 	amiFamily          string
 	networkInterfaces  []*v1.NetworkInterface
 	cpuOptions         *v1.CPUOptions
+	enclaveOptions     *v1.EnclaveOptions
 	connectionTracking *v1.ConnectionTracking
 }
 
@@ -211,6 +230,10 @@ func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
 
 func (m *mockNodeClass) CPUOptions() *v1.CPUOptions {
 	return m.cpuOptions
+}
+
+func (m *mockNodeClass) EnclaveOptions() *v1.EnclaveOptions {
+	return m.enclaveOptions
 }
 
 func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
