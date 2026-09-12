@@ -34,6 +34,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
@@ -143,6 +144,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("CapacityCache", func() {
 	BeforeEach(func() {
+		nodeClass.Spec.Kubelet = nil
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		node = coretest.Node(coretest.NodeOptions{
@@ -192,6 +194,37 @@ var _ = Describe("CapacityCache", func() {
 		Expect(ok).To(BeTrue())
 		Expect(i.Capacity.Memory().Value()).To(Equal(node.Status.Capacity.Memory().Value()), "Expected capacity to match discovered node capacity")
 	})
+	DescribeTable("should recompute memory eviction threshold from discovered capacity",
+		func(evictionHard map[string]string, expectedEvictionThreshold string) {
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{EvictionHard: evictionHard}
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			discoveredCapacity := resource.MustParse("8000Mi")
+			node.Status.Capacity[corev1.ResourceMemory] = discoveredCapacity
+			ExpectApplied(ctx, env.Client, node)
+			ExpectObjectReconciled(ctx, env.Client, controller, node)
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			i, ok := lo.Find(instanceTypes, func(i *karpcloudprovider.InstanceType) bool {
+				return i.Name == "t3.medium"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(i.Capacity.Memory().Value()).To(Equal(discoveredCapacity.Value()))
+
+			expectedEviction := resource.MustParse(expectedEvictionThreshold)
+			Expect(i.Overhead.EvictionThreshold.Memory().Value()).To(Equal(expectedEviction.Value()))
+			expectedAllocatable := discoveredCapacity.DeepCopy()
+			expectedAllocatable.Sub(*i.Overhead.KubeReserved.Memory())
+			expectedAllocatable.Sub(*i.Overhead.SystemReserved.Memory())
+			expectedAllocatable.Sub(expectedEviction)
+			allocatable := i.Allocatable()
+			Expect(allocatable.Memory().Value()).To(Equal(expectedAllocatable.Value()))
+		},
+		Entry("for a percentage threshold", map[string]string{instancetype.MemoryAvailable: "10%"}, "800Mi"),
+		Entry("without changing an absolute threshold", map[string]string{instancetype.MemoryAvailable: "500Mi"}, "500Mi"),
+		Entry("using the default when no threshold is configured", nil, "100Mi"),
+	)
 	It("should use VM_MEMORY_OVERHEAD_PERCENT calculation after AMI update", func() {
 		ExpectObjectReconciled(ctx, env.Client, controller, node)
 
