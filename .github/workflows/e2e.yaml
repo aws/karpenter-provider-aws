@@ -199,13 +199,19 @@ jobs:
           fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
+        # The matrix run posts a single summary message (see e2e-matrix.yaml), so skip the per-suite ping there
+        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility' && inputs.workflow_trigger != 'matrix'
         with:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           url: ${{ inputs.workflow_trigger == 'soak' && secrets.SLACK_WEBHOOK_SOAK_URL || secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
           git_ref: ${{ inputs.git_ref }}
           workflow_trigger: ${{ inputs.workflow_trigger }}
+      - name: record suite status for the matrix run summary
+        uses: ./.github/actions/e2e/slack/record-status
+        if: (success() || failure()) && inputs.workflow_trigger == 'matrix'
+        with:
+          suite: ${{ inputs.suite }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: (failure() || cancelled()) && inputs.workflow_trigger != 'private_cluster'

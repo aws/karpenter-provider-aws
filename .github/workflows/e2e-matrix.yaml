@@ -129,3 +129,73 @@ jobs:
       source: all
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  summary:
+    # Collapse the per-suite Slack pings into one message per run: highlight failures, note the rest passed.
+    needs: [e2e, e2e-upgrade]
+    if: always() && inputs.workflow_trigger == 'matrix'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.git_ref }}
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: e2e-status-*
+          path: suite-status
+          merge-multiple: true
+      - id: compose
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          run_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            ctx="periodic run"
+          else
+            ctx="run for ${GITHUB_SHA::7}"
+          fi
+
+          # Map each failed suite to its own job URL (all suites share one run, so link the per-suite job)
+          jobs_tsv="$(gh api "/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}/jobs" \
+            --paginate -q '.jobs[] | [.name, .html_url] | @tsv')"
+          job_url() {
+            local url
+            url="$(awk -F'\t' -v s="$1" 'index(tolower($1), tolower(s)) {print $2; exit}' <<< "$jobs_tsv")"
+            printf '%s' "${url:-$run_url}"
+          }
+          join_by() { local d="$1"; shift; local out="${1:-}"; shift || true; local x; for x in "$@"; do out+="$d$x"; done; printf '%s' "$out"; }
+
+          failed=(); passed=()
+          for f in suite-status/*; do
+            name="$(basename "$f")"
+            if [[ "$(cat "$f")" == "success" ]]; then passed+=("$name"); else failed+=("$name"); fi
+          done
+          total=$(( ${#passed[@]} + ${#failed[@]} ))
+
+          # Bare URLs auto-link everywhere (Slack mrkdwn <url|text> does not render in Workflow Builder)
+          if [[ ${#failed[@]} -eq 0 ]]; then
+            msg=":white_check_mark: E2E ${ctx} — all ${total} suites passed: ${run_url}"
+          else
+            msg=":x: E2E ${ctx} — ${#failed[@]}/${total} suites failed: ${run_url}"
+            for s in "${failed[@]}"; do
+              msg+=$'\n'":x: ${s}: $(job_url "$s")"
+            done
+            msg+=$'\n'":white_check_mark: ${#passed[@]} passed: $(join_by ", " "${passed[@]:-}")"
+          fi
+
+          # message: real newlines (valid via jq); message_escaped: \n literals for send-message's hand-built JSON
+          {
+            echo "message<<__MSG__"
+            printf '%s\n' "$msg"
+            echo "__MSG__"
+          } >> "$GITHUB_OUTPUT"
+          echo "message_escaped=${msg//$'\n'/\\n}" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/e2e/slack/send-message
+        with:
+          url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          message: ${{ steps.compose.outputs.message_escaped }}
