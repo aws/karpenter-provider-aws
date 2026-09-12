@@ -247,6 +247,21 @@ func validateKubeletSemantics(kc KubeletConfiguration) []error {
 		errs = append(errs, fmt.Errorf("spec.kubelet: imageGCHighThresholdPercent (%d) must be greater than imageGCLowThresholdPercent (%d)", high, low))
 	}
 
+	// shutdownGracePeriodCriticalPods must not exceed shutdownGracePeriod. The kubelet evicts
+	// non-critical pods first and then switches to the critical-pod budget; a budget larger than
+	// the overall window means critical pods always get zero time.
+	sgp, sgpOK := decodeDuration(kc, "shutdownGracePeriod")
+	sgpcp, sgpcpOK := decodeDuration(kc, "shutdownGracePeriodCriticalPods")
+	if sgpOK && sgp < 0 {
+		errs = append(errs, fmt.Errorf("spec.kubelet.shutdownGracePeriod: %v can't be negative", sgp))
+	}
+	if sgpcpOK && sgpcp < 0 {
+		errs = append(errs, fmt.Errorf("spec.kubelet.shutdownGracePeriodCriticalPods: %v can't be negative", sgpcp))
+	}
+	if sgpOK && sgpcpOK && sgp >= 0 && sgpcp > sgp {
+		errs = append(errs, fmt.Errorf("spec.kubelet: shutdownGracePeriodCriticalPods (%v) must not exceed shutdownGracePeriod (%v)", sgpcp, sgp))
+	}
+
 	return errs
 }
 
@@ -277,6 +292,25 @@ func decodeInt(kc KubeletConfiguration, field string) (int64, bool) {
 		return 0, false
 	}
 	return out, true
+}
+
+// decodeDuration reads a metav1.Duration field (JSON string, e.g. "30s"), reporting false if
+// it's absent or can't be parsed. As with decodeInt, a wrong type is left to
+// validateAgainstUpstreamType to report.
+func decodeDuration(kc KubeletConfiguration, field string) (time.Duration, bool) {
+	raw, ok := kc[field]
+	if !ok {
+		return 0, false
+	}
+	var s string
+	if err := json.Unmarshal(raw.Raw, &s); err != nil {
+		return 0, false
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, false
+	}
+	return d, true
 }
 
 // isJSONString reports whether a raw JSON value is a string.
