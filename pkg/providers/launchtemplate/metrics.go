@@ -32,6 +32,11 @@ const (
 	userDataWarnBytes = userDataMaxBytes * 9 / 10
 )
 
+var NodeClass = opmetrics.Label{
+	Name: nodeClassLabel,
+	Help: "The name of the EC2NodeClass the metric was recorded for.",
+}
+
 var (
 	// UserDataBytes is recorded when the user data is rendered, just before ec2:CreateLaunchTemplate, so an
 	// oversized rendering is still reported even though EC2 rejects the create. Only the create path writes
@@ -47,8 +52,8 @@ var (
 			Name:      "userdata_bytes",
 			Help:      "Size in bytes of the rendered user data (raw, pre-base64) for the EC2NodeClass",
 		},
-		[]string{
-			nodeClassLabel,
+		[]opmetrics.Label{
+			NodeClass,
 		},
 	)
 )
