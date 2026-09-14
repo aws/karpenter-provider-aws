@@ -19,7 +19,9 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/repairpolicy"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
@@ -96,5 +98,10 @@ func main() {
 			op.CABundle,
 			op.CELEnvironment,
 		)...).
+		WithControllers(ctx, repairpolicy.NewController(
+			op.GetClient(),
+			awsCloudProvider,
+			options.FromContext(ctx).NodeRepairConfigMapName,
+		)).
 		Start(ctx)
 }
