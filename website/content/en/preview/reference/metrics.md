@@ -347,7 +347,7 @@ The number of nodes for a given NodePool that can be concurrently disrupting at 
 ## Interruption Metrics
 
 ### `karpenter_interruption_received_messages_total`
-Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.
+Count of messages received from the SQS queue. Broken down by message type and whether the message was for at least one instance managed by this cluster.
 - Stability Level: STABLE
 
 ### `karpenter_interruption_message_queue_duration_seconds`

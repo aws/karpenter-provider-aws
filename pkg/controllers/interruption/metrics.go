@@ -25,6 +25,7 @@ import (
 const (
 	interruptionSubsystem = "interruption"
 	messageTypeLabel      = "message_type"
+	managedLabel          = "managed"
 	categoryLabel         = "category"
 )
 
@@ -35,9 +36,9 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "received_messages_total",
-			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
+			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was for at least one instance managed by this cluster.",
 		},
-		[]string{messageTypeLabel},
+		[]string{messageTypeLabel, managedLabel},
 	)
 	DeletedMessages = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,

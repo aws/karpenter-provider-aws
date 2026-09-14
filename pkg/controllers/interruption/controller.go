@@ -17,6 +17,7 @@ package interruption
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -111,8 +112,14 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 			return
 		}
-		ReceivedMessages.Inc(map[string]string{messageTypeLabel: string(msg.Kind())})
-		if _, e = c.handleMessage(ctx, msg, false); e != nil {
+		found, e := c.handleMessage(ctx, msg, false)
+		// The message is counted once handled so the metric can record whether it
+		// applied to an instance managed by this cluster.
+		ReceivedMessages.Inc(map[string]string{
+			messageTypeLabel: string(msg.Kind()),
+			managedLabel:     strconv.FormatBool(found),
+		})
+		if e != nil {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
