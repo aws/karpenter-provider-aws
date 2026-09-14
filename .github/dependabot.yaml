@@ -160,6 +160,14 @@ updates:
         patterns:
           - '*'
   - package-ecosystem: github-actions
+    directory: .github/actions/e2e/slack/record-status
+    schedule:
+      interval: weekly
+    groups:
+      action-deps:
+        patterns:
+          - '*'
+  - package-ecosystem: github-actions
     directory: .github/actions/e2e/slack/send-message
     schedule:
       interval: weekly
