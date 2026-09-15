@@ -46,6 +46,7 @@ var (
 			metrics.CapacityType,
 			metrics.Zone,
 		},
+		opmetrics.Beta,
 	)
 	InstanceTypeOfferingPriceEstimate = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
@@ -60,5 +61,6 @@ var (
 			metrics.CapacityType,
 			metrics.Zone,
 		},
+		opmetrics.Beta,
 	)
 )

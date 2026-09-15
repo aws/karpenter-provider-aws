@@ -56,6 +56,7 @@ var (
 			metrics.CapacityType,
 			LaunchFailureReason,
 		},
+		opmetrics.Beta,
 	)
 	InstanceTerminationFailuresTotal = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
@@ -69,5 +70,6 @@ var (
 			metrics.Zone,
 			ZoneID,
 		},
+		opmetrics.Beta,
 	)
 )
