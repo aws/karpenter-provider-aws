@@ -27,10 +27,12 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -43,10 +45,12 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
@@ -316,5 +320,53 @@ func BenchmarkComputeRequirements(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		reqs := computeRequirements(f.info, benchRegion, f.zones, zoneInfo, f.amiFamily, nil)
 		_ = reqs
+	}
+}
+
+// BenchmarkFilterCompatibleAvailable measures the compatible-available filter path that runs on
+// every launch (instance.DefaultProvider.filterInstanceTypes). It is the first and most expensive
+// launch filter: for each instance type it calls InstanceType.AllocatableOfferingsList(), which
+// lazily runs precompute -> computeAllocatable -> resources.Subtract. That work is a dominant
+// source of retained heap under topology-spread scale-out.
+//
+// The allocatable result is cached behind a per-object sync.Once, but InjectOfferings hands the
+// scheduler freshly-built *InstanceType objects on every resolution, so the cache never survives a
+// pass and the precompute cost recurs per scheduling loop in production. We therefore mint fresh
+// instance types via InjectOfferings inside the timed loop (underlying instanceTypes/offering
+// caches are warm) so the benchmark exercises that recurring precompute+Subtract cost rather than
+// amortizing it away. Subtracting BenchmarkInjectOfferings from this benchmark isolates the
+// filter+allocatable delta.
+func BenchmarkFilterCompatibleAvailable(b *testing.B) {
+	f := newBenchFixture(b)
+	// Broadly-compatible requirements so every fixture instance type reaches the allocatable
+	// evaluation (the path we want to gate) rather than being rejected early by IsCompatible.
+	reqs := scheduling.NewRequirements(
+		scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot),
+		scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, "amd64", "arm64"),
+	)
+	requests := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")}
+	compatFilter := instancefilter.CompatibleAvailableFilter(reqs, requests)
+	for _, v := range f.variants() {
+		b.Run(v.name, func(b *testing.B) {
+			if _, err := f.provider.List(f.ctx, v.nodeClass); err != nil {
+				b.Fatalf("warmup List: %v", err)
+			}
+			item, ok := f.provider.instanceTypesCache.Get(f.provider.cacheKey(v.nodeClass))
+			if !ok {
+				b.Fatal("expected warm instance-types cache")
+			}
+			resolved := item.([]*cloudprovider.InstanceType)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				// Fresh objects => untouched sync.Once => AllocatableOfferingsList recomputes
+				// allocatable inside FilterReject, matching a real scheduling pass.
+				its := f.provider.offeringProvider.InjectOfferings(f.ctx, resolved, f.provider.instanceTypesInfo, v.nodeClass, f.provider.allZones)
+				kept, _ := compatFilter.FilterReject(its)
+				if len(kept) == 0 {
+					b.Fatal("compatible-available filter rejected all instance types; fixture requirements no longer match")
+				}
+			}
+		})
 	}
 }
