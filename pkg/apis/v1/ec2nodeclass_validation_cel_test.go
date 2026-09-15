@@ -15,21 +15,23 @@ limitations under the License.
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -84,8 +86,8 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMIFamily", func() {
-		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
-		DescribeTable("should succeed with valid families", func() []any {
+		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2025, v1.AMIFamilyCustom}
+		DescribeTable("should succeed with valid families", func() []interface{} {
 			f := func(amiFamily string) {
 				// Set a custom AMI family so it's compatible with all ami family types
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
@@ -757,6 +759,7 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0", v1.AMIFamilyBottlerocket),
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019),
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022),
+			Entry("windows2025 (latest)", "windows2025@latest", v1.AMIFamilyWindows2025),
 		)
 		DescribeTable(
 			"should fail for incorrectly formatted aliases",
@@ -782,209 +785,67 @@ var _ = Describe("CEL/Validation", func() {
 			},
 			Entry("Windows2019", "windows2019@v1.0.0"),
 			Entry("Windows2022", "windows2022@v1.0.0"),
+			Entry("Windows2025", "windows2025@v1.0.0"),
 		)
 	})
+	// spec.kubelet is an open map with x-kubernetes-preserve-unknown-fields, so the API server
+	// neither knows its fields nor will compile CEL against it. It is validated in the reconcile
+	// loop instead -- see TestValidateKubeletConfig in kubeletconfiguration_validation_test.go.
+	// The only thing admission enforces is the map's own shape, which is what these cover.
 	Context("Kubelet", func() {
-		It("should fail on kubeReserved with invalid keys", func() {
-			nc.Spec.Kubelet = &v1.KubeletConfiguration{
-				KubeReserved: map[string]string{
-					string(corev1.ResourcePods): "2",
-				},
+		It("should succeed for valid inputs", func() {
+			nc.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				MaxPods:        lo.ToPtr(intstr.FromInt32(110)),
+				PodsPerCore:    lo.ToPtr(int32(10)),
+				KubeReserved:   map[string]string{"cpu": "200m", "memory": "100Mi"},
+				SystemReserved: map[string]string{"cpu": "200m", "memory": "100Mi"},
+				EvictionHard:   map[string]string{"memory.available": "5%"},
+			})
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should persist a field Karpenter has no Go representation for", func() {
+			// The passthrough guarantee: a field Karpenter knows nothing about survives a
+			// round-trip unaltered, which is what lets a user set a kubelet field newer than the
+			// one Karpenter was built against.
+			nc.Spec.Kubelet = v1.KubeletConfiguration{"serializeImagePulls": v1.JSONValue(false)}
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			Expect(persisted.Spec.Kubelet).To(HaveKey("serializeImagePulls"))
+		})
+		It("should admit a configuration the kubelet library rejects", func() {
+			// Nothing here is admission's job to catch: the API server has no schema for these
+			// fields, and strict validation can't help since an unknown field under a
+			// preserve-unknown-fields map isn't unknown to the API server at all. This is the
+			// reason validation lives in the controller, so it is asserted rather than assumed --
+			// admission accepts it, and ValidateKubeletConfig is what reports it.
+			nc.Spec.Kubelet = v1.KubeletConfiguration{
+				"notAKubeletField": v1.JSONValue(true),
+				"podsPerCore":      v1.JSONValue("ten"),
 			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			Expect(persisted.Spec.Kubelet).To(HaveKey("notAKubeletField"))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).ToNot(BeEmpty())
 		})
-		It("should fail on systemReserved with invalid keys", func() {
-			nc.Spec.Kubelet = &v1.KubeletConfiguration{
-				SystemReserved: map[string]string{
-					string(corev1.ResourcePods): "2",
-				},
+		It("should preserve a nested subtree unaltered", func() {
+			// logging nests three levels deep and mixes a duration string with a quantity, so it
+			// is the sharpest check that preserve-unknown-fields doesn't flatten or coerce
+			// anything on the way to storage.
+			logging := map[string]any{
+				"format":         "json",
+				"flushFrequency": "5s",
+				"options":        map[string]any{"json": map[string]any{"infoBufferSize": "100Mi", "splitStream": true}},
 			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		Context("Eviction Signals", func() {
-			Context("Eviction Hard", func() {
-				It("should succeed on evictionHard with valid keys", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available":   "5%",
-							"nodefs.available":   "10%",
-							"nodefs.inodesFree":  "15%",
-							"imagefs.available":  "5%",
-							"imagefs.inodesFree": "5%",
-							"pid.available":      "5%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).To(Succeed())
-				})
-				It("should fail on evictionHard with invalid keys", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory": "5%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid formatted percentage value in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "5%3",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid percentage value (too large) in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "110%",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-				It("should fail on invalid quantity value in evictionHard", func() {
-					nc.Spec.Kubelet = &v1.KubeletConfiguration{
-						EvictionHard: map[string]string{
-							"memory.available": "110GB",
-						},
-					}
-					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-				})
-			})
-		})
-		Context("Eviction Soft", func() {
-			It("should succeed on evictionSoft with valid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available":   "5%",
-						"nodefs.available":   "10%",
-						"nodefs.inodesFree":  "15%",
-						"imagefs.available":  "5%",
-						"imagefs.inodesFree": "5%",
-						"pid.available":      "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available":   {Duration: time.Minute},
-						"nodefs.available":   {Duration: time.Second * 90},
-						"nodefs.inodesFree":  {Duration: time.Minute * 5},
-						"imagefs.available":  {Duration: time.Hour},
-						"imagefs.inodesFree": {Duration: time.Hour * 24},
-						"pid.available":      {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail on evictionSoft with invalid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory": "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid formatted percentage value in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "5%3",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid percentage value (too large) in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "110%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail on invalid quantity value in evictionSoft", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "110GB",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when eviction soft doesn't have matching grace period", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available": "200Mi",
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-		})
-		Context("GCThresholdPercent", func() {
-			It("should succeed on a valid imageGCHighThresholdPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(10)),
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail when imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
-					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when imageGCLowThresholdPercent is greather than imageGCHighThresheldPercent", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
-					ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-		})
-		Context("Eviction Soft Grace Period", func() {
-			It("should succeed on evictionSoftGracePeriod with valid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoft: map[string]string{
-						"memory.available":   "5%",
-						"nodefs.available":   "10%",
-						"nodefs.inodesFree":  "15%",
-						"imagefs.available":  "5%",
-						"imagefs.inodesFree": "5%",
-						"pid.available":      "5%",
-					},
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available":   {Duration: time.Minute},
-						"nodefs.available":   {Duration: time.Second * 90},
-						"nodefs.inodesFree":  {Duration: time.Minute * 5},
-						"imagefs.available":  {Duration: time.Hour},
-						"imagefs.inodesFree": {Duration: time.Hour * 24},
-						"pid.available":      {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).To(Succeed())
-			})
-			It("should fail on evictionSoftGracePeriod with invalid keys", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
-			It("should fail when eviction soft grace period doesn't have matching threshold", func() {
-				nc.Spec.Kubelet = &v1.KubeletConfiguration{
-					EvictionSoftGracePeriod: map[string]metav1.Duration{
-						"memory.available": {Duration: time.Minute},
-					},
-				}
-				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			})
+			nc.Spec.Kubelet = v1.KubeletConfiguration{"logging": v1.JSONValue(logging)}
+			Expect(env.Client.Create(ctx, nc, client.FieldValidation(metav1.FieldValidationStrict))).To(Succeed())
+			persisted := &v1.EC2NodeClass{}
+			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nc), persisted)).To(Succeed())
+			var roundTripped map[string]any
+			Expect(json.Unmarshal(persisted.Spec.Kubelet["logging"].Raw, &roundTripped)).To(Succeed())
+			Expect(roundTripped).To(Equal(logging))
+			Expect(v1.ValidateKubeletConfig(persisted.Spec.Kubelet)).To(BeEmpty())
 		})
 	})
 	Context("MetadataOptions", func() {
@@ -1255,6 +1116,210 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 	})
+	Context("NetworkInterfaces", func() {
+		It("should succeed with valid multiple network interfaces", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed when network interfaces is empty", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with an invalid interface type", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    "efa",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative NetworkCardIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with a negative DeviceIndex", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: -1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      -1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with duplicate Network Interface and Device Index fields", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with no primary network interface", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when primary network interface is not ENA", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when multiple EFA devices on one network card", func() {
+			nc.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{
+					NetworkCardIndex: 0,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeInterface,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      0,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+				{
+					NetworkCardIndex: 1,
+					DeviceIndex:      1,
+					InterfaceType:    v1.InterfaceTypeEFAOnly,
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
+	Context("ConnectionTracking", func() {
+		It("should fail when connectionTracking is specified with no fields set", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with valid tcpEstablishedTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(60)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpStreamTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(120)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with valid udpTimeout", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(45)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with all valid connection tracking settings", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(432000)), // 5 days
+				UDPStreamTimeout:      lo.ToPtr(int32(180)),
+				UDPTimeout:            lo.ToPtr(int32(60)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(59)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when tcpEstablishedTimeout is above maximum (432000s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				TCPEstablishedTimeout: lo.ToPtr(int32(432001)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is below minimum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(59)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpStreamTimeout is above maximum (180s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPStreamTimeout: lo.ToPtr(int32(181)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is below minimum (30s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(29)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when udpTimeout is above maximum (60s)", func() {
+			nc.Spec.ConnectionTracking = &v1.ConnectionTracking{
+				UDPTimeout: lo.ToPtr(int32(61)),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("Role Immutability", func() {
 		It("should fail if role is not defined", func() {
 			nc.Spec.Role = ""
@@ -1284,6 +1349,31 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Update(ctx, nc)).To(Succeed())
+		})
+	})
+
+	Context("CPUOptions", func() {
+		It("should succeed with nestedVirtualization enabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("enabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with nestedVirtualization disabled", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("disabled"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid nestedVirtualization value", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("invalid"),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with empty CPUOptions", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
 	})
 })

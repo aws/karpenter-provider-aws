@@ -145,6 +145,46 @@ NodeOverlay modifications are automatically integrated into Karpenter's consolid
 
 When NodeOverlay configurations change, Karpenter incorporates these changes into its next consolidation evaluation, potentially triggering node replacements if the new configurations significantly change the optimal instance selection for existing workloads.
 
+## NodeOverlays and Preview Instance Types
+
+NodeOverlays can be used to enable scheduling on preview (pre-GA) instance types that are available in your AWS account but don't yet have pricing data in the AWS Pricing API. Without a price, Karpenter marks offerings as unavailable and won't provision these instance types. By creating a NodeOverlay that assigns an explicit price, you can make these instance types available for scheduling.
+
+### Requirements
+
+To use this feature:
+
+1. The `NodeOverlay` [feature gate]({{<ref "../reference/settings#feature-gates" >}}) must be enabled
+2. Your AWS account must be allowlisted for the preview instance type (so it appears in `DescribeInstanceTypes`)
+3. You must create a NodeOverlay with **exactly** the following shape:
+
+```yaml
+apiVersion: karpenter.sh/v1alpha1
+kind: NodeOverlay
+metadata:
+  name: preview-instance-pricing
+spec:
+  requirements:
+    - key: node.kubernetes.io/instance-type
+      operator: In
+      values: # Insert your preview instance type(s)
+  price: # Insert your price
+```
+
+The overlay must have:
+
+* Exactly one requirement with key `node.kubernetes.io/instance-type` and operator `In`
+* An absolute `price` field (not `priceAdjustment`)
+* No other requirements (capacity-type, zone, CPU, etc.)
+
+Overlays that don't match this exact structure are ignored for preview instance pricing.
+
+### Caveats
+
+* **Applies to all NodePools**: Preview instance type pricing is set globally. Any NodePool whose requirements match the preview instance type will be able to schedule onto it — there is no way to scope preview pricing to a single NodePool.
+* **Price is an estimate**: Since official pricing isn't available yet, you must provide your own estimate. This affects Karpenter's cost-based scheduling decisions (e.g., consolidation, spot vs. on-demand selection).
+* **Pricing cache**: Overlay prices are cached for 5 minutes. Changes to NodeOverlay pricing take effect after the cache expires.
+* **Validation required**: The NodeOverlay must pass validation (have `ValidationSucceeded=True` status) before it will be used for preview pricing.
+
 ## Status and Observability
 
 NodeOverlays include status conditions to help you understand their current state and troubleshoot configuration issues.
@@ -167,6 +207,66 @@ status:
     reason: "Conflict"
     message: "conflict with another overlay"
 ```
+
+## Example: Fractional GPU Instances (g6f)
+
+EC2's `g6f` instance family provides fractional NVIDIA L4 GPUs using vGPU (GRID) technology. Each g6f instance presents a slice of a physical L4 GPU (from 1/8th to 1/2) as a single logical GPU device. However, because the EC2 `DescribeInstanceTypes` API reports `Count=0` for g6f GPUs, Karpenter does not natively discover GPU capacity on these instances — pods requesting `nvidia.com/gpu` will never be scheduled on g6f.
+
+You can use a NodeOverlay to override this and tell Karpenter that g6f instances have GPU resources available:
+
+```yaml
+apiVersion: karpenter.sh/v1alpha1
+kind: NodeOverlay
+metadata:
+  name: g6f-fractional-gpu
+spec:
+  requirements:
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values: ["g6f"]
+  capacity:
+    nvidia.com/gpu: "1"
+```
+
+Then create a NodePool that targets g6f instances:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: fractional-gpu
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: gpu-nodeclass
+      requirements:
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["g6f"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+  limits:
+    nvidia.com/gpu: "4"
+```
+
+With this configuration:
+1. Karpenter's scheduling simulation sees g6f instances as having `nvidia.com/gpu: 1`
+2. Pods requesting `nvidia.com/gpu: 1` can be matched to g6f instances
+3. After the instance launches, the NVIDIA device plugin detects the vGPU device and reports `nvidia.com/gpu: 1` to the kubelet
+4. The pod is scheduled and runs on the fractional GPU
+
+{{% alert title="Note" color="primary" %}}
+The NodeOverlay feature gate must be enabled. Add `--feature-gates NodeOverlay=true` to your Karpenter controller arguments or set it in the ConfigMap.
+{{% /alert %}}
+
+{{% alert title="Important" color="warning" %}}
+The g6f instances have different amounts of GPU memory depending on size: g6f.xlarge has ~3 GB, g6f.2xlarge has ~6 GB, and g6f.4xlarge has ~12 GB. Use the `karpenter.k8s.aws/instance-gpu-memory` label or instance size requirements to ensure your workload lands on an appropriately sized instance.
+{{% /alert %}}
+
 
 ## Limitations and Considerations
 

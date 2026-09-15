@@ -144,7 +144,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -180,7 +180,7 @@ var _ = Describe("Extended Resources", func() {
 		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceGeneration,
 			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"1", "2"},
+			Values:   []string{"2"},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -304,8 +304,8 @@ var _ = Describe("Extended Resources", func() {
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 
-	It("should provision nodes for a deployment that requests vpc.amazonaws.com/efa", func() {
-		ExpectEFADevicePluginCreated()
+	DescribeTable("should provision nodes for a deployment that requests vpc.amazonaws.com/efa", func(networkInterfaces []*v1.NetworkInterface) {
+		env.ExpectEFADevicePluginCreated()
 
 		nodePool.Spec.Template.Labels = map[string]string{
 			"aws.amazon.com/efa": "true",
@@ -318,6 +318,7 @@ var _ = Describe("Extended Resources", func() {
 		}
 		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+		nodeClass.Spec.NetworkInterfaces = networkInterfaces
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -347,7 +348,12 @@ var _ = Describe("Extended Resources", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
+	},
+		Entry("with no Node Class network interface configurations", nil),
+		Entry("with Node Class network interface configurations", []*v1.NetworkInterface{
+			{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+			{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+		}))
 })
 
 func ExpectNvidiaDevicePluginCreated() {
@@ -883,7 +889,7 @@ leaderElection:
 							Name:    neuronSchedulerExtension,
 							Args:    []string{fmt.Sprintf("--config=/etc/kubernetes/%[1]v/%[1]v-config.yaml", neuronSchedulerExtension), "--leader-elect=true", "--v=2"},
 							Command: []string{"/usr/local/bin/kube-scheduler"},
-							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%[1]v.0-eks-1-%[1]v-latest", env.K8sMinorVersion()),
+							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%v.0-eks-1-%v-", env.K8sMinorVersion(), env.K8sMinorVersion()) + lo.Ternary(env.K8sMinorVersion() >= 35, "2", "latest"),
 							LivenessProbe: &corev1.Probe{
 								InitialDelaySeconds: 15,
 								ProbeHandler: corev1.ProbeHandler{
@@ -1054,83 +1060,6 @@ func ExpectHabanaDevicePluginCreated() {
 							Image: "vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:latest",
 							SecurityContext: &corev1.SecurityContext{
 								Privileged: lo.ToPtr(true),
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "device-plugin",
-									MountPath: "/var/lib/kubelet/device-plugins",
-								},
-							},
-						},
-					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "device-plugin",
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/var/lib/kubelet/device-plugins",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	})
-}
-
-func ExpectEFADevicePluginCreated() {
-	GinkgoHelper()
-	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
-			Name:      "aws-efa-k8s-device-plugin-daemonset",
-			Namespace: "kube-system",
-		}),
-		Spec: appsv1.DaemonSetSpec{
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"name": "aws-efa-k8s-device-plugin",
-				},
-			},
-			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
-				Type: appsv1.RollingUpdateDaemonSetStrategyType,
-			},
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"scheduler.alpha.kubernetes.io/critical-pod": "",
-					},
-					Labels: map[string]string{
-						"name": "aws-efa-k8s-device-plugin",
-					},
-				}),
-				Spec: corev1.PodSpec{
-					NodeSelector: map[string]string{
-						"aws.amazon.com/efa": "true",
-					},
-					Tolerations: []corev1.Toleration{
-						{
-							Key:      "CriticalAddonsOnly",
-							Operator: corev1.TolerationOpExists,
-						},
-						{
-							Key:      "aws.amazon.com/efa",
-							Operator: corev1.TolerationOpExists,
-							Effect:   corev1.TaintEffectNoSchedule,
-						},
-					},
-					PriorityClassName: "system-node-critical",
-					HostNetwork:       true,
-					Containers: []corev1.Container{
-						{
-							Name:  "aws-efea-k8s-device-plugin",
-							Image: "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3",
-							SecurityContext: &corev1.SecurityContext{
-								AllowPrivilegeEscalation: lo.ToPtr(false),
-								Capabilities: &corev1.Capabilities{
-									Drop: []corev1.Capability{"ALL"},
-								},
-								RunAsNonRoot: lo.ToPtr(false),
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{

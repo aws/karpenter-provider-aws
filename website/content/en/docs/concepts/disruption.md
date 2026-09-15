@@ -85,7 +85,15 @@ spec:
 
 ### Consolidation
 
-Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines the pre-conditions for nodes to be considered consolidatable, and are `WhenEmpty` or `WhenEmptyOrUnderutilized`. If a node has no running non-daemon pods, it is considered empty.  `consolidateAfter` can be set to indicate how long Karpenter should wait after a pod schedules or is removed from the node before considering the node consolidatable. With `WhenEmptyOrUnderutilized`, Karpenter will consider a node consolidatable when its `consolidateAfter` has been reached, empty or not.
+Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines which nodes Karpenter considers for consolidation, trading off cost savings against how much Karpenter disrupts your running pods to achieve them:
+
+| Policy | Nodes it considers | Choose it when |
+|---|---|---|
+| `WhenEmpty` | Only empty nodes (a node is empty when it has only pods with no disruption cost, such as daemonsets, user overrides, and ephemeral pods that the user has annotated as cheap to disrupt) | You want the most conservative behavior: nodes are removed only once nothing is running on them, so consolidation only evicts running pods that have zero disruption cost. |
+| `Balanced` | Nodes where the cost savings outweigh the disruption to running pods | You want most of the savings of `WhenEmptyOrUnderutilized` but not the churn from marginal consolidations where the cost savings feels smaller than the pod disruption cost. Karpenter still removes empty and clearly-underutilized nodes, but skips actions where the disruption isn't worth the savings. See [Balanced consolidation]({{<ref "#balanced-consolidation" >}}). |
+| `WhenEmptyOrUnderutilized` | Any node that can be removed or replaced to reduce cost | You want the lowest possible cost and are willing to accept the pod disruption it takes to get there. |
+
+`consolidateAfter` determines how long Karpenter should wait for new work to land on a node before considering it in consolidation. Karpenter resets this timer whenever a pod is added to or removed from the node, so a node only becomes a consolidation candidate once it has been stable for the full `consolidateAfter` duration. Setting a longer value gives churning workloads time to settle and reduces how aggressively Karpenter consolidates; setting it to `Never` disables consolidation for the NodePool entirely.
 
 Karpenter has two mechanisms for cluster consolidation:
 1. **Deletion** - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
@@ -117,6 +125,20 @@ Events:
 {{% alert title="Warning" color="warning" %}}
 Using preferred anti-affinity and topology spreads can reduce the effectiveness of consolidation. At node launch, Karpenter attempts to satisfy affinity and topology spread preferences. In order to reduce node churn, consolidation must also attempt to satisfy these constraints to avoid immediately consolidating nodes after they launch. This means that consolidation may not disrupt nodes in order to avoid violating preferences, even if kube-scheduler can fit the host pods elsewhere.  Karpenter reports these pods via logging to bring awareness to the possible issues they can cause (e.g. `pod default/inflate-anti-self-55894c5d8b-522jd has a preferred Anti-Affinity which can prevent consolidation`).
 {{% /alert %}}
+
+#### Balanced consolidation
+
+`Balanced` scores each consolidation action by weighing how much of the NodePool's cost it saves against how much of the NodePool's total pod disruption it causes, and takes the action only when the savings are large enough relative to the disruption.
+
+```yaml
+spec:
+  disruption:
+    consolidationPolicy: Balanced
+```
+
+By default every pod contributes an equal weight to disruption, so an action's disruption is effectively the number of pods it evicts, and scoring reduces to a comparison of savings against pod count. Pods that are more expensive to move can carry more weight — for example, higher-priority pods count as more disruptive — which makes their node less likely to be consolidated.
+
+Karpenter records each scoring decision so you can see why an action was or wasn't taken. Approved actions emit a `ConsolidationApproved` event (on the Node and on the NodeClaim for single-node actions, on the NodePool for multi-node actions) that includes the score and the savings and disruption percentages. Scoring decisions are also exported as the `karpenter_consolidation_score` and `karpenter_consolidation_moves_total` [metrics]({{<ref "../reference/metrics" >}}), labeled by decision, NodePool, and policy, and logged at `--log-level debug`.
 
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
@@ -173,10 +195,18 @@ Pod disruption budgets may be used to rate-limit application disruption.
 
 ### Expiration
 
-A node is expired once it's lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
+Expiration is a forceful disruption method that begins draining a node immediately once its lifetime exceeds the duration set on the owning NodeClaim's `spec.expireAfter` field.
 Changes to `spec.template.spec.expireAfter` on the owning NodePool will not update the field for existing NodeClaims - it will induce NodeClaim drift and the replacements will have the updated value.
 Expiration can be used, in conjunction with [`terminationGracePeriod`](#terminationgraceperiod), to enforce a maximum Node lifetime.
 By default, `expireAfter` is set to `720h` (30 days).
+
+{{% alert title="Note" color="primary" %}}
+The `expireAfter` field defines the **maximum** node lifetime (upper bound), not a guaranteed minimum.
+Nodes can be disrupted earlier than the `expireAfter` duration by other disruption methods such as [Drift]({{<ref "#drift" >}}), [Consolidation]({{<ref "#consolidation" >}}), or [Emptiness]({{<ref "#consolidation" >}}) if their [disruption budgets]({{<ref "#nodepool-disruption-budgets" >}}) allow.
+For example, a NodePool with `expireAfter: 720h` (30 days) can still have nodes terminated earlier if the node becomes drifted due to an AMI update and the disruption budget permits drift-based disruptions.
+
+To enforce a true maximum node lifetime that cannot be shortened by other disruption methods, use `expireAfter` in combination with carefully configured disruption budgets that limit or prevent other disruption reasons.
+{{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
 Misconfigured PDBs and pods with the `karpenter.sh/do-not-disrupt` annotation may block draining indefinitely.
@@ -188,10 +218,11 @@ Doing so can result in partially drained nodes stuck in the cluster, driving up 
 
 If interruption-handling is enabled, Karpenter will watch for upcoming involuntary interruption events that would cause disruption to your workloads. These interruption events include:
 
-* Spot Interruption Warnings
-* Scheduled Change Health Events (Maintenance Events)
-* Instance Terminating Events
-* Instance Stopping Events
+* Spot Interruption Warnings 
+* Scheduled Change Health Events (Maintenance Events) 
+* Instance Terminating Events 
+* Instance Stopping Events 
+* Instance Status Check Failures
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
@@ -203,9 +234,17 @@ Karpenter publishes Kubernetes events to the node for all events listed above in
 If you require handling for Spot Rebalance Recommendations, you can use the [AWS Node Termination Handler (NTH)](https://github.com/aws/aws-node-termination-handler) alongside Karpenter; however, note that the AWS Node Termination Handler cordons and drains nodes on rebalance recommendations, potentially causing more node churn in the cluster than with interruptions alone. Further information can be found in the [Troubleshooting Guide]({{< ref "../troubleshooting#aws-node-termination-handler-nth-interactions" >}}).
 {{% /alert %}}
 
-Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
+Karpenter handles most interruption events by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
 
-To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+To enable full interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+
+Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-system-instance-status-check.html) API to check for unhealthy EC2 instances managed by Karpenter. The status checks Karpenter responds to are:
+
+* System Status - surfaces failures in the underlying physical host (hardware or software)
+* Instance Status - surfaces failures in the virtual machine 
+* Scheduled Maintenance Events - surfaces upcoming maintenance events that may affect the instance
+
+These status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
 
 ### Node Auto Repair
 
@@ -352,19 +391,31 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 
 As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
 
-Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt: "true"` annotation to the pod.
-You can treat this annotation as a single-pod, permanently blocking PDB.
+Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt` annotation to the pod.
+This annotation supports two formats:
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| **Boolean** | `karpenter.sh/do-not-disrupt: "true"` | Provides permanent protection from disruption |
+| **Duration (Go duration string)** | `karpenter.sh/do-not-disrupt: "30m"` | Provides time-based protection for the specified duration after the pod starts running |
+
+{{% alert title="Note" color="primary" %}}
+If an invalid duration is specified, the annotation will be ignored and an event will be emitted on the pod indicating that the duration format is invalid.
+{{% /alert %}}
+
+You can treat this annotation as a single-pod blocking PDB that is active either permanently (boolean format) or temporarily while the duration hasn't elapsed (duration format).
 This has the following consequences:
-- Nodes with `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
+- Nodes with active `karpenter.sh/do-not-disrupt` pods will be excluded from [Consolidation]({{<ref "#consolidation" >}}), and conditionally excluded from [Drift]({{<ref "#drift" >}}).
   - If the Node's owning NodeClaim has a [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) configured, it will still be eligible for disruption via drift.
-- Like pods with a blocking PDB, pods with the `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
+- Like pods with a blocking PDB, pods with an active `karpenter.sh/do-not-disrupt` annotation will **not** be gracefully evicted by the [Termination Controller]({{<ref "#termination-controller">}}).
   Karpenter will not be able to complete termination of the node until one of the following conditions is met:
-  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed.
+  - All pods with the `karpenter.sh/do-not-disrupt` annotation are removed, or their annotation becomes inactive (duration has elapsed).
   - All pods with the `karpenter.sh/do-not-disrupt` annotation have entered a [terminal phase](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase) (`Succeeded` or `Failed`).
   - The owning NodeClaim's [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) has elapsed.
 
-This is useful for pods that you want to run from start to finish without disruption.
-Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
+#### Examples
+
+**Permanent protection**  - This is useful for pods that you want to run from start to finish without disruption, including an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
 ```yaml
 apiVersion: apps/v1
@@ -374,6 +425,19 @@ spec:
     metadata:
       annotations:
         karpenter.sh/do-not-disrupt: "true"
+```
+
+**Duration-based protection**  - This is useful for pods that are expected to run for a defined period of time, where disruption is acceptable once that period has elapsed. For cluster administrators, this helps ensure that long-running or misbehaving applications and jobs don't block cluster operations like drift or consolidation.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      annotations:
+        # Protect for 30 minutes after pod starts running
+        karpenter.sh/do-not-disrupt: "30m"
 ```
 
 {{% alert title="Note" color="primary" %}}

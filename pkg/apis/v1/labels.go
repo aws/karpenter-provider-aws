@@ -33,8 +33,10 @@ func init() {
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
 		LabelCapacityReservationID,
 		LabelCapacityReservationType,
+		LabelCapacityReservationInterruptible,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
+		LabelInstanceNitroEnclavesSupported,
 		LabelInstanceCategory,
 		LabelInstanceCapabilityFlex,
 		LabelInstanceFamily,
@@ -57,6 +59,8 @@ func init() {
 		LabelTopologyZoneID,
 		LabelInstanceTenancy,
 		corev1.LabelWindowsBuild,
+		LabelPlacementGroupID,
+		LabelPlacementGroupPartition,
 	)
 
 	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
@@ -118,12 +122,15 @@ var (
 	AMIFamilyUbuntu                                = "Ubuntu"
 	AMIFamilyWindows2019                           = "Windows2019"
 	AMIFamilyWindows2022                           = "Windows2022"
+	AMIFamilyWindows2025                           = "Windows2025"
 	AMIFamilyCustom                                = "Custom"
 	Windows2019                                    = "2019"
 	Windows2022                                    = "2022"
+	Windows2025                                    = "2025"
 	WindowsCore                                    = "Core"
 	Windows2019Build                               = "10.0.17763"
 	Windows2022Build                               = "10.0.20348"
+	Windows2025Build                               = "10.0.26100"
 	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
@@ -132,11 +139,14 @@ var (
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
+	ResourceNitroSandbox       corev1.ResourceName = "eks.amazonaws.com/nitro-sandbox"
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
+	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"
+	LabelInstanceNitroEnclavesSupported       = apis.Group + "/nitro-sandbox"
 	LabelInstanceCategory                     = apis.Group + "/instance-category"
 	LabelInstanceCapabilityFlex               = apis.Group + "/instance-capability-flex"
 	LabelInstanceFamily                       = apis.Group + "/instance-family"
@@ -158,6 +168,8 @@ var (
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	LabelNodeClass                            = apis.Group + "/ec2nodeclass"
 	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
+	LabelPlacementGroupID                     = apis.Group + "/placement-group-id"
+	LabelPlacementGroupPartition              = apis.Group + "/placement-group-partition"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 

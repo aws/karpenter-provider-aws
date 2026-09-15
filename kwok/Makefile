@@ -18,6 +18,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.nodeRepair=true \
 			--set settings.featureGates.reservedCapacity=true \
 			--set settings.featureGates.spotToSpotConsolidation=true \
+			--set settings.featureGates.capacityBuffer=true \
 			--set settings.preferencePolicy=Ignore \
 			--create-namespace
 

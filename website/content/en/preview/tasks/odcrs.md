@@ -6,7 +6,7 @@ linkTitle: "Utilizing ODCRs and Capacity Blocks"
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
 
 Karpenter introduced native support for [EC2 On-Demand Capacity Reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html)  (ODCRs) in [v1.3](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.3.0), enabling users to select upon and prioritize specific capacity reservations.
-In [v1.6](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0), this support was expanded to include [EC2 Capacity Blocks for ML](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html).
+In [v1.6](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.6.0), this support was expanded to include [EC2 Capacity Blocks for ML](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-blocks.html). In [v1.10](https://github.com/aws/karpenter-provider-aws/releases/tag/v1.10.0), this was further extended to support [Interruptible Capacity Reservations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/interruptible-capacity-reservations.html).
 To enable native ODCR support, ensure the [`ReservedCapacity` feature gate]({{< relref "../reference/settings#feature-gates" >}}) is enabled.
 
 {{% alert title="Note" color="primary" %}}
@@ -48,10 +48,11 @@ requirements:
 
 Additionaly, Karpenter supports the following scheduling labels:
 
-| Label                                         | Example                       | Description                      |
-| --------------------------------------------- | ----------------------------- | -------------------------------- |
-| `karpenter.k8s.aws/capacity-reservation-id`   | `cr-56fac701cc1951b03`        | The capacity reservation's ID    |
-| `karpenter.k8s.aws/capacity-reservation-type` | `default` or `capacity-block` | The type of capacity reservation |
+| Label                                                  | Example                       | Description                                       |
+| ------------------------------------------------------ | ----------------------------- | ------------------------------------------------- |
+| `karpenter.k8s.aws/capacity-reservation-id`            | `cr-56fac701cc1951b03`        | The capacity reservation's ID                     |
+| `karpenter.k8s.aws/capacity-reservation-type`          | `default` or `capacity-block` | The type of capacity reservation                  |
+| `karpenter.k8s.aws/capacity-reservation-interruptible` | `true` or `false`             | Whether the capacity reservation is interruptible |
 
 These labels will only be present on reserved nodes.
 They are supported as NodePool requirements and as pod scheduling constaints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
@@ -96,6 +97,17 @@ From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capa
 > We use this time to clean up your instances before delivering the Capacity Block to the next customer.
 
 Karpenter will preemptively begin draining nodes launched for capacity blocks 10 minutes before EC2 begins termination, ensuring your workloads can gracefully terminate before reclaimation.
+
+### Interruptible Capacity Reservations
+
+Unlike default ODCRs, capacity launched from interruptible ODCRs can be interrupted when capacity is reclaimed back the source ODCR.
+
+From the [AWS docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/interruptible-capacity-reservations.html), when capacity is reclaimed:
+
+> Running instances receive a 2-minute interruption warning through EventBridge events.
+> After the notice period, running instances in the reclaimed capacity enter a shutting down state and get terminated.
+
+Karpenter will begin draining nodes launched for IODCRs when the 2-minute interruption warning is recieved.
 
 ## Migrating From Previous Versions
 

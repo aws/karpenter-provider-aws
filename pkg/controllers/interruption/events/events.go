@@ -41,6 +41,26 @@ func SpotInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []eve
 	return evts
 }
 
+func CapacityReservationInstanceInterrupted(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "CapacityReservationInstanceInterrupted",
+		Message:        "Capacity Reservation interruption warning was triggered",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
+	if node != nil {
+		evts = append(evts, events.Event{
+			InvolvedObject: node,
+			Type:           corev1.EventTypeWarning,
+			Reason:         "CapacityReservationInstanceInterrupted",
+			Message:        "Capacity Reservation interruption warning was triggered",
+			DedupeValues:   []string{string(node.UID)},
+		})
+	}
+	return evts
+}
+
 func RebalanceRecommendation(node *corev1.Node, nodeClaim *karpv1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,

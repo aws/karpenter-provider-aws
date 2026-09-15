@@ -21,7 +21,9 @@ import (
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -30,11 +32,13 @@ import (
 
 type Subnet struct {
 	subnetProvider subnet.Provider
+	clk            clock.Clock
 }
 
-func NewSubnetReconciler(subnetProvider subnet.Provider) *Subnet {
+func NewSubnetReconciler(clk clock.Clock, subnetProvider subnet.Provider) *Subnet {
 	return &Subnet{
 		subnetProvider: subnetProvider,
+		clk:            clk,
 	}
 }
 
@@ -45,7 +49,7 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 	}
 	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
-		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
+		nodeClass.StatusConditions(status.WithClock(s.clk)).SetFalse(v1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
 		// If users have omitted the necessary tags from their Subnets and later add them, we need to reprocess the information.
 		// Returning 'ok' in this case means that the nodeclass will remain in an unready state until the component is restarted.
 		return reconcile.Result{RequeueAfter: time.Minute}, nil
@@ -63,6 +67,6 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (rec
 			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady)
+	nodeClass.StatusConditions(status.WithClock(s.clk)).SetTrue(v1.ConditionTypeSubnetsReady)
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }

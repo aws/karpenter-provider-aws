@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +37,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -56,7 +58,8 @@ func main() {
 	region := "us-west-2"
 	cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRegion(region)))
 	ec2api := ec2.NewFromConfig(cfg)
-	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
+	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval))
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -70,10 +73,15 @@ func main() {
 			true,
 		),
 		nil,
+		nil,
 		awscache.NewUnavailableOfferings(),
 		instancetype.NewDefaultResolver(
 			region,
+			celEnv,
 		),
+		arczonalshift.NewNoopProvider(),
+		nil,
+		celEnv,
 	)
 	if err := instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 		log.Fatalf("updating instance types, %s", err)
@@ -139,8 +147,14 @@ func main() {
 	})
 	fmt.Printf("Got %d instance types after filtering\n", len(instanceTypes))
 
-	resolver := amifamily.NewDefaultResolver(region)
-	launchTemplates, err := resolver.Resolve(nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)})
+	resolver := amifamily.NewDefaultResolver(region, func(name string) (amifamily.ENILimits, bool) {
+		limits, ok := instancetype.Limits[name]
+		if !ok {
+			return amifamily.ENILimits{}, false
+		}
+		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	}, celEnv)
+	launchTemplates, err := resolver.Resolve(ctx, nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}, "", 0)
 
 	if err != nil {
 		log.Fatalf("resolving launchTemplates, %s", err)

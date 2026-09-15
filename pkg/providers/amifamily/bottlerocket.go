@@ -77,17 +77,18 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1.ParsedKubeletConfig, unparsedKubeletConfig v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
-			ClusterName:         b.ClusterName,
-			ClusterEndpoint:     b.ClusterEndpoint,
-			KubeletConfig:       kubeletConfig,
-			Taints:              taints,
-			Labels:              labels,
-			CABundle:            caBundle,
-			CustomUserData:      customUserData,
-			InstanceStorePolicy: instanceStorePolicy,
+			ClusterName:           b.ClusterName,
+			ClusterEndpoint:       b.ClusterEndpoint,
+			KubeletConfig:         kubeletConfig,
+			UnparsedKubeletConfig: unparsedKubeletConfig,
+			Taints:                taints,
+			Labels:                labels,
+			CABundle:              caBundle,
+			CustomUserData:        customUserData,
+			InstanceStorePolicy:   instanceStorePolicy,
 		},
 		EnableDefaultMountPaths: version.SupportsDefaultBind(b.resolveAMIVersion()),
 	}
@@ -204,12 +205,6 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 // If a NodePool sets the podsPerCore value when using the Bottlerocket AMIFamily in the provider,
 // podsPerCore will be ignored
 // https://github.com/bottlerocket-os/bottlerocket/issues/1721
-
-// EvictionSoftEnabled is currently disabled for Bottlerocket AMIFamily because it does
-// not currently support the evictionSoft parameter passed through the kubernetes settings TOML userData
-// If a NodePool sets the evictionSoft value when using the Bottlerocket AMIFamily in the provider,
-// evictionSoft will be ignored
-// https://github.com/bottlerocket-os/bottlerocket/issues/1445
 
 func (b Bottlerocket) FeatureFlags() FeatureFlags {
 	return FeatureFlags{

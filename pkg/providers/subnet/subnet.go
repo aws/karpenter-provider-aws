@@ -46,16 +46,16 @@ type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]ec2types.Subnet, error)
 	ZonalSubnetsForLaunch(context.Context, *v1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*Subnet, error)
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
+	UpdateICEdSubnet(string)
 }
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                        sdk.EC2API
-	cache                         *cache.Cache
-	availableIPAddressCache       *cache.Cache
-	associatePublicIPAddressCache *cache.Cache
-	cm                            *pretty.ChangeMonitor
-	inflightIPs                   map[string]int32
+	ec2api                  sdk.EC2API
+	cache                   *cache.Cache
+	availableIPAddressCache *cache.Cache
+	cm                      *pretty.ChangeMonitor
+	inflightIPs             map[string]int32
 }
 
 type Subnet struct {
@@ -65,15 +65,14 @@ type Subnet struct {
 	AvailableIPAddressCount int32
 }
 
-func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
-		cache:                         cache,
-		availableIPAddressCache:       availableIPAddressCache,
-		associatePublicIPAddressCache: associatePublicIPAddressCache,
+		cache:                   cache,
+		availableIPAddressCache: availableIPAddressCache,
 		// inflightIPs is used to track IPs from known launched instances
 		inflightIPs: map[string]int32{},
 	}
@@ -107,7 +106,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			for i := range output.Subnets {
 				subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
 				p.availableIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].AvailableIpAddressCount))
-				p.associatePublicIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].MapPublicIpOnLaunch))
 				// subnets can be leaked here, if a subnets is never called received from ec2
 				// we are accepting it for now, as this will be an insignificant amount of memory
 				delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
@@ -234,6 +232,13 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 			}
 		}
 	}
+}
+
+func (p *DefaultProvider) UpdateICEdSubnet(subnetID string) {
+	p.Lock()
+	defer p.Unlock()
+	p.availableIPAddressCache.SetDefault(subnetID, int32(0))
+	delete(p.inflightIPs, subnetID) // remove any previously tracked IP addresses since we just refreshed from Fleet
 }
 
 func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {

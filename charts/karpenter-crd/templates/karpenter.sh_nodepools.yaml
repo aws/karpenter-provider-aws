@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: nodepools.karpenter.sh
 spec:
   group: karpenter.sh
@@ -115,7 +115,7 @@ spec:
                             type: string
                           reasons:
                             description: |-
-                              Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
+                              reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
                               allowed reasons are Underutilized, Empty, and Drifted.
                             items:
@@ -127,6 +127,7 @@ spec:
                               type: string
                             maxItems: 50
                             type: array
+                            x-kubernetes-list-type: set
                           schedule:
                             description: |-
                               Schedule specifies when a budget begins being active, following
@@ -140,29 +141,31 @@ spec:
                         type: object
                       maxItems: 50
                       type: array
+                      x-kubernetes-list-type: atomic
                       x-kubernetes-validations:
                         - message: '''schedule'' must be set with ''duration'''
                           rule: self.all(x, has(x.schedule) == has(x.duration))
                     consolidateAfter:
+                      default: 0s
                       description: |-
                         ConsolidateAfter is the duration the controller will wait
                         before attempting to terminate nodes that are underutilized.
                         Refer to ConsolidationPolicy for how underutilization is considered.
-                        When replicas is set, ConsolidateAfter is simply ignored
+                        When replicas is set, ConsolidateAfter is simply ignored.
                       pattern: ^(([0-9]+(s|m|h))+|Never)$
                       type: string
                     consolidationPolicy:
                       default: WhenEmptyOrUnderutilized
                       description: |-
                         ConsolidationPolicy describes which nodes Karpenter can disrupt through its consolidation
-                        algorithm. This policy defaults to "WhenEmptyOrUnderutilized" if not specified
-                        When replicas is set, ConsolidationPolicy is simply ignored
+                        algorithm. This policy defaults to "WhenEmptyOrUnderutilized" if not specified.
+                        Valid values: "WhenEmpty", "WhenEmptyOrUnderutilized", "Balanced".
+                        When replicas is set, ConsolidationPolicy is simply ignored.
                       enum:
                         - WhenEmpty
                         - WhenEmptyOrUnderutilized
+                        - Balanced
                       type: string
-                  required:
-                    - consolidateAfter
                   type: object
                 limits:
                   additionalProperties:
@@ -200,28 +203,26 @@ spec:
                           additionalProperties:
                             type: string
                           description: |-
-                            Annotations is an unstructured key value map stored with a resource that may be
+                            annotations is an unstructured key value map stored with a resource that may be
                             set by external tools to store and retrieve arbitrary metadata. They are not
                             queryable and should be preserved when modifying objects.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
                           type: object
+                          x-kubernetes-map-type: granular
                         labels:
                           additionalProperties:
                             type: string
                             maxLength: 63
                             pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
                           description: |-
-                            Map of string keys and values that can be used to organize and categorize
+                            labels is a map of string keys and values that can be used to organize and categorize
                             (scope and select) objects. May match selectors of replication controllers
                             and services.
                             More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
                           type: object
+                          x-kubernetes-map-type: atomic
                           maxProperties: 100
                           x-kubernetes-validations:
-                            - message: label domain "kubernetes.io" is restricted
-                              rule: self.all(x, x in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region",  "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || x.find("^([^/]+)").endsWith("node.kubernetes.io") || x.find("^([^/]+)").endsWith("node-restriction.kubernetes.io") || !x.find("^([^/]+)").endsWith("kubernetes.io"))
-                            - message: label domain "k8s.io" is restricted
-                              rule: self.all(x, x.find("^([^/]+)").endsWith("kops.k8s.io") || !x.find("^([^/]+)").endsWith("k8s.io"))
                             - message: label domain "karpenter.sh" is restricted
                               rule: self.all(x, x in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !x.find("^([^/]+)").endsWith("karpenter.sh"))
                             - message: label "karpenter.sh/nodepool" is restricted
@@ -229,7 +230,7 @@ spec:
                             - message: label "kubernetes.io/hostname" is restricted
                               rule: self.all(x, x != "kubernetes.io/hostname")
                             - message: label domain "karpenter.k8s.aws" is restricted
-                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
+                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/capacity-reservation-interruptible", "karpenter.k8s.aws/capacity-reservation-interruptible", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/nitro-sandbox", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex", "karpenter.k8s.aws/placement-group-id", "karpenter.k8s.aws/placement-group-partition"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
                       description: |-
@@ -291,10 +292,6 @@ spec:
                                 maxLength: 316
                                 pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                                 x-kubernetes-validations:
-                                  - message: label domain "kubernetes.io" is restricted
-                                    rule: self in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region", "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "node.kubernetes.io/instance-type", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || self.find("^([^/]+)").endsWith("node.kubernetes.io") || self.find("^([^/]+)").endsWith("node-restriction.kubernetes.io") || !self.find("^([^/]+)").endsWith("kubernetes.io")
-                                  - message: label domain "k8s.io" is restricted
-                                    rule: self.find("^([^/]+)").endsWith("kops.k8s.io") || !self.find("^([^/]+)").endsWith("k8s.io")
                                   - message: label domain "karpenter.sh" is restricted
                                     rule: self in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !self.find("^([^/]+)").endsWith("karpenter.sh")
                                   - message: label "karpenter.sh/nodepool" is restricted
@@ -302,7 +299,7 @@ spec:
                                   - message: label "kubernetes.io/hostname" is restricted
                                     rule: self != "kubernetes.io/hostname"
                                   - message: label domain "karpenter.k8s.aws" is restricted
-                                    rule: self in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                                    rule: self in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/capacity-reservation-interruptible", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/nitro-sandbox", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex", "karpenter.k8s.aws/placement-group-id", "karpenter.k8s.aws/placement-group-partition"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                               minValues:
                                 description: |-
                                   This field is ALPHA and can be dropped or replaced at any time
@@ -315,14 +312,14 @@ spec:
                                   Represents a key's relationship to a set of values.
                                   Valid operators are In, NotIn, Exists, DoesNotExist. Gt, Lt, Gte, and Lte.
                                 enum:
-                                  - Gte
-                                  - Lte
                                   - In
                                   - NotIn
                                   - Exists
                                   - DoesNotExist
                                   - Gt
                                   - Lt
+                                  - Gte
+                                  - Lte
                                 type: string
                               values:
                                 description: |-
@@ -343,6 +340,7 @@ spec:
                             type: object
                           maxItems: 100
                           type: array
+                          x-kubernetes-list-type: atomic
                           x-kubernetes-validations:
                             - message: requirements with operator 'In' must have a value defined
                               rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
@@ -352,7 +350,7 @@ spec:
                               rule: 'self.all(x, (x.operator == ''In'' && has(x.minValues)) ? x.values.size() >= x.minValues : true)'
                         startupTaints:
                           description: |-
-                            StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+                            startupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
                             within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
                             daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
                             purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
@@ -389,8 +387,9 @@ spec:
                               - key
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                         taints:
-                          description: Taints will be applied to the NodeClaim's node.
+                          description: taints will be applied to the NodeClaim's node.
                           items:
                             description: |-
                               The node this Taint is attached to has the "effect" on
@@ -424,6 +423,7 @@ spec:
                               - key
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                         terminationGracePeriod:
                           description: |-
                             TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
@@ -528,6 +528,9 @@ spec:
                       - type
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
                 nodeClassObservedGeneration:
                   description: |-
                     NodeClassObservedGeneration represents the observed nodeClass generation for referenced nodeClass. If this does not match

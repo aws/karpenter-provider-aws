@@ -195,9 +195,9 @@ Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent
 ### Can I set `--max-pods` on my nodes?
 Yes, see the [KubeletConfiguration Section in the NodePool docs]({{<ref "./concepts/nodepools#spectemplatespeckubelet" >}}) to learn more.
 
-### Why do the Windows2019 and Windows2022 AMI families only support Windows Server Core?
+### Why do the Windows2019, Windows2022 and Windows2025 AMI families only support Windows Server Core?
 The difference between the Core and Full variants is that Core is a minimal OS with less components and no graphic user interface (GUI) or desktop experience.
-`Windows2019` and `Windows2022` AMI families use the Windows Server Core option for simplicity, but if required, you can specify a custom AMI to run Windows Server Full.
+`Windows2019`, `Windows2022` and `Windows2025` AMI families use the Windows Server Core option for simplicity, but if required, you can specify a custom AMI to run Windows Server Full.
 
 You can specify the [Amazon EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-windows-ami.html) with Windows Server 2022 Full for Kubernetes {{< param "latest_k8s_version" >}} by configuring an `amiSelector` that references the AMI name.
 ```yaml

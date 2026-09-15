@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
@@ -75,6 +75,7 @@ spec:
                     - Custom
                     - Windows2019
                     - Windows2022
+                    - Windows2025
                   type: string
                 amiSelectorTerms:
                   description: AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
@@ -87,7 +88,7 @@ spec:
                         description: |-
                           Alias specifies which EKS optimized AMI to select.
                           Each alias consists of a family and an AMI version, specified as "family@version".
-                          Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
+                          Valid families include: al2, al2023, bottlerocket, windows2019, windows2022, windows2025.
                           The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
                           The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
                           Note: The Windows families do **not** support version pinning, and only latest may be used.
@@ -96,10 +97,10 @@ spec:
                         x-kubernetes-validations:
                           - message: '''alias'' is improperly formatted, must match the format ''family@version'''
                             rule: self.matches('^[a-zA-Z0-9]+@.+$')
-                          - message: 'family is not supported, must be one of the following: ''al2'', ''al2023'', ''bottlerocket'', ''windows2019'', ''windows2022'''
-                            rule: self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022']
+                          - message: 'family is not supported, must be one of the following: ''al2'', ''al2023'', ''bottlerocket'', ''windows2019'', ''windows2022'', ''windows2025'''
+                            rule: self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022','windows2025']
                           - message: windows families may only specify version 'latest'
-                            rule: 'self.split(''@'')[0] in [''windows2019'',''windows2022''] ? self.split(''@'')[1] == ''latest'' : true'
+                            rule: 'self.split(''@'')[0] in [''windows2019'',''windows2022'',''windows2025''] ? self.split(''@'')[1] == ''latest'' : true'
                       id:
                         description: ID is the ami id in EC2
                         pattern: ami-[0-9a-z]+
@@ -294,11 +295,66 @@ spec:
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
                     - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
                       rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                connectionTracking:
+                  description: |-
+                    ConnectionTracking configures idle connection tracking timeouts for
+                    ENIs Karpenter provisions in the launch template. EFA-only interfaces
+                    are excluded. See ConnectionTracking.
+                  properties:
+                    tcpEstablishedTimeout:
+                      description: |-
+                        TCPEstablishedTimeout is the timeout (in seconds) for idle TCP connections
+                        in an established state.
+                        Value must be between 60 and 432,000 (5 days).
+                        If unset, EC2 applies its default which is 350 seconds for Nitro v6
+                        instance types (excluding P6e-GB200) and 432,000 seconds for other
+                        instance types.
+                      format: int32
+                      maximum: 432000
+                      minimum: 60
+                      type: integer
+                    udpStreamTimeout:
+                      description: |-
+                        UDPStreamTimeout is the timeout (in seconds) for idle UDP "stream" flows
+                        that have seen more than one request-response transaction.
+                        Value must be between 60 and 180.
+                        If unset, EC2 applies its default of 180 seconds.
+                      format: int32
+                      maximum: 180
+                      minimum: 60
+                      type: integer
+                    udpTimeout:
+                      description: |-
+                        UDPTimeout is the timeout (in seconds) for idle UDP flows that have seen
+                        traffic only in a single direction or a single request-response transaction.
+                        Value must be between 30 and 60.
+                        If unset, EC2 applies its default of 30 seconds.
+                      format: int32
+                      maximum: 60
+                      minimum: 30
+                      type: integer
+                  type: object
+                  x-kubernetes-validations:
+                    - message: at least one of tcpEstablishedTimeout, udpStreamTimeout, or udpTimeout must be set
+                      rule: has(self.tcpEstablishedTimeout) || has(self.udpStreamTimeout) || has(self.udpTimeout)
                 context:
                   description: |-
                     Context is a Reserved field in EC2 APIs
                     https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                   type: string
+                cpuOptions:
+                  description: CPUOptions defines the CPU options for the instance.
+                  properties:
+                    nestedVirtualization:
+                      description: |-
+                        NestedVirtualization enables or disables nested virtualization on the instance.
+                        When enabled, Karpenter filters instance types to only those reporting
+                        "nested-virtualization" in ProcessorInfo.SupportedFeatures from DescribeInstanceTypes.
+                      enum:
+                        - enabled
+                        - disabled
+                      type: string
+                  type: object
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
@@ -332,119 +388,18 @@ spec:
                   minimum: 0
                   type: integer
                 kubelet:
+                  additionalProperties:
+                    x-kubernetes-preserve-unknown-fields: true
                   description: |-
-                    Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-                    They are a subset of the upstream types, recognizing not all options may be supported.
-                    Wherever possible, the types and names should reflect the upstream kubelet types.
-                  properties:
-                    clusterDNS:
-                      description: |-
-                        clusterDNS is a list of IP addresses for the cluster DNS server.
-                        Note that not all providers may use all addresses.
-                      items:
-                        type: string
-                      type: array
-                    cpuCFSQuota:
-                      description: CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
-                      type: boolean
-                    evictionHard:
-                      additionalProperties:
-                        type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    evictionMaxPodGracePeriod:
-                      description: |-
-                        EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-                        response to soft eviction thresholds being met.
-                      format: int32
-                      type: integer
-                    evictionSoft:
-                      additionalProperties:
-                        type: string
-                        pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                      description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    evictionSoftGracePeriod:
-                      additionalProperties:
-                        type: string
-                      description: EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                          rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                    imageGCHighThresholdPercent:
-                      description: |-
-                        ImageGCHighThresholdPercent is the percent of disk usage after which image
-                        garbage collection is always run. The percent is calculated by dividing this
-                        field value by 100, so this field must be between 0 and 100, inclusive.
-                        When specified, the value must be greater than ImageGCLowThresholdPercent.
-                      format: int32
-                      maximum: 100
-                      minimum: 0
-                      type: integer
-                    imageGCLowThresholdPercent:
-                      description: |-
-                        ImageGCLowThresholdPercent is the percent of disk usage before which image
-                        garbage collection is never run. Lowest disk usage to garbage collect to.
-                        The percent is calculated by dividing this field value by 100,
-                        so the field value must be between 0 and 100, inclusive.
-                        When specified, the value must be less than imageGCHighThresholdPercent
-                      format: int32
-                      maximum: 100
-                      minimum: 0
-                      type: integer
-                    kubeReserved:
-                      additionalProperties:
-                        type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: KubeReserved contains resources reserved for Kubernetes system components.
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
-                          rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                        - message: kubeReserved value cannot be a negative resource quantity
-                          rule: self.all(x, !self[x].startsWith('-'))
-                    maxPods:
-                      description: |-
-                        MaxPods is an override for the maximum number of pods that can run on
-                        a worker node instance.
-                      format: int32
-                      minimum: 0
-                      type: integer
-                    podsPerCore:
-                      description: |-
-                        PodsPerCore is an override for the number of pods that can run on a worker node
-                        instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-                        MaxPods is a lower value, that value will be used.
-                      format: int32
-                      minimum: 0
-                      type: integer
-                    systemReserved:
-                      additionalProperties:
-                        type: string
-                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
-                      type: object
-                      x-kubernetes-validations:
-                        - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']
-                          rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                        - message: systemReserved value cannot be a negative resource quantity
-                          rule: self.all(x, !self[x].startsWith('-'))
+                    Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+                    KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+                    see the k8s.io/kubelet version in go.mod for the exact set.
+                    Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
+                    systemReserved, evictionHard) and passes all others through to UserData unchanged.
+                    Field names and types are validated by Karpenter, which reports a rejected configuration
+                    on status.conditions as ValidationSucceeded=False rather than failing the apply.
                   type: object
-                  x-kubernetes-validations:
-                    - message: imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent
-                      rule: 'has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true'
-                    - message: evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod
-                      rule: has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true
-                    - message: evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft
-                      rule: has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true
+                  x-kubernetes-preserve-unknown-fields: true
                 metadataOptions:
                   default:
                     httpEndpoint: enabled
@@ -524,6 +479,58 @@ spec:
                         - optional
                       type: string
                   type: object
+                networkInterfaces:
+                  description: NetworkInterfaces specifies the network interface configurations to be attached to provisioned instances.
+                  items:
+                    description: |-
+                      NetworkInterface specifies the configuration for a network interface to be attached
+                      to provisioned instances.
+                    properties:
+                      deviceIndex:
+                        description: DeviceIndex is the device index for the network interface attachment.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                      interfaceType:
+                        description: InterfaceType is the type of network interface. Valid values are "interface" and "efa-only".
+                        enum:
+                          - interface
+                          - efa-only
+                        type: string
+                      networkCardIndex:
+                        description: NetworkCardIndex is the index of the network card to attach the interface to.
+                        format: int32
+                        minimum: 0
+                        type: integer
+                    required:
+                      - deviceIndex
+                      - interfaceType
+                      - networkCardIndex
+                    type: object
+                  maxItems: 150
+                  type: array
+                  x-kubernetes-validations:
+                    - message: networkInterfaces must include a primary interface with interfaceType='interface'
+                      rule: self.size() == 0 || self.exists(x, x.deviceIndex == 0 && x.networkCardIndex == 0 && x.interfaceType == 'interface')
+                    - message: networkInterfaces must not have duplicate networkCardIndex and deviceIndex pairs, and can have at most one efa device per network card
+                      rule: self.all(x, self.filter(y, x.networkCardIndex == y.networkCardIndex && x.deviceIndex == y.deviceIndex).size() == 1 && (x.interfaceType != 'efa-only' || self.filter(y, x.networkCardIndex == y.networkCardIndex && y.interfaceType == 'efa-only').size() == 1))
+                placementGroupSelector:
+                  description: PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
+                  properties:
+                    id:
+                      description: ID is the placement group id in EC2
+                      pattern: ^pg-[0-9a-z]+$
+                      type: string
+                    name:
+                      description: Name is the placement group name in EC2
+                      minLength: 1
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                    - message: expected at least one, got none, ['name', 'id']
+                      rule: has(self.name) || has(self.id)
+                    - message: '''name'' and ''id'' are mutually exclusive'
+                      rule: '!(has(self.name) && has(self.id))'
                 role:
                   description: |-
                     Role is the AWS identity that nodes use.
@@ -645,6 +652,8 @@ spec:
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2019'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2019'') : true)'
                 - message: if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2022'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2022'') : true)'
+                - message: if set, amiFamily must be 'Windows2025' or 'Custom' when using a Windows2025 alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2025'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2025'') : true)'
                 - message: must specify amiFamily if amiSelectorTerms does not contain an alias
                   rule: 'self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)'
             status:
@@ -730,6 +739,9 @@ spec:
                       instanceType:
                         description: The instance type for the capacity reservation.
                         type: string
+                      interruptible:
+                        description: Indicates whether this capacity reservation is interruptible
+                        type: boolean
                       ownerID:
                         description: The ID of the AWS account that owns the capacity reservation.
                         pattern: ^[0-9]{12}$

@@ -86,11 +86,121 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.15.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* **Breaking:** the `reason` label on the `karpenter_nodepool_allowed_disruptions` and `karpenter_nodepool_nodes_consuming_budgets` metrics is now emitted in lowercase (for example `underutilized` instead of `Underutilized`), matching the `reason` label on Karpenter's other disruption metrics. Update any dashboards or alerts that filter these two metrics by a capitalized `reason` value.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.15.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.15.0
+
+### Upgrading to `1.14.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* This version graduates the [Capacity Buffers]({{<ref "../concepts/capacitybuffers.md">}}) API to `v1beta1` and ships a new `autoscaling.x-k8s.io_capacitybuffers` CRD. If you use the standalone `karpenter-crd` Helm chart, upgrade it alongside the controller so the new CRD is installed. See [CRD Upgrades](#crd-upgrades) above.
+* This version adds support for [Dynamic Resource Allocation (DRA)](https://github.com/kubernetes-sigs/karpenter/pull/3113), including consumable capacity and partitionable devices. This is additive and requires no configuration changes to existing NodePools.
+* This version adds a [Balanced consolidation policy](https://github.com/kubernetes-sigs/karpenter/pull/2962). Existing `WhenEmptyOrUnderutilized` NodePools are unaffected unless you opt into the new policy.
+* This version adds support for [preview instance types](https://github.com/aws/karpenter-provider-aws/pull/9249), allowing Karpenter to consider instance types that do not yet have public pricing data. This is gated behind the existing `NodeOverlay` feature gate and is opt-in.
+* No breaking changes 🎉
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.14.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.14.0
+
+### Upgrading to `1.13.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* No breaking changes 🎉
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.13.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.13.0
+
+### Upgrading to `1.12.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* This version adds support for [drift on CA bundle](https://github.com/aws/karpenter-provider-aws/pull/9083). The updated hashing logic will mark existing nodes as [drifted]({{<ref "../concepts/disruption/#drift">}}).
+* This version adds support for [AWS Application Recovery Controller Zonal Shift]({{<ref "../concepts/scheduling/#zonal-shift">}}). This feature is opt-in, disabled by default, and requires a new `arc-zonal-shift:GetManagedResource` IAM permission. For instructions on enabling Zonal Shift on new or existing clusters, see the [Zonal Shift Onboarding]({{<ref "../getting-started/getting-started-with-karpenter/#zonal-shift-onboarding-optional">}}) section of the Getting Started Guide.
+* In the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/">}}), there is a new required `ec2:DescribeInstanceStatus` permission in the Karpenter controller role for [EC2 instance status health checks](https://github.com/aws/karpenter-provider-aws/pull/9064) in the interruption controller. You will need to update your Karpenter controller role with this permission.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.12.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.12.0
+
+### Upgrading to `1.11.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* In the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/">}}), 
+  there are new changes to IAM permissions in the Karpenter controller role for supporting placement groups: 
+  - `ec2:DescribePlacementGroups` action in [AllowRegionalReadActions]({{<ref "../../docs/reference/cloudformation/#allowregionalreadactions">}})
+  - `arn:${AWS::Partition}:ec2:${AWS::Region}:*:placement-group/*` resource in [AllowScopedEC2InstanceAccessActions]({{<ref "../../docs/reference/cloudformation/#allowscopedec2instanceaccessactions">}})
+
+  If you are using placement groups, you will need to update your Karpenter controller role.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.11.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.11.0
+
+### Upgrading to `1.10.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* In the [getting started guide's cloudformation template]({{<ref "../../docs/reference/cloudformation/#rules">}}), 
+  there is an extra `detail-type` for EventBridge rules to capture Capacity Reservation Instance Interruption warnings. 
+  If you are using interruptible ODCRs, you will need to update your EventBridge rules to add this `detail-type`.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.10.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.10.0
+
+### Upgrading to `1.9.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* The IAM policy in the getting started guide's cloudformation template has been split into 5 policies (addresses
+  [aws/karpenter-provider-aws#7874](https://github.com/aws/karpenter-provider-aws/issues/7874)). If you've taken a
+  dependency on the policy created by this cloudformation template, you will need to update your IAM role to attach all
+  5 policies. There has not been any change to the permissions granted by the policies since 1.8.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.9.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.9.0
+
+
 ### Upgrading to `1.8.0`+
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 **Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+
+Karpenter `v1.8.4` release contains a regression which may prevent Karpenter from scheduling pods with specific TopologySpreadConstraint configurations. Please do not upgrade to this version. For more details, see the following issue: https://github.com/kubernetes-sigs/karpenter/issues/2785
 {{% /alert %}}
 
 * This version adds support for [Static Capacity](https://github.com/kubernetes-sigs/karpenter/pull/2521). Make sure to upgrade your karpenter CRDs to use this feature.
@@ -129,7 +239,9 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * Native ODCR support has graduated to beta and is enabled by default.
-  If you were previously using open ODCRs with Karpenter and have not already migrated to native ODCR support, review the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}) before upgrading.
+  {{% alert title="Warning: breaking change for open ODCR users" color="warning" %}}
+  If you use ODCRs with `open` instance eligibility but have **not** set `spec.capacityReservationSelectorTerms` on your EC2NodeClasses, Karpenter stops using those reservations after this upgrade and falls back to on-demand — leaving reservations unused but still billed. Configure it **before** upgrading; see the [native ODCR support guide]({{< relref "../tasks/odcrs" >}}).
+  {{% /alert %}}
 * Support a new configuration option `MinValuesPolicy` which controls how the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). Default is 'Strict' to preserve existing behavior.
 * Support a new configuration option `DisableDryRun` which disables the dry run calls made during EC2NodeClass validation (1.6.2+).
 

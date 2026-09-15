@@ -32,6 +32,7 @@ const (
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
 	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
+	InvalidUserDataMalformedCode                   = "InvalidUserData.Malformed"
 )
 
 var (
@@ -60,6 +61,7 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
 	)
 )
@@ -183,6 +185,15 @@ func IsInsufficientFreeAddressesInSubnet(err ec2types.CreateFleetError) bool {
 	return *err.ErrorCode == InsufficientFreeAddressesInSubnetErrorCode
 }
 
+// IsSpreadPlacementGroupLimitError returns true if the fleet error indicates that
+// the 7-instance-per-AZ limit for a spread placement group has been reached.
+// EC2 returns this as an InsufficientInstanceCapacity error with the message:
+// "You've reached the limit of instances in this spread placement group. A spread
+// placement group can have up to seven instances per Availability Zone."
+func IsSpreadPlacementGroupLimitError(err ec2types.CreateFleetError) bool {
+	return err.ErrorMessage != nil && strings.Contains(*err.ErrorMessage, "limit of instances in this spread placement group")
+}
+
 // IsReservationCapacityExceeded returns true if the fleet error means there is no remaining capacity for the provided
 // capacity reservation.
 func IsReservationCapacityExceeded(err ec2types.CreateFleetError) bool {
@@ -209,6 +220,16 @@ func IsInstanceProfileNotFound(err error) bool {
 	return false
 }
 
+func IsUserDataTooLarge(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == InvalidUserDataMalformedCode && strings.Contains(apiErr.ErrorMessage(), "User data is limited to")
+	}
+	return false
+}
+
 // ToReasonMessage converts an error message from AWS into a well-known condition reason
 // and well-known condition message that can be used for Launch failure classification
 // nolint:gocyclo
@@ -228,11 +249,17 @@ func ToReasonMessage(err error) (string, string) {
 		}
 		return "Unauthorized", "User is not authorized to perform this operation because no identity-based policy allows it"
 	}
+	if strings.Contains(err.Error(), "InvalidParameter") && strings.Contains(err.Error(), "belong to different networks") {
+		return "SecurityGroupSubnetVPCMismatch", "Security groups and subnets must be in the same VPC."
+	}
 	if strings.Contains(err.Error(), "iamInstanceProfile.name is invalid") {
 		return "InstanceProfileNameInvalid", "Instance profile name used from EC2NodeClass status does not exist"
 	}
 	if strings.Contains(err.Error(), "InvalidLaunchTemplateId.NotFound") {
 		return "LaunchTemplateNotFound", "Launch template used for instance launch wasn't found"
+	}
+	if strings.Contains(err.Error(), "User data is limited to") {
+		return "UserDataSizeLimitExceeded", "Rendered user data exceeds the EC2 user data size limit"
 	}
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
 		return "InvalidAMIID", "AMI used for instance launch is invalid"
@@ -245,6 +272,9 @@ func ToReasonMessage(err error) (string, string) {
 	}
 	if strings.Contains(err.Error(), "InternalError") {
 		return "InternalError", "An internal error has occurred"
+	}
+	if strings.Contains(err.Error(), "not eligible for Free Tier") {
+		return "FreeTierIneligible", "The specified instance type is not eligible for Free Tier"
 	}
 	// ICE Errors come last in this list because we should return a generic ICE error if all of the errors that are returned from
 	// fleet are ICE errors

@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -27,6 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/version"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -234,6 +237,31 @@ var _ = Describe("AMIProvider", func() {
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
+	})
+	It("should succeed to resolve AMIs (Windows2025)", func() {
+		// Check if EKS version supports Windows 2025 (requires 1.35+)
+		minorVersion, err := strconv.Atoi(strings.Split(k8sVersion, ".")[1])
+		if err != nil || minorVersion < 35 {
+			Skip("Windows 2025 requires EKS 1.35+, current version: " + k8sVersion)
+		}
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+	})
+	It("should fail to resolve AMIs for Windows2025 when EKS version is below 1.35", func() {
+		amiProvider := amiProviderWithEKSVersionOverride("1.34.0")
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2025@latest"}}
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2025-English-Core-EKS_Optimized-%s/image_id", "1.34.0"): amd64AMI,
+		}
+		_, err := amiProvider.DescribeImageQueries(ctx, nodeClass)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("Windows Server 2025 requires EKS version 1.35 or higher"))
 	})
 
 	It("should not cause data races when calling Get() simultaneously", func() {
@@ -1189,15 +1217,15 @@ var _ = Describe("AMIResolver", func() {
 			},
 		})
 		instanceTypes = []*corecloudprovider.InstanceType{
-			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "t3.medium"}),
-			corecloudfake.NewInstanceType(corecloudfake.InstanceTypeOptions{Name: "m5.large"}),
+			corecloudfake.NewInstanceType("t3.medium"),
+			corecloudfake.NewInstanceType("m5.large"),
 		}
 	})
 	DescribeTable(
 		"should set launch template metadata options correctly per region",
 		func(region string, expect *string) {
-			amiResolver := amifamily.NewDefaultResolver(region)
-			launchTemplates, err := amiResolver.Resolve(nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"})
+			amiResolver := amifamily.NewDefaultResolver(region, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(launchTemplates).To(HaveLen(1))
 			lo.ForEach(launchTemplates, func(launchTemplate *amifamily.LaunchTemplate, _ int) {
@@ -1209,6 +1237,52 @@ var _ = Describe("AMIResolver", func() {
 		Entry("should be nil for isob", "us-isob-east-1", nil),
 		Entry("should be nil for isof", "us-isof-south-1", nil),
 	)
+	It("should fail launch template resolution rather than default a kubelet config that won't decode", func() {
+		// Unreachable in practice: the validation controller rejects a config ParseKubeletConfig can't
+		// read before the NodeClass goes Ready, so Create never gets here but here just in case
+		nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"clusterDNS": v1.JSONValue("10.0.0.10")}
+		amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+		launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("parsing kubelet configuration"))
+		Expect(launchTemplates).To(BeEmpty())
+	})
+	Context("EnclaveEnabled", func() {
+		It("should set EnclaveEnabled to false by default when no resources are requested", func() {
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeFalse())
+			})
+		})
+		It("should set EnclaveEnabled to true when ResourceNitroSandbox is in the NodeClaim's resource requests", func() {
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				v1.ResourceNitroSandbox: resource.MustParse("1"),
+			}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeTrue())
+			})
+		})
+		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNitroSandbox)", func() {
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+			}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeFalse())
+			})
+		})
+	})
 })
 
 func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {

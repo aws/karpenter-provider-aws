@@ -58,7 +58,7 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 }
 
 func (c *NodeController) GetInfo(ctx context.Context, n *corev1.Node) string {
-	pods, _ := nodeutils.GetPods(ctx, c.kubeClient, n)
+	pods, _ := nodeutils.GetPods(ctx, c.kubeClient, n.Name)
 	return fmt.Sprintf("ready=%s schedulable=%t initialized=%s pods=%d taints=%v", nodeutils.GetCondition(n, corev1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[karpv1.NodeInitializedLabelKey], len(pods), n.Spec.Taints)
 }
 

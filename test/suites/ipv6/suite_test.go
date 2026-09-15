@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -81,7 +82,7 @@ var _ = Describe("IPv6", func() {
 	})
 	It("should provision an IPv6 node by discovering kubeletConfig kube-dns IP", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
 		pod := coretest.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
@@ -94,16 +95,18 @@ var _ = Describe("IPv6", func() {
 	})
 	It("should provision a static IPv6 prefix with node launch and set IPv6 as primary in the primary network interface", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
 		pod := coretest.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		node := env.GetNode(pod.Spec.NodeName)
 		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
-		Expect(instance.NetworkInterfaces).To(HaveLen(1))
-		Expect(instance.NetworkInterfaces[0].Ipv6Addresses).To(HaveLen(1))
-		_, hasIPv6Primary := lo.Find(instance.NetworkInterfaces[0].Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
+		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
+		primaryNI, found := aws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
+		Expect(found).To(BeTrue())
+		Expect(primaryNI.Ipv6Addresses).To(HaveLen(1))
+		_, hasIPv6Primary := lo.Find(primaryNI.Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
 			return lo.FromPtr(ip.IsPrimaryIpv6)
 		})
 		Expect(hasIPv6Primary).To(BeTrue())

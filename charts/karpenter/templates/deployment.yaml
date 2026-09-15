@@ -126,7 +126,9 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }}"
+              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }}"
+            - name: AWS_FEATURE_GATES
+              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -169,6 +171,10 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.enableZonalShift }}
+            - name: ENABLE_ZONAL_SHIFT
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
@@ -183,6 +189,18 @@ spec:
           {{- end }}
           {{- with .Values.settings.disableDryRun }}
             - name: DISABLE_DRY_RUN
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.amiRefreshInterval }}
+            - name: AMI_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.subnetRefreshInterval }}
+            - name: SUBNET_REFRESH_INTERVAL
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.securityGroupRefreshInterval }}
+            - name: SECURITY_GROUP_REFRESH_INTERVAL
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.controller.env }}

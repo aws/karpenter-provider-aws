@@ -15,6 +15,7 @@ limitations under the License.
 package integration_test
 
 import (
+	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -34,7 +35,7 @@ var _ = Describe("CRD Hash", func() {
 
 			hash, found := nc.Annotations[v1.AnnotationEC2NodeClassHash]
 			g.Expect(found).To(BeTrue())
-			g.Expect(hash).To(Equal(nc.Hash()))
+			g.Expect(hash).To(Equal(nc.Hash(lo.ToPtr(env.ExpectCABundle()))))
 		})
 	})
 })

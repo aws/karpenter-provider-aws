@@ -3,7 +3,7 @@ CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].n
 ## Inject the app version into operator.Version
 LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always | cut -d"v" -f2)
 
-GOFLAGS ?= $(LDFLAGS)
+GOFLAGS += $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
 
 ## Extra helm options
@@ -13,6 +13,7 @@ KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-ka
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
 			--set settings.interruptionQueue=${CLUSTER_NAME} \
+			--set settings.enableZonalShift=${ENABLE_ZONAL_SHIFT}\
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -22,6 +23,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.spotToSpotConsolidation=true \
 			--set settings.featureGates.nodeOverlay=true \
 			--set settings.featureGates.staticCapacity=true \
+			--set settings.featureGates.capacityBuffer=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace
@@ -53,13 +55,16 @@ ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
-run: ## Run Karpenter controller binary against your local cluster
+run: ## Run Karpenter controller binary against your local cluster with latest CRD's
+	kubectl apply -f ./pkg/apis/crds/
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		DISABLE_LEADER_ELECTION=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		ENABLE_ZONAL_SHIFT=true \
 		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
+		AWS_FEATURE_GATES="NodeClassCEL=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
@@ -67,13 +72,15 @@ test: ## Run tests
 	go test ./pkg/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.skip="${SKIP}" \
 		--ginkgo.randomize-all \
 		--ginkgo.vv
 
 deflake: ## Run randomized, racing tests until the test fails to catch flakes
-	go tool -modfile=go.tools.mod ginkgo \
+	ginkgo \
 		--race \
 		--focus="${FOCUS}" \
+		--skip="${SKIP}" \
 		--randomize-all \
 		--until-it-fails \
 		-v \
@@ -83,14 +90,16 @@ e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		ENABLE_ZONAL_SHIFT=true \
 		go test \
 		-p 1 \
 		-count 1 \
-		-timeout 3.25h \
+		-timeout 12h \
 		-v \
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
-		--ginkgo.timeout=3h \
+		--ginkgo.skip="${SKIP}" \
+		--ginkgo.timeout=3h20m \
 		--ginkgo.grace-period=3m \
 		--ginkgo.vv
 
@@ -98,10 +107,11 @@ upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
 	cd $(KARPENTER_CORE_DIR) && go test \
 		-count 1 \
-		-timeout 3.25h \
+		-timeout 12h \
 		-v \
-		./test/suites/... \
+		./test/suites/regression/... \
 		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
@@ -109,8 +119,9 @@ upstream-e2etests: tidy download
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go tool -modfile=../go.tools.mod ginkgo \
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
 		--focus="${FOCUS}" \
+		--skip="${SKIP}" \
 		--timeout=3h \
 		--grace-period=3m \
 		--until-it-fails \
@@ -127,13 +138,15 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
-	hack/validation/kubelet.sh
+	# The scripts below rewrite the CRDs they edit in yq's formatting rather than controller-gen's.
+	# ec2nodeclasses.yaml is no longer one of them, so it's passed through yq to keep its formatting stable
+	yq eval --inplace '.' pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	bash -c 'source ./hack/validation/requirements.sh && injectDomainRequirementRestrictions "karpenter.k8s.aws"'
 	bash -c 'source ./hack/validation/labels.sh && injectDomainLabelRestrictions "karpenter.k8s.aws"'
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
-	$(foreach dir,$(MOD_DIRS),cd $(dir) && go tool -modfile=$(CURDIR)/go.tools.mod golangci-lint run $(newline))
+	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
 		if [ "${CI}" = true ]; then\
@@ -141,17 +154,17 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
-	go tool -modfile=go.tools.mod actionlint -oneline
+	actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
-	@go tool -modfile=go.tools.mod govulncheck ./pkg/...
+	@govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
 	# TODO: remove nodeadm check once license is updated
-	! go tool -modfile=go.tools.mod go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
+	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" go tool -modfile=go.tools.mod ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KOCACHE=$(KOCACHE) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
@@ -207,11 +220,9 @@ website: ## Serve the docs website locally
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
-	go mod tidy -modfile=go.tools.mod
 
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
-	go mod download -modfile=go.tools.mod
 
 update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD

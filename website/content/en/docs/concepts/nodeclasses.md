@@ -5,7 +5,6 @@ weight: 2
 description: >
   Configure AWS-specific settings with EC2NodeClasses
 ---
-
 Node Classes enable configuration of AWS specific settings.
 Each NodePool must reference an EC2NodeClass using `spec.template.spec.nodeClassRef`.
 Multiple NodePools may point to the same EC2NodeClass.
@@ -115,9 +114,14 @@ spec:
     - id: cr-123
     - instanceMatchCriteria: open
 
-  # Optional, adding enclave option allows user to specify if node launch will have nitro enclave enabled
+  # Optional, enables Nitro Enclaves on launched instances
   enclaveOptions:
     enabled: false
+
+  # Optional, propagates tags to underlying EC2 resources
+  placementGroupSelector:
+    name: my-pg
+    id: pg-123
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -130,6 +134,16 @@ spec:
     httpProtocolIPv6: disabled
     httpPutResponseHopLimit: 1 # This is changed to disable IMDS access from containers not on the host network
     httpTokens: required
+
+  # Optional, configures ENI Connection Tracking timeouts.
+  # Omit entirely to use EC2 defaults. Only set fields you want to override.
+  connectionTracking:
+    # Optional, configures timeout (in seconds) for idle TCP connections.
+    tcpEstablishedTimeout: 300 # lower than the EC2 default of 432000 (5 days)
+    # Optional, configures timeout (in seconds) for idle UDP stream flows.
+    udpStreamTimeout: 120
+    # Optional, configures timeout (in seconds) for idle unidirectional or single-transaction UDP flows.
+    udpTimeout: 45
 
   # Optional, configures storage devices for the instance
   blockDeviceMappings:
@@ -144,6 +158,15 @@ spec:
         throughput: 125
         snapshotID: snap-0123456789
         volumeInitializationRate: 100
+
+  # Optional, configures the network interfaces for the instance
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "interface"
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -204,6 +227,7 @@ status:
       id: cr-01234567890123456
       instanceMatchCriteria: targeted
       instanceType: g6.48xlarge
+      interruptible: false
       ownerID: "012345678901"
       reservationType: capacity-block
       state: expiring
@@ -211,6 +235,7 @@ status:
       id: cr-12345678901234567
       instanceMatchCriteria: open
       instanceType: g6.48xlarge
+      interruptible: true
       ownerID: "98765432109"
       reservationType: default
       state: active
@@ -531,6 +556,15 @@ max-pods = 110
 </powershell>
 ```
 
+### Windows2025
+
+```powershell
+<powershell>
+[string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+</powershell>
+```
+
 ### Custom
 
 The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/#kubelet-config-k8s-io-v1-CredentialProviderConfig) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
@@ -707,7 +741,7 @@ You can provision and assign a role to an IAM instance profile using [CloudForma
 
 {{% alert title="Note" color="primary" %}}
 
-For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) that do not have access to the public internet, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
+For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html) without access to their AWS region's IAM API endpoint, using `spec.instanceProfile` is required. `spec.role` cannot be used since Karpenter needs to access IAM endpoints to manage a generated instance profile. IAM [doesn't support private endpoints](https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html) to enable accessing the service without going to the public internet.
 
 {{% /alert %}}
 
@@ -748,6 +782,7 @@ An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatte
 * `bottlerocket`
 * `windows2019`
 * `windows2022`
+* `windows2025`
 
 The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
 For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
@@ -765,19 +800,19 @@ The following commands can be used to determine the versions availble for an ali
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.36"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "AL2" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.36"
   aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
   ```
   {{% /tab %}}
   {{% tab "Bottlerocket" %}}
   ```bash
-  export K8S_VERSION="1.34"
+  export K8S_VERSION="1.36"
   aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
   ```
   {{% /tab %}}
@@ -954,6 +989,39 @@ spec:
       key: foo
 ```
 
+## spec.placementGroupSelector
+
+Placement Group Selector allows you to select a [placement group](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/placement-groups.html) for instances launched by this EC2NodeClass. Each EC2NodeClass maps to exactly one placement group — all instances launched from that EC2NodeClass are placed into the resolved placement group.
+
+Placement groups can be selected by either name or ID. Only one of `name` or `id` may be specified.
+
+Karpenter supports all three placement group strategies:
+- **Cluster** — instances are placed in a single AZ on the same network segment for low-latency, high-throughput networking (e.g., EFA workloads)
+- **Partition** — instances are distributed across isolated partitions (up to 7 per AZ) for hardware fault isolation. Applications can use `topologySpreadConstraints` with the `karpenter.k8s.aws/placement-group-partition` label to spread workloads across partitions.
+- **Spread** — each instance is placed on distinct hardware (up to 7 instances per AZ per group) for maximum fault isolation
+
+{{% alert title="Note" color="primary" %}}
+The IAM role Karpenter assumes must have permissions for the [ec2:DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html) action to discover placement groups and the [ec2:RunInstances](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-RunInstances) / [ec2:CreateFleet](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html#amazonec2-CreateFleet) actions to launch instances into the placement group.
+{{% /alert %}}
+
+#### Examples
+
+Select the placement group with the given ID:
+
+```yaml
+spec:
+  placementGroupSelector:
+    id: pg-123
+```
+
+Select the placement group with the given name:
+
+```yaml
+spec:
+  placementGroupSelector:
+    name: my-pg-a
+```
+
 ## spec.tags
 
 Karpenter adds tags to all resources it creates, including EC2 Instances, EBS volumes, and Launch Templates. The default set of tags are listed below.
@@ -996,6 +1064,39 @@ spec:
     httpPutResponseHopLimit: 1
     httpTokens: required
 ```
+
+## spec.connectionTracking
+
+Configure [Connection Tracking Timeouts](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-connection-tracking.html#connection-tracking-timeouts)
+on the ENIs Karpenter provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface`
+type network interfaces. EFA-only (`efa-only`) interfaces do not receive connection tracking settings. Secondary ENIs
+created at runtime by your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode) are out of scope and must be configured through
+the CNI. For VPC-CNI, see [aws/amazon-vpc-cni-k8s#3666](https://github.com/aws/amazon-vpc-cni-k8s/pull/3666) for
+support replicating connection tracking settings to secondary ENIs.
+
+{{% alert title="Note" color="primary" %}}
+Connection tracking timeout configuration requires instances built on the [Nitro System](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances). When this field is set, Karpenter automatically excludes non-Nitro instance types from consideration.
+{{% /alert %}}
+
+Idle connections left too long can exhaust the security group's connection tracking table and lead to dropped packets.
+
+All timeout values are specified in seconds as integers.
+Any field left unset falls back to the EC2 default for that timeout.
+
+### TCP Established Timeout
+Timeout for idle TCP connections in an established state.
+Value must be between 60 and 432,000 seconds (5 days). The default is 350 seconds for Nitro v6 instance types (excluding P6e-GB200) and 432,000 seconds for other instance types.
+Setting a lower timeout helps free up tracking slots sooner at the cost of tearing down longer-lived TCP flows.
+
+### UDP Stream Timeout
+Timeout for idle UDP "stream" flows that have seen more than one request-response transaction.
+Value must be between 60 and 180 seconds. AWS API defaults to 180 seconds.
+Use a lower timeout to reclaim slots for true streaming traffic that stalls frequently.
+
+### UDP Timeout
+Timeout for idle UDP flows that have seen traffic only in a single direction or a single request-response transaction.
+Value must be between 30 and 60 seconds. AWS API defaults to 30 seconds.
+For high volume short-lived, stateless UDP transactions it may be preferable to use a lower timeout.
 
 ## spec.blockDeviceMappings
 
@@ -1059,7 +1160,7 @@ spec:
         encrypted: true
 ```
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 ```yaml
 spec:
   blockDeviceMappings:
@@ -1073,6 +1174,28 @@ spec:
 ### Custom
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
+
+## spec.networkInterfaces
+
+The `networkInterfaces` field allows you to configure network interface attachments for instances, including support for EFA (Elastic Fabric Adapter) devices for high-performance computing and machine learning workloads. For more information see the [AWS EFA docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html).
+
+Configure network interfaces by specifying the network card index, device index, and interface type:
+
+```yaml
+spec:
+  networkInterfaces:
+    - networkCardIndex: 0
+      deviceIndex: 0
+      interfaceType: "interface"
+    - networkCardIndex: 0
+      deviceIndex: 1
+      interfaceType: "efa-only"
+```
+
+### Interface Types
+
+- __interface__: Standard ENA (Elastic Network Adapter) interface providing IP connectivity
+- __efa-only__: EFA interface that provides only the EFA device for RDMA communication without consuming an IP address
 
 ## spec.instanceStorePolicy
 
@@ -1175,6 +1298,12 @@ aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decrypt
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
+
+{{% alert title="Warning" color="warning" %}}
+During an [EKS cluster certificate authority (CA) rotation](https://docs.aws.amazon.com/eks/latest/userguide/certificate-authority-rotation.html#_updating_your_kubernetes_clients), your cluster goes through a dual trust period where its trust bundle contains two CA certificates: the outgoing CA and the successor CA. Karpenter embeds your cluster's CA data in the UserData it generates, so your total user data grows while both CAs are trusted.
+
+If your `spec.userData` is close to the [EC2 user data limit](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html), the addition of the successor CA can cause launch template creation to fail, which prevents Karpenter from provisioning new nodes. Karpenter does not compress user data, so reduce the size of your `spec.userData` before the dual trust period begins &mdash; for example, by baking configuration into your AMI or having your script fetch its contents at boot instead of inlining them.
+{{% /alert %}}
 
 ### AL2
 
@@ -1496,7 +1625,7 @@ This allows the container to take ownership of devices allocated to the pod via 
 
 This setting helps you enable Neuron workloads on Bottlerocket instances. See [Accelerators/GPU Resources]({{< ref "./scheduling#acceleratorsgpu-resources" >}}) for more details.
 
-### Windows2019/Windows2022
+### Windows2019/Windows2022/Windows2025
 
 * Your UserData must be specified as PowerShell commands.
 * The UserData specified will be prepended to a Karpenter managed section that will bootstrap the kubelet.
@@ -1747,6 +1876,7 @@ status:
 | `ownerID`               | `459763720645`         | The account ID that owns the capacity reservation                                    |
 | `reservationType`       | `default`              | The type of the capacity reservation. Can be `default` or `capacity-block`.          |
 | `state`                 | `active`               | The state of the capacity reservation. Can be `active` or `expiring`.                |
+| `interruptible`         | `true` or `false`      | Whether the capacity reservation is interruptible.                                   |
 
 #### Examples
 
@@ -1757,6 +1887,7 @@ status:
     id: cr-01234567890123456
     instanceMatchCriteria: targeted
     instanceType: g6.48xlarge
+    interruptible: false
     ownerID: "012345678901"
     reservationType: capacity-block
     state: expiring
@@ -1764,6 +1895,7 @@ status:
     id: cr-12345678901234567
     instanceMatchCriteria: open
     instanceType: g6.48xlarge
+    interruptible: true
     ownerID: "98765432109"
     reservationType: default
     state: active
@@ -1791,7 +1923,10 @@ NodeClasses have the following status conditions:
 | SubnetsReady         | Subnets are discovered.                                                                                                                                                                                                           |
 | SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
 | InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
-| AMIsReady            | AMIs are discovered.                                                |
+| AMIsReady            | AMIs are discovered.                                                                                                                                                                                                              |
+| ValidationSucceeded  | EC2NodeClass validation succeeded.                                                                                                                                                                                                |
+| PlacementGroupReady  | Referenced placement groups are discovered.                                                                                                                                                                                       |
+| CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.

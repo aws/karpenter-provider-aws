@@ -17,6 +17,7 @@ package filter
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -55,13 +56,20 @@ func (f compatibleAvailableFilter) FilterReject(instanceTypes []*cloudprovider.I
 		if !f.requirements.IsCompatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 			return false
 		}
-		if !resources.Fits(f.requests, i.Allocatable()) {
-			return false
+		// Mirror the scheduler's fits() logic: within an allocatable group, the requests must fit
+		// AND a compatible available offering must exist. Offerings with CapacityOverride or
+		// OverheadOverride produce distinct allocatable groups; i.Allocatable() only returns the
+		// base group and would incorrectly reject instance types the scheduler has already deemed
+		// valid.
+		for _, group := range i.AllocatableOfferingsList() {
+			if !resources.Fits(f.requests, group.Allocatable) {
+				continue
+			}
+			if group.Offerings.HasCompatible(f.requirements) {
+				return true
+			}
 		}
-		if len(i.Offerings.Compatible(f.requirements).Available()) == 0 {
-			return false
-		}
-		return true
+		return false
 	})
 }
 
@@ -92,11 +100,13 @@ func (f capacityReservationTypeFilter) FilterReject(instanceTypes []*cloudprovid
 		if i.cheapestPrice != j.cheapestPrice {
 			return i.cheapestPrice < j.cheapestPrice
 		}
-		priorities := map[v1.CapacityReservationType]int{
-			v1.CapacityReservationTypeDefault:       0,
-			v1.CapacityReservationTypeCapacityBlock: 1,
+		priorities := map[capacityReservation]int{
+			{v1.CapacityReservationTypeDefault, false}:       0,
+			{v1.CapacityReservationTypeCapacityBlock, false}: 1,
+			{v1.CapacityReservationTypeDefault, true}:        2, // interruptible ODCRs
 		}
-		return priorities[i.capacityReservationType] < priorities[j.capacityReservationType]
+		return priorities[capacityReservation{i.capacityReservationType, i.capacityReservationInterruptible}] <
+			priorities[capacityReservation{j.capacityReservationType, j.capacityReservationInterruptible}]
 	})
 	if len(selectedPartition.instanceTypes) == 0 {
 		return instanceTypes, nil
@@ -109,6 +119,9 @@ func (f capacityReservationTypeFilter) FilterReject(instanceTypes []*cloudprovid
 				return false
 			}
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(selectedPartition.capacityReservationType) {
+				return false
+			}
+			if (o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true") != selectedPartition.capacityReservationInterruptible {
 				return false
 			}
 			return true
@@ -125,18 +138,32 @@ func (f capacityReservationTypeFilter) Name() string {
 }
 
 type capacityReservationTypePartition struct {
-	capacityReservationType v1.CapacityReservationType
-	cheapestPrice           float64
-	instanceTypes           map[string]*cloudprovider.InstanceType
+	capacityReservationType          v1.CapacityReservationType
+	capacityReservationInterruptible bool
+	cheapestPrice                    float64
+	instanceTypes                    map[string]*cloudprovider.InstanceType
 }
 
+type capacityReservation struct {
+	capacityReservationType          v1.CapacityReservationType
+	capacityReservationInterruptible bool
+}
+
+//nolint:gocyclo
 func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.InstanceType) []*capacityReservationTypePartition {
-	partitions := map[v1.CapacityReservationType]*capacityReservationTypePartition{}
+	partitions := map[capacityReservation]*capacityReservationTypePartition{}
 	for _, t := range v1.CapacityReservationType("").Values() {
-		partitions[t] = &capacityReservationTypePartition{
-			capacityReservationType: t,
-			cheapestPrice:           math.MaxFloat64,
-			instanceTypes:           map[string]*cloudprovider.InstanceType{},
+		for _, i := range []bool{true, false} {
+			// There is no such thing as interruptible capacity blocks
+			if i && t == v1.CapacityReservationTypeCapacityBlock {
+				continue
+			}
+			partitions[capacityReservation{t, i}] = &capacityReservationTypePartition{
+				capacityReservationType:          t,
+				capacityReservationInterruptible: i,
+				cheapestPrice:                    math.MaxFloat64,
+				instanceTypes:                    map[string]*cloudprovider.InstanceType{},
+			}
 		}
 	}
 	for _, it := range instanceTypes {
@@ -145,14 +172,25 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 				continue
 			}
 			t := v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any())
-			p, ok := partitions[t]
+			i := o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true"
+			p, ok := partitions[capacityReservation{t, i}]
 			if !ok {
 				// SAFETY: Valid reservation types are enforced during capacity reservation construction in the NodeClass
 				// controller. An invalid value indicates a user manually edited their NodeClass' status, breaking an invariant.
+				validTypes := []string{}
+				for _, crt := range v1.CapacityReservationType("").Values() {
+					for _, interruptible := range []bool{true, false} {
+						if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
+							continue
+						}
+						validTypes = append(validTypes, fmt.Sprintf("(%s, %s)", string(crt), lo.Ternary(interruptible, "interruptible", "non-interruptible")))
+					}
+				}
 				lo.Must0(serrors.Wrap(
 					fmt.Errorf("failed to partition capacity reservations, invalid capacity reservation type"),
 					"type", string(t),
-					"valid-types", lo.Map(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) string { return string(crt) }),
+					"interruptible", strconv.FormatBool(i),
+					"valid-types", validTypes,
 				))
 			}
 			if p.cheapestPrice > o.Price {

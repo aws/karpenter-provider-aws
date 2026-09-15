@@ -16,12 +16,16 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/awslabs/operatorpkg/reconciler"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -56,10 +60,17 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	}
 	availability := map[metricDimensions]bool{}
 	price := map[metricDimensions]float64{}
+	var errs error
 	for _, nodePool := range nodePools.Items {
 		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &nodePool)
 		if err != nil {
-			return reconciler.Result{}, err
+			// Keep going rather than abandoning the reconcile. A NodePool whose instance types can't be
+			// resolved -- an undecodable spec.kubelet, for instance -- would otherwise suppress the
+			// pricing and availability metrics of every other NodePool in the cluster, for as long as
+			// that one NodePool stayed broken. The error is still returned below so the failure is
+			// visible and retried.
+			errs = multierr.Append(errs, serrors.Wrap(fmt.Errorf("getting instance types, %w", err), "NodePool", klog.KRef("", nodePool.Name)))
+			continue
 		}
 		for _, instanceType := range instanceTypes {
 			zones := sets.New[string]()
@@ -94,6 +105,11 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			capacityTypeLabel: dimensions.capacityType,
 			zoneLabel:         dimensions.zone,
 		})
+	}
+	// Metrics for the NodePools that did resolve are published above before this returns, so one broken
+	// NodePool costs only its own series rather than the whole cluster's.
+	if errs != nil {
+		return reconciler.Result{}, errs
 	}
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }

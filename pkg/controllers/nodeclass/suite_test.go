@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.InstanceTypeStore)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 })
 
 var _ = AfterSuite(func() {
@@ -100,10 +100,12 @@ var _ = BeforeEach(func() {
 		awsEnv.InstanceTypesProvider,
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
+		awsEnv.PlacementGroupProvider,
 		awsEnv.EC2API,
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,
 		awsEnv.AMIResolver,
+		awsEnv.CELEnvironment,
 		options.FromContext(ctx).DisableDryRun,
 	)
 })
@@ -326,6 +328,23 @@ var _ = Describe("NodeClass Termination", func() {
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		ExpectNotFound(ctx, env.Client, nodeClass)
 
+		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+	})
+	It("should skip legacy instance profile cleanup when the synthesized name is not IAM-valid", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterName: lo.ToPtr("aws:12345678910:eu-central-1:kubernetes")}))
+
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		ExpectNotFound(ctx, env.Client, nodeClass)
+
+		Expect(awsEnv.IAMAPI.GetInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.DeleteInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
 	})

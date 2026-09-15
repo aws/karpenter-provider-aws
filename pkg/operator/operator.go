@@ -21,11 +21,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
@@ -52,19 +55,27 @@ import (
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	zonalshiftprovider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
+)
+
+const (
+	DefaultAWSSDKClientTimeout = 4 * time.Minute
 )
 
 func init() {
@@ -89,13 +100,18 @@ type Operator struct {
 	VersionProvider             *version.DefaultProvider
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            instance.Provider
+	InstanceStatusProvider      *instancestatus.DefaultProvider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
+	PlacementGroupProvider      placementgroup.Provider
 	EC2API                      *ec2.Client
+	ZonalShiftProvider          zonalshiftprovider.Provider
+	CABundle                    *string
+	CELEnvironment              *kubeletcel.CELEnvironment
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx))), crmetrics.Registry)
+	cfg := prometheusv2.WithPrometheusMetrics(WithUserAgent(lo.Must(config.LoadDefaultConfig(ctx, config.WithHTTPClient(NewAWSSDKHTTPClient())))), crmetrics.Registry)
 	cfg.APIOptions = append(cfg.APIOptions, middleware.StructuredErrorHandler)
 	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
@@ -127,13 +143,27 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
+	var zsProvider zonalshiftprovider.Provider
+	if options.FromContext(ctx).EnableZonalShift {
+		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
+		clusterArn, err := ValidateZonalShiftEnablement(ctx, eksapi, arczonalshiftAPI)
+		if err != nil {
+			// Resource is not found/registered in Zonal Shift. Throw an error.
+			panic(fmt.Sprintf("Unable to find Cluster %v in Zonal Shift. Please check that the cluster is enabled for Zonal Shift and roles have appropriate permissions %v", clusterArn, err))
+		}
+		zsProvider = zonalshiftprovider.NewProvider(arczonalshiftAPI, operator.Clock, clusterArn)
+	} else {
+		zsProvider = zonalshiftprovider.NewNoopProvider()
+	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
 	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
-	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval
+	subnetIPCacheTTL := max(awscache.AvailableIPAddressTTL, subnetRefreshInterval+(awscache.AvailableIPAddressTTL-awscache.DefaultTTL))
+	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(subnetRefreshInterval, awscache.DefaultCleanupInterval), cache.New(subnetIPCacheTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(options.FromContext(ctx).SecurityGroupRefreshInterval, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(
 		iam.NewFromConfig(cfg),
 		cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval),
@@ -153,8 +183,27 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	// the previously resolved value will be used.
 	lo.Must0(versionProvider.UpdateVersion(ctx))
 	ssmProvider := ssmp.NewDefaultProvider(ssm.NewFromConfig(cfg), ssmCache)
-	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
+	amiProvider := amifamily.NewDefaultProvider(operator.Clock, versionProvider, ssmProvider, ec2api, cache.New(options.FromContext(ctx).AMIRefreshInterval, awscache.DefaultCleanupInterval))
+	placementGroupProvider := placementgroup.NewProvider(
+		ec2api,
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
+	)
+	// celEnv is the single shared CEL environment (and compilation cache) for kubelet expression
+	// evaluation. It is injected into every component that compiles or evaluates expressions so they
+	// share the same environment and cache.
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	// instanceTypeProvider is forward-declared so the resolver's ENI lookup can source live EC2 network
+	// info (DescribeInstanceTypes) rather than the static vpclimits table. The closure captures the
+	// variable by reference and is only invoked at launch template resolution time, after assignment below.
+	var instanceTypeProvider *instancetype.DefaultProvider
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
+		if instanceTypeProvider == nil {
+			return amifamily.ENILimits{}, false
+		}
+		return instanceTypeProvider.ENILimits(name)
+	}, celEnv)
+	caBundle := lo.Must(GetCABundle(ctx, operator.GetConfig()))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -163,7 +212,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
-		lo.Must(GetCABundle(ctx, operator.GetConfig())),
+		placementGroupProvider,
+		caBundle,
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
@@ -174,7 +224,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	instanceTypeProvider := instancetype.NewDefaultProvider(
+	instanceTypeProvider = instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),
@@ -182,8 +232,12 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		pricingProvider,
 		capacityReservationProvider,
+		placementGroupProvider,
 		unavailableOfferingsCache,
-		instancetype.NewDefaultResolver(cfg.Region),
+		instancetype.NewDefaultResolver(cfg.Region, celEnv),
+		zsProvider,
+		operator.GetClient(),
+		celEnv,
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -198,13 +252,19 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 		capacityReservationProvider,
-		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		placementGroupProvider,
+		zsProvider,
+		// Instance cache entries never expire. The cache is actively refreshed by the garbage
+		// collection controller's List() every 2 minutes, and stale entries are evicted by
+		// List() for instances no longer returned by EC2. NoExpiration ensures cached instances
+		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
+		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
+		cache.New(cache.NoExpiration, cache.NoExpiration),
 	)
+	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
 
-	// Setup field indexers on instanceID -- specifically for the interruption controller
-	if options.FromContext(ctx).InterruptionQueue != "" {
-		SetupIndexers(ctx, operator.Manager)
-	}
+	// Setup field indexers on instanceID -- used by the interruption and instance status controllers
+	SetupIndexers(ctx, operator.Manager)
 	return ctx, &Operator{
 		Operator:                    operator,
 		Config:                      cfg,
@@ -222,9 +282,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		PricingProvider:             pricingProvider,
 		InstanceTypesProvider:       instanceTypeProvider,
 		InstanceProvider:            instanceProvider,
+		InstanceStatusProvider:      instanceStatusProvider,
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
+		PlacementGroupProvider:      placementGroupProvider,
 		EC2API:                      ec2api,
+		ZonalShiftProvider:          zsProvider,
+		CABundle:                    caBundle,
+		CELEnvironment:              celEnv,
 	}
 }
 
@@ -319,4 +384,23 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
+}
+
+func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
+	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
+	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	clusterArn := outputDC.Cluster.Arn
+	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
+	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)
+	if getManagedResourceErr != nil {
+		// Resource is not found/registered in Zonal Shift. Throw an error.
+		log.FromContext(ctx).WithValues("Cluster", clusterArn).V(1).Error(getManagedResourceErr, "Cluster not found in Zonal Shift")
+		return "", fmt.Errorf("cluster not registered to Zonal Shift %w", getManagedResourceErr)
+	}
+	return *clusterArn, nil
+}
+
+func NewAWSSDKHTTPClient() *awshttp.BuildableClient {
+	return awshttp.NewBuildableClient().
+		WithTimeout(DefaultAWSSDKClientTimeout)
 }

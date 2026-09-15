@@ -6,7 +6,7 @@ metadata:
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: nodeclaims.karpenter.sh
 spec:
   group: karpenter.sh
@@ -132,16 +132,12 @@ spec:
                         maxLength: 316
                         pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                         x-kubernetes-validations:
-                          - message: label domain "kubernetes.io" is restricted
-                            rule: self in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region", "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "node.kubernetes.io/instance-type", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || self.find("^([^/]+)").endsWith("node.kubernetes.io") || self.find("^([^/]+)").endsWith("node-restriction.kubernetes.io") || !self.find("^([^/]+)").endsWith("kubernetes.io")
-                          - message: label domain "k8s.io" is restricted
-                            rule: self.find("^([^/]+)").endsWith("kops.k8s.io") || !self.find("^([^/]+)").endsWith("k8s.io")
                           - message: label domain "karpenter.sh" is restricted
                             rule: self in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !self.find("^([^/]+)").endsWith("karpenter.sh")
                           - message: label "kubernetes.io/hostname" is restricted
                             rule: self != "kubernetes.io/hostname"
                           - message: label domain "karpenter.k8s.aws" is restricted
-                            rule: self in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                            rule: self in ["karpenter.k8s.aws/instance-tenancy", "karpenter.k8s.aws/capacity-reservation-type", "karpenter.k8s.aws/capacity-reservation-id", "karpenter.k8s.aws/capacity-reservation-interruptible", "karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/nitro-sandbox", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu", "karpenter.k8s.aws/instance-cpu-manufacturer", "karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz", "karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count", "karpenter.k8s.aws/instance-capability-flex", "karpenter.k8s.aws/placement-group-id", "karpenter.k8s.aws/placement-group-partition"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                       minValues:
                         description: |-
                           This field is ALPHA and can be dropped or replaced at any time
@@ -154,14 +150,14 @@ spec:
                           Represents a key's relationship to a set of values.
                           Valid operators are In, NotIn, Exists, DoesNotExist. Gt, Lt, Gte, and Lte.
                         enum:
-                          - Gte
-                          - Lte
                           - In
                           - NotIn
                           - Exists
                           - DoesNotExist
                           - Gt
                           - Lt
+                          - Gte
+                          - Lte
                         type: string
                       values:
                         description: |-
@@ -182,6 +178,7 @@ spec:
                     type: object
                   maxItems: 100
                   type: array
+                  x-kubernetes-list-type: atomic
                   x-kubernetes-validations:
                     - message: requirements with operator 'In' must have a value defined
                       rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
@@ -204,7 +201,7 @@ spec:
                   type: object
                 startupTaints:
                   description: |-
-                    StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
+                    startupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
                     within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by
                     daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning
                     purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
@@ -241,8 +238,9 @@ spec:
                       - key
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
                 taints:
-                  description: Taints will be applied to the NodeClaim's node.
+                  description: taints will be applied to the NodeClaim's node.
                   items:
                     description: |-
                       The node this Taint is attached to has the "effect" on
@@ -276,6 +274,7 @@ spec:
                       - key
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
                 terminationGracePeriod:
                   description: |-
                     TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
@@ -374,6 +373,9 @@ spec:
                       - type
                     type: object
                   type: array
+                  x-kubernetes-list-map-keys:
+                    - type
+                  x-kubernetes-list-type: map
                 imageID:
                   description: ImageID is an identifier for the image that runs on the node
                   type: string
