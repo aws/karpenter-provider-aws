@@ -430,6 +430,7 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 			if req.Len() == 1 && !lo.Contains([]string{
 				cloudprovider.ReservationIDLabel,
 				v1.LabelCapacityReservationType,
+				v1.LabelInstanceMatchCriteria,
 				v1.LabelCapacityReservationInterruptible,
 			}, req.Key) {
 				labels[key] = req.Values()[0]
@@ -466,6 +467,15 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 	if i.CapacityType == karpv1.CapacityTypeReserved {
 		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
 		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
+		if i.CapacityReservationDetails.InstanceMatchCriteria != "" {
+			labels[v1.LabelInstanceMatchCriteria] = i.CapacityReservationDetails.InstanceMatchCriteria
+		} else if nodeClass != nil {
+			if reservation, ok := lo.Find(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation) bool {
+				return cr.ID == i.CapacityReservationDetails.ID
+			}); ok {
+				labels[v1.LabelInstanceMatchCriteria] = reservation.InstanceMatchCriteria
+			}
+		}
 		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
 	}
 	// Placement group labels

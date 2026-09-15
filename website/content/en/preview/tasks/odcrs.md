@@ -52,10 +52,18 @@ Additionaly, Karpenter supports the following scheduling labels:
 | ------------------------------------------------------ | ----------------------------- | ------------------------------------------------- |
 | `karpenter.k8s.aws/capacity-reservation-id`            | `cr-56fac701cc1951b03`        | The capacity reservation's ID                     |
 | `karpenter.k8s.aws/capacity-reservation-type`          | `default` or `capacity-block` | The type of capacity reservation                  |
+| `karpenter.k8s.aws/instance-match-criteria`            | `open` or `targeted`          | How instances match the capacity reservation      |
 | `karpenter.k8s.aws/capacity-reservation-interruptible` | `true` or `false`             | Whether the capacity reservation is interruptible |
 
 These labels will only be present on reserved nodes.
-They are supported as NodePool requirements and as pod scheduling constaints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
+They are supported as NodePool requirements and as pod scheduling constraints (e.g. [node affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity)).
+For example, add the following requirement to a NodePool or pod to select configured reservations whose EC2 instance match criterion is `open`:
+
+```yaml
+- key: karpenter.k8s.aws/instance-match-criteria
+  operator: In
+  values: [open]
+```
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter does **not** support open matching for ODCRs.

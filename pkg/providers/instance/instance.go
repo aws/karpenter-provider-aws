@@ -686,9 +686,10 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 			}
 			// NOTE: Filtering at the beginning of Create ensures there's only a single reservation per zone, even when the NodeClass supports multiple.
 			return &CapacityReservationDetails{
-				ID:            o.ReservationID(),
-				Type:          v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any()),
-				Interruptible: o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true",
+				ID:                    o.ReservationID(),
+				Type:                  v1.CapacityReservationType(o.Requirements.Get(v1.LabelCapacityReservationType).Any()),
+				InstanceMatchCriteria: o.Requirements.Get(v1.LabelInstanceMatchCriteria).Any(),
+				Interruptible:         o.Requirements.Get(v1.LabelCapacityReservationInterruptible).Any() == "true",
 			}
 		}
 	}
