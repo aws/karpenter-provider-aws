@@ -171,6 +171,18 @@ spec:
             - name: INTERRUPTION_QUEUE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.clusterDNSIP }}
+            - name: CLUSTER_DNS_IP
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.kubeDNSServiceName }}
+            - name: KUBE_DNS_SERVICE_NAME
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
+          {{- with .Values.settings.kubeDNSServiceNamespace }}
+            - name: KUBE_DNS_SERVICE_NAMESPACE
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.enableZonalShift }}
             - name: ENABLE_ZONAL_SHIFT
               value: "{{ tpl (toString .) $ }}"

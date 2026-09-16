@@ -137,9 +137,15 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
-		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
+		// Not fatal: a cluster with a custom DNS setup may legitimately have no such Service.
 		// https://github.com/aws/karpenter-provider-aws/issues/2787
-		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
+		// Logged at info rather than debug because the consequence is silent otherwise: nodes come up
+		// with whatever cluster DNS address their AMI guesses, which is wrong on a non-default service CIDR.
+		log.FromContext(ctx).Info(fmt.Sprintf(
+			"unable to detect the cluster DNS IP from the %s/%s service (%s); provisioned nodes will fall back "+
+				"to the AMI default unless clusterDNS is set on the EC2NodeClass. Set --cluster-dns-ip, or "+
+				"--kube-dns-service-name/--kube-dns-service-namespace if the DNS service has a different name",
+			options.FromContext(ctx).KubeDNSServiceNamespace, options.FromContext(ctx).KubeDNSServiceName, err))
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
@@ -352,7 +358,17 @@ func KubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	if kubernetesInterface == nil {
 		return nil, fmt.Errorf("no K8s client provided")
 	}
-	dnsService, err := kubernetesInterface.CoreV1().Services("kube-system").Get(ctx, "kube-dns", metav1.GetOptions{})
+	// An explicitly configured address wins over discovery. Both are in turn overridden per
+	// EC2NodeClass by spec.kubelet.clusterDNS, which is applied when the launch template is resolved.
+	if configured := options.FromContext(ctx).ClusterDNSIP; configured != "" {
+		ip := net.ParseIP(configured)
+		if ip == nil {
+			return nil, fmt.Errorf("parsing cluster-dns-ip %q", configured)
+		}
+		return ip, nil
+	}
+	namespace, name := options.FromContext(ctx).KubeDNSServiceNamespace, options.FromContext(ctx).KubeDNSServiceName
+	dnsService, err := kubernetesInterface.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
