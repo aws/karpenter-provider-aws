@@ -46,12 +46,12 @@ var (
 		Name:      "batch_time_seconds",
 		Help:      "Duration of the batching window per batcher",
 		Buckets:   metrics.DurationBuckets(),
-	}, []opmetrics.Label{BatcherDim})
+	}, []opmetrics.Label{BatcherDim}, opmetrics.Beta)
 	BatchSize = opmetrics.NewPrometheusHistogram(crmetrics.Registry, prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
 		Subsystem: batcherSubsystem,
 		Name:      "batch_size",
 		Help:      "Size of the request batch per batcher",
 		Buckets:   SizeBuckets(),
-	}, []opmetrics.Label{BatcherDim})
+	}, []opmetrics.Label{BatcherDim}, opmetrics.Beta)
 )

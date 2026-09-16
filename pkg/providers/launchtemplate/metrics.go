@@ -55,5 +55,6 @@ var (
 		[]opmetrics.Label{
 			NodeClass,
 		},
+		opmetrics.Alpha,
 	)
 )

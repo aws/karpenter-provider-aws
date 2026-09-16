@@ -66,6 +66,7 @@ var (
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
 		[]opmetrics.Label{MessageType},
+		opmetrics.GA,
 	)
 	DeletedMessages = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
@@ -76,6 +77,7 @@ var (
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
 		[]opmetrics.Label{},
+		opmetrics.GA,
 	)
 	MessageLatency = opmetrics.NewPrometheusHistogram(
 		crmetrics.Registry,
@@ -87,6 +89,7 @@ var (
 			Buckets:   metrics.DurationBuckets(),
 		},
 		[]opmetrics.Label{},
+		opmetrics.GA,
 	)
 	InstanceStatusUnhealthy = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
@@ -97,5 +100,6 @@ var (
 			Help:      "Count of unique unhealthy instance statuses detected from EC2 DescribeInstanceStatus. Broken down by status check category.",
 		},
 		[]opmetrics.Label{Category},
+		opmetrics.GA,
 	)
 )

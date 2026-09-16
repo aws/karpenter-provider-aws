@@ -45,6 +45,7 @@ var (
 		[]opmetrics.Label{
 			InstanceType,
 		},
+		opmetrics.Beta,
 	)
 	InstanceTypeMemory = opmetrics.NewPrometheusGauge(
 		crmetrics.Registry,
@@ -57,5 +58,6 @@ var (
 		[]opmetrics.Label{
 			InstanceType,
 		},
+		opmetrics.Beta,
 	)
 )
