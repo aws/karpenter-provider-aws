@@ -23,7 +23,7 @@ A metric with a constant '1' value labeled by version from which karpenter was b
 ## Nodeclaims Metrics
 
 ### `karpenter_nodeclaims_unhealthy_disrupted_total`
-Number of unhealthy nodeclaims disrupted in total by Karpenter. Labeled by condition on the node was disrupted, the owning nodepool, and the image ID.
+Number of unhealthy nodeclaims disrupted in total by Karpenter. Labeled by the condition the node was disrupted on, the owning nodepool, the capacity type, and the image ID.
 - Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_termination_duration_seconds`
@@ -39,7 +39,7 @@ Duration of CloudProvider Instance termination in seconds.
 - Stability Level: BETA
 
 ### `karpenter_nodeclaims_disrupted_total`
-Number of nodeclaims disrupted in total by Karpenter. Labeled by reason the nodeclaim was disrupted and the owning nodepool.
+Number of nodeclaims disrupted in total by Karpenter. Labeled by reason the nodeclaim was disrupted, the owning nodepool, the capacity type, the consolidation policy, and the termination mode.
 - Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_created_total`
@@ -163,7 +163,7 @@ The time from pod creation until the pod is bound.
 - Stability Level: ALPHA
 
 ### `karpenter_pods_state`
-Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, nodepool name, zone, architecture, capacity type, instance type, pod phase, and pod readiness.
+Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, whether the pod is scheduled, nodepool name, zone, architecture, capacity type, instance type, pod phase, pod readiness, and whether the node is Karpenter-managed.
 - Stability Level: BETA
 
 ### `karpenter_pods_startup_duration_seconds`
@@ -200,6 +200,10 @@ The total number of pod eviction requests made by Karpenter, labeled by response
 
 ### `karpenter_pods_drained_total`
 The total number of pods drained during node termination by Karpenter, labeled by reason
+- Stability Level: ALPHA
+
+### `karpenter_pods_disruption_initiated_total`
+Number of pod disruptions initiated in total by Karpenter, incremented by the reschedulable pod count whenever the underlying nodeclaim is disrupted. Labeled by reason the nodeclaim was disrupted, the owning nodepool, the capacity type, the consolidation policy, and the termination mode. Pods owned by DaemonSets and mirror pods are excluded.
 - Stability Level: ALPHA
 
 ### `karpenter_pods_bound_duration_seconds`
@@ -322,7 +326,7 @@ Number of pods ignored during scheduling by Karpenter
 
 ### `karpenter_nodepools_usage`
 The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ### `karpenter_nodepools_nodes_consuming_budgets`
 The number of nodes consuming the budget of a nodepool at a point in time. Labeled by NodePool.
@@ -330,10 +334,10 @@ The number of nodes consuming the budget of a nodepool at a point in time. Label
 
 ### `karpenter_nodepools_limit`
 Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ### `karpenter_nodepools_cost_tracker_errors_total`
-Number of errors encountered during cost tracking operations. Labeled by nodepool and nodeclaim.
+Number of errors encountered during cost tracking operations. Labeled by nodepool.
 - Stability Level: ALPHA
 
 ### `karpenter_nodepools_cost_total`
@@ -342,7 +346,7 @@ Total cost of the nodepool from Karpenter's perspective. Units are determined by
 
 ### `karpenter_nodepools_allowed_disruptions`
 The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ## Interruption Metrics
 
@@ -362,7 +366,7 @@ Count of unique unhealthy instance statuses detected from EC2 DescribeInstanceSt
 Count of messages deleted from the SQS queue.
 - Stability Level: STABLE
 
-## EC2NodeClasses Metrics
+## Ec2nodeclasses Metrics
 
 ### `karpenter_ec2nodeclasses_userdata_bytes`
 Size in bytes of the rendered user data (raw, pre-base64) for the EC2NodeClass
@@ -481,7 +485,7 @@ How many seconds of work has been done that is in progress and hasn't been obser
 - Stability Level: STABLE
 
 ### `workqueue_retries_total`
-Total number of retries handled by workqueue
+Total number of items added to the workqueue with a non-zero delay (rate-limited requeues, explicit RequeueAfter or AddAfter calls)
 - Stability Level: STABLE
 
 ### `workqueue_queue_duration_seconds`
