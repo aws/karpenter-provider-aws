@@ -3532,6 +3532,33 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(BeTrue())
 			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
 		})
+		It("should isolate cached offering availability by enclave configuration", func() {
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
+
+			nodeClass.Spec.EnclaveOptions = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
+		})
 	})
 	Context("Offering Resolvers", func() {
 		It("should call additional resolvers registered via variadic param", func() {
