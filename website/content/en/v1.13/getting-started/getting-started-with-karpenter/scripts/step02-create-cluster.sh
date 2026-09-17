@@ -16,6 +16,13 @@ metadata:
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 
+# Pack pods onto fewer nodes so pod placement aligns with Karpenter's bin-packing
+# and consolidation. See https://karpenter.sh/docs/concepts/scheduling/#kube-scheduler-settings
+kubeSchedulerConfig:
+  nodeResourcesFit:
+    scoringStrategy:
+      type: MostAllocated
+
 iam:
   withOIDC: true
   podIdentityAssociations:
