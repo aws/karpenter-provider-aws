@@ -50,36 +50,62 @@ const (
 
 var boundAttributes = []resourcev1.QualifiedName{AttributeDriverVersion, AttributeCUDADriverVersion}
 
-// dynamicResourcesFor converts one instance type's scraped GPU metadata into its template: one device
-// per physical GPU named to match the driver's "gpu-<index>" convention, plus the AttributeBindings for
-// the runtime-only attributes those devices share. A non-nil mode marks every GPU allocatable to
-// multiple claims and gives its capacities the driver's request policies.
-func dynamicResourcesFor(metadata *drametadata.DeviceMetadata, mode *ConsumableCapacityMode) cloudprovider.DynamicResources {
-	driver := unique.Make(DriverName)
-	pool := cloudprovider.ResourcePool{Name: unique.Make(PoolName)}
+// dynamicResources holds the GPU DRA metadata keyed by instance type name, built once at package init
+// and immutable afterwards, making it safe to share by pointer. Only the capacities and the shareable
+// flag depend on the EC2NodeClass annotation, so this is everything else.
+var dynamicResources = buildDynamicResources()
 
-	devices := lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
-		return cloudprovider.Device{
-			Name:                     unique.Make(fmt.Sprintf("gpu-%d", index)),
-			Attributes:               drametadata.Attributes(device.Attributes),
-			Capacity:                 capacityFor(device.Capacity, mode),
-			AllowMultipleAllocations: mode != nil,
+// buildDynamicResources converts the scraped GPU metadata into one template per instance type, with one
+// device per physical GPU named to match the driver's "gpu-<index>" convention, plus the
+// AttributeBindings for the runtime-only attributes those devices share.
+func buildDynamicResources() map[string]cloudprovider.DynamicResources {
+	resources := make(map[string]cloudprovider.DynamicResources, len(drametadata.GPUMetadataByInstanceType))
+	for instanceType, metadata := range drametadata.GPUMetadataByInstanceType {
+		driver := unique.Make(DriverName)
+		pool := cloudprovider.ResourcePool{Name: unique.Make(PoolName)}
+
+		devices := lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
+			return cloudprovider.Device{
+				Name:       unique.Make(fmt.Sprintf("gpu-%d", index)),
+				Attributes: device.Attributes,
+				Capacity:   device.Capacity,
+			}
+		})
+		deviceIDs := lo.Map(devices, func(device cloudprovider.Device, _ int) cloudprovider.DeviceID {
+			return cloudprovider.DeviceID{Driver: driver, Pool: pool.Name, Device: device.Name}
+		})
+
+		resources[instanceType] = cloudprovider.DynamicResources{
+			ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
+				Driver:  driver,
+				Pool:    pool,
+				Devices: devices,
+			}},
+			// The bound attributes are node-wide, so one binding covers every GPU.
+			AttributeBindings: lo.Map(boundAttributes, func(attribute resourcev1.QualifiedName, _ int) *cloudprovider.AttributeBinding {
+				return &cloudprovider.AttributeBinding{Attribute: attribute, Devices: deviceIDs}
+			}),
 		}
-	})
-	deviceIDs := lo.Map(devices, func(device cloudprovider.Device, _ int) cloudprovider.DeviceID {
-		return cloudprovider.DeviceID{Driver: driver, Pool: pool.Name, Device: device.Name}
-	})
+	}
+	return resources
+}
 
+// withConsumableCapacity marks every GPU allocatable to multiple claims and gives its capacities the
+// driver's request policies. The base is shared, so the device list is rebuilt rather than written to.
+// The attribute bindings carry over untouched: device identity does not depend on the mode.
+func withConsumableCapacity(base cloudprovider.DynamicResources, mode *ConsumableCapacityMode) cloudprovider.DynamicResources {
+	template := base.ResourceSliceTemplates[0]
 	return cloudprovider.DynamicResources{
 		ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
-			Driver:  driver,
-			Pool:    pool,
-			Devices: devices,
+			Driver: template.Driver,
+			Pool:   template.Pool,
+			Devices: lo.Map(template.Devices, func(device cloudprovider.Device, _ int) cloudprovider.Device {
+				device.Capacity = capacityFor(device.Capacity, mode)
+				device.AllowMultipleAllocations = true
+				return device
+			}),
 		}},
-		// The bound attributes are node-wide, so one binding covers every GPU.
-		AttributeBindings: lo.Map(boundAttributes, func(attribute resourcev1.QualifiedName, _ int) *cloudprovider.AttributeBinding {
-			return &cloudprovider.AttributeBinding{Attribute: attribute, Devices: deviceIDs}
-		}),
+		AttributeBindings: base.AttributeBindings,
 	}
 }
 
@@ -99,9 +125,15 @@ func NewDefaultProvider() *DefaultProvider {
 func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) (map[string]cloudprovider.DynamicResources, error) {
 	resources := map[string]cloudprovider.DynamicResources{}
 	for _, it := range instanceTypes {
-		if metadata, ok := drametadata.GPUMetadataByInstanceType[it.Name]; ok {
-			resources[it.Name] = dynamicResourcesFor(metadata, mode)
+		base, ok := dynamicResources[it.Name]
+		if !ok {
+			continue
 		}
+		if mode == nil {
+			resources[it.Name] = base
+			continue
+		}
+		resources[it.Name] = withConsumableCapacity(base, mode)
 	}
 	return resources, nil
 }

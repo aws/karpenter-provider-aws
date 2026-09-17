@@ -14,18 +14,22 @@ limitations under the License.
 
 package drametadata
 
+import (
+	resourcev1 "k8s.io/api/resource/v1"
+)
+
 // EFAMetadataByInstanceType maps an EC2 instance type to its scraped EFA metadata.
 var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 	"g6.12xlarge": {
 		Count: 1,
 		Devices: []DRADevice{
 			{
-				Attributes: map[string]DRADeviceAttribute{
-					"dra.net/pciDevice":               {String: strPtr("Elastic Fabric Adapter (EFA)")},
-					"dra.net/pciSubsystem":            {String: strPtr("efa1")},
-					"dra.net/pciVendor":               {String: strPtr("Amazon.com, Inc.")},
-					"dra.net/rdma":                    {Bool: boolPtr(true)},
-					"resource.kubernetes.io/pcieRoot": {String: strPtr("pci0000:24")},
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa1")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
 				},
 			},
 		},
@@ -34,12 +38,12 @@ var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 		Count: 1,
 		Devices: []DRADevice{
 			{
-				Attributes: map[string]DRADeviceAttribute{
-					"dra.net/pciDevice":               {String: strPtr("Elastic Fabric Adapter (EFA)")},
-					"dra.net/pciSubsystem":            {String: strPtr("efa1")},
-					"dra.net/pciVendor":               {String: strPtr("Amazon.com, Inc.")},
-					"dra.net/rdma":                    {Bool: boolPtr(true)},
-					"resource.kubernetes.io/pcieRoot": {String: strPtr("pci0000:34")},
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa1")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:34")},
 				},
 			},
 		},
@@ -48,12 +52,12 @@ var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 		Count: 1,
 		Devices: []DRADevice{
 			{
-				Attributes: map[string]DRADeviceAttribute{
-					"dra.net/pciDevice":               {String: strPtr("Elastic Fabric Adapter (EFA)")},
-					"dra.net/pciSubsystem":            {String: strPtr("efa1")},
-					"dra.net/pciVendor":               {String: strPtr("Amazon.com, Inc.")},
-					"dra.net/rdma":                    {Bool: boolPtr(true)},
-					"resource.kubernetes.io/pcieRoot": {String: strPtr("pci0000:44")},
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa1")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:44")},
 				},
 			},
 		},
@@ -62,13 +66,13 @@ var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 		Count: 1,
 		Devices: []DRADevice{
 			{
-				Attributes: map[string]DRADeviceAttribute{
-					"dra.net/numaNode":                {Int: intPtr(0)},
-					"dra.net/pciDevice":               {String: strPtr("Elastic Fabric Adapter (EFA)")},
-					"dra.net/pciSubsystem":            {String: strPtr("efa1")},
-					"dra.net/pciVendor":               {String: strPtr("Amazon.com, Inc.")},
-					"dra.net/rdma":                    {Bool: boolPtr(true)},
-					"resource.kubernetes.io/pcieRoot": {String: strPtr("pci0000:84")},
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/numaNode":                {IntValue: intPtr(0)},
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa1")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:84")},
 				},
 			},
 		},
@@ -77,12 +81,12 @@ var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 		Count: 1,
 		Devices: []DRADevice{
 			{
-				Attributes: map[string]DRADeviceAttribute{
-					"dra.net/pciDevice":               {String: strPtr("Elastic Fabric Adapter (EFA)")},
-					"dra.net/pciSubsystem":            {String: strPtr("efa1")},
-					"dra.net/pciVendor":               {String: strPtr("Amazon.com, Inc.")},
-					"dra.net/rdma":                    {Bool: boolPtr(true)},
-					"resource.kubernetes.io/pcieRoot": {String: strPtr("pci0000:24")},
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa1")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
 				},
 			},
 		},
