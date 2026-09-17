@@ -656,6 +656,45 @@ requirement:
 If using Gt/Lt operators, make sure to use values under the actual label values of the desired resource.
 {{% /alert %}}
 
+### kube-scheduler settings
+
+Karpenter provisions capacity, but it does not place pods on nodes — that is the job of the Kubernetes [`kube-scheduler`](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/). Karpenter simulates a tight bin-packing of pending pods to decide which nodes to launch, then relies on `kube-scheduler` to bind those pods to nodes. When the scheduler's placement decisions diverge from Karpenter's simulation, Karpenter-launched nodes can end up under-packed. This lowers utilization and causes [Consolidation]({{<ref "./disruption#consolidation" >}}) to churn as it repeatedly tries to re-pack pods and remove the excess nodes.
+
+By default, `kube-scheduler` scores nodes with the `NodeResourcesFit` plugin's `LeastAllocated` strategy, which *spreads* pods to maximize the free resources left on each node. This is the opposite of Karpenter's goal of packing pods onto as few nodes as possible. **We recommend configuring `kube-scheduler` with the `MostAllocated` scoring strategy**, which makes it prefer the most-utilized feasible node so pod placement aligns with Karpenter's bin-packing. The result is higher node utilization, fewer under-packed nodes, more empty nodes available for consolidation, and lower cost.
+
+On Amazon EKS, set this with [advanced control plane configuration](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-configuration.html), available on clusters running Kubernetes 1.31 or later. You can set it when you create the cluster or update it at any time, through the AWS Console, `eksctl`, the AWS CLI, CloudFormation, or the CDK.
+
+Update an existing cluster with the AWS CLI:
+
+```bash
+aws eks update-cluster-config \
+  --name "${CLUSTER_NAME}" \
+  --kube-scheduler-config '{"nodeResourcesFit":{"scoringStrategy":{"type":"MostAllocated"}}}'
+```
+
+Or set it at cluster creation in an `eksctl` `ClusterConfig`:
+
+```yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: my-cluster
+  region: us-west-2
+kubeSchedulerConfig:
+  nodeResourcesFit:
+    scoringStrategy:
+      type: MostAllocated       # default is LeastAllocated
+      resources:
+        - name: cpu
+          weight: 1
+        - name: memory
+          weight: 1
+```
+
+{{% alert title="Note" color="primary" %}}
+`kube-scheduler` scores nodes based on pod resource *requests*, so `MostAllocated` packs pods onto the fullest feasible nodes and leaves little unreserved capacity on each node. Workloads that set limits higher than their requests rely on that unreserved capacity to burst — under tight packing there is less room to burst into, so a pod may be unable to burst into more memory (risking an OOM kill) or have its CPU throttled sooner than it would under the default spreading behavior. Packing pods onto fewer nodes may also concentrate blast radius if pods don't use scheduling constraints to ensure availability, since more pods are affected when a node becomes unhealthy. Changing the strategy affects only future scheduling — running pods are not moved — and preferred anti-affinity or topology spreads can still reduce consolidation effectiveness regardless of the scoring strategy.
+{{% /alert %}}
+
 ### `Exists` Operator
 
 The `Exists` operator can be used on a NodePool to provide workload segregation across nodes.
