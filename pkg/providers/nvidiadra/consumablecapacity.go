@@ -21,8 +21,6 @@ import (
 	"github.com/samber/lo"
 	resourcev1 "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 )
 
 type ConsumableCapacityMode struct {
@@ -56,11 +54,16 @@ func ParseConsumableCapacity(value string) (*ConsumableCapacityMode, error) {
 	return &ConsumableCapacityMode{Shares: shares}, nil
 }
 
-func capacityFor(scraped map[string]string, mode *ConsumableCapacityMode) map[resourcev1.QualifiedName]resourcev1.DeviceCapacity {
-	capacities := drametadata.Capacity(scraped)
-	memory, ok := capacities[CapacityMemory]
-	if mode == nil || !ok {
-		return capacities
+// capacityFor returns the device's capacities with the driver's request policies applied. The scraped
+// map is shared by every caller, so this builds its own rather than writing to it.
+func capacityFor(scraped map[resourcev1.QualifiedName]resourcev1.DeviceCapacity, mode *ConsumableCapacityMode) map[resourcev1.QualifiedName]resourcev1.DeviceCapacity {
+	memory, ok := scraped[CapacityMemory]
+	if !ok {
+		return scraped
+	}
+	capacities := make(map[resourcev1.QualifiedName]resourcev1.DeviceCapacity, len(scraped)+1)
+	for name, capacity := range scraped {
+		capacities[name] = capacity
 	}
 
 	memoryDefault, memoryMin := resource.MustParse("0"), resource.MustParse("0")

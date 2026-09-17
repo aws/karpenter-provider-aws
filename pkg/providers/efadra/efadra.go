@@ -48,7 +48,7 @@ func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 		devices := lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
 			return cloudprovider.Device{
 				Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
-				Attributes: drametadata.Attributes(device.Attributes),
+				Attributes: device.Attributes,
 			}
 		})
 		resources[instanceType] = cloudprovider.DynamicResources{

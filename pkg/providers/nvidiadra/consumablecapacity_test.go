@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 )
 
@@ -145,9 +146,14 @@ var _ = Describe("Consumable capacity", func() {
 			}
 		})
 		It("should not mutate the shared base tables", func() {
-			// The unshared tables are built once and handed out by pointer, so a sharing mode has to copy
-			// rather than write through. Resolving with a mode and then without must give the plain shape.
+			// The generated capacity maps are handed out as-is when no mode is set, so a sharing mode has to
+			// build its own rather than write through. Check the table itself, then a plain resolve.
 			_ = devicesFor(lo.Must(nvidiadra.ParseConsumableCapacity("4")))
+			for _, device := range drametadata.GPUMetadataByInstanceType["g6.12xlarge"].Devices {
+				Expect(device.Capacity).To(HaveLen(1))
+				Expect(device.Capacity).ToNot(HaveKey(nvidiadra.CapacityShares))
+				Expect(device.Capacity[nvidiadra.CapacityMemory].RequestPolicy).To(BeNil())
+			}
 			for _, device := range devicesFor(nil) {
 				Expect(device.AllowMultipleAllocations).To(BeFalse())
 				Expect(device.Capacity).To(HaveLen(1))

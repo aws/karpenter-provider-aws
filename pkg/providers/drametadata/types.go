@@ -14,16 +14,13 @@ limitations under the License.
 
 package drametadata
 
-type DRADeviceAttribute struct {
-	String  *string
-	Int     *int64
-	Bool    *bool
-	Version *string
-}
+import (
+	resourcev1 "k8s.io/api/resource/v1"
+)
 
 type DRADevice struct {
-	Attributes map[string]DRADeviceAttribute
-	Capacity   map[string]string
+	Attributes map[resourcev1.QualifiedName]resourcev1.DeviceAttribute
+	Capacity   map[resourcev1.QualifiedName]resourcev1.DeviceCapacity
 }
 
 type DeviceMetadata struct {

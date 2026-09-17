@@ -65,7 +65,7 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 			expected := metadata.Devices[i]
 			Expect(device.Attributes).To(HaveLen(len(expected.Attributes)))
 			Expect(*device.Attributes["resource.kubernetes.io/pcieRoot"].StringValue).
-				To(Equal(*expected.Attributes["resource.kubernetes.io/pcieRoot"].String))
+				To(Equal(*expected.Attributes["resource.kubernetes.io/pcieRoot"].StringValue))
 			Expect(*device.Attributes["productName"].StringValue).To(Equal("NVIDIA L4"))
 			Expect(*device.Attributes["type"].StringValue).To(Equal("gpu"))
 			// cudaComputeCapability is a version, not a string, so it has to land in VersionValue for a
