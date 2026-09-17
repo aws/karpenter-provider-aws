@@ -181,12 +181,18 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		if err != nil {
 			return nil, err
 		}
-		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
+		// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
+		// instance type, not a failure to resolve one.
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
 		for name := range p.instanceTypesInfo {
 			it, err := p.get(ctx, nodeClass, name, parsedKubelet)
 			if err != nil {
 				return nil, err
+			}
+			// A nil instance type with no error is the Resolver declining to offer this one; skip it.
+			if it == nil {
+				continue
 			}
 			instanceTypes = append(instanceTypes, it)
 		}
@@ -235,6 +241,12 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 		if err != nil {
 			return nil, err
 		}
+		// The Resolver declined to offer this instance type. Get looks up one named instance type and its
+		// callers dereference the result, so "not offered" is reported as a failed lookup rather than passed
+		// back as a nil instance type.
+		if instanceType == nil {
+			return nil, fmt.Errorf("failed to generate instance type %s", name)
+		}
 	}
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
@@ -264,8 +276,11 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
 	}
+	// A nil instance type with no error is the Resolver declining to offer this instance type at all. Pass it
+	// through rather than erroring: List skips it, and Get turns it into a lookup failure. Returning early is
+	// also required because everything below dereferences it.
 	if it == nil {
-		return nil, fmt.Errorf("failed to generate instance type %s", name)
+		return nil, nil
 	}
 	if cached, ok := p.discoveredCapacityCache.Get(discoveredCapacityCacheKey(it.Name, nodeClass)); ok {
 		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)

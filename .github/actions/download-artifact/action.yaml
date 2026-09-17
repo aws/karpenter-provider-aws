@@ -25,6 +25,13 @@ runs:
     - run: |
         mkdir -p /tmp/artifacts
         unzip /tmp/artifacts.zip -d /tmp/artifacts
+        # The artifact comes from the untrusted fork build so treat its contents as hostile. Symlink or other
+        # non-regular entries can point at credential files. Fail closed on anything but dirs/regular files.
+        if [ -n "$(find /tmp/artifacts -not -type d -not -type f -print -quit)" ]; then
+          echo "::error::Refusing artifact: it contains non-regular files (symlinks/devices/fifos)."
+          find /tmp/artifacts -not -type d -not -type f -ls
+          exit 1
+        fi
       shell: bash
     - run: |
         echo "Downloaded artifacts:"
