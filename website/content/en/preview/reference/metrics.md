@@ -44,6 +44,60 @@ A metric with a constant '1' value labeled by version from which karpenter was b
   - `goarch` — The target architecture the binary was compiled for.
   - `commit` — The git commit the binary was built from.
 
+## Nodepools Metrics
+
+### `karpenter_nodepools_usage`
+The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: STABLE
+- Dimensions:
+  - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
+  - `nodepool` — The name of the NodePool that owns the resource.
+
+### `karpenter_nodepools_nodes_consuming_budgets`
+The number of nodes consuming the budget of a nodepool at a point in time. Labeled by NodePool.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+  - `reason` — The voluntary-disruption reason.
+    - `underutilized` — The node was underutilized.
+    - `empty` — The node had no workload pods.
+    - `drifted` — The node drifted from its desired specification.
+
+### `karpenter_nodepools_limit`
+Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: STABLE
+- Dimensions:
+  - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
+  - `nodepool` — The name of the NodePool that owns the resource.
+
+### `karpenter_nodepools_cost_tracker_errors_total`
+Number of errors encountered during cost tracking operations. Labeled by nodepool.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
+### `karpenter_nodepools_cost_total`
+Total cost of the nodepool from Karpenter's perspective. Units are determined by the cloud provider. Not an authoritative source for billing. Includes modifications due to NodeOverlays
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
+### `karpenter_nodepools_allowed_disruptions`
+The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: STABLE
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+  - `reason` — The voluntary-disruption reason.
+    - `underutilized` — The node was underutilized.
+    - `empty` — The node had no workload pods.
+    - `drifted` — The node drifted from its desired specification.
+
 ## Nodeclaims Metrics
 
 ### `karpenter_nodeclaims_unhealthy_disrupted_total`
@@ -136,6 +190,8 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
     - `drifted` — The node drifted from its desired specification.
   - `nodepool` — The name of the NodePool that owns the resource.
   - `min_values_relaxed` — Whether minValues requirements were relaxed to satisfy scheduling.
+    - `true`
+    - `false`
 
 ## Nodeclaim Termination Metrics
 
@@ -167,7 +223,7 @@ The count of transitions of a given object, type and status.
   - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
 
 ### `operator_nodeclaim_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: BETA
 - Dimensions:
@@ -335,6 +391,8 @@ The time from pod creation until the pod is bound.
   - `name` — The name of the pod.
   - `namespace` — The namespace of the pod.
   - `dynamic_resources` — Whether the pod has DRA (dynamic resource allocation) requirements.
+    - `true`
+    - `false`
 
 ### `karpenter_pods_state`
 Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, whether the pod is scheduled, nodepool name, zone, architecture, capacity type, instance type, pod phase, pod readiness, and whether the node is Karpenter-managed.
@@ -346,6 +404,8 @@ Pod state is the current state of pods. This metric can be used several ways as 
   - `owner` — The owning workload of the pod, formatted as `<kind>/<name>`.
   - `node` — The name of the node the pod is bound to.
   - `scheduled` — Whether the pod has been scheduled to a node.
+    - `true`
+    - `false`
   - `nodepool` — The name of the NodePool that owns the resource.
   - `zone` — The availability zone of the instance.
   - `arch` — The CPU architecture of the node the pod is bound to.
@@ -361,6 +421,8 @@ Pod state is the current state of pods. This metric can be used several ways as 
     - `Failed` — All containers terminated and at least one failed.
     - `Unknown` — The pod's state could not be obtained.
   - `ready` — Whether the pod is ready.
+    - `true`
+    - `false`
   - `managed`
 
 ### `karpenter_pods_startup_duration_seconds`
@@ -389,6 +451,8 @@ The time from when Karpenter first thinks the pod can schedule until it binds. N
   - `name` — The name of the pod.
   - `namespace` — The namespace of the pod.
   - `dynamic_resources` — Whether the pod has DRA (dynamic resource allocation) requirements.
+    - `true`
+    - `false`
 
 ### `karpenter_pods_provisioning_startup_duration_seconds`
 The time from when Karpenter first thinks the pod can schedule until the pod is running. Note: this calculated from a point in memory, not by the pod creation timestamp.
@@ -409,6 +473,8 @@ The time from when Karpenter first thinks the pod can schedule until it binds. N
 - Stability Level: ALPHA
 - Dimensions:
   - `dynamic_resources` — Whether the pod has DRA (dynamic resource allocation) requirements.
+    - `true`
+    - `false`
 
 ### `karpenter_pods_eviction_requests_total`
 The total number of pod eviction requests made by Karpenter, labeled by response code
@@ -460,6 +526,8 @@ The time from pod creation until the pod is bound.
 - Stability Level: ALPHA
 - Dimensions:
   - `dynamic_resources` — Whether the pod has DRA (dynamic resource allocation) requirements.
+    - `true`
+    - `false`
 
 ## Nodepool Termination Metrics
 
@@ -491,7 +559,7 @@ The count of transitions of a given object, type and status.
   - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
 
 ### `operator_nodepool_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: BETA
 - Dimensions:
@@ -563,7 +631,7 @@ The count of transitions of a given object, type and status.
   - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
 
 ### `operator_ec2nodeclass_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: BETA
 - Dimensions:
@@ -750,60 +818,6 @@ Pending pods dimensioned by effective zone constraint, or the intersection of po
 Number of pods ignored during scheduling by Karpenter
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
 - Stability Level: ALPHA
-
-## Nodepools Metrics
-
-### `karpenter_nodepools_usage`
-The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
-- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: STABLE
-- Dimensions:
-  - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
-  - `nodepool` — The name of the NodePool that owns the resource.
-
-### `karpenter_nodepools_nodes_consuming_budgets`
-The number of nodes consuming the budget of a nodepool at a point in time. Labeled by NodePool.
-- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: ALPHA
-- Dimensions:
-  - `nodepool` — The name of the NodePool that owns the resource.
-  - `reason` — The voluntary-disruption reason.
-    - `underutilized` — The node was underutilized.
-    - `empty` — The node had no workload pods.
-    - `drifted` — The node drifted from its desired specification.
-
-### `karpenter_nodepools_limit`
-Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: STABLE
-- Dimensions:
-  - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
-  - `nodepool` — The name of the NodePool that owns the resource.
-
-### `karpenter_nodepools_cost_tracker_errors_total`
-Number of errors encountered during cost tracking operations. Labeled by nodepool.
-- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
-- Stability Level: ALPHA
-- Dimensions:
-  - `nodepool` — The name of the NodePool that owns the resource.
-
-### `karpenter_nodepools_cost_total`
-Total cost of the nodepool from Karpenter's perspective. Units are determined by the cloud provider. Not an authoritative source for billing. Includes modifications due to NodeOverlays
-- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: ALPHA
-- Dimensions:
-  - `nodepool` — The name of the NodePool that owns the resource.
-
-### `karpenter_nodepools_allowed_disruptions`
-The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
-- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: STABLE
-- Dimensions:
-  - `nodepool` — The name of the NodePool that owns the resource.
-  - `reason` — The voluntary-disruption reason.
-    - `underutilized` — The node was underutilized.
-    - `empty` — The node had no workload pods.
-    - `drifted` — The node drifted from its desired specification.
 
 ## Interruption Metrics
 
@@ -1148,7 +1162,7 @@ The count of transitions of a given object, type and status.
     - `NodePool`
 
 ### `operator_status_condition_transition_seconds`
-The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: DEPRECATED
 - Dimensions:

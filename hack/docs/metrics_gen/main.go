@@ -20,6 +20,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"io/fs"
 	"log"
 	"maps"
@@ -129,6 +130,11 @@ var (
 	// expression; resolvingFuncs guards the recursion.
 	funcReturns    = map[string]ast.Expr{}
 	resolvingFuncs = map[string]bool{}
+	// ambiguousFuncs: a single-return helper name defined differently across packages;
+	// a bare call can't disambiguate them, so don't resolve it (avoids documenting the
+	// wrong package's dimensions). funcReturnText fingerprints the first body per name.
+	ambiguousFuncs = map[string]bool{}
+	funcReturnText = map[string]string{}
 	// unresolvedLabelMetrics: metrics whose label arg didn't resolve, reported to
 	// stderr so a silently dimension-less doc entry is at least visible.
 	unresolvedLabelMetrics []string
@@ -193,8 +199,9 @@ var labelInjections = map[string]map[string]labelInfo{
 		"subresource": {help: "The subresource of the request, if any."},
 	},
 	"workqueue": {
-		"name":     {help: "The name of the workqueue, typically the owning controller's name."},
-		"priority": {help: "The priority band of the enqueued item."},
+		"name":       {help: "The name of the workqueue, typically the owning controller's name."},
+		"controller": {help: "The name of the controller that emitted the metric."},
+		"priority":   {help: "The priority band of the enqueued item."},
 	},
 	"leader_election": {
 		"name": {help: "The name of the lease used for leader election."},
@@ -227,7 +234,7 @@ func describeLabel(subsystem, name, scope string) (labelInfo, bool) {
 var (
 	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepools_usage", "karpenter_nodepools_limit",
 		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
-		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepools_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
+		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_nodepools_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
 	betaMetrics = []string{"cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
@@ -256,6 +263,12 @@ func stabilityFromLists(m metricInfo) string {
 	default:
 		return "ALPHA"
 	}
+}
+
+// subsystemTitleOverrides set section headings for subsystems whose canonical
+// capitalization the word-by-word title-caser can't reproduce.
+var subsystemTitleOverrides = map[string]string{
+	"ec2nodeclasses": "EC2NodeClasses",
 }
 
 // metrics_gen parses source for Prometheus metric declarations and generates the metrics markdown docs.
@@ -355,12 +368,15 @@ func main() {
 	for _, metric := range allMetrics {
 		if metric.subsystem != previousSubsystem {
 			if metric.subsystem != "" {
-				subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
-					if s == "sdk" || s == "aws" {
-						return strings.ToUpper(s)
-					}
-					return fmt.Sprintf("%s%s", strings.ToUpper(s[0:1]), s[1:])
-				}), " ")
+				subsystemTitle, ok := subsystemTitleOverrides[metric.subsystem]
+				if !ok {
+					subsystemTitle = strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
+						if s == "sdk" || s == "aws" {
+							return strings.ToUpper(s)
+						}
+						return fmt.Sprintf("%s%s", strings.ToUpper(s[0:1]), s[1:])
+					}), " ")
+				}
 				fmt.Fprintf(&b, "## %s Metrics\n", subsystemTitle)
 				fmt.Fprintln(&b)
 			}
@@ -455,7 +471,10 @@ func getPackages(root string) []*ast.Package {
 		if err != nil {
 			log.Fatalf("error parsing, %s", err)
 		}
-		for _, pkg := range pkgs {
+		// iterate packages in a stable order; ParseDir returns a map, so a directory
+		// with two non-test packages would otherwise resolve nondeterministically.
+		for _, name := range slices.Sorted(maps.Keys(pkgs)) {
+			pkg := pkgs[name]
 			if strings.HasSuffix(pkg.Name, "_test") {
 				continue
 			}
@@ -469,8 +488,8 @@ func getPackages(root string) []*ast.Package {
 func getMetricsFromPackages(packages ...*ast.Package) []metricInfo {
 	var allMetrics []metricInfo
 	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(n ast.Node) bool {
+		for _, filePath := range slices.Sorted(maps.Keys(pkg.Files)) {
+			ast.Inspect(pkg.Files[filePath], func(n ast.Node) bool {
 				ce, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
@@ -490,13 +509,11 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	// Metrics without a subsystem come first since there is no designation for the bucket they fall under
 	subSystemSortOrder := map[string]int{
 		"":                              100,
-		"nodepool":                      10,
+		"nodepools":                     10,
 		"nodeclaims":                    9,
 		"nodeclaim_status_condition":    8,
 		"nodeclaim_termination":         8,
 		"nodes":                         7,
-		"node_status_condition":         6,
-		"node_termination":              6,
 		"pods":                          5,
 		"nodepool_status_condition":     4,
 		"nodepool_termination":          4,
@@ -532,8 +549,8 @@ type statusObject struct {
 func parseStatusControllerObjects(packages []*ast.Package) []statusObject {
 	seen := map[string]statusObject{}
 	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			ast.Inspect(file, func(n ast.Node) bool {
+		for _, filePath := range slices.Sorted(maps.Keys(pkg.Files)) {
+			ast.Inspect(pkg.Files[filePath], func(n ast.Node) bool {
 				ce, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
@@ -587,7 +604,7 @@ type statusMetricTemplate struct {
 
 func statusMetricTemplates() []statusMetricTemplate {
 	return []statusMetricTemplate{
-		{"status_condition", "transition_seconds", "The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes", []string{"type", "status", "to_status"}, "Histogram"},
+		{"status_condition", "transition_seconds", "The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes", []string{"type", "status", "to_status"}, "Histogram"},
 		{"status_condition", "count", "The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0", []string{"namespace", "name", "type", "status", "reason"}, "Gauge"},
 		{"status_condition", "current_status_seconds", "The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes", []string{"namespace", "name", "type", "status", "reason"}, "Gauge"},
 		{"status_condition", "transitions_total", "The count of transitions of a given object, type and status.", []string{"type", "status", "reason"}, "Counter"},
@@ -712,7 +729,9 @@ func metricFromCallExpr(ce *ast.CallExpr) (metricInfo, bool) {
 			} else if s, ok := resolveStringExpr(kv.Value); ok {
 				value = s
 			} else {
-				log.Fatalf("unresolvable identifier %q for key %s", mk, key)
+				// unresolvable ident: skip the metric rather than aborting the whole run,
+				// matching the literal path below.
+				return metricInfo{}, false
 			}
 		} else if s, ok := resolveStringExpr(kv.Value); ok {
 			value = s
@@ -940,8 +959,8 @@ func collectLabelSlices(packages []*ast.Package) {
 // (labelNames()) resolves by inlining. Same-named funcs across packages overwrite (rare).
 func collectFuncReturns(packages []*ast.Package) {
 	for _, pkg := range packages {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
+		for _, filePath := range slices.Sorted(maps.Keys(pkg.Files)) {
+			for _, decl := range pkg.Files[filePath].Decls {
 				fd, ok := decl.(*ast.FuncDecl)
 				if !ok || fd.Recv != nil || fd.Body == nil || len(fd.Body.List) != 1 {
 					continue
@@ -950,7 +969,14 @@ func collectFuncReturns(packages []*ast.Package) {
 				if !ok || len(ret.Results) != 1 {
 					continue
 				}
-				funcReturns[fd.Name.Name] = ret.Results[0]
+				name := fd.Name.Name
+				text := types.ExprString(ret.Results[0])
+				if prev, seen := funcReturnText[name]; seen && prev != text {
+					ambiguousFuncs[name] = true
+					continue
+				}
+				funcReturnText[name] = text
+				funcReturns[name] = ret.Results[0]
 			}
 		}
 	}
@@ -1052,7 +1078,10 @@ func resolveValues(expr ast.Expr) ([]valueInfo, bool) {
 		if id, ok := v.Fun.(*ast.Ident); !ok || id.Name != "append" || len(v.Args) == 0 {
 			return nil, false
 		}
-		out, _ := resolveValues(v.Args[0])
+		out, ok := resolveValues(v.Args[0])
+		if !ok {
+			return nil, false
+		}
 		rest := v.Args[1:]
 		for i, arg := range rest {
 			if v.Ellipsis.IsValid() && i == len(rest)-1 {
@@ -1167,7 +1196,7 @@ func resolveLabelDimensions(expr ast.Expr) ([]string, map[string]labelInfo, bool
 		// a call to a local single-return helper (labelNames(), nodeLabelNames()):
 		// resolve by inlining its returned expression.
 		if id, ok := v.Fun.(*ast.Ident); !ok || id.Name != "append" || len(v.Args) == 0 {
-			if name := funcCallName(v.Fun); name != "" && !resolvingFuncs[name] {
+			if name := funcCallName(v.Fun); name != "" && !resolvingFuncs[name] && !ambiguousFuncs[name] {
 				if ret, ok := funcReturns[name]; ok {
 					resolvingFuncs[name] = true
 					n, i, ok := resolveLabelDimensions(ret)
@@ -1281,6 +1310,21 @@ func resolveLabels(expr ast.Expr) ([]string, bool) {
 	return nil, false
 }
 
+// knownExternalConsts resolves string values whose Name is a const from a package the
+// generator does not parse (k8s.io/api, k8s.io/apimachinery), keyed by the const's
+// identifier name. Without these, values declared as e.g. string(metav1.ConditionTrue)
+// or string(corev1.PodPending) silently drop out of the docs. See resolveStringExpr.
+var knownExternalConsts = map[string]string{
+	"ConditionTrue":    "True",
+	"ConditionFalse":   "False",
+	"ConditionUnknown": "Unknown",
+	"PodPending":       "Pending",
+	"PodRunning":       "Running",
+	"PodSucceeded":     "Succeeded",
+	"PodFailed":        "Failed",
+	"PodUnknown":       "Unknown",
+}
+
 func resolveStringExpr(expr ast.Expr) (string, bool) {
 	switch v := expr.(type) {
 	case *ast.BasicLit:
@@ -1292,11 +1336,17 @@ func resolveStringExpr(expr ast.Expr) (string, bool) {
 		if s, ok := stringSymbols[v.Name]; ok {
 			return s, true
 		}
+		if s, ok := knownExternalConsts[v.Name]; ok {
+			return s, true
+		}
 	case *ast.SelectorExpr:
 		if ambiguousStrings[v.Sel.Name] {
 			return "", false
 		}
 		if s, ok := stringSymbols[v.Sel.Name]; ok {
+			return s, true
+		}
+		if s, ok := knownExternalConsts[v.Sel.Name]; ok {
 			return s, true
 		}
 	case *ast.CallExpr:
@@ -1309,6 +1359,12 @@ func resolveStringExpr(expr ast.Expr) (string, bool) {
 		// (e.g. strings.ToLower, pretty.ToSnakeCase).
 		if sel, ok := v.Fun.(*ast.SelectorExpr); ok && len(v.Args) == 1 {
 			if pkg, ok := sel.X.(*ast.Ident); ok {
+				// strconv.FormatBool(true/false) -> the literal text, for metrics.BoolValues.
+				if pkg.Name == "strconv" && sel.Sel.Name == "FormatBool" {
+					if id, ok := v.Args[0].(*ast.Ident); ok && (id.Name == "true" || id.Name == "false") {
+						return id.Name, true
+					}
+				}
 				if inner, ok := resolveStringExpr(v.Args[0]); ok {
 					switch pkg.Name + "." + sel.Sel.Name {
 					case "strings.ToLower":
@@ -1386,19 +1442,15 @@ var identMapping = map[string]string{
 	"LongestRunningProcessorKey": "longest_running_processor_seconds",
 	"RetriesKey":                 "retries_total",
 
-	"PodSubsystem":               "pods",
-	"metrics.PodSubsystem":       "pods",
-	"NodeSubsystem":              "nodes",
-	"metrics.NodeSubsystem":      "nodes",
-	"machineSubsystem":           "machines",
-	"NodeClaimSubsystem":         "nodeclaims",
-	"metrics.NodeClaimSubsystem": "nodeclaims",
-	// TODO @joinnis: We should eventually change this subsystem to be
-	// plural so that it aligns with the other subsystems
+	"PodSubsystem":                 "pods",
+	"metrics.PodSubsystem":         "pods",
+	"NodeSubsystem":                "nodes",
+	"metrics.NodeSubsystem":        "nodes",
+	"NodeClaimSubsystem":           "nodeclaims",
+	"metrics.NodeClaimSubsystem":   "nodeclaims",
 	"nodePoolSubsystem":            "nodepools",
 	"metrics.NodePoolSubsystem":    "nodepools",
 	"interruptionSubsystem":        "interruption",
-	"deprovisioningSubsystem":      "deprovisioning",
 	"voluntaryDisruptionSubsystem": "voluntary_disruption",
 	"batcherSubsystem":             "cloudprovider_batcher",
 	"cloudProviderSubsystem":       "cloudprovider",
