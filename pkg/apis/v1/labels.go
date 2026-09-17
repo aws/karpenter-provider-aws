@@ -145,7 +145,7 @@ var (
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
-	LabelInstanceMatchCriteria                = apis.Group + "/instance-match-criteria"
+	LabelInstanceMatchCriteria                = apis.Group + "/capacity-reservation-instance-match-criteria"
 	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"

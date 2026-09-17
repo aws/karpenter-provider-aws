@@ -467,14 +467,18 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 	if i.CapacityType == karpv1.CapacityTypeReserved {
 		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
 		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
-		if i.CapacityReservationDetails.InstanceMatchCriteria != "" {
-			labels[v1.LabelInstanceMatchCriteria] = i.CapacityReservationDetails.InstanceMatchCriteria
-		} else if nodeClass != nil {
+		instanceMatchCriteria := i.CapacityReservationDetails.InstanceMatchCriteria
+		if instanceMatchCriteria == "" && nodeClass != nil {
+			// DescribeInstances doesn't return instance match criteria, so instances returned by Get or List
+			// must resolve it from the capacity reservation in the EC2NodeClass status.
 			if reservation, ok := lo.Find(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation) bool {
 				return cr.ID == i.CapacityReservationDetails.ID
 			}); ok {
-				labels[v1.LabelInstanceMatchCriteria] = reservation.InstanceMatchCriteria
+				instanceMatchCriteria = reservation.InstanceMatchCriteria
 			}
+		}
+		if instanceMatchCriteria != "" {
+			labels[v1.LabelInstanceMatchCriteria] = instanceMatchCriteria
 		}
 		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
 	}
