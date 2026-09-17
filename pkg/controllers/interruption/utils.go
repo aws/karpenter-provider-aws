@@ -74,14 +74,14 @@ func (h *InterruptionHandler) handleMessage(ctx context.Context, msg messages.Me
 			err = multierr.Append(err, e)
 			continue
 		}
-		if len(nodeClaimList.Items) == 0 {
-			continue
-		}
-		found = true
-		if dryRun {
-			continue
-		}
 		for _, nodeClaim := range nodeClaimList.Items {
+			if !nodeclaimutils.IsManaged(&nodeClaim, h.cloudProvider) {
+				continue
+			}
+			found = true
+			if dryRun {
+				continue
+			}
 			nodeList := &corev1.NodeList{}
 			if e := h.kubeClient.List(ctx, nodeList, client.MatchingFields{"spec.instanceID": instanceID}); e != nil {
 				err = multierr.Append(err, e)
