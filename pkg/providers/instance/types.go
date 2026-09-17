@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
+	"dario.cat/mergo"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/option"
-	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
