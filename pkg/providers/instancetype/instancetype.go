@@ -283,7 +283,11 @@ func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2
 		return nil, nil
 	}
 	if cached, ok := p.discoveredCapacityCache.Get(discoveredCapacityCacheKey(it.Name, nodeClass)); ok {
-		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
+		var evictionHard map[string]string
+		if kc := nodeClass.KubeletConfiguration(); kc != nil {
+			evictionHard = kc.EvictionHard
+		}
+		applyDiscoveredMemoryCapacity(it, cached.(resource.Quantity), evictionHard)
 	}
 	InstanceTypeVCPU.Set(float64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), map[string]string{
 		instanceTypeLabel: string(info.InstanceType),
