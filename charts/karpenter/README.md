@@ -75,6 +75,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
 | podAnnotations | object | `{}` | Additional annotations for the pod. |
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
+| podDisruptionBudget.unhealthyPodEvictionPolicy | string | `""` | Unhealthy pod eviction policy for the PodDisruptionBudget (`IfHealthyBudget` or `AlwaysAllow`). `AlwaysAllow` lets non-Ready pods (e.g. stuck on an unreachable node) be evicted regardless of the budget. Requires Kubernetes 1.27+; ignored on older clusters. Empty keeps the Kubernetes default (`IfHealthyBudget`). |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":65532,"seccompProfile":{"type":"RuntimeDefault"}}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
