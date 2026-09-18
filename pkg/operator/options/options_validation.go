@@ -16,6 +16,7 @@ package options
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"time"
 
@@ -28,6 +29,7 @@ func (o *Options) Validate() error {
 		o.validateEndpoint(),
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
+		o.validateClusterDNSIP(),
 		o.validateRequiredFields(),
 		o.validateAMIRefreshInterval(),
 		o.validateSubnetRefreshInterval(),
@@ -79,6 +81,13 @@ func (o *Options) validateVMMemoryOverheadPercent() error {
 func (o *Options) validateReservedENIs() error {
 	if o.ReservedENIs < 0 {
 		return fmt.Errorf("reserved-enis cannot be negative")
+	}
+	return nil
+}
+
+func (o *Options) validateClusterDNSIP() error {
+	if o.ClusterDNSIP != "" && net.ParseIP(o.ClusterDNSIP) == nil {
+		return fmt.Errorf("cluster-dns-ip %q is not a valid IP address", o.ClusterDNSIP)
 	}
 	return nil
 }
