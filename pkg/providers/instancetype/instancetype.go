@@ -251,18 +251,29 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
 
-// parseKubeletConfig decodes the NodeClass' kubelet config, failing rather than falling back to empty
-// defaults when it won't decode.
+// parseKubeletConfig decodes the NodeClass' kubelet config and refuses one the validator rejects, failing
+// rather than falling back to empty defaults in either case.
 //
-// A failure here means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read. The
+// A decode failure means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read. The
 // validation controller reports the same decode error on the EC2NodeClass as ValidationSucceeded=False,
 // so the reason is already visible to the user where they'd look for it; this error is what stops the
 // undecodable config from being acted on in the meantime. The "ValidateKubeletConfig/ParseKubeletConfig
 // invariant" specs in pkg/apis/v1 are what keep it from being reachable at all.
+//
+// The validation failure is the other direction: a config that decodes but holds a value the validator
+// rejects. That one is reachable, because spec.kubelet is stored unvalidated (the CRD schema is an open
+// map) and the validation controller only reports the rejection on status, which nothing gates
+// GetInstanceTypes on. Without this check such a config reaches the resolver from the provisioning,
+// disruption, pricing and overlay controllers, and a value like evictionHard["memory.available"] = ""
+// panics in resource.MustParse in computeEvictionSignal.
 func parseKubeletConfig(nodeClass NodeClass) (*v1.ParsedKubeletConfig, error) {
-	parsed, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+	kc := nodeClass.KubeletConfiguration()
+	parsed, err := v1.ParseKubeletConfig(kc)
 	if err != nil {
 		return nil, fmt.Errorf("parsing spec.kubelet, %w", err)
+	}
+	if errs := v1.ValidateKubeletConfig(kc); len(errs) > 0 {
+		return nil, fmt.Errorf("validating spec.kubelet, %w", errors.Join(errs...))
 	}
 	return parsed, nil
 }
