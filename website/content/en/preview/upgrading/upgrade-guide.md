@@ -94,6 +94,7 @@ Karpenter `1.1.0` drops the support for `v1beta1` APIs.
 {{% /alert %}}
 
 * **Breaking:** the `reason` label on the `karpenter_nodepool_allowed_disruptions` and `karpenter_nodepool_nodes_consuming_budgets` metrics is now emitted in lowercase (for example `underutilized` instead of `Underutilized`), matching the `reason` label on Karpenter's other disruption metrics. Update any dashboards or alerts that filter these two metrics by a capitalized `reason` value.
+* **Breaking:** the `error` label on the `karpenter_cloudprovider_errors_total` metric now uses `unknown` instead of an empty string for errors that don't match a well-known category. Update any dashboards or alerts that filter this metric by an empty `error` value.
 
 Full Changelog:
 * https://github.com/aws/karpenter-provider-aws/releases/tag/v1.15.0
