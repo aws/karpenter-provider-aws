@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 )
 
@@ -53,6 +54,9 @@ func NewCapacityReservationReconciler(clk clock.Clock, provider capacityreservat
 func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass) (reconcile.Result, error) {
 	reservations, err := c.provider.List(ctx, nc.Spec.CapacityReservationSelectorTerms...)
 	if err != nil {
+		if reason, msg, retryable := awserrors.ClassifyError(err); !retryable {
+			nc.StatusConditions(status.WithClock(c.clk)).SetFalse(v1.ConditionTypeCapacityReservationsReady, reason, msg)
+		}
 		return reconcile.Result{}, fmt.Errorf("getting capacity reservations, %w", err)
 	}
 	if len(reservations) == 0 {
