@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/samber/lo"
@@ -30,6 +31,71 @@ func TestBootstrap(t *testing.T) {
 }
 
 var _ = Describe("Bottlerocket", func() {
+	Describe("Autoscaling", func() {
+		It("should override should-wait to false and preserve sibling settings", func() {
+			customUserData := `
+[settings.autoscaling]
+future-setting = "preserved"
+should-wait = true
+`
+			script, err := (Bottlerocket{Options: Options{CustomUserData: &customUserData}}).Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			userData, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+			config := &BottlerocketConfig{}
+			Expect(config.UnmarshalTOML(context.Background(), userData)).To(Succeed())
+			Expect(config.Settings.Autoscaling.ShouldWait).ToNot(BeNil())
+			Expect(*config.Settings.Autoscaling.ShouldWait).To(BeFalse())
+
+			autoscaling, ok := config.SettingsRaw["autoscaling"].(map[string]any)
+			Expect(ok).To(BeTrue())
+			Expect(autoscaling).To(HaveKeyWithValue("should-wait", false))
+			Expect(autoscaling).To(HaveKeyWithValue("future-setting", "preserved"))
+		})
+
+		It("should preserve sibling settings without injecting should-wait", func() {
+			customUserData := `
+[settings.autoscaling]
+future-setting = "preserved"
+`
+			script, err := (Bottlerocket{Options: Options{CustomUserData: &customUserData}}).Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			userData, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+			config := &BottlerocketConfig{}
+			Expect(config.UnmarshalTOML(context.Background(), userData)).To(Succeed())
+			Expect(config.Settings.Autoscaling.ShouldWait).To(BeNil())
+
+			autoscaling, ok := config.SettingsRaw["autoscaling"].(map[string]any)
+			Expect(ok).To(BeTrue())
+			Expect(autoscaling).To(HaveKeyWithValue("future-setting", "preserved"))
+			Expect(autoscaling).ToNot(HaveKey("should-wait"))
+		})
+
+		It("should not emit should-wait when it was not specified", func() {
+			script, err := (Bottlerocket{}).Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+
+			userData, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+			config := &BottlerocketConfig{}
+			Expect(config.UnmarshalTOML(context.Background(), userData)).To(Succeed())
+			Expect(config.Settings.Autoscaling.ShouldWait).To(BeNil())
+			Expect(config.SettingsRaw).ToNot(HaveKey("autoscaling"))
+		})
+
+		It("should reject a non-boolean should-wait value", func() {
+			customUserData := `
+[settings.autoscaling]
+should-wait = "true"
+`
+			_, err := (Bottlerocket{Options: Options{CustomUserData: &customUserData}}).Script(context.Background())
+			Expect(err).To(MatchError(ContainSubstring("invalid UserData")))
+		})
+	})
+
 	Describe("EnableDefaultMountPaths", func() {
 		It("should use the configured flag value", func() {
 			bottlerocket := Bottlerocket{EnableDefaultMountPaths: true}
