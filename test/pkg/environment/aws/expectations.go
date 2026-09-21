@@ -684,7 +684,7 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &sourceReservationId,
 		})
-		Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).ToNot(HaveOccurred())
 	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 }
 
