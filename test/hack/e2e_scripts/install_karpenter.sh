@@ -16,6 +16,7 @@ helm upgrade --install karpenter "${CHART}" \
   $ADDITIONAL_FLAGS \
   --set settings.clusterName="$CLUSTER_NAME" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \
+  --set settings.enableZonalShift=true \
   --set settings.featureGates.spotToSpotConsolidation=true \
   --set settings.featureGates.nodeRepair=true \
   --set settings.featureGates.reservedCapacity=true \
