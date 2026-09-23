@@ -28,13 +28,71 @@ Karpenter automatically discovers disruptable nodes and spins up replacements wh
 
 ### Termination Controller
 
-When a Karpenter node is deleted, the Karpenter finalizer will block deletion and the APIServer will set the `DeletionTimestamp` on the node, allowing Karpenter to gracefully shutdown the node, modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown). Karpenter's graceful shutdown process will:
-1. Add the `karpenter.sh/disrupted:NoSchedule` taint to the node to prevent pods from scheduling to it.
-2. Begin evicting the pods on the node with the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/) to respect PDBs, while ignoring all [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, and succeeded/failed pods. Wait for the node to be fully drained before proceeding to Step (3).
-   * While waiting, if the underlying NodeClaim for the node no longer exists, remove the finalizer to allow the APIServer to delete the node, completing termination.
-3. Verify that all [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources for drain-able pods are deleted.
-4. Terminate the NodeClaim in the Cloud Provider.
-5. Remove the finalizer from the node to allow the APIServer to delete the node, completing termination.
+When a Karpenter node is deleted, the `karpenter.sh/termination` finalizer blocks deletion while Karpenter gracefully drains the node, waits for its volumes to detach, and terminates the underlying instance. This is modeled after [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#graceful-node-shutdown).
+
+#### Workflow
+
+For a node with a `DeletionTimestamp`, Karpenter runs the following steps in order. Each phase is reflected as a status condition on the owning NodeClaim.
+
+1. **Taint.** Add the `karpenter.sh/disrupted:NoSchedule` taint to prevent new pods from scheduling to the node, and add the `node.kubernetes.io/exclude-from-external-load-balancers=karpenter` label so the node is removed from load balancer target groups before it stops serving traffic.
+2. **Fast path for missing instances.** If the Node's `Ready` condition is not `True` **and** the underlying instance is no longer visible to the cloud provider, remove the finalizer immediately and skip the remaining phases. See [Fast path when the instance disappears](#fast-path-when-the-instance-disappears).
+3. **Drain** (`Drained: Unknown` with reason `Draining` → `Drained: True`). Evict all drainable pods via the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/), respecting PDBs. Pods are grouped by [priority](#pod-eviction-priority) and evicted one group at a time. Pods tolerating the `karpenter.sh/disrupted:NoSchedule` taint, [static pods](https://kubernetes.io/docs/tasks/configure-pod-container/static-pod/), and succeeded/failed pods are skipped. If the underlying NodeClaim disappears mid-drain, the Node's finalizer is removed and termination completes.
+4. **Volume detachment** (`VolumesDetached: Unknown` with reason `AwaitingVolumeDetachment` → `VolumesDetached: True`, or `VolumesDetached: False` with reason `TerminationGracePeriodElapsed`). Wait for all [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources belonging to drainable pods to be deleted by the Kubernetes attach-detach controller. Volumes belonging to non-drainable pods are not waited on. See [Volume detachment](#volume-detachment).
+5. **Instance termination** (`InstanceTerminating: True`). Call the cloud provider to terminate the instance, requeuing every 5 seconds until the cloud provider reports the instance as gone.
+6. **Finalizer removal.** Remove the `karpenter.sh/termination` finalizer from the Node so the API server can delete it. Karpenter then removes the finalizer from the NodeClaim.
+
+#### State diagram
+
+NodeClaim status conditions progress through the following states during termination. Reason strings shown are the values Karpenter sets on the condition. Transitions also emit Kubernetes events on the Node.
+
+![Termination state diagram](/termination-state-diagram.png)
+
+#### Pod eviction priority
+
+Karpenter drains pods in strict priority order, matching the [Kubernetes Graceful Node Shutdown](https://kubernetes.io/docs/concepts/architecture/nodes/#graceful-node-shutdown) ordering. Pods are placed into one of four groups, and a group with any remaining pods blocks all lower-priority groups until it fully drains:
+
+1. **Non-critical, non-DaemonSet** — regular workload pods without a system priority class.
+2. **Non-critical, DaemonSet** — DaemonSet pods without a system priority class.
+3. **Critical, non-DaemonSet** — pods with `priorityClassName` of `system-cluster-critical` or `system-node-critical` that are not owned by a DaemonSet.
+4. **Critical, DaemonSet** — DaemonSet pods with `system-cluster-critical` or `system-node-critical`.
+
+A pod is considered evictable if it is not a static pod, does not tolerate the `karpenter.sh/disrupted:NoSchedule` taint, is not already terminating, and has not succeeded or failed. Eviction requests use the [Kubernetes Eviction API](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/): blocking PDBs (`429 Too Many Requests`) and pods with multiple PDBs cause the eviction to be retried with exponential backoff; `404` and `409` responses drop the pod from the queue. Karpenter keeps retrying until the pod evicts or the Node's `terminationGracePeriod` elapses, at which point the pod is force-deleted; see [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}).
+
+#### Volume detachment
+
+After drain completes, Karpenter waits for the [VolumeAttachment](https://kubernetes.io/docs/reference/kubernetes-api/config-and-storage-resources/volume-attachment-v1/) resources for drainable pods to be deleted by the Kubernetes attach-detach controller before terminating the instance. This gives workloads that use PersistentVolumes a chance to migrate cleanly: the volume can be attached to a replacement node without waiting for the (up to several minute) forced-detach timeout that would otherwise apply after the instance disappears.
+
+Karpenter only waits on volumes belonging to drainable pods. Volumes used by pods that were ignored during drain (static, taint-tolerating, succeeded, or failed) do not block termination.
+
+If the NodeClaim's `terminationGracePeriod` elapses before all volumes detach, the wait is skipped, the `VolumesDetached` condition is set to `False` with reason `TerminationGracePeriodElapsed`, and termination proceeds. Any remaining volumes are force-detached by the cloud provider once the instance is gone.
+
+#### Fast path when the instance disappears
+
+If the underlying instance disappears before drain completes — for example, because it was manually terminated in the cloud provider console or reclaimed via spot interruption — Karpenter takes a fast path to avoid waiting on a kubelet that can no longer report pod status. When both of the following are true, the Node's finalizer is removed immediately without draining or waiting on volumes:
+
+* The Node's `Ready` condition is not `True`.
+* The cloud provider reports the instance as not found.
+
+Karpenter checks `Ready` before consulting the cloud provider because eventual consistency in the cloud provider's API can briefly report an instance as gone while the kubelet is still healthy.
+
+#### How terminationGracePeriod is determined
+
+The effective node termination deadline is stored on the NodeClaim as the `karpenter.sh/nodeclaim-termination-timestamp` annotation (an RFC3339 timestamp). Karpenter sets this annotation via one of two paths:
+
+* **NodePool inheritance.** When a NodeClaim is created, `spec.template.spec.terminationGracePeriod` on the owning NodePool is copied to the NodeClaim's `spec.terminationGracePeriod`. When the NodeClaim gets a `DeletionTimestamp`, Karpenter stamps the annotation as `DeletionTimestamp + spec.terminationGracePeriod`. See [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) for the user-facing configuration.
+* **Node Auto Repair override.** When [Node Auto Repair]({{<ref "#node-auto-repair" >}}) determines a node is unhealthy, Karpenter overwrites the annotation with the current time, forcing termination to skip drain and volume-detachment waits. If the annotation is already in the past, it is not overwritten.
+* **Unset.** If neither path sets a `terminationGracePeriod`, the annotation is absent and Karpenter waits indefinitely for drain and volume detachment.
+
+#### terminationGracePeriod timeline
+
+The diagram below traces how the Node's `terminationGracePeriod`, a pod's `terminationGracePeriodSeconds`, and the Node's `DeletionTimestamp` interact. In this example the Node has `terminationGracePeriod: 1h` and a pod on it has `terminationGracePeriodSeconds: 900` (15 minutes).
+
+![terminationGracePeriod timeline](/termination-tgp-timeline.png)
+
+Two important properties follow from this design:
+
+* **Pod grace periods are respected up to the Node's grace period.** If a pod's `terminationGracePeriodSeconds` is shorter than the Node's remaining time, the pod gets its full grace period. If it is longer, Karpenter clamps the pod's grace period to the Node's remaining time (minimum 1 second, to preserve at-most-one-pod semantics).
+* **Blocking pods do not extend the Node's lifetime.** Pods with `karpenter.sh/do-not-disrupt` or blocking PDBs are proactively deleted before the Node's grace period expires, so they cannot indefinitely delay termination. See [`terminationGracePeriod`]({{<ref "#terminationgraceperiod" >}}) for examples.
 
 ## Manual Methods
 * **Node Deletion**: You can use `kubectl` to manually remove a single Karpenter node or nodeclaim. Since each Karpenter node is owned by a NodeClaim, deleting either the node or the nodeclaim will cause cascade deletion of the other:
