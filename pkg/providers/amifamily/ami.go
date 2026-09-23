@@ -84,7 +84,9 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
 	if alias := nodeClass.Alias(); alias != nil {
-		kubernetesVersion := p.versionProvider.Get(ctx)
+		// The node version is used rather than the control plane version: these checks and the resulting SSM
+		// lookups are about which EKS optimized AMIs AWS publishes for the version the node will run.
+		kubernetesVersion := p.versionProvider.GetNodeVersion(ctx)
 		if alias.Family == v1.AMIFamilyAL2 {
 			minorVersion, err := strconv.Atoi(strings.Split(kubernetesVersion, ".")[1])
 			if err == nil && minorVersion >= 33 {

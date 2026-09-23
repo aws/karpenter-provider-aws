@@ -43,6 +43,7 @@ type OptionsFields struct {
 	SecurityGroupRefreshInterval *time.Duration
 	EnableZonalShift             *bool
 	FeatureGates                 FeatureGates
+	NodeKubernetesVersion        *string
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -69,5 +70,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
 		},
+		NodeKubernetesVersion: lo.FromPtrOr(opts.NodeKubernetesVersion, ""),
 	}
 }

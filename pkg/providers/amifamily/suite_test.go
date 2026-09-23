@@ -155,6 +155,10 @@ func (m *MockVersionProvider) Get(ctx context.Context) string {
 	return m.version
 }
 
+func (m *MockVersionProvider) GetNodeVersion(ctx context.Context) string {
+	return m.version
+}
+
 func amiProviderWithEKSVersionOverride(version string) *amifamily.DefaultProvider {
 	mockVersionProvider := &MockVersionProvider{version: version}
 	return amifamily.NewDefaultProvider(awsEnv.Clock, mockVersionProvider, awsEnv.SSMProvider, awsEnv.EC2API, awsEnv.EC2Cache)

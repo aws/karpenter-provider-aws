@@ -68,6 +68,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
+	ctx = options.ToContext(ctx, test.Options())
 	awsEnv.Reset()
 	awsEnv.EKSAPI.Reset()
 })
@@ -93,6 +94,40 @@ var _ = Describe("Operator", func() {
 			ExpectSingletonReconciled(ctx, versionController)
 			version := awsEnv.VersionProvider.Get(ctx)
 			Expect(version).To(Equal(testEnv.K8sVersion()))
+		})
+	})
+
+	Context("with NODE_KUBERNETES_VERSION pinned", func() {
+		It("should keep reporting the discovered control plane version", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			options.FromContext(ctx).NodeKubernetesVersion = "1.28"
+			ExpectSingletonReconciled(ctx, versionController)
+			Expect(awsEnv.VersionProvider.Get(ctx)).To(Equal("1.30"))
+		})
+		It("should report the pinned version as the node version", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			options.FromContext(ctx).NodeKubernetesVersion = "1.28"
+			ExpectSingletonReconciled(ctx, versionController)
+			Expect(awsEnv.VersionProvider.GetNodeVersion(ctx)).To(Equal("1.28"))
+		})
+		It("should fall back to the discovered version when no version is pinned", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			ExpectSingletonReconciled(ctx, versionController)
+			Expect(awsEnv.VersionProvider.GetNodeVersion(ctx)).To(Equal("1.30"))
+		})
+		It("should error when the pinned version is newer than the control plane version", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			options.FromContext(ctx).NodeKubernetesVersion = "1.31"
+			_, err := versionController.Reconcile(ctx)
+			Expect(err).To(HaveOccurred())
+			// The control plane version is still resolved, even though skew validation failed.
+			Expect(awsEnv.VersionProvider.Get(ctx)).To(Equal("1.30"))
+		})
+		It("should not error when the pinned version trails the control plane version by more than the supported skew", func() {
+			options.FromContext(ctx).EKSControlPlane = true
+			options.FromContext(ctx).NodeKubernetesVersion = "1.26"
+			ExpectSingletonReconciled(ctx, versionController)
+			Expect(awsEnv.VersionProvider.GetNodeVersion(ctx)).To(Equal("1.26"))
 		})
 	})
 })
