@@ -1269,6 +1269,27 @@ var _ = Describe("AMIResolver", func() {
 				Expect(lt.EnclaveEnabled).To(BeTrue())
 			})
 		})
+		It("should set EnclaveEnabled to true when enabled on the EC2NodeClass", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeTrue())
+			})
+		})
+		It("should reject nitro-sandbox resource enablement when the EC2NodeClass explicitly disables enclaves", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+				v1.ResourceNitroSandbox: resource.MustParse("1"),
+			}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).To(MatchError(ContainSubstring("EC2NodeClass disables Nitro Enclaves")))
+			Expect(err).To(MatchError(ContainSubstring(string(v1.ResourceNitroSandbox))))
+			Expect(launchTemplates).To(BeEmpty())
+		})
 		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNitroSandbox)", func() {
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
