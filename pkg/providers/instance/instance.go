@@ -86,6 +86,7 @@ type Provider interface {
 	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
+	Reboot(context.Context, string, string) error
 	CreateTags(context.Context, string, map[string]string) error
 }
 
@@ -290,6 +291,21 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 			})
 			return err
 		}
+	}
+	return nil
+}
+
+// Reboot restarts the instance in place via ec2:RebootInstances (asynchronous — the API queues the
+// reboot and returns without waiting for recovery). operationID identifies the logical reboot; EC2's
+// RebootInstances takes no client token, so in-flight duplicate calls are deduped by EC2 and the
+// reboot controller's restart-safety (pre-reboot bootID compare) covers the rest. Not batched: Beta
+// issues one reboot per NodeClaim.
+func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID string) error {
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id, "operation-id", operationID))
+	if _, err := p.ec2api.RebootInstances(ctx, &ec2.RebootInstancesInput{
+		InstanceIds: []string{id},
+	}); err != nil {
+		return fmt.Errorf("rebooting instance, %w", err)
 	}
 	return nil
 }

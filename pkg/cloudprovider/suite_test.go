@@ -327,6 +327,25 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
+	Context("Reboot", func() {
+		It("should reboot the instance via ec2:RebootInstances", func() {
+			id := fake.InstanceID()
+			nodeClaim.Status.ProviderID = fake.ProviderID(id)
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Pop().InstanceIds).To(ConsistOf(id))
+		})
+		It("should propagate an error when RebootInstances fails", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+		})
+		It("should return an error for an unparseable provider id", func() {
+			nodeClaim.Status.ProviderID = "not-a-valid-provider-id"
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"
 		It("should set context on the CreateFleet request if specified on the NodePool", func() {

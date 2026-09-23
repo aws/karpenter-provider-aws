@@ -260,6 +260,15 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	return err
 }
 
+func (c *CloudProvider) Reboot(ctx context.Context, nodeClaim *karpv1.NodeClaim, operationID string) error {
+	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
+	return c.instanceProvider.Reboot(ctx, id, operationID)
+}
+
 func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
 	return nil
 }
