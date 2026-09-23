@@ -1028,6 +1028,25 @@ Specify using custom ssm parameter name or ARN:
 When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
 {{% /alert %}}
 
+#### Kubernetes version interpolation
+
+The `name` and `ssmParameter` fields support the `{kubernetesVersion}` placeholder, which Karpenter replaces with the Kubernetes version it provisions nodes with.
+This lets a single EC2NodeClass follow the cluster's Kubernetes version without hardcoding it, which is particularly useful for custom AMI pipelines that key their SSM parameters or AMI names off the Kubernetes version.
+
+```yaml
+  amiSelectorTerms:
+    - ssmParameter: "/aws/service/bottlerocket/aws-k8s-{kubernetesVersion}/x86_64/latest/image_id"
+```
+
+```yaml
+  amiSelectorTerms:
+    - name: "my-ami-{kubernetesVersion}-*"
+```
+
+By default the placeholder resolves to the discovered control plane version.
+If [`NODE_KUBERNETES_VERSION`]({{< ref "../reference/settings" >}}) is set, it resolves to that pinned version instead, which allows AMIs to be rolled back alongside an EKS control plane version rollback.
+The placeholder is not interpolated in `tags`, since curly braces are valid characters in EC2 tag values.
+
 ## spec.capacityReservationSelectorTerms
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
