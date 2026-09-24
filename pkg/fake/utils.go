@@ -107,7 +107,7 @@ func FilterDescribeCapacityReservations(crs []ec2types.CapacityReservation, ids 
 		if len(ids) != 0 && !idSet.Has(*cr.CapacityReservationId) {
 			return false
 		}
-		return FilterCapacityReservation(filters, *cr.CapacityReservationId, "", *cr.OwnerId, string(cr.State), string(cr.InstanceMatchCriteria), cr.Tags)
+		return FilterCapacityReservation(filters, *cr.CapacityReservationId, "", *cr.OwnerId, string(cr.State), string(cr.InstanceMatchCriteria), *cr.AvailabilityZone, cr.Tags)
 	})
 }
 
@@ -154,10 +154,13 @@ func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2
 	})
 }
 
-func FilterCapacityReservation(filters []ec2types.Filter, id, name, owner, state, instanceMatchCriteria string, tags []ec2types.Tag) bool {
+func FilterCapacityReservation(filters []ec2types.Filter, id, name, owner, state, instanceMatchCriteria, availabilityZone string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
-		if aws.ToString(filter.Name) == "instance-match-criteria" {
+		switch aws.ToString(filter.Name) {
+		case "instance-match-criteria":
 			return lo.Contains(filter.Values, instanceMatchCriteria)
+		case "availability-zone":
+			return lo.Contains(filter.Values, availabilityZone)
 		}
 		return Filter([]ec2types.Filter{filter}, id, name, owner, state, tags)
 	})

@@ -270,6 +270,49 @@ var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
 		Expect(nodeClass.Status.CapacityReservations[0].InstanceMatchCriteria).To(Equal("targeted"))
 		Expect(nodeClass.Status.CapacityReservations[0].OwnerID).To(Equal(selfOwnerID))
 	})
+	It("should resolve capacity reservations by availability zone", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			AvailabilityZone: "test-zone-1b",
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(2))
+		Expect(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string {
+			return cr.ID
+		})).To(ContainElements("cr-m5.large-1b-1", "cr-m5.large-1b-2"))
+		for _, cr := range nodeClass.Status.CapacityReservations {
+			Expect(cr.AvailabilityZone).To(Equal("test-zone-1b"))
+		}
+	})
+	It("should resolve capacity reservations by availability zone and tags", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			AvailabilityZone: "test-zone-1a",
+			Tags:             discoveryTags,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		Expect(nodeClass.Status.CapacityReservations[0].ID).To(Equal("cr-m5.large-1a-2"))
+		Expect(nodeClass.Status.CapacityReservations[0].AvailabilityZone).To(Equal("test-zone-1a"))
+	})
+	It("should resolve capacity reservations by availability zone and owner", func() {
+		nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
+			AvailabilityZone: "test-zone-1b",
+			OwnerID:          selfOwnerID,
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(HaveLen(1))
+		Expect(nodeClass.Status.CapacityReservations[0].ID).To(Equal("cr-m5.large-1b-1"))
+		Expect(nodeClass.Status.CapacityReservations[0].AvailabilityZone).To(Equal("test-zone-1b"))
+		Expect(nodeClass.Status.CapacityReservations[0].OwnerID).To(Equal(selfOwnerID))
+	})
 	It("should exclude expired capacity reservations", func() {
 		out := awsEnv.EC2API.DescribeCapacityReservationsOutput.Clone()
 		targetReservationID := *out.CapacityReservations[0].CapacityReservationId
