@@ -17,6 +17,7 @@ package bootstrap
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
@@ -154,6 +155,15 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 		return err
 	}
 
+	// Bottlerocket accepts integer or string image GC thresholds. Normalize integers
+	// to strings to retain compatibility with Bottlerocket versions before 1.14.0.
+	if c.normalizeImageGCThresholds() {
+		var err error
+		if data, err = toml.Marshal(c); err != nil {
+			return err
+		}
+	}
+
 	// To log misconfigured / unsupported k8s userData, we re-marshal the k8s settings
 	// and re-unmarshal with TOML strict mode to log any errors
 	if k8sRaw, ok := c.SettingsRaw["kubernetes"]; ok {
@@ -180,6 +190,21 @@ func (c *BottlerocketConfig) UnmarshalTOML(ctx context.Context, data []byte) err
 	}
 	c.Settings = s.Settings
 	return nil
+}
+
+func (c *BottlerocketConfig) normalizeImageGCThresholds() bool {
+	k8sRaw, ok := c.SettingsRaw["kubernetes"].(map[string]any)
+	if !ok {
+		return false
+	}
+	normalized := false
+	for _, key := range []string{"image-gc-high-threshold-percent", "image-gc-low-threshold-percent"} {
+		if value, ok := k8sRaw[key].(int64); ok {
+			k8sRaw[key] = strconv.FormatInt(value, 10)
+			normalized = true
+		}
+	}
+	return normalized
 }
 
 func (c *BottlerocketConfig) MarshalTOML() ([]byte, error) {
