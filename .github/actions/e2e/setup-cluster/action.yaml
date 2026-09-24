@@ -189,6 +189,9 @@ runs:
       addons:
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+        # Disable subnet discovery: recent vpc-cni calls ec2:DescribeSubnets (absent from the eksctl IPv6 CNI policy), which blocks IPv6 node bootstrap.
+        configurationValues: |-
+          {"env":{"ENABLE_SUBNET_DISCOVERY":"false"}}
       - name: coredns
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: kube-proxy

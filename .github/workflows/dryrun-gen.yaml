@@ -16,11 +16,16 @@ jobs:
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
-      - uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}'
           aws-region: ${{ vars.READONLY_REGION }}
       - run: make docgen
+      # Fail if the generated metrics reference drifts from what the generator produces,
+      # so a hand-edited or stale metrics.md can't merge. Scoped to metrics.md because
+      # instance-types.md tracks live AWS pricing and legitimately changes run-to-run.
+      - name: Verify metrics.md is up to date
+        run: git diff --exit-code -- website/content/en/preview/reference/metrics.md
       - run: make codegen
         env:
           ENABLE_GIT_PUSH: false

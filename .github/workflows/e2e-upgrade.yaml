@@ -77,7 +77,7 @@ jobs:
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@cbe3b392738ccf3f987d68400dafcf4b0624a56c # v6.2.4
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -145,12 +145,18 @@ jobs:
           fi
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
+        # The matrix run posts a single summary message (see e2e-matrix.yaml), so skip the per-suite ping there
+        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility' && inputs.workflow_trigger != 'matrix'
         with:
           cluster_name:  ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
           git_ref: ${{ inputs.to_git_ref }}
+      - name: record suite status for the matrix run summary
+        uses: ./.github/actions/e2e/slack/record-status
+        if: (success() || failure()) && inputs.workflow_trigger == 'matrix'
+        with:
+          suite: Upgrade
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: failure() || cancelled()
