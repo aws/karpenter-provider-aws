@@ -1371,6 +1371,24 @@ var _ = Describe("InstanceTypeProvider", func() {
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
+				DescribeTable("should return an error rather than panic when evictionHard holds a value the validator rejects",
+					func(value string) {
+						// The CRD stores spec.kubelet unvalidated and nothing gates GetInstanceTypes on
+						// ValidationSucceeded, so the resolver must refuse what the validator refuses.
+						nodeClass.Spec.Kubelet = v1.KubeletConfiguration{
+							"evictionHard": v1.JSONValue(map[string]string{instancetype.MemoryAvailable: value}),
+						}
+						Expect(v1.ValidateKubeletConfig(nodeClass.Spec.Kubelet)).ToNot(BeEmpty())
+						ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+						_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+						Expect(err).To(MatchError(ContainSubstring("validating spec.kubelet")))
+						_, err = cloudProvider.GetInstanceTypes(ctx, nodePool)
+						Expect(err).To(MatchError(ContainSubstring("validating spec.kubelet")))
+					},
+					Entry("empty string", ""),
+					Entry("bare percent sign", "%"),
+					Entry("not a quantity", "abc"),
+				)
 				It("should use evictionHard percentage and ignore evictionSoft percentage", func() {
 					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
