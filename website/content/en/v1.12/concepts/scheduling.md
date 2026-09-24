@@ -203,6 +203,10 @@ requirements:
     operator: Exists
 ```
 
+{{% alert title="Warning" color="warning" %}}
+Labels in the `karpenter.sh` domain that are **not** in the well-known table above — including `karpenter.sh/registered` and `karpenter.sh/initialized` — are restricted. Karpenter stamps them on nodes after they join, so kube-scheduler can match them on *existing* Karpenter nodes, but they do not trigger provisioning. You cannot make them provisionable by adding `Exists` on the NodePool (NodePool CEL rejects them). Pin workloads with `karpenter.sh/nodepool` (`Exists` or a specific pool name) instead. When a selector uses a restricted label, Karpenter emits a pod `FailedScheduling` event; controller logs for that path are at verbosity 1 by default.
+{{% /alert %}}
+
 {{% alert title="Note" color="primary" %}}
 There is currently a limit of 100 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 100 requirements and labels combined set on your NodePool.
 {{% /alert %}}
