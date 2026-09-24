@@ -203,6 +203,10 @@ spec:
             - name: SECURITY_GROUP_REFRESH_INTERVAL
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.nodeKubernetesVersion }}
+            - name: NODE_KUBERNETES_VERSION
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

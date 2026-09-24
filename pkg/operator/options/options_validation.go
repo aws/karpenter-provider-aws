@@ -17,6 +17,7 @@ package options
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -32,6 +33,7 @@ func (o *Options) Validate() error {
 		o.validateAMIRefreshInterval(),
 		o.validateSubnetRefreshInterval(),
 		o.validateSecurityGroupRefreshInterval(),
+		o.validateNodeKubernetesVersion(),
 	)
 }
 
@@ -86,6 +88,21 @@ func (o *Options) validateReservedENIs() error {
 func (o *Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
+	}
+	return nil
+}
+
+var kubernetesVersionRegexp = regexp.MustCompile(`^\d+\.\d+$`)
+
+// validateNodeKubernetesVersion only validates the format of the pinned version. Whether the version is
+// compatible with the cluster's control plane can't be known at flag parsing time, so that validation lives
+// in the version provider, which has access to the discovered control plane version.
+func (o *Options) validateNodeKubernetesVersion() error {
+	if o.NodeKubernetesVersion == "" {
+		return nil
+	}
+	if !kubernetesVersionRegexp.MatchString(o.NodeKubernetesVersion) {
+		return fmt.Errorf("node-kubernetes-version must be in format major.minor (e.g. 1.30), got %q", o.NodeKubernetesVersion)
 	}
 	return nil
 }
