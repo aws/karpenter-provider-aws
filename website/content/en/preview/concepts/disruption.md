@@ -373,6 +373,70 @@ Duration allows compound durations with minutes and hours values such as `10h5m`
 Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced.
 {{% /alert %}}
 
+### Common Budget Patterns
+
+#### Protect nodes during business hours
+
+Allow disruption only outside working hours:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    budgets:
+    - nodes: "0"
+      schedule: "0 9 * * 1-5"   # Mon–Fri at 09:00 UTC
+      duration: 8h
+    - nodes: "10%"               # allow up to 10% outside business hours
+```
+
+#### Limit blast radius with a percentage cap
+
+Prevent more than 10% of nodes from being disrupted concurrently:
+
+```yaml
+spec:
+  disruption:
+    budgets:
+    - nodes: "10%"
+```
+
+For a 50-node pool this means at most 5 nodes disrupted at once.
+
+#### Freeze disruption during deployments
+
+Block all disruption for a 2-hour release window every Wednesday at 14:00 UTC:
+
+```yaml
+spec:
+  disruption:
+    budgets:
+    - nodes: "0"
+      schedule: "0 14 * * 3"
+      duration: 2h
+    - nodes: "10%"
+```
+
+#### Protect system-critical nodes entirely
+
+Use a dedicated NodePool for system workloads with no voluntary disruption:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: system
+spec:
+  disruption:
+    consolidationPolicy: WhenEmpty
+    budgets:
+    - nodes: "0"
+```
+
 ### Pod-Level Controls
 
 Pods with blocking PDBs will not be evicted by the [Termination Controller]({{<ref "#termination-controller">}}) or be considered for voluntary disruption actions. When multiple pods on a node have different PDBs, none of the PDBs may be blocking for Karpenter to voluntary disrupt a node. This can create complex eviction scenarios:
