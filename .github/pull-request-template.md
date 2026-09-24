@@ -22,4 +22,9 @@ Fixes #N/A <!-- issue number -->
 - [ ] Yes, issue opened: # <!-- issue number -->
 - [x] No
 
+**AI Disclosure** <!-- Per https://www.kubernetes.dev/docs/guide/pull-requests/#ai-guidance. Only check the boxes that apply. -->
+- [ ] I used AI assistance to help produce this contribution.
+- [ ] I have verified the AI generated code prior to submission.
+- [ ] I will engage with review comments directly and will not use AI to write my replies.
+
 By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
