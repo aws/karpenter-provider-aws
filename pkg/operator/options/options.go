@@ -48,7 +48,10 @@ type Options struct {
 	IsolatedVPC                  bool
 	EKSControlPlane              bool
 	VMMemoryOverheadPercent      float64
+	ClusterDNSIP                 string
 	InterruptionQueue            string
+	KubeDNSServiceName           string
+	KubeDNSServiceNamespace      string
 	ReservedENIs                 int
 	DisableDryRun                bool
 	EnableZonalShift             bool
@@ -66,6 +69,9 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.BoolVarWithEnv(&o.EKSControlPlane, "eks-control-plane", "EKS_CONTROL_PLANE", false, "Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API ")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", utils.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable.")
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
+	fs.StringVar(&o.ClusterDNSIP, "cluster-dns-ip", env.WithDefaultString("CLUSTER_DNS_IP", ""), "IP address of the cluster DNS service, used as the default kubelet clusterDNS for provisioned nodes. Takes precedence over the Service lookup, and is itself overridden by clusterDNS on an EC2NodeClass. If empty, the address is read from the cluster DNS Service.")
+	fs.StringVar(&o.KubeDNSServiceName, "kube-dns-service-name", env.WithDefaultString("KUBE_DNS_SERVICE_NAME", "kube-dns"), "Name of the Service fronting cluster DNS. Karpenter reads its ClusterIP and uses it as the default kubelet clusterDNS for provisioned nodes. Set this if your cluster DNS Service is not named kube-dns.")
+	fs.StringVar(&o.KubeDNSServiceNamespace, "kube-dns-service-namespace", env.WithDefaultString("KUBE_DNS_SERVICE_NAMESPACE", "kube-system"), "Namespace of the Service fronting cluster DNS.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
