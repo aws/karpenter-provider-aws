@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -71,6 +72,7 @@ type CloudProvider struct {
 	placementGroupProvider      placementgroup.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
 	caBundle                    *string
+	repairPolicies              atomic.Pointer[[]cloudprovider.RepairPolicy]
 }
 
 func New(
@@ -85,7 +87,7 @@ func New(
 	store *nodeoverlay.InstanceTypeStore,
 	caBundle *string,
 ) *CloudProvider {
-	return &CloudProvider{
+	cp := &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
 		instanceProvider:            instanceProvider,
 		kubeClient:                  kubeClient,
@@ -97,6 +99,15 @@ func New(
 		instanceTypeStore:           store,
 		caBundle:                    caBundle,
 	}
+	cp.SetRepairPolicies(DefaultRepairPolicies())
+	return cp
+}
+
+// SetRepairPolicies atomically replaces the active repair policy list.
+// Safe to call concurrently with RepairPolicies().
+func (c *CloudProvider) SetRepairPolicies(policies []cloudprovider.RepairPolicy) {
+	cp := append([]cloudprovider.RepairPolicy(nil), policies...)
+	c.repairPolicies.Store(&cp)
 }
 
 // Create a NodeClaim given the constraints.
@@ -303,46 +314,10 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 }
 
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
-	return []cloudprovider.RepairPolicy{
-		// Supported Kubelet Node Conditions
-		{
-			ConditionType:      corev1.NodeReady,
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-		},
-		{
-			ConditionType:      corev1.NodeReady,
-			ConditionStatus:    corev1.ConditionUnknown,
-			TolerationDuration: 30 * time.Minute,
-		},
-		// Support Node Monitoring Agent Conditions
-		//
-		{
-			ConditionType:      "AcceleratedHardwareReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 10 * time.Minute,
-		},
-		{
-			ConditionType:      "StorageReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-		},
-		{
-			ConditionType:      "NetworkingReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-		},
-		{
-			ConditionType:      "KernelReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-		},
-		{
-			ConditionType:      "ContainerRuntimeReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-		},
+	if p := c.repairPolicies.Load(); p != nil {
+		return *p
 	}
+	return nil
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*v1.EC2NodeClass, error) {
