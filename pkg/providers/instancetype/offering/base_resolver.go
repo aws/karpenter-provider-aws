@@ -175,6 +175,9 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 		&hashstructure.HashOptions{SlicesAsSets: true},
 	)
 	connectionTrackingHash, _ := hashstructure.Hash(nodeClass.ConnectionTracking() != nil, hashstructure.FormatV2, nil)
+	enclaveOptions := nodeClass.EnclaveOptions()
+	enclavesEnabled := enclaveOptions != nil && enclaveOptions.Enabled
+	enclavesEnabledHash, _ := hashstructure.Hash(enclavesEnabled, hashstructure.FormatV2, nil)
 	var placementGroupHash uint64
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
@@ -182,11 +185,12 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
+			enclavesEnabledHash,
 			placementGroupHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),
