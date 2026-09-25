@@ -15,7 +15,7 @@ limitations under the License.
 package v1_test
 
 import (
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
