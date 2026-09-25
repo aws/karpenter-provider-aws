@@ -65,6 +65,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -3054,6 +3055,60 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
+		// resolveReservedOffering resolves the instance type list and returns the reserved offering for the given
+		// reservation ID (nil if not present).
+		resolveReservedOffering := func(reservationID string) *corecloudprovider.Offering {
+			GinkgoHelper()
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == crInstanceType })
+			Expect(ok).To(BeTrue())
+			offering, _ := lo.Find(it.Offerings, func(o *corecloudprovider.Offering) bool {
+				return o.CapacityType() == karpv1.CapacityTypeReserved && o.Requirements.Get(v1.LabelCapacityReservationID).Any() == reservationID
+			})
+			return offering
+		}
+		It("should decouple Available (health) from ReservationCapacity (slots) when the reservation is ICE'd", func() {
+			// Baseline: a healthy reservation resolves to Available with its configured capacity.
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeTrue())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+
+			// Mark the reservation ICE'd via the shared unavailable-offerings cache (scoped by reservation ID, the same
+			// channel the launch path uses).
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// Re-resolve: Available flips to false (ICE'd) while ReservationCapacity is untouched (>0), proving the two
+			// axes are independent.
+			offering = resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			Expect(offering.ReservationCapacity).To(BeNumerically(">", 0))
+		})
+		It("should scope reservation ICE by reservation ID so one reservation's unavailability doesn't poison another sharing its instance type and zone", func() {
+			const otherID = "cr-other"
+			// A second reservation sharing crInstanceType + crZone but with a distinct ID.
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(otherID, 1)
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+				AvailabilityZone: crZone,
+				ID:               otherID,
+				InstanceType:     crInstanceType,
+				ReservationType:  v1.CapacityReservationTypeDefault,
+			})
+
+			// Mark ONLY crID unavailable.
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// The ICE'd reservation is Available=false while the other, sharing its instance type + zone, stays Available.
+			icedOffering := resolveReservedOffering(crID)
+			Expect(icedOffering).ToNot(BeNil())
+			Expect(icedOffering.Available).To(BeFalse())
+			otherOffering := resolveReservedOffering(otherID)
+			Expect(otherOffering).ToNot(BeNil())
+			Expect(otherOffering.Available).To(BeTrue())
+		})
 	})
 	It("should mark offerings as unavailable for zones shifted away from", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
