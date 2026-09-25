@@ -35,10 +35,9 @@ const l4Memory = "23034Mi"
 // devicesFor resolves one instance type and returns its GPU devices under the given sharing mode.
 func devicesFor(mode *nvidiadra.ConsumableCapacityMode) []cloudprovider.Device {
 	provider := nvidiadra.NewDefaultProvider()
-	resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+	resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 		{Name: "g6.12xlarge"},
 	}, mode)
-	Expect(err).ToNot(HaveOccurred())
 	Expect(resources["g6.12xlarge"].ResourceSliceTemplates).To(HaveLen(1))
 	return resources["g6.12xlarge"].ResourceSliceTemplates[0].Devices
 }
@@ -163,10 +162,8 @@ var _ = Describe("Consumable capacity", func() {
 		It("should carry the attribute bindings through unchanged", func() {
 			provider := nvidiadra.NewDefaultProvider()
 			its := []*cloudprovider.InstanceType{{Name: "g6.12xlarge"}}
-			plain, err := provider.ResolveDynamicResources(context.Background(), its, nil)
-			Expect(err).ToNot(HaveOccurred())
-			shared, err := provider.ResolveDynamicResources(context.Background(), its, lo.Must(nvidiadra.ParseConsumableCapacity("2")))
-			Expect(err).ToNot(HaveOccurred())
+			plain := provider.ResolveDynamicResources(context.Background(), its, nil)
+			shared := provider.ResolveDynamicResources(context.Background(), its, lo.Must(nvidiadra.ParseConsumableCapacity("2")))
 
 			names := func(r cloudprovider.DynamicResources) []resourcev1.QualifiedName {
 				return lo.Map(r.AttributeBindings, func(b *cloudprovider.AttributeBinding, _ int) resourcev1.QualifiedName {

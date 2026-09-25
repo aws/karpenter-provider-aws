@@ -16,6 +16,7 @@ package nvidiadra
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
 	"github.com/samber/lo"
@@ -55,16 +56,12 @@ func ParseConsumableCapacity(value string) (*ConsumableCapacityMode, error) {
 }
 
 // capacityFor returns the device's capacities with the driver's request policies applied. The scraped
-// map is shared by every caller, so this builds its own rather than writing to it.
+// map is shared by every caller, so this builds its own rather than writing to it. The caller has
+// already established that the device carries a memory capacity.
 func capacityFor(scraped map[resourcev1.QualifiedName]resourcev1.DeviceCapacity, mode *ConsumableCapacityMode) map[resourcev1.QualifiedName]resourcev1.DeviceCapacity {
-	memory, ok := scraped[CapacityMemory]
-	if !ok {
-		return scraped
-	}
+	memory := scraped[CapacityMemory]
 	capacities := make(map[resourcev1.QualifiedName]resourcev1.DeviceCapacity, len(scraped)+1)
-	for name, capacity := range scraped {
-		capacities[name] = capacity
-	}
+	maps.Copy(capacities, scraped)
 
 	memoryDefault, memoryMin := resource.MustParse("0"), resource.MustParse("0")
 	if mode.FullMemoryDefault {

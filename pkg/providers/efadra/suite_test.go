@@ -16,6 +16,7 @@ package efadra_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -38,17 +39,15 @@ var _ = Describe("EFA DRA Provider", func() {
 		provider = efadra.NewDefaultProvider()
 	})
 	It("should omit instance types with no network device metadata", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},
 		})
-		Expect(err).ToNot(HaveOccurred())
 		Expect(resources).To(BeEmpty())
 	})
 	It("should build one device per PCI device from the scraped metadata", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.48xlarge"},
 		})
-		Expect(err).ToNot(HaveOccurred())
 		Expect(resources["g6.48xlarge"].ResourceSliceTemplates).To(HaveLen(1))
 
 		metadata := drametadata.EFAMetadataByInstanceType["g6.48xlarge"]
@@ -74,18 +73,19 @@ var _ = Describe("EFA DRA Provider", func() {
 		instanceTypes := lo.MapToSlice(drametadata.EFAMetadataByInstanceType, func(name string, _ *drametadata.DeviceMetadata) *cloudprovider.InstanceType {
 			return &cloudprovider.InstanceType{Name: name}
 		})
-		resources, err := provider.ResolveDynamicResources(context.Background(), instanceTypes)
-		Expect(err).ToNot(HaveOccurred())
+		resources := provider.ResolveDynamicResources(context.Background(), instanceTypes)
 		Expect(resources).To(HaveLen(len(drametadata.EFAMetadataByInstanceType)))
 
 		for name, metadata := range drametadata.EFAMetadataByInstanceType {
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
 			Expect(resources[name].ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
-			names := lo.Map(resources[name].ResourceSliceTemplates[0].Devices, func(d cloudprovider.Device, _ int) string {
-				return d.Name.Value()
-			})
-			Expect(lo.Uniq(names)).To(HaveLen(len(names)), name)
+			// Names must be unique within a pool, and the index is the only thing keeping them apart.
+			// Note every scraped EFA type has exactly one device, so this cannot distinguish naming by
+			// index from naming by a constant -- that needs a multi-device type in the metadata.
+			for i, device := range resources[name].ResourceSliceTemplates[0].Devices {
+				Expect(device.Name.Value()).To(Equal(fmt.Sprintf("efa-%d", i)), name)
+			}
 			// The driver's runtime-only attributes sit on devices we don't model, and the allocator
 			// ignores bindings covering fewer than two devices, so there's nothing to bind.
 			Expect(resources[name].AttributeBindings).To(BeEmpty(), name)

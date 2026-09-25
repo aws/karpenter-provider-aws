@@ -100,6 +100,12 @@ func withConsumableCapacity(base cloudprovider.DynamicResources, mode *Consumabl
 			Driver: template.Driver,
 			Pool:   template.Pool,
 			Devices: lo.Map(template.Devices, func(device cloudprovider.Device, _ int) cloudprovider.Device {
+				// Every sharing mode is denominated in the GPU's memory, so a device without it can't be
+				// given a request policy. Leave it single-allocation rather than advertising sharing the
+				// driver won't back, which would over-pack the node.
+				if _, ok := device.Capacity[CapacityMemory]; !ok {
+					return device
+				}
 				device.Capacity = capacityFor(device.Capacity, mode)
 				device.AllowMultipleAllocations = true
 				return device
@@ -113,7 +119,7 @@ func withConsumableCapacity(base cloudprovider.DynamicResources, mode *Consumabl
 type Provider interface {
 	// ResolveDynamicResources returns the NVIDIA GPU templates and attribute bindings keyed by
 	// instance type name. Instance types with no NVIDIA GPU metadata are omitted.
-	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) (map[string]cloudprovider.DynamicResources, error)
+	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) map[string]cloudprovider.DynamicResources
 }
 
 type DefaultProvider struct{}
@@ -122,7 +128,7 @@ func NewDefaultProvider() *DefaultProvider {
 	return &DefaultProvider{}
 }
 
-func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) (map[string]cloudprovider.DynamicResources, error) {
+func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) map[string]cloudprovider.DynamicResources {
 	resources := map[string]cloudprovider.DynamicResources{}
 	for _, it := range instanceTypes {
 		base, ok := dynamicResources[it.Name]
@@ -135,5 +141,5 @@ func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTyp
 		}
 		resources[it.Name] = withConsumableCapacity(base, mode)
 	}
-	return resources, nil
+	return resources
 }

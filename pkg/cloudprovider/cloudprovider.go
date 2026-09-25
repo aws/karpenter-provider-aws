@@ -226,9 +226,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		return nil, err
 	}
 	// Populate DRA DynamicResources for the instance types, based on the DRA drivers we support.
-	if err := c.populateDynamicResources(ctx, nodeClass, instanceTypes); err != nil {
-		return nil, fmt.Errorf("populating dynamic resources, %w", err)
-	}
+	c.populateDynamicResources(ctx, nodeClass, instanceTypes)
 	return instanceTypes, nil
 }
 

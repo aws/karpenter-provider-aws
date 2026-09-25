@@ -41,17 +41,15 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		provider = nvidiadra.NewDefaultProvider()
 	})
 	It("should omit instance types with no GPU metadata", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},
 		}, nil)
-		Expect(err).ToNot(HaveOccurred())
 		Expect(resources).To(BeEmpty())
 	})
 	It("should build one device per GPU from the scraped metadata", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.12xlarge"},
 		}, nil)
-		Expect(err).ToNot(HaveOccurred())
 		Expect(resources["g6.12xlarge"].ResourceSliceTemplates).To(HaveLen(1))
 
 		metadata := drametadata.GPUMetadataByInstanceType["g6.12xlarge"]
@@ -76,10 +74,9 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		}
 	})
 	It("should bind the runtime-only attributes across every GPU", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.12xlarge"},
 		}, nil)
-		Expect(err).ToNot(HaveOccurred())
 
 		bindings := resources["g6.12xlarge"].AttributeBindings
 		Expect(lo.Map(bindings, func(b *cloudprovider.AttributeBinding, _ int) resourcev1.QualifiedName {
@@ -98,8 +95,7 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		instanceTypes := lo.MapToSlice(drametadata.GPUMetadataByInstanceType, func(name string, _ *drametadata.DeviceMetadata) *cloudprovider.InstanceType {
 			return &cloudprovider.InstanceType{Name: name}
 		})
-		resources, err := provider.ResolveDynamicResources(context.Background(), instanceTypes, nil)
-		Expect(err).ToNot(HaveOccurred())
+		resources := provider.ResolveDynamicResources(context.Background(), instanceTypes, nil)
 		Expect(resources).To(HaveLen(len(drametadata.GPUMetadataByInstanceType)))
 
 		for name, metadata := range drametadata.GPUMetadataByInstanceType {
@@ -114,10 +110,9 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		}
 	})
 	It("should publish no counter sets, since MIG partitions are out of scope", func() {
-		resources, err := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.48xlarge"},
 		}, nil)
-		Expect(err).ToNot(HaveOccurred())
 		templates := resources["g6.48xlarge"].ResourceSliceTemplates
 		Expect(templates).To(HaveLen(1))
 		Expect(templates[0].SharedCounters).To(BeEmpty())
