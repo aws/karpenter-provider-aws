@@ -16,36 +16,27 @@ package cloudprovider
 
 import (
 	"context"
-	"fmt"
 
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 )
 
-func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass *v1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType) error {
-	if karpoptions.FromContext(ctx).IgnoreDRARequests {
-		return nil
+func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass *v1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType) {
+	if !options.FromContext(ctx).FeatureGates.DRA || karpoptions.FromContext(ctx).IgnoreDRARequests {
+		return
 	}
 
-	consumableCapacity, err := nvidiadra.ParseConsumableCapacity(nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity])
-	if err != nil {
-		return fmt.Errorf("parsing %s annotation, %w", v1.AnnotationNVIDIAConsumableCapacity, err)
-	}
+	consumableCapacity, _ := nvidiadra.ParseConsumableCapacity(nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity])
 
 	// NVIDIA GPU driver: DRA metadata keyed by instance type name.
-	nvidiaResources, err := c.nvidiaDRAProvider.ResolveDynamicResources(ctx, instanceTypes, consumableCapacity)
-	if err != nil {
-		return fmt.Errorf("resolving nvidia dynamic resources, %w", err)
-	}
+	nvidiaResources := c.nvidiaDRAProvider.ResolveDynamicResources(ctx, instanceTypes, consumableCapacity)
 	// dranet EFA driver: DRA metadata keyed by instance type name.
-	efaResources, err := c.efaDRAProvider.ResolveDynamicResources(ctx, instanceTypes)
-	if err != nil {
-		return fmt.Errorf("resolving efa dynamic resources, %w", err)
-	}
+	efaResources := c.efaDRAProvider.ResolveDynamicResources(ctx, instanceTypes)
 
 	for _, it := range instanceTypes {
 		// Additional DRA drivers would append their contribution here.
@@ -60,5 +51,4 @@ func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass 
 			it.DynamicResources = resources
 		}
 	}
-	return nil
 }

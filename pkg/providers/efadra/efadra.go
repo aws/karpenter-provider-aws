@@ -45,17 +45,16 @@ var dynamicResources = buildDynamicResources()
 func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 	resources := make(map[string]cloudprovider.DynamicResources, len(drametadata.EFAMetadataByInstanceType))
 	for instanceType, metadata := range drametadata.EFAMetadataByInstanceType {
-		devices := lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
-			return cloudprovider.Device{
-				Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
-				Attributes: device.Attributes,
-			}
-		})
 		resources[instanceType] = cloudprovider.DynamicResources{
 			ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
-				Driver:  unique.Make(DriverName),
-				Pool:    cloudprovider.ResourcePool{Name: unique.Make(PoolName)},
-				Devices: devices,
+				Driver: unique.Make(DriverName),
+				Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName)},
+				Devices: lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
+					return cloudprovider.Device{
+						Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
+						Attributes: device.Attributes,
+					}
+				}),
 			}},
 		}
 	}
@@ -66,7 +65,7 @@ func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 type Provider interface {
 	// ResolveDynamicResources returns the dra.net templates keyed by instance type name. Instance
 	// types with no network device metadata are omitted.
-	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType) (map[string]cloudprovider.DynamicResources, error)
+	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources
 }
 
 type DefaultProvider struct{}
@@ -75,12 +74,12 @@ func NewDefaultProvider() *DefaultProvider {
 	return &DefaultProvider{}
 }
 
-func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) (map[string]cloudprovider.DynamicResources, error) {
+func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources {
 	resources := map[string]cloudprovider.DynamicResources{}
 	for _, it := range instanceTypes {
 		if r, ok := dynamicResources[it.Name]; ok {
 			resources[it.Name] = r
 		}
 	}
-	return resources, nil
+	return resources
 }

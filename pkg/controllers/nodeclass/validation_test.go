@@ -235,6 +235,55 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 		})
 	})
+	Context("NVIDIA Consumable Capacity Validation", func() {
+		BeforeEach(func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(true)}}))
+		})
+		It("should set DRADisabled when the annotation is set but the DRA gate is off", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(false)}}))
+			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+				v1.AnnotationNVIDIAConsumableCapacity: "memory",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonDRADisabled))
+		})
+		// The annotation is free-form, so the reconciler is the only thing that checks it. A bad value blocks
+		// launch rather than being guessed at, since Karpenter can't read the driver's actual configuration.
+		DescribeTable("should set InvalidNVIDIAConsumableCapacity when the annotation is not a mode the driver accepts",
+			func(value string) {
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+					v1.AnnotationNVIDIAConsumableCapacity: value,
+				})
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonConsumableCapacityInvalid))
+			},
+			Entry("zero shares", "0"),
+			Entry("negative shares", "-1"),
+			Entry("a quantity", "1Gi"),
+			Entry("an unknown mode", "shares"),
+		)
+		DescribeTable("should not reject a mode the driver accepts",
+			func(value string) {
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+					v1.AnnotationNVIDIAConsumableCapacity: value,
+				})
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonConsumableCapacityInvalid))
+			},
+			Entry("disabled", "disabled"),
+			Entry("memory", "memory"),
+			Entry("unlimited", "unlimited"),
+			Entry("a share count", "4"),
+		)
+	})
 	Context("Kubelet Configuration Validation", func() {
 		// spec.kubelet is an open map the API server can't validate, so ValidateKubeletConfig performs the
 		// structural checks at reconcile time. This runs before the expression gate and required-condition
