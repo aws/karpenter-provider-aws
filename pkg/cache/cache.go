@@ -75,6 +75,8 @@ const (
 // lockstep (thundering herd on the AWS APIs they front). go-cache exposes no
 // setter for an existing cache's default TTL, so jitter is applied at
 // construction. jitter <= 0 disables jitter.
+//
+//nolint:gosec
 func NewJitteredCache(ttl, jitter, cleanupInterval time.Duration) *cache.Cache {
 	if jitter >= ttl {
 		panic(fmt.Sprintf("cache jitter (%s) must be less than ttl (%s)", jitter, ttl))
