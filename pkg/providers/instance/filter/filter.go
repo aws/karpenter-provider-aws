@@ -167,7 +167,8 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 		}
 	}
 	for _, it := range instanceTypes {
-		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
+		// A full reservation's near-zero price would otherwise let it win partition selection, then ICE on launch.
+		for _, o := range it.Offerings.Compatible(f.requirements).Launchable() {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
 				continue
 			}
@@ -228,7 +229,7 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
 				continue
 			}
-			if !o.Available || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
+			if !o.Launchable() || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 				continue
 			}
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(v1.CapacityReservationTypeCapacityBlock) {
@@ -245,6 +246,11 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 			it.Offerings = []*cloudprovider.Offering{selectedOffering}
 			selectedInstanceType = it
 		}
+	}
+	// Every compatible capacity block is full: reject all rather than fall back, since launching a non-block instance
+	// for a capacity-block request would be wrong.
+	if selectedInstanceType == nil {
+		return nil, instanceTypes
 	}
 	return []*cloudprovider.InstanceType{selectedInstanceType}, lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
 		return it.Name == selectedInstanceType.Name
@@ -297,6 +303,12 @@ func (f reservedOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Inst
 		zonalOfferings := map[string]*cloudprovider.Offering{}
 		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			// Skip full reservations (Available but ReservationCapacity=0) so we don't select one and ICE. Spelled out
+			// rather than Launchable() because the numeric ReservationCapacity is needed just below to pick the
+			// max-capacity offering per zone.
+			if o.ReservationCapacity == 0 {
 				continue
 			}
 			if current, ok := zonalOfferings[o.Zone()]; !ok || o.ReservationCapacity > current.ReservationCapacity {

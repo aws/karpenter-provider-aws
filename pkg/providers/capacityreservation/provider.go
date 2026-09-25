@@ -36,7 +36,6 @@ type Provider interface {
 	GetAvailableInstanceCount(string) int
 	MarkLaunched(string)
 	MarkTerminated(string)
-	MarkUnavailable(...string)
 }
 
 type DefaultProvider struct {

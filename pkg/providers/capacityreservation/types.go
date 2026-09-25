@@ -180,15 +180,3 @@ func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, coun
 		syncTime: c.clk.Now(),
 	})
 }
-
-func (c *availabilityCache) MarkUnavailable(reservationIDs ...string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, id := range reservationIDs {
-		entry, ok := c.cache.Get(id)
-		if !ok {
-			continue
-		}
-		entry.(*availabilityCacheEntry).count = 0
-	}
-}
