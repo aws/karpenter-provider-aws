@@ -13,7 +13,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
 | AMI_REFRESH_INTERVAL | \-\-ami-refresh-interval | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. (default = 1m0s)|
-| AWS_FEATURE_GATES | \-\-aws-feature-gates | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL. (default = NodeClassCEL=false)|
+| AWS_FEATURE_GATES | \-\-aws-feature-gates | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL, DRA. (default = NodeClassCEL=false,DRA=false)|
 | BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
 | BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
@@ -100,8 +100,11 @@ Some features are specific to the AWS provider and are configured separately fro
 | Feature      | Default | Stage | Since    | Until |
 |--------------|---------|-------|----------|-------|
 | NodeClassCEL | false   | Alpha | v1.15.x  |       |
+| DRA | false   | Alpha | v1.15.x  |       |
 
 `NodeClassCEL` enables [CEL expression support in `spec.kubelet`]({{<ref "../concepts/nodeclasses#dynamic-kubelet-configuration-via-expressions" >}}), allowing `maxPods`, `kubeReserved`, and `systemReserved` to be configured as per-instance-type expressions.
+
+`DRA` makes Karpenter calculate the DRA devices the NVIDIA GPU and EFA drivers publish, so that pods with ResourceClaims are accounted for when it sizes new nodes. It is independent of the core `--ignore-dra-requests` option: both must allow DRA for Karpenter to contribute these devices. With the gate disabled, claims are only satisfied by devices the drivers publish on nodes that already exist.
 
 ### Batching Parameters
 
