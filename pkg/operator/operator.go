@@ -44,6 +44,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -143,18 +144,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
-	var zsProvider zonalshiftprovider.Provider
-	if options.FromContext(ctx).EnableZonalShift {
-		arczonalshiftAPI := arczonalshift.NewFromConfig(cfg)
-		clusterArn, err := ValidateZonalShiftEnablement(ctx, eksapi, arczonalshiftAPI)
-		if err != nil {
-			// Resource is not found/registered in Zonal Shift. Throw an error.
-			panic(fmt.Sprintf("Unable to find Cluster %v in Zonal Shift. Please check that the cluster is enabled for Zonal Shift and roles have appropriate permissions %v", clusterArn, err))
-		}
-		zsProvider = zonalshiftprovider.NewProvider(arczonalshiftAPI, operator.Clock, clusterArn)
-	} else {
-		zsProvider = zonalshiftprovider.NewNoopProvider()
-	}
+	zsProvider := NewZonalShiftProvider(ctx, eksapi, arczonalshift.NewFromConfig(cfg), operator.Clock)
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
 	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
@@ -384,6 +374,23 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 		}
 		return []string{id}
 	}), "failed to setup node instanceID indexer")
+}
+
+// NewZonalShiftProvider returns the ARC zonal shift provider when zonal shift is enabled and the cluster passes
+// validation. Zonal shift is an optional resiliency feature, so a validation failure (cluster not registered with ARC
+// zonal shift, or the controller role lacking arc-zonal-shift permissions) degrades to the no-op provider instead of
+// blocking startup: a crash-looping controller stops all node provisioning, which is a worse availability outcome than
+// running without zonal shift.
+func NewZonalShiftProvider(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI, clk clock.Clock) zonalshiftprovider.Provider {
+	if !options.FromContext(ctx).EnableZonalShift {
+		return zonalshiftprovider.NewNoopProvider()
+	}
+	clusterArn, err := ValidateZonalShiftEnablement(ctx, eksAPI, arczonalshiftAPI)
+	if err != nil {
+		log.FromContext(ctx).WithValues("cluster", options.FromContext(ctx).ClusterName).Error(err, "disabling zonal shift support, register the cluster for ARC zonal shift and grant arc-zonal-shift:GetManagedResource to the controller role, or set settings.enableZonalShift to false")
+		return zonalshiftprovider.NewNoopProvider()
+	}
+	return zonalshiftprovider.NewProvider(arczonalshiftAPI, clk, clusterArn)
 }
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
