@@ -66,11 +66,11 @@ There is currently a limit of 100 on the total number of requirements on both th
 {{% /alert %}}
 
 ## spec.price
-Absolute price override as a string representing the price in your currency. This completely replaces the original instance price reported by the cloud provider. Karpenter is currency-agnostic, so this works with any currency unit.
+Absolute hourly price override as a string representing the price in your currency. This completely replaces the original instance price reported by the cloud provider for scheduling decisions. Karpenter is currency-agnostic, so this works with any currency unit.
 
 ## spec.priceAdjustment
 Price modification that can be specified as:
-- **Absolute adjustment**: `"+5.00"` (increase by 5.00) or `"-2.50"` (decrease by 2.50)
+- **Absolute adjustment**: `"+5.00"` (increase the hourly price by 5.00) or `"-2.50"` (decrease the hourly price by 2.50)
 - **Percentage adjustment**: `"+15%"` (increase by 15%) or `"-10%"` (decrease by 10%)
 
 ## spec.capacity
