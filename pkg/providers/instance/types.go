@@ -53,9 +53,10 @@ type Instance struct {
 }
 
 type CapacityReservationDetails struct {
-	ID            string
-	Type          v1.CapacityReservationType
-	Interruptible bool
+	ID                    string
+	Type                  v1.CapacityReservationType
+	InstanceMatchCriteria string
+	Interruptible         bool
 }
 
 func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
