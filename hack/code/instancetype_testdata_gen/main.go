@@ -175,7 +175,14 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "VCpuInfo: &ec2types.VCpuInfo{\n")
 	fmt.Fprintf(src, "DefaultCores: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
+	fmt.Fprintf(src, "DefaultThreadsPerCore: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultThreadsPerCore))
 	fmt.Fprintf(src, "DefaultVCpus: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultVCpus))
+	if len(info.VCpuInfo.ValidCores) > 0 {
+		fmt.Fprintf(src, "ValidCores: []int32{%s},\n", getInt32SliceData(info.VCpuInfo.ValidCores))
+	}
+	if len(info.VCpuInfo.ValidThreadsPerCore) > 0 {
+		fmt.Fprintf(src, "ValidThreadsPerCore: []int32{%s},\n", getInt32SliceData(info.VCpuInfo.ValidThreadsPerCore))
+	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "MemoryInfo: &ec2types.MemoryInfo{\n")
 	fmt.Fprintf(src, "SizeInMiB: aws.Int64(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
@@ -286,4 +293,8 @@ func getGPUDeviceInfo(info ec2types.GpuDeviceInfo) string {
 
 func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType | ec2types.PlacementGroupStrategy](slice []T) string {
 	return strings.Join(lo.Map(slice, func(s T, _ int) string { return fmt.Sprintf(`"%s"`, s) }), ",")
+}
+
+func getInt32SliceData(slice []int32) string {
+	return strings.Join(lo.Map(slice, func(i int32, _ int) string { return fmt.Sprint(i) }), ",")
 }

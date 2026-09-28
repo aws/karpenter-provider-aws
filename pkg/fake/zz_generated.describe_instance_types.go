@@ -42,8 +42,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(2),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(2),
+				DefaultThreadsPerCore: aws.Int32(1),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1, 2},
+				ValidThreadsPerCore:   []int32{1},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(4096),
@@ -90,8 +93,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.000000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(32),
-				DefaultVCpus: aws.Int32(64),
+				DefaultCores:          aws.Int32(32),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(64),
+				ValidCores:            []int32{2, 4, 8, 16, 32},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(262144),
@@ -153,8 +159,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(16),
-				DefaultVCpus: aws.Int32(32),
+				DefaultCores:          aws.Int32(16),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(32),
+				ValidCores:            []int32{2, 4, 6, 8, 10, 12, 14, 16},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(131072),
@@ -219,8 +228,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.300000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(24),
-				DefaultVCpus: aws.Int32(48),
+				DefaultCores:          aws.Int32(24),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(48),
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(196608),
@@ -285,8 +295,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.600000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(48),
-				DefaultVCpus: aws.Int32(96),
+				DefaultCores:          aws.Int32(48),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(96),
+				ValidCores:            []int32{4, 6, 8, 10, 12, 14, 16, 32, 48},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(393216),
@@ -348,8 +361,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.600000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(2),
-				DefaultVCpus: aws.Int32(4),
+				DefaultCores:          aws.Int32(2),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(4),
+				ValidCores:            []int32{1, 2},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
@@ -411,8 +427,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.100000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(1),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(1),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
@@ -459,8 +478,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.100000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(48),
-				DefaultVCpus: aws.Int32(96),
+				DefaultCores:          aws.Int32(48),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(96),
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(393216),
@@ -507,8 +527,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.100000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(2),
-				DefaultVCpus: aws.Int32(4),
+				DefaultCores:          aws.Int32(2),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(4),
+				ValidCores:            []int32{2},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
@@ -555,8 +578,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(64),
-				DefaultVCpus: aws.Int32(128),
+				DefaultCores:          aws.Int32(64),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(128),
+				ValidCores:            []int32{4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(524288),
@@ -613,8 +639,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.200000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(1),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(1),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
@@ -661,8 +690,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.600000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(96),
-				DefaultVCpus: aws.Int32(192),
+				DefaultCores:          aws.Int32(96),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(192),
+				ValidCores:            []int32{12, 24, 36, 48, 60, 72, 84, 96},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(2097152),
@@ -851,8 +883,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(1),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(1),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
@@ -899,8 +934,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(2),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(2),
+				DefaultThreadsPerCore: aws.Int32(1),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1, 2},
+				ValidThreadsPerCore:   []int32{1},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(4096),
@@ -947,8 +985,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(2),
-				DefaultVCpus: aws.Int32(2),
+				DefaultCores:          aws.Int32(2),
+				DefaultThreadsPerCore: aws.Int32(1),
+				DefaultVCpus:          aws.Int32(2),
+				ValidCores:            []int32{1, 2},
+				ValidThreadsPerCore:   []int32{1},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(2048),
@@ -995,8 +1036,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(2.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(4),
-				DefaultVCpus: aws.Int32(4),
+				DefaultCores:          aws.Int32(4),
+				DefaultThreadsPerCore: aws.Int32(1),
+				DefaultVCpus:          aws.Int32(4),
+				ValidCores:            []int32{1, 2, 3, 4},
+				ValidThreadsPerCore:   []int32{1},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
@@ -1043,8 +1087,11 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				SustainedClockSpeedInGhz: aws.Float64(3.500000),
 			},
 			VCpuInfo: &ec2types.VCpuInfo{
-				DefaultCores: aws.Int32(4),
-				DefaultVCpus: aws.Int32(8),
+				DefaultCores:          aws.Int32(4),
+				DefaultThreadsPerCore: aws.Int32(2),
+				DefaultVCpus:          aws.Int32(8),
+				ValidCores:            []int32{2, 4},
+				ValidThreadsPerCore:   []int32{1, 2},
 			},
 			MemoryInfo: &ec2types.MemoryInfo{
 				SizeInMiB: aws.Int64(32768),
