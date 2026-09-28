@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -176,12 +177,21 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	// celEnv is the single shared CEL environment (and compilation cache) for kubelet expressionevaluation
 	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	// instanceTypeProvider is forward-declared so the resolver's vCPU lookup can read the fake instance type
+	// info. The closure captures the variable by reference and is only invoked at launch template resolution
+	// time, after assignment below.
+	var instanceTypeProvider *instancetype.DefaultProvider
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
 		limits, ok := instancetype.Limits[name]
 		if !ok {
 			return amifamily.ENILimits{}, false
 		}
 		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	}, func(name string) (ec2types.VCpuInfo, bool) {
+		if instanceTypeProvider == nil {
+			return ec2types.VCpuInfo{}, false
+		}
+		return instanceTypeProvider.VCPUInfo(name)
 	}, celEnv)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
@@ -203,7 +213,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.CapacityReservationAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	instanceTypeProvider := instancetype.NewDefaultProvider(
+	instanceTypeProvider = instancetype.NewDefaultProvider(
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.DiscoveredCapacityCacheTTL, awscache.DefaultCleanupInterval),

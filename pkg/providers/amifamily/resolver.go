@@ -41,6 +41,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/cpuoptions"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
@@ -63,11 +64,15 @@ type ENILimits struct {
 // ENILookup is a function that returns ENI limits for a given instance type name.
 type ENILookup func(instanceTypeName string) (ENILimits, bool)
 
+// VCPUInfoLookup is a function that returns the EC2 vCPU topology for a given instance type name.
+type VCPUInfoLookup func(instanceTypeName string) (ec2types.VCpuInfo, bool)
+
 // DefaultResolver is able to fill-in dynamic launch template parameters
 type DefaultResolver struct {
-	region    string
-	eniLookup ENILookup
-	celEnv    *kubeletcel.CELEnvironment
+	region         string
+	eniLookup      ENILookup
+	vcpuInfoLookup VCPUInfoLookup
+	celEnv         *kubeletcel.CELEnvironment
 }
 
 // Options define the static launch template parameters
@@ -114,6 +119,12 @@ type LaunchTemplate struct {
 	// Zone constrains fleet overrides to a single AZ when set.
 	Zone               string `hash:"ignore"`
 	ConnectionTracking *v1.ConnectionTracking
+	// CPUCoreCount is the core count to request through the launch template's CpuOptions, alongside
+	// CPUOptions.ThreadsPerCore. EC2 requires both to be set together and CreateFleet overrides can't vary
+	// CpuOptions per instance type, so it is resolved per instance type and every instance type sharing the
+	// launch template shares it. Zero when the launch template requests no core count / threads per core,
+	// because cpuOptions.threadsPerCore is unset or already matches these instance types' default layout.
+	CPUCoreCount int32
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -156,11 +167,12 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
+func NewDefaultResolver(region string, eniLookup ENILookup, vcpuInfoLookup VCPUInfoLookup, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
 	return &DefaultResolver{
-		region:    region,
-		eniLookup: eniLookup,
-		celEnv:    celEnv,
+		region:         region,
+		eniLookup:      eniLookup,
+		vcpuInfoLookup: vcpuInfoLookup,
+		celEnv:         celEnv,
 	}
 }
 
@@ -196,12 +208,16 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 		// This requires that we resolve a unique launch template per max-pods value.
 		// Similarly, instance types configured with EFAs require unique launch templates depending on the number of
 		// EFAs they support.
+		// The CPU core count is also included: cpuOptions.threadsPerCore is requested through the launch template's
+		// CpuOptions, which EC2 only accepts together with a core count, and that core count is a property of the
+		// instance type. Instance types with the same default core count share a launch template.
 		// Reservations IDs are also included since we need to create a separate LaunchTemplate per reservation ID when
 		// launching reserved capacity. If it's a reserved capacity launch, we've already filtered the instance types
 		// further up the call stack.
 		type launchTemplateParams struct {
-			efaCount int
-			maxPods  int
+			efaCount     int
+			maxPods      int
+			cpuCoreCount int32
 			// resolvedKubeReserved and resolvedSystemReserved hold the evaluated resource values
 			// (serialized as "key1=val1,key2=val2" for comparability) when CEL expressions are used.
 			resolvedKubeReserved   string
@@ -261,6 +277,10 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					fmt.Errorf("resolving systemReserved, %w", err),
 					"instance-type", it.Name)
 			}
+			cpuCoreCount, err := r.resolveCPUCoreCount(it, nodeClass.Spec.CPUOptions)
+			if err != nil {
+				return launchTemplateParams{}, err
+			}
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
@@ -268,6 +288,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					0,
 				),
 				maxPods:                int(it.Capacity.Pods().Value()),
+				cpuCoreCount:           cpuCoreCount,
 				resolvedKubeReserved:   serializeResourceMap(resolvedKubeReserved),
 				resolvedSystemReserved: serializeResourceMap(resolvedSystemReserved),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
@@ -289,10 +310,31 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, params.cpuCoreCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled)...)
 		}
 	}
 	return resolvedTemplates, nil
+}
+
+// resolveCPUCoreCount returns the core count the launch template for an instance type must request to satisfy
+// the NodeClass' cpuOptions.threadsPerCore, or zero when the instance type launches with its default layout.
+// The topology is resolved from the same live EC2 vCPU info the instance type provider computed the instance
+// type's vCPU capacity from, so the launched instance boots with exactly the vCPUs the scheduler planned for.
+func (r DefaultResolver) resolveCPUCoreCount(it *cloudprovider.InstanceType, cpuOptions *v1.CPUOptions) (int32, error) {
+	if cpuOptions == nil || cpuOptions.ThreadsPerCore == nil {
+		return 0, nil
+	}
+	if r.vcpuInfoLookup == nil {
+		return 0, serrors.Wrap(fmt.Errorf("resolving cpuOptions.threadsPerCore, no vCPU info lookup configured"), "instance-type", it.Name)
+	}
+	vcpuInfo, ok := r.vcpuInfoLookup(it.Name)
+	if !ok {
+		// The instance type provider produced this instance type from the same cache the lookup reads, so a miss
+		// means the cache was replaced in between. Launching without CpuOptions would boot a node with more
+		// vCPUs than the scheduler planned for, so fail the launch and let it be retried instead.
+		return 0, serrors.Wrap(fmt.Errorf("resolving cpuOptions.threadsPerCore, instance type not found"), "instance-type", it.Name)
+	}
+	return cpuoptions.Resolve(&vcpuInfo, cpuOptions).CoreCount, nil
 }
 
 func resolveEnclaveEnabled(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (bool, error) {
@@ -367,6 +409,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	amiID string,
 	maxPods int,
 	efaCount int,
+	cpuCoreCount int32,
 	capacityReservationIDs []string,
 	capacityReservationType v1.CapacityReservationType,
 	capacityReservationInterruptible bool,
@@ -464,6 +507,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
 			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
 			CPUOptions:                       nodeClass.Spec.CPUOptions,
+			CPUCoreCount:                     cpuCoreCount,
 			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),
 			AMIID:                            amiID,
 			InstanceTypes:                    instanceTypes,

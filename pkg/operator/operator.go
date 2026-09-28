@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
@@ -202,6 +203,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 			return amifamily.ENILimits{}, false
 		}
 		return instanceTypeProvider.ENILimits(name)
+	}, func(name string) (ec2types.VCpuInfo, bool) {
+		if instanceTypeProvider == nil {
+			return ec2types.VCpuInfo{}, false
+		}
+		return instanceTypeProvider.VCPUInfo(name)
 	}, celEnv)
 	caBundle := lo.Must(GetCABundle(ctx, operator.GetConfig()))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(

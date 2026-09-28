@@ -430,13 +430,28 @@ func volumeSize(quantity *resource.Quantity) *int32 {
 	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }
 
-func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsRequest {
-	if cpuOptions == nil || cpuOptions.NestedVirtualization == nil {
+// cpuOptions builds the launch template's CpuOptions from the NodeClass' cpuOptions. coreCount is the core count
+// resolved for the launch template's instance types (see amifamily.LaunchTemplate.CPUCoreCount); it is only
+// requested, together with threadsPerCore, when non-zero because EC2 rejects either of the two on its own. A nil
+// result keeps CpuOptions out of the launch template entirely for NodeClasses that don't set anything.
+func cpuOptions(cpuOptions *v1.CPUOptions, coreCount int32) *ec2types.LaunchTemplateCpuOptionsRequest {
+	if cpuOptions == nil {
 		return nil
 	}
-	return &ec2types.LaunchTemplateCpuOptionsRequest{
-		NestedVirtualization: ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization),
+	var request *ec2types.LaunchTemplateCpuOptionsRequest
+	if cpuOptions.NestedVirtualization != nil {
+		request = &ec2types.LaunchTemplateCpuOptionsRequest{
+			NestedVirtualization: ec2types.NestedVirtualizationSpecification(*cpuOptions.NestedVirtualization),
+		}
 	}
+	if cpuOptions.ThreadsPerCore != nil && coreCount != 0 {
+		if request == nil {
+			request = &ec2types.LaunchTemplateCpuOptionsRequest{}
+		}
+		request.CoreCount = lo.ToPtr(coreCount)
+		request.ThreadsPerCore = cpuOptions.ThreadsPerCore
+	}
+	return request
 }
 
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.

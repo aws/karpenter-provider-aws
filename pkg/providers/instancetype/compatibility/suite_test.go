@@ -165,6 +165,48 @@ var _ = Describe("CompatibilityTest", func() {
 		)
 	})
 
+	Context("ThreadsPerCoreCompatibility", func() {
+		hyperthreaded := &ec2types.VCpuInfo{
+			DefaultVCpus:          aws.Int32(16),
+			DefaultCores:          aws.Int32(8),
+			DefaultThreadsPerCore: aws.Int32(2),
+			ValidCores:            []int32{2, 4, 6, 8},
+			ValidThreadsPerCore:   []int32{1, 2},
+		}
+		singleThreaded := &ec2types.VCpuInfo{
+			DefaultVCpus:          aws.Int32(2),
+			DefaultCores:          aws.Int32(2),
+			DefaultThreadsPerCore: aws.Int32(1),
+			ValidCores:            []int32{1, 2},
+			ValidThreadsPerCore:   []int32{1},
+		}
+		bareMetal := &ec2types.VCpuInfo{
+			DefaultVCpus:          aws.Int32(96),
+			DefaultCores:          aws.Int32(48),
+			DefaultThreadsPerCore: aws.Int32(2),
+		}
+		DescribeTable("should gate instance types on VCpuInfo when threadsPerCore is set",
+			func(threadsPerCore *int32, vcpuInfo *ec2types.VCpuInfo, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.VCpuInfo = vcpuInfo
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				if threadsPerCore != nil {
+					nc.cpuOptions = &v1.CPUOptions{ThreadsPerCore: threadsPerCore}
+				}
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil CPUOptions passes regardless of VCpuInfo", nil, bareMetal, true),
+			Entry("nil CPUOptions passes without VCpuInfo", nil, nil, true),
+			Entry("threadsPerCore=1 + hyperthreaded instance type that supports it", lo.ToPtr(int32(1)), hyperthreaded, true),
+			Entry("threadsPerCore=2 + hyperthreaded instance type keeps its default", lo.ToPtr(int32(2)), hyperthreaded, true),
+			Entry("threadsPerCore=1 + single-threaded instance type keeps its default", lo.ToPtr(int32(1)), singleThreaded, true),
+			Entry("threadsPerCore=2 + single-threaded instance type that can't run 2 threads", lo.ToPtr(int32(2)), singleThreaded, false),
+			Entry("threadsPerCore=1 + bare metal that doesn't support CpuOptions", lo.ToPtr(int32(1)), bareMetal, false),
+			Entry("threadsPerCore=1 + missing VCpuInfo", lo.ToPtr(int32(1)), nil, false),
+		)
+	})
+
 	Context("NitroEnclavesCompatibility", func() {
 		DescribeTable("should gate instance types on NitroEnclavesSupport when enclaves are enabled",
 			func(enclaveOptions *v1.EnclaveOptions, support ec2types.NitroEnclavesSupport, expected bool) {

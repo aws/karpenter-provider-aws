@@ -348,6 +348,18 @@ type CPUOptions struct {
 	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
+	// ThreadsPerCore is the number of threads per CPU core the instance launches with. Set it to 1 to
+	// disable simultaneous multithreading (hyperthreading); 2 is the default for instance types that
+	// support it. Karpenter derives the matching core count from each instance type's default core
+	// count, so the instance keeps every physical core and only the thread count changes. Instance
+	// types whose default layout already matches launch unchanged; the rest launch with EC2 CpuOptions
+	// and are excluded when they do not list the value in ValidThreadsPerCore from DescribeInstanceTypes.
+	// Karpenter's instance type capacity, overhead, and the karpenter.k8s.aws/instance-cpu label reflect
+	// the resulting vCPU count (cores x threads per core).
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=2
+	// +optional
+	ThreadsPerCore *int32 `json:"threadsPerCore,omitempty"`
 }
 
 // ConnectionTracking configures idle connection tracking timeouts on ENIs

@@ -177,6 +177,9 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	enclaveOptions := nodeClass.EnclaveOptions()
 	enclavesEnabled := enclaveOptions != nil && enclaveOptions.Enabled
 	enclavesEnabledHash, _ := hashstructure.Hash(enclavesEnabled, hashstructure.FormatV2, nil)
+	// Offering availability bakes in the NodeClass compatibility checks, and both nestedVirtualization and
+	// threadsPerCore decide which instance types are compatible
+	cpuOptionsHash, _ := hashstructure.Hash(nodeClass.CPUOptions(), hashstructure.FormatV2, nil)
 	var placementGroupHash uint64
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
@@ -184,12 +187,13 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
 			enclavesEnabledHash,
+			cpuOptionsHash,
 			placementGroupHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),

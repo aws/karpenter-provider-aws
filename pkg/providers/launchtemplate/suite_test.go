@@ -1084,6 +1084,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nil,
 				nodeClass.AMIFamily(),
 				nil,
+				nil,
 			)
 
 			overhead := it.Overhead.Total()
@@ -1139,6 +1140,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				nil,
 			)
 
 			overhead := it.Overhead.Total()
@@ -1167,6 +1169,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				kc.EvictionHard,
 				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
+				nil,
 				nil,
 			)
 			overhead := it.Overhead.Total()
@@ -3268,6 +3271,121 @@ eviction-max-pod-grace-period = 10
 		Entry("enabled", true),
 		Entry("disabled", false),
 	)
+	Context("EC2NodeClass CPU Options", func() {
+		var instanceTypeInfo map[ec2types.InstanceType]ec2types.InstanceTypeInfo
+		BeforeEach(func() {
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+			Expect(err).ToNot(HaveOccurred())
+			instanceTypeInfo = lo.SliceToMap(out.InstanceTypes, func(i ec2types.InstanceTypeInfo) (ec2types.InstanceType, ec2types.InstanceTypeInfo) {
+				return i.InstanceType, i
+			})
+		})
+		// launchedCPUOptions provisions a pod and maps every instance type the resulting CreateFleet call could launch
+		// (from its launch template overrides) to the CpuOptions of the launch template it would launch with.
+		launchedCPUOptions := func() map[ec2types.InstanceType]*ec2types.LaunchTemplateCpuOptionsRequest {
+			GinkgoHelper()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			launchTemplateCPUOptions := map[string]*ec2types.LaunchTemplateCpuOptionsRequest{}
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+				launchTemplateCPUOptions[lo.FromPtr(input.LaunchTemplateName)] = input.LaunchTemplateData.CpuOptions
+			})
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			launched := map[ec2types.InstanceType]*ec2types.LaunchTemplateCpuOptionsRequest{}
+			for _, config := range awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs {
+				cpuOptions, ok := launchTemplateCPUOptions[lo.FromPtr(config.LaunchTemplateSpecification.LaunchTemplateName)]
+				Expect(ok).To(BeTrue())
+				for _, override := range config.Overrides {
+					launched[override.InstanceType] = cpuOptions
+				}
+			}
+			Expect(launched).ToNot(BeEmpty())
+			return launched
+		}
+		It("should request each instance type's default core count with the configured threads per core", func() {
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}
+			hyperthreaded, singleThreaded := 0, 0
+			for name, cpuOptions := range launchedCPUOptions() {
+				vcpuInfo := instanceTypeInfo[name].VCpuInfo
+				if lo.FromPtr(vcpuInfo.DefaultThreadsPerCore) == 1 {
+					// already runs a single thread per core, so it launches with its default layout
+					Expect(cpuOptions).To(BeNil(), string(name))
+					singleThreaded++
+					continue
+				}
+				Expect(cpuOptions).ToNot(BeNil(), string(name))
+				Expect(lo.FromPtr(cpuOptions.CoreCount)).To(Equal(lo.FromPtr(vcpuInfo.DefaultCores)), string(name))
+				Expect(lo.FromPtr(cpuOptions.ThreadsPerCore)).To(Equal(int32(1)), string(name))
+				Expect(cpuOptions.NestedVirtualization).To(BeEmpty(), string(name))
+				hyperthreaded++
+			}
+			Expect(hyperthreaded).To(BeNumerically(">", 0))
+			Expect(singleThreaded).To(BeNumerically(">", 0))
+		})
+		It("should not launch instance types that can't run the configured threads per core", func() {
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}
+			launched := launchedCPUOptions()
+			Expect(launched).ToNot(HaveKey(ec2types.InstanceType("m5.metal")))
+			Expect(launched).ToNot(HaveKey(ec2types.InstanceType("g5.12xlarge")))
+			Expect(launched).To(HaveKey(ec2types.InstanceType("m5.large")))
+		})
+		It("should not request CpuOptions when every instance type already runs the configured threads per core", func() {
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+				Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64},
+			})
+			for name, cpuOptions := range launchedCPUOptions() {
+				Expect(cpuOptions).To(BeNil(), string(name))
+			}
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+				Expect(input.LaunchTemplateData.CpuOptions).To(BeNil())
+			})
+		})
+		It("should keep instance types with different core counts on separate launch templates", func() {
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+			for _, config := range awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs {
+				coreCounts := sets.New[int32]()
+				for _, override := range config.Overrides {
+					vcpuInfo := instanceTypeInfo[override.InstanceType].VCpuInfo
+					if lo.FromPtr(vcpuInfo.DefaultThreadsPerCore) != 1 {
+						coreCounts.Insert(lo.FromPtr(vcpuInfo.DefaultCores))
+					}
+				}
+				Expect(coreCounts.Len()).To(BeNumerically("<=", 1), lo.FromPtr(config.LaunchTemplateSpecification.LaunchTemplateName))
+			}
+		})
+		It("should combine nested virtualization with threads per core", func() {
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+			Expect(err).ToNot(HaveOccurred())
+			for i := range out.InstanceTypes {
+				out.InstanceTypes[i].ProcessorInfo.SupportedFeatures = []ec2types.SupportedAdditionalProcessorFeature{ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization}
+			}
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(out)
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled"), ThreadsPerCore: lo.ToPtr(int32(1))}
+			for name, cpuOptions := range launchedCPUOptions() {
+				Expect(cpuOptions).ToNot(BeNil(), string(name))
+				Expect(cpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled), string(name))
+				vcpuInfo := instanceTypeInfo[name].VCpuInfo
+				if lo.FromPtr(vcpuInfo.DefaultThreadsPerCore) == 1 {
+					Expect(cpuOptions.CoreCount).To(BeNil(), string(name))
+					Expect(cpuOptions.ThreadsPerCore).To(BeNil(), string(name))
+				} else {
+					Expect(lo.FromPtr(cpuOptions.CoreCount)).To(Equal(lo.FromPtr(vcpuInfo.DefaultCores)), string(name))
+					Expect(lo.FromPtr(cpuOptions.ThreadsPerCore)).To(Equal(int32(1)), string(name))
+				}
+			}
+		})
+	})
 	Context("EC2NodeClass Enclave Options", func() {
 		BeforeEach(func() {
 			// The generated test data predates NitroEnclavesSupport. Mark the fake instance types

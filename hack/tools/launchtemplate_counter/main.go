@@ -153,7 +153,7 @@ func main() {
 			return amifamily.ENILimits{}, false
 		}
 		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
-	}, celEnv)
+	}, nil, celEnv)
 	launchTemplates, err := resolver.Resolve(ctx, nodeClass, &karpv1.NodeClaim{}, lo.Slice(instanceTypes, 0, 60), karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}, "", 0)
 
 	if err != nil {

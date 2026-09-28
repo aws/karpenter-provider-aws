@@ -992,6 +992,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				nil,
 			)
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
@@ -1017,6 +1018,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				kc.EvictionHard,
 				kc.EvictionSoft,
 				windowsNodeClass.AMIFamily(),
+				nil,
 				nil,
 			)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
@@ -1105,6 +1107,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("0"))
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("0"))
@@ -1135,6 +1138,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("2"))
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("20Gi"))
@@ -1160,6 +1164,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
@@ -1195,6 +1200,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
@@ -1238,6 +1244,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
@@ -1269,6 +1276,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
@@ -1302,6 +1310,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 				})
@@ -1333,6 +1342,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
@@ -1367,6 +1377,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
@@ -1403,6 +1414,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 				})
@@ -1434,6 +1446,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
@@ -1471,6 +1484,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 				})
@@ -1493,6 +1507,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				Expect(it.Overhead.EvictionThreshold.Cpu().String()).To(Equal("0"))
@@ -1531,6 +1546,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				// Should use evictionHard (1Gi), not evictionSoft (3Gi)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
@@ -1566,6 +1582,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				// Should use evictionHard (5%), not evictionSoft (2%)
@@ -1603,6 +1620,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				// Should use evictionHard (1Gi), not evictionSoft (10%)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
@@ -1631,6 +1649,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
@@ -1650,6 +1669,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
@@ -1679,6 +1699,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
@@ -1715,6 +1736,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				// t3.large
@@ -1757,6 +1779,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
@@ -1794,6 +1817,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				// t3.large
@@ -1841,6 +1865,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
+				nil,
 			)
 			// t3.large
 			// maxInterfaces = 3
@@ -1875,6 +1900,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				eniLimitedPods := instancetype.ENILimitedPods(ctx, info, 0, nil).Value()
 				expectedPods := lo.Min([]int64{int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), eniLimitedPods})
@@ -1906,6 +1932,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
+					nil,
 				)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int32{20, lo.FromPtr(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
@@ -1934,6 +1961,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					kc.EvictionHard,
 					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
+					nil,
 					nil,
 				)
 				limitedPods := instancetype.ENILimitedPods(ctx, info, 0, nil)
@@ -1965,6 +1993,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
+						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
@@ -1984,6 +2013,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						kc.EvictionHard,
 						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
+						nil,
 						nil,
 					)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
@@ -3440,6 +3470,164 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(found).To(BeTrue())
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
+		})
+	})
+	Context("CPU Options", func() {
+		var instanceTypeInfo map[ec2types.InstanceType]ec2types.InstanceTypeInfo
+		BeforeEach(func() {
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+			Expect(err).ToNot(HaveOccurred())
+			instanceTypeInfo = lo.SliceToMap(out.InstanceTypes, func(i ec2types.InstanceTypeInfo) (ec2types.InstanceType, ec2types.InstanceTypeInfo) {
+				return i.InstanceType, i
+			})
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}
+		})
+		It("should compute CPU capacity and the instance-cpu label from the vCPUs the instance launches with", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			for _, it := range instanceTypes {
+				// With a single thread per core every instance type launches with one vCPU per default core, whether
+				// that's its default layout (Graviton) or requested through CpuOptions (hyperthreaded x86)
+				cores := int64(lo.FromPtr(instanceTypeInfo[ec2types.InstanceType(it.Name)].VCpuInfo.DefaultCores))
+				Expect(it.Capacity.Cpu().Value()).To(Equal(cores), it.Name)
+				Expect(it.Requirements.Get(v1.LabelInstanceCPU).Any()).To(Equal(fmt.Sprint(cores)), it.Name)
+			}
+			byName := lo.SliceToMap(instanceTypes, func(it *corecloudprovider.InstanceType) (string, *corecloudprovider.InstanceType) { return it.Name, it })
+			// m5.xlarge is 2 cores x 2 threads by default
+			Expect(byName["m5.xlarge"].Capacity.Cpu().Value()).To(Equal(int64(2)))
+			// c6g.large is 2 cores x 1 thread by default and launches unchanged
+			Expect(byName["c6g.large"].Capacity.Cpu().Value()).To(Equal(int64(2)))
+			// g4dn.8xlarge is 16 cores x 2 threads by default
+			Expect(byName["g4dn.8xlarge"].Capacity.Cpu().Value()).To(Equal(int64(16)))
+		})
+		It("should leave capacity unchanged when threadsPerCore matches the instance types' default", func() {
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(2))}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			for _, it := range instanceTypes {
+				info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
+				if lo.FromPtr(info.VCpuInfo.DefaultThreadsPerCore) == 2 {
+					Expect(it.Capacity.Cpu().Value()).To(Equal(int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus))), it.Name)
+				}
+			}
+		})
+		It("should compute kube-reserved CPU from the vCPUs the instance launches with", func() {
+			kc := &v1.ParsedKubeletConfig{}
+			newInstanceType := func(cpuOptions *v1.CPUOptions) *corecloudprovider.InstanceType {
+				return instancetype.NewInstanceType(ctx,
+					instanceTypeInfo["m5.xlarge"],
+					fake.DefaultRegion,
+					nil,
+					nil,
+					nodeClass.Spec.BlockDeviceMappings,
+					nodeClass.Spec.InstanceStorePolicy,
+					nil,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
+					nodeClass.AMIFamily(),
+					nil,
+					cpuOptions,
+				)
+			}
+			// 4 vCPUs: 6% of the first core, 1% of the second, 0.5% of the third and fourth
+			Expect(newInstanceType(nil).Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
+			// 2 vCPUs: 6% of the first core, 1% of the second
+			Expect(newInstanceType(nodeClass.Spec.CPUOptions).Overhead.KubeReserved.Cpu().String()).To(Equal("70m"))
+		})
+		It("should limit pods per core by the vCPUs the instance launches with", func() {
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+				PodsPerCore: lo.ToPtr(int32(1)),
+				MaxPods:     lo.ToPtr(intstr.FromInt32(110)),
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "m5.xlarge" })
+			Expect(ok).To(BeTrue())
+			Expect(it.Capacity.Pods().Value()).To(Equal(int64(2)))
+		})
+		It("should expose the vCPUs the instance launches with to kubelet expressions", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "vcpus * 8"})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "m5.xlarge" })
+			Expect(ok).To(BeTrue())
+			Expect(it.Capacity.Pods().Value()).To(Equal(int64(16)))
+		})
+		// unavailableInstanceTypes returns the names of the instance types with no available offering. Instance
+		// types that can't launch with the NodeClass' cpuOptions keep their entry but have every offering marked
+		// unavailable, like the other NodeClass compatibility checks. Some fixture instance types have no
+		// offerings regardless of cpuOptions, so callers compare against the baseline taken without them.
+		unavailableInstanceTypes := func(cpuOptions *v1.CPUOptions) sets.Set[string] {
+			GinkgoHelper()
+			nodeClass.Spec.CPUOptions = cpuOptions
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			unavailable := sets.New[string]()
+			for _, it := range instanceTypes {
+				if len(it.Offerings.Available()) == 0 {
+					unavailable.Insert(it.Name)
+				}
+			}
+			return unavailable
+		}
+		It("should exclude instance types that can't launch with the requested threads per core", func() {
+			baseline := unavailableInstanceTypes(nil)
+			Expect(baseline.HasAny("m5.xlarge", "c6g.large", "m5.metal", "g5.12xlarge")).To(BeFalse())
+			unavailable := unavailableInstanceTypes(&v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))})
+			// bare metal and instance types without CpuOptions support can't disable multithreading; hyperthreaded
+			// instance types that support it, and single-threaded instance types, remain available
+			Expect(unavailable.Difference(baseline).UnsortedList()).To(ConsistOf("m5.metal", "g5.12xlarge"))
+		})
+		It("should exclude single-threaded instance types when two threads per core are requested", func() {
+			baseline := unavailableInstanceTypes(nil)
+			unavailable := unavailableInstanceTypes(&v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(2))})
+			// c6g.large can only run one thread per core; the hyperthreaded instance types, including the bare metal
+			// one, already run two and launch with their default layout
+			Expect(unavailable.Difference(baseline).UnsortedList()).To(ConsistOf("c6g.large"))
+			Expect(unavailable.HasAny("m5.xlarge", "m5.large", "m5.metal", "g5.12xlarge")).To(BeFalse())
+		})
+		It("should make instance types available again when threadsPerCore is removed", func() {
+			baseline := unavailableInstanceTypes(nil)
+			Expect(unavailableInstanceTypes(&v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}).Difference(baseline).Len()).ToNot(BeZero())
+			Expect(unavailableInstanceTypes(nil).Equal(baseline)).To(BeTrue())
+		})
+		It("should cache instance types separately per cpuOptions", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			withSingleThread, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			nodeClass.Spec.CPUOptions = nil
+			withDefaults, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectUniqueInstanceTypeLists(withSingleThread, withDefaults)
+			m5xlarge := func(its []*corecloudprovider.InstanceType) *corecloudprovider.InstanceType {
+				it, ok := lo.Find(its, func(it *corecloudprovider.InstanceType) bool { return it.Name == "m5.xlarge" })
+				Expect(ok).To(BeTrue())
+				return it
+			}
+			Expect(m5xlarge(withSingleThread).Capacity.Cpu().Value()).To(Equal(int64(2)))
+			Expect(m5xlarge(withDefaults).Capacity.Cpu().Value()).To(Equal(int64(4)))
+		})
+		It("should expose the vCPU topology of a known instance type", func() {
+			vcpuInfo, ok := awsEnv.InstanceTypesProvider.VCPUInfo("m5.xlarge")
+			Expect(ok).To(BeTrue())
+			Expect(lo.FromPtr(vcpuInfo.DefaultCores)).To(Equal(int32(2)))
+			Expect(lo.FromPtr(vcpuInfo.DefaultThreadsPerCore)).To(Equal(int32(2)))
+			Expect(vcpuInfo.ValidThreadsPerCore).To(ConsistOf(int32(1), int32(2)))
+			_, ok = awsEnv.InstanceTypesProvider.VCPUInfo("does-not-exist")
+			Expect(ok).To(BeFalse())
 		})
 	})
 	Context("NitroEnclavesSupported", func() {

@@ -22,6 +22,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/cpuoptions"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 )
 
@@ -43,6 +44,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
+		threadsPerCoreCompatibility(nodeClass.CPUOptions()),
 		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
@@ -150,6 +152,29 @@ func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInf
 		return false
 	}
 	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
+}
+
+type threadsPerCoreCheck struct {
+	cpuOptions *v1.CPUOptions
+}
+
+func threadsPerCoreCompatibility(cpuOptions *v1.CPUOptions) CompatibleCheck {
+	return &threadsPerCoreCheck{
+		cpuOptions: cpuOptions,
+	}
+}
+
+// compatibleCheck excludes instance types that can't launch with the NodeClass' cpuOptions.threadsPerCore. Like
+// the nested virtualization check, this runs at instance type resolution so the scheduler never picks a type
+// whose launch EC2 would reject with UnsupportedOperation.
+func (c threadsPerCoreCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.cpuOptions == nil || c.cpuOptions.ThreadsPerCore == nil {
+		return true
+	}
+	if info.VCpuInfo == nil {
+		return false
+	}
+	return cpuoptions.Supported(info.VCpuInfo, c.cpuOptions)
 }
 
 type nitroEnclavesCheck struct {
