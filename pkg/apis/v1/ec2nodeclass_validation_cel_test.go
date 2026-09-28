@@ -1397,5 +1397,29 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.CPUOptions = &v1.CPUOptions{}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
+		DescribeTable("threadsPerCore",
+			func(threadsPerCore int32, expected bool) {
+				nc.Spec.CPUOptions = &v1.CPUOptions{
+					ThreadsPerCore: lo.ToPtr(threadsPerCore),
+				}
+				if expected {
+					Expect(env.Client.Create(ctx, nc)).To(Succeed())
+				} else {
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				}
+			},
+			Entry("should succeed with threadsPerCore 1", int32(1), true),
+			Entry("should succeed with threadsPerCore 2", int32(2), true),
+			Entry("should fail with threadsPerCore 0", int32(0), false),
+			Entry("should fail with threadsPerCore 3", int32(3), false),
+			Entry("should fail with a negative threadsPerCore", int32(-1), false),
+		)
+		It("should succeed with nestedVirtualization and threadsPerCore together", func() {
+			nc.Spec.CPUOptions = &v1.CPUOptions{
+				NestedVirtualization: aws.String("enabled"),
+				ThreadsPerCore:       lo.ToPtr(int32(1)),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 	})
 })

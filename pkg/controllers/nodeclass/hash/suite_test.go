@@ -141,6 +141,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		Entry("MetadataOptions Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: aws.String("disabled")}}}),
 		Entry("Context Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 		Entry("CPUOptions Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: aws.String("enabled")}}}),
+		Entry("CPUOptions ThreadsPerCore Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{ThreadsPerCore: lo.ToPtr(int32(1))}}}),
 	)
 	It("should update the drift hash when the CA bundle changes", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)

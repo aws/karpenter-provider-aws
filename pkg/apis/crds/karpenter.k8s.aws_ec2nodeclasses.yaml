@@ -351,6 +351,20 @@ spec:
                         - enabled
                         - disabled
                       type: string
+                    threadsPerCore:
+                      description: |-
+                        ThreadsPerCore is the number of threads per CPU core the instance launches with. Set it to 1 to
+                        disable simultaneous multithreading (hyperthreading); 2 is the default for instance types that
+                        support it. Karpenter derives the matching core count from each instance type's default core
+                        count, so the instance keeps every physical core and only the thread count changes. Instance
+                        types whose default layout already matches launch unchanged; the rest launch with EC2 CpuOptions
+                        and are excluded when they do not list the value in ValidThreadsPerCore from DescribeInstanceTypes.
+                        Karpenter's instance type capacity, overhead, and the karpenter.k8s.aws/instance-cpu label reflect
+                        the resulting vCPU count (cores x threads per core).
+                      format: int32
+                      maximum: 2
+                      minimum: 1
+                      type: integer
                   type: object
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
