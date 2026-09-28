@@ -312,6 +312,22 @@ func (p *DefaultProvider) ENILimits(name string) (amifamily.ENILimits, bool) {
 	return amifamily.ENILimits{DefaultENIs: int(defaultENIs), IPv4PerENI: int(ipsPerENI)}, true
 }
 
+// VCPUInfo returns an instance type's vCPU topology (default cores and threads per core, and the values EC2
+// accepts for them), sourced from the live EC2 instance type info (DescribeInstanceTypes) held in the
+// provider's cache. It returns ok=false when the instance type isn't present (e.g. the cache hasn't hydrated
+// yet). This backs the amifamily resolver's CpuOptions resolution so that the launch template requests the
+// same core count the scheduler computed the instance type's vCPU capacity from.
+func (p *DefaultProvider) VCPUInfo(name string) (ec2types.VCpuInfo, bool) {
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	info, ok := p.instanceTypesInfo[ec2types.InstanceType(name)]
+	if !ok || info.VCpuInfo == nil {
+		return ec2types.VCpuInfo{}, false
+	}
+	return *info.VCpuInfo, true
+}
+
 // ValidateKubeletExpressions evaluates the NodeClass' kubelet CEL expressions against every known instance type.
 // It returns the first evaluation failure encountered so the caller can surface it on the NodeClass status,
 // rather than silently misconfiguring nodes at resolution time.
@@ -341,7 +357,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := p.evaluateKubeletExpressions(ctx, info, parsed, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+		if err := p.evaluateKubeletExpressions(ctx, info, parsed, amiFamily, nodeClass.NetworkInterfaces(), nodeClass.CPUOptions()); err != nil {
 			return err
 		}
 	}
@@ -353,14 +369,14 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 // produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
 // per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
 // expression evaluated to a usable value for this instance type.
-func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.ParsedKubeletConfig, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
+func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.ParsedKubeletConfig, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface, cpuOptions *v1.CPUOptions) error {
 	if kc == nil {
 		return nil
 	}
 	// Resolving maxPods evaluates its expression (against the default max_pods, since it can't self-reference)
 	// and range-checks the result, so it doubles as validation of the maxPods field. This is the same call
 	// Resolve makes, so an error here is exactly the error resolution would hit for this instance type.
-	resolvedMaxPods, err := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces)
+	resolvedMaxPods, err := resolveMaxPods(ctx, p.celEnv, info, kc.MaxPods, amiFamily, kc.PodsPerCore, networkInterfaces, cpuOptions)
 	if err != nil {
 		return err
 	}
@@ -369,7 +385,7 @@ func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info e
 	if !kc.HasResourceExpressions() {
 		return nil
 	}
-	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces)
+	reservedVars := buildCELVars(ctx, info, amiFamily, resolvedMaxPods, kc.PodsPerCore, networkInterfaces, cpuOptions)
 	return evaluateResourceExpressions(p.celEnv, kc, reservedVars, info)
 }
 

@@ -19,6 +19,7 @@ import (
 	"net"
 	"time"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -176,6 +177,11 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			return amifamily.ENILimits{}, false
 		}
 		return instanceTypesProvider.ENILimits(name)
+	}, func(name string) (ec2types.VCpuInfo, bool) {
+		if instanceTypesProvider == nil {
+			return ec2types.VCpuInfo{}, false
+		}
+		return instanceTypesProvider.VCPUInfo(name)
 	}, celEnv)
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, celEnv)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)

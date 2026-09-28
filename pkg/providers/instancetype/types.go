@@ -37,6 +37,7 @@ import (
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/cpuoptions"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -88,12 +89,15 @@ func (d *DefaultResolver) CacheKey(nodeClass NodeClass) string {
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.BlockDeviceMappings(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	capacityReservationHash, _ := hashstructure.Hash(nodeClass.CapacityReservations(), hashstructure.FormatV2, nil)
 	networkInterfaceHash, _ := hashstructure.Hash(nodeClass.NetworkInterfaces(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	// cpuOptions.threadsPerCore changes the vCPU count, and with it the capacity, overhead and instance-cpu label
+	cpuOptionsHash, _ := hashstructure.Hash(nodeClass.CPUOptions(), hashstructure.FormatV2, nil)
 	return fmt.Sprintf(
-		"%016x-%016x-%016x-%016x-%s-%s",
+		"%016x-%016x-%016x-%016x-%016x-%s-%s",
 		kcHash,
 		blockDeviceMappingsHash,
 		capacityReservationHash,
 		networkInterfaceHash,
+		cpuOptionsHash,
 		lo.FromPtr((*string)(nodeClass.InstanceStorePolicy())),
 		nodeClass.AMIFamily(),
 	)
@@ -116,19 +120,19 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 	// maxPods is resolved first so that kubeReserved/systemReserved expressions see the resolved maxPods value
 	// (per design: their max_pods reference is the resolved maxPods, whether from a static value, the maxPods
 	// expression, or the default). Fields come from the parsed open map rather than a typed struct.
-	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, parsed.MaxPods, amiFamily, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	maxPods, err := resolveMaxPods(ctx, d.celEnv, info, parsed.MaxPods, amiFamily, parsed.PodsPerCore, nodeClass.NetworkInterfaces(), nodeClass.CPUOptions())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving maxPods, %w", err),
 			"instance-type", info.InstanceType)
 	}
-	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.KubeReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	kubeReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.KubeReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces(), nodeClass.CPUOptions())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving kubeReserved, %w", err),
 			"instance-type", info.InstanceType)
 	}
-	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.SystemReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces())
+	systemReserved, err := resolveResourceExpressions(ctx, d.celEnv, info, parsed.SystemReserved, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces(), nodeClass.CPUOptions())
 	if err != nil {
 		return nil, serrors.Wrap(
 			fmt.Errorf("resolving systemReserved, %w", err),
@@ -153,6 +157,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		lo.Filter(nodeClass.CapacityReservations(), func(cr v1.CapacityReservation, _ int) bool {
 			return cr.InstanceType == string(info.InstanceType)
 		}),
+		nodeClass.CPUOptions(),
 	), nil
 }
 
@@ -199,7 +204,7 @@ func evaluateResourceExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Parse
 // resolveMaxPods resolves the MaxPods IntOrString value to a concrete int32. If it's an integer, it's
 // returned directly. If it's a string, it's evaluated as a CEL expression, returning an error if it fails
 // to evaluate or falls outside the valid int32 range.
-func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, amiFamily amifamily.AMIFamily, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (*int32, error) {
+func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, maxPods *intstr.IntOrString, amiFamily amifamily.AMIFamily, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface, cpuOptions *v1.CPUOptions) (*int32, error) {
 	// A nil maxPods leaves the AMI family default in place.
 	if maxPods == nil {
 		return nil, nil
@@ -217,7 +222,7 @@ func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info
 		return nil, nil
 	}
 	// The maxPods expression can't reference its own result, so max_pods exposes the default
-	celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces)
+	celVars := buildCELVars(ctx, info, amiFamily, nil, podsPerCore, networkInterfaces, cpuOptions)
 	result, err := celEnv.EvaluateExpression(maxPods.StrVal, celVars)
 	if err != nil {
 		return nil, serrors.Wrap(
@@ -240,7 +245,7 @@ func resolveMaxPods(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info
 // resolveResourceExpressions evaluates CEL expressions in a resource map (kubeReserved or systemReserved).
 // Values that parse as valid Kubernetes resource quantities are left as-is.
 // Values that fail to parse as quantities are evaluated as CEL expressions.
-func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, resourceMap map[string]string, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) (map[string]string, error) {
+func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvironment, info ec2types.InstanceTypeInfo, resourceMap map[string]string, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface, cpuOptions *v1.CPUOptions) (map[string]string, error) {
 	// With the NodeClassCEL gate off, expression-valued entries aren't honored: keep only the static quantity
 	// entries and drop the expressions, so a gate-off cluster falls back to the AMI family defaults for them
 	// rather than resolving an expression the user hasn't opted into. Mirrors the maxPods handling above.
@@ -251,7 +256,7 @@ func resolveResourceExpressions(ctx context.Context, celEnv *kubeletcel.CELEnvir
 		}), nil
 	}
 	return celEnv.ResolveResourceMap(ctx, resourceMap, func() (kubeletcel.InstanceTypeVars, error) {
-		return buildCELVars(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces), nil
+		return buildCELVars(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, cpuOptions), nil
 	})
 }
 
@@ -270,11 +275,11 @@ func extractENILimits(info ec2types.InstanceTypeInfo) (defaultENIs, ipsPerENI in
 }
 
 // buildCELVars constructs the CEL variable bindings from EC2 instance type info.
-func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface) kubeletcel.InstanceTypeVars {
+func buildCELVars(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods, podsPerCore *int32, networkInterfaces []*v1.NetworkInterface, cpuOptions *v1.CPUOptions) kubeletcel.InstanceTypeVars {
 	defaultENIs, ipsPerENI := extractENILimits(info)
-	maxPodsVal := pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces).Value()
+	maxPodsVal := pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, cpuOptions).Value()
 	return kubeletcel.InstanceTypeVars{
-		VCPUs:        int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)),
+		VCPUs:        vcpus(info, cpuOptions),
 		MemoryMiB:    lo.FromPtr(info.MemoryInfo.SizeInMiB),
 		DefaultENIs:  defaultENIs,
 		IPsPerENI:    ipsPerENI,
@@ -300,15 +305,16 @@ func NewInstanceType(
 	evictionSoft map[string]string,
 	amiFamilyType string,
 	capacityReservations []v1.CapacityReservation,
+	cpuOptions *v1.CPUOptions,
 ) *cloudprovider.InstanceType {
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
-		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
+		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations, cpuOptions),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore, cpuOptions),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
-				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces)), kubeReserved),
+			KubeReserved: kubeReservedResources(cpu(info, cpuOptions), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
+				ENILimitedPods(ctx, info, 0, networkInterfaces), pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, cpuOptions)), kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
@@ -327,6 +333,7 @@ func computeRequirements(
 	subnetZoneInfo []v1.ZoneInfo,
 	amiFamily amifamily.AMIFamily,
 	capacityReservations []v1.CapacityReservation,
+	cpuOptions *v1.CPUOptions,
 ) scheduling.Requirements {
 	capacityTypes := lo.FilterMap(info.SupportedUsageClasses, func(uc ec2types.UsageClassType, _ int) (string, bool) {
 		if uc != ec2types.UsageClassTypeOnDemand && uc != ec2types.UsageClassTypeSpot {
@@ -354,7 +361,7 @@ func computeRequirements(
 		// Well Known to Karpenter
 		scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityTypes...),
 		// Well Known to AWS
-		scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, fmt.Sprint(lo.FromPtr(info.VCpuInfo.DefaultVCpus))),
+		scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, fmt.Sprint(vcpus(info, cpuOptions))),
 		scheduling.NewRequirement(v1.LabelInstanceCPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCPUSustainedClockSpeedMhz, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceMemory, corev1.NodeSelectorOpIn, fmt.Sprint(lo.FromPtr(info.MemoryInfo.SizeInMiB))),
@@ -492,13 +499,13 @@ func getArchitecture(info ec2types.InstanceTypeInfo) string {
 
 func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	blockDeviceMapping []*v1.BlockDeviceMapping, instanceStorePolicy *v1.InstanceStorePolicy,
-	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32) corev1.ResourceList {
+	networkInterfaces []*v1.NetworkInterface, maxPods *int32, podsPerCore *int32, cpuOptions *v1.CPUOptions) corev1.ResourceList {
 
 	resourceList := corev1.ResourceList{
-		corev1.ResourceCPU:              *cpu(info),
+		corev1.ResourceCPU:              *cpu(info, cpuOptions),
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
-		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces),
+		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces, cpuOptions),
 		v1.ResourceAWSPodENI:            *awsPodENI(string(info.InstanceType)),
 		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
 		v1.ResourceAMDGPU:               *amdGPUs(info),
@@ -510,8 +517,15 @@ func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFam
 	return resourceList
 }
 
-func cpu(info ec2types.InstanceTypeInfo) *resource.Quantity {
-	return resources.Quantity(fmt.Sprint(*info.VCpuInfo.DefaultVCpus))
+// vcpus is the number of vCPUs the instance type launches with under the NodeClass' cpuOptions. Every
+// vCPU-derived value (capacity, kube-reserved, pods-per-core, the instance-cpu label and the CEL vcpus
+// variable) is computed from it so that they all agree with what kubelet reports on the node.
+func vcpus(info ec2types.InstanceTypeInfo, cpuOptions *v1.CPUOptions) int64 {
+	return int64(cpuoptions.Resolve(info.VCpuInfo, cpuOptions).VCPUs)
+}
+
+func cpu(info ec2types.InstanceTypeInfo, cpuOptions *v1.CPUOptions) *resource.Quantity {
+	return resources.Quantity(fmt.Sprint(vcpus(info, cpuOptions)))
 }
 
 func memory(ctx context.Context, info ec2types.InstanceTypeInfo) *resource.Quantity {
@@ -734,7 +748,7 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, ev
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32, ncNetworkInterfaces []*v1.NetworkInterface) *resource.Quantity {
+func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32, ncNetworkInterfaces []*v1.NetworkInterface, cpuOptions *v1.CPUOptions) *resource.Quantity {
 	var count int64
 	switch {
 	case maxPods != nil:
@@ -746,7 +760,7 @@ func pods(ctx context.Context, info ec2types.InstanceTypeInfo, amiFamily amifami
 
 	}
 	if lo.FromPtr(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
-		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * int64(lo.FromPtr(info.VCpuInfo.DefaultVCpus)), count})
+		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * vcpus(info, cpuOptions), count})
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }
