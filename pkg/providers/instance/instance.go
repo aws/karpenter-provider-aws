@@ -302,9 +302,24 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 // issues one reboot per NodeClaim.
 func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID string) error {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id, "operation-id", operationID))
+	// Get serves from the cache when it can and populates it (with the zone) on a miss, so the zonal shift guard
+	// below applies even with a cold cache.
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// During a zonal shift, skip RebootInstances to avoid retry storms against the impaired AZ, as Delete and
+	// CreateTags do. The reboot controller retries within its issuance window and then replaces the node, which
+	// moves the capacity out of the shifted AZ.
+	if out.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, out.ZoneID) {
+		return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping reboot", id, out.Zone, out.ZoneID)
+	}
 	if _, err := p.ec2api.RebootInstances(ctx, &ec2.RebootInstancesInput{
 		InstanceIds: []string{id},
 	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("rebooting instance, %w", err))
+		}
 		return fmt.Errorf("rebooting instance, %w", err)
 	}
 	return nil

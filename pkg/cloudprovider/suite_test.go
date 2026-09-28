@@ -329,16 +329,26 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("Reboot", func() {
 		It("should reboot the instance via ec2:RebootInstances", func() {
-			id := fake.InstanceID()
+			instance := test.EC2Instance()
+			id := aws.ToString(instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, instance)
 			nodeClaim.Status.ProviderID = fake.ProviderID(id)
 			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
 			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
 			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Pop().InstanceIds).To(ConsistOf(id))
 		})
 		It("should propagate an error when RebootInstances fails", func() {
-			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
 			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
 			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+		})
+		It("should return NodeClaimNotFound without rebooting when the instance is gone", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 		})
 		It("should return an error for an unparseable provider id", func() {
 			nodeClaim.Status.ProviderID = "not-a-valid-provider-id"
