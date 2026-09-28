@@ -119,6 +119,13 @@ spec:
   enclaveOptions:
     enabled: true
 
+  # Optional, configures the CPU options of launched instances
+  cpuOptions:
+    # Optional, enables nested virtualization on instance types that support it
+    nestedVirtualization: enabled
+    # Optional, set to 1 to disable simultaneous multithreading (hyperthreading)
+    threadsPerCore: 1
+
   # Optional, the terms are exclusive
   placementGroupSelector:
     name: my-pg
@@ -1865,6 +1872,39 @@ spec:
 The example uses `@latest` for brevity; follow the [AMI pinning guidance]({{< ref "../tasks/managing-amis#pinning-amis" >}}) for production.
 
 For detailed configuration examples, including the default device-plugin label and expected extended resources, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}).
+
+## spec.cpuOptions
+
+The `cpuOptions` field configures the [CPU options](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-optimize-cpu.html) of the instances Karpenter launches through the generated EC2 launch template.
+
+```yaml
+spec:
+  cpuOptions:
+    nestedVirtualization: enabled
+    threadsPerCore: 1
+```
+
+Adding, removing, or changing `cpuOptions` participates in EC2NodeClass drift, so it replaces affected NodeClaims according to the NodePool's disruption settings.
+
+### Nested Virtualization
+
+`nestedVirtualization` enables or disables [nested virtualization](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/nested-virtualization.html) on launched instances. When it is `enabled`, Karpenter excludes instance types that don't report `nested-virtualization` in the `ProcessorInfo.SupportedFeatures` returned by EC2's `DescribeInstanceTypes`, so a NodeClaim is never created for an instance type whose launch EC2 would reject.
+
+### Threads Per Core
+
+`threadsPerCore` sets the number of threads that run on each CPU core. Set it to `1` to [disable simultaneous multithreading](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-specify-cpu-options.html#cpu-options-disable-simultaneous-multithreading) (hyperthreading), for example for workloads that are licensed per vCPU, that are sensitive to sharing a physical core, or that benchmark better with one thread per core. `2` is the default for instance types that support multithreading.
+
+Karpenter applies the setting per instance type:
+
+- An instance type that already runs the configured number of threads per core, such as a Graviton instance type with `threadsPerCore: 1`, launches with its default CPU configuration. No CPU options are written to its launch template.
+- Otherwise, Karpenter keeps the instance type's default core count and requests the configured number of threads per core through the launch template's `CpuOptions`, so an `m5.xlarge` (2 cores, 4 vCPUs) launched with `threadsPerCore: 1` boots with 2 vCPUs. EC2 requires the core count and threads per core to be requested together, and the core count is a property of the instance type, so instance types with different core counts are launched from separate launch templates.
+- Instance types that can't run the configured number of threads per core, because EC2's `DescribeInstanceTypes` doesn't list it in `VCpuInfo.ValidThreadsPerCore` for them, are excluded. Bare metal instance types don't support CPU options and are excluded whenever the setting differs from their default, and Graviton instance types are excluded by `threadsPerCore: 2`.
+
+Karpenter's scheduling reflects the vCPUs the instance actually boots with. The instance type's CPU capacity, the default kube-reserved CPU, `podsPerCore`, the `vcpus` variable available to [kubelet configuration expressions]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}), and the `karpenter.k8s.aws/instance-cpu` label are all computed from the launched vCPU count, so pods are packed against the same CPU capacity the kubelet reports once the node joins the cluster. Requirements on `karpenter.k8s.aws/instance-cpu` select on the launched vCPU count, and the instance type's price does not change.
+
+{{% alert title="Note" color="primary" %}}
+Setting `threadsPerCore` can increase the number of launch templates Karpenter creates for the EC2NodeClass, because instance types that need different core counts can't share one. Karpenter caches and reuses these launch templates, so the cost is paid once per core count rather than per launch.
+{{% /alert %}}
 
 ## spec.ipPrefixCount
 

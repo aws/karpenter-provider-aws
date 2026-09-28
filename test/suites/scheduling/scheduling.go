@@ -1337,6 +1337,37 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			Expect(instance.CpuOptions).ToNot(BeNil())
 			Expect(instance.CpuOptions.NestedVirtualization).To(Equal(ec2types.NestedVirtualizationSpecificationEnabled))
 		})
+		It("should launch an instance with multithreading disabled and schedule against its launched vCPUs", func() {
+			NodeClass.Spec.CPUOptions = &v1.CPUOptions{
+				ThreadsPerCore: aws.Int32(1),
+			}
+			// Graviton instance types already run one thread per core and launch unchanged, so constrain the launch to
+			// x86 instance types, which have to be launched with explicit CpuOptions to disable multithreading.
+			test.ReplaceRequirements(NodePool,
+				karpv1.NodeSelectorRequirementWithMinValues{
+					Key:      corev1.LabelArchStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.ArchitectureAmd64},
+				},
+			)
+
+			pod := test.Pod()
+			Env.ExpectCreated(NodePool, NodeClass, pod)
+			Env.EventuallyExpectHealthy(pod)
+			node := Env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+
+			instance := Env.GetInstance(node.Name)
+			Expect(instance.CpuOptions).ToNot(BeNil())
+			Expect(lo.FromPtr(instance.CpuOptions.ThreadsPerCore)).To(Equal(int32(1)))
+			Expect(lo.FromPtr(instance.CpuOptions.CoreCount)).To(BeNumerically(">", 0))
+			// The instance boots with one vCPU per core, which is what kubelet reports as the node's CPU capacity and
+			// what Karpenter must have scheduled against
+			launchedVCPUs := int64(lo.FromPtr(instance.CpuOptions.CoreCount))
+			Expect(node.Status.Capacity.Cpu().Value()).To(Equal(launchedVCPUs))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceCPU, fmt.Sprint(launchedVCPUs)))
+			nodeClaim := Env.ExpectNodeClaimCount("==", 1)[0]
+			Expect(nodeClaim.Status.Capacity.Cpu().Value()).To(Equal(launchedVCPUs))
+		})
 	})
 }
 
