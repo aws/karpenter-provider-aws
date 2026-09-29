@@ -18,7 +18,6 @@ Score of balanced consolidation moves. Labeled by decision, NodePool, and policy
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
-    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -30,7 +29,6 @@ Number of balanced consolidation moves. Labeled by decision, NodePool, and polic
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
-    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -690,6 +688,7 @@ The number of times that an enqueued disruption decision failed. Labeled by disr
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
@@ -728,6 +727,7 @@ Number of disruption decisions performed. Labeled by disruption decision, reason
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
@@ -747,6 +747,7 @@ Number of disruption decisions performed by nodepool. Labeled by nodepool name, 
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
