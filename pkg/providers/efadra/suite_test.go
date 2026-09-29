@@ -80,15 +80,31 @@ var _ = Describe("EFA DRA Provider", func() {
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
 			Expect(resources[name].ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
-			// Names must be unique within a pool, and the index is the only thing keeping them apart.
-			// Note every scraped EFA type has exactly one device, so this cannot distinguish naming by
-			// index from naming by a constant -- that needs a multi-device type in the metadata.
-			for i, device := range resources[name].ResourceSliceTemplates[0].Devices {
-				Expect(device.Name.Value()).To(Equal(fmt.Sprintf("efa-%d", i)), name)
-			}
 			// The driver's runtime-only attributes sit on devices we don't model, and the allocator
 			// ignores bindings covering fewer than two devices, so there's nothing to bind.
 			Expect(resources[name].AttributeBindings).To(BeEmpty(), name)
+		}
+	})
+	// Kept separate from the device count above: these are independent invariants, and a spec fails at its
+	// first assertion, so a metadata count mismatch would otherwise mask whether naming is exercised at all.
+	It("should name devices by index so they stay unique within a pool", func() {
+		instanceTypes := lo.MapToSlice(drametadata.EFAMetadataByInstanceType, func(name string, _ *drametadata.DeviceMetadata) *cloudprovider.InstanceType {
+			return &cloudprovider.InstanceType{Name: name}
+		})
+		resources := provider.ResolveDynamicResources(context.Background(), instanceTypes)
+
+		// Device names are synthetic, so the index is the only thing keeping them apart. This needs a
+		// multi-device instance type to mean anything -- with one device per type, naming by index and
+		// naming by a constant are indistinguishable.
+		maxDevices := lo.Max(lo.Map(lo.Values(drametadata.EFAMetadataByInstanceType), func(m *drametadata.DeviceMetadata, _ int) int {
+			return len(m.Devices)
+		}))
+		Expect(maxDevices).To(BeNumerically(">", 1),
+			"every EFA type has a single device, so the naming assertion below cannot fail -- add a multi-device type")
+		for name := range drametadata.EFAMetadataByInstanceType {
+			for i, device := range resources[name].ResourceSliceTemplates[0].Devices {
+				Expect(device.Name.Value()).To(Equal(fmt.Sprintf("efa-%d", i)), name)
+			}
 		}
 	})
 })
