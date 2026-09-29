@@ -53,6 +53,13 @@ rules:
   - apiGroups: [""]
     resources: ["events"]
     verbs: ["get", "list", "watch"]
+  # DRA. Karpenter watches ResourceClaims and ResourceSlices, and reads DeviceClasses to resolve a
+  # claim's device selectors, whenever DRA requests are not ignored. Granted unconditionally: a rule
+  # naming an apiGroup the cluster doesn't serve is inert, so this needs no chart conditional and
+  # can't be forgotten when the feature is switched on.
+  - apiGroups: ["resource.k8s.io"]
+    resources: ["deviceclasses", "resourceclaims", "resourceslices"]
+    verbs: ["get", "list", "watch"]
   # Write
   - apiGroups: ["karpenter.sh"]
     resources: ["nodeclaims", "nodeclaims/status"]
