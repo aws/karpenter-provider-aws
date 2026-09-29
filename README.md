@@ -16,6 +16,9 @@ Karpenter improves the efficiency and cost of running workloads on Kubernetes cl
 * **Provisioning** nodes that meet the requirements of the pods
 * **Removing** the nodes when the nodes are no longer needed
 
+> [!IMPORTANT]
+> The main branch may be unstable during active development. New features land here first and may introduce bugs. For production use, we recommend [official releases](https://github.com/aws/karpenter-provider-aws/releases).
+
 Come discuss Karpenter in the [#karpenter](https://kubernetes.slack.com/archives/C02SFFZSA2K) channel, in the [Kubernetes slack](https://slack.k8s.io/) or join the [Karpenter working group](https://karpenter.sh/docs/contributing/community-meetings/#working-group-meetings) bi-weekly calls. If you want to contribute to the Karpenter project, please refer to the Karpenter docs.
 
 Check out the [Docs](https://karpenter.sh/docs/) to learn more.
