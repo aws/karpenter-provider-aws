@@ -459,8 +459,8 @@ func computeRequirements(
 		// Convert from Ghz to Mhz and round to nearest whole number - converting from float64 to int to support Gt and Lt operators
 		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.ToFloat64(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
 	}
-	// CPU Baseline Performance — burstable instances (t-family) throttle below baseline when credits are exhausted;
-	// standard instances deliver sustained full-core throughput at all times.
+	// CPU Burstable - burstable performance instances (e.g. the t-family) earn CPU credits and can throttle to a
+	// baseline once credits are exhausted; all other instance types deliver sustained full-core throughput.
 	if lo.FromPtr(info.BurstablePerformanceSupported) {
 		requirements.Get(v1.LabelInstanceCPUBurstable).Insert("true")
 	} else {
