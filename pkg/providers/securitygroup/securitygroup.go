@@ -60,8 +60,7 @@ func NewDefaultProvider(ec2api sdk.EC2API, eksapi sdk.EKSAPI, cache *cache.Cache
 }
 
 // ResolveVpcID resolves the VPC of the EKS cluster, caching the result for the lifetime of the process. The VPC ID
-// scopes tag-based and name-based security group discovery so that selectors cannot resolve security groups belonging
-// to other VPCs in the same account; those security groups can never be attached to instances in the cluster VPC.
+// scopes tag-based and name-based discovery to security groups created in or associated with the cluster VPC.
 func (p *DefaultProvider) ResolveVpcID(ctx context.Context) (string, error) {
 	if vpcID := p.vpcID.Load(); vpcID != nil {
 		return *vpcID, nil
@@ -101,7 +100,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error) {
 	var vpcID string
 	// Selecting security groups by ID is an explicit user intent, so only tag-based and name-based discovery is scoped
-	// to the cluster VPC
+	// to the cluster VPC.
 	if scopeToClusterVPC(ctx) && lo.ContainsBy(nodeClass.Spec.SecurityGroupSelectorTerms, func(term v1.SecurityGroupSelectorTerm) bool {
 		return term.ID == ""
 	}) {
@@ -110,15 +109,24 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.E
 			return nil, fmt.Errorf("resolving cluster vpc id, %w", err)
 		}
 	}
-	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms, vpcID)
 	hash := utils.GetNodeClassHash(nodeClass)
 	if sg, ok := p.cache.Get(hash); ok {
-		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
-		// so that modifications to the ordering of the data don't affect the original
+		// Return a shallow copy so callers can reorder the slice without changing the cached ordering.
 		return append([]ec2types.SecurityGroup{}, sg.([]ec2types.SecurityGroup)...), nil
 	}
+	securityGroups, err := p.discoverSecurityGroups(ctx, getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms), vpcID)
+	if err != nil {
+		return nil, err
+	}
+	p.cache.SetDefault(hash, securityGroups)
+	return append([]ec2types.SecurityGroup{}, securityGroups...), nil
+}
+
+func (p *DefaultProvider) discoverSecurityGroups(ctx context.Context, filterSets [][]ec2types.Filter, vpcID string) ([]ec2types.SecurityGroup, error) {
 	securityGroups := map[string]ec2types.SecurityGroup{}
+	associationCandidates := map[string]ec2types.SecurityGroup{}
 	for _, filters := range filterSets {
+		byID := lo.ContainsBy(filters, func(filter ec2types.Filter) bool { return aws.ToString(filter.Name) == "group-id" })
 		paginator := ec2.NewDescribeSecurityGroupsPaginator(p.ec2api, &ec2.DescribeSecurityGroupsInput{
 			MaxResults: aws.Int32(500),
 			Filters:    filters,
@@ -128,13 +136,56 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.E
 			if err != nil {
 				return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 			}
-			for i := range output.SecurityGroups {
-				securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
+			for _, group := range output.SecurityGroups {
+				id := aws.ToString(group.GroupId)
+				if vpcID != "" && !byID && aws.ToString(group.VpcId) != vpcID {
+					associationCandidates[id] = group
+					continue
+				}
+				securityGroups[id] = group
 			}
 		}
 	}
-	p.cache.SetDefault(hash, lo.Values(securityGroups))
+	// Explicit IDs already satisfy the union, regardless of whether they also matched a tag or name.
+	for id := range securityGroups {
+		delete(associationCandidates, id)
+	}
+	associatedGroups, err := p.getAssociatedSecurityGroups(ctx, vpcID, associationCandidates)
+	if err != nil {
+		return nil, err
+	}
+	for _, group := range associatedGroups {
+		securityGroups[aws.ToString(group.GroupId)] = group
+	}
 	return lo.Values(securityGroups), nil
+}
+
+// DescribeSecurityGroups' vpc-id filter only matches the VPC where a group was created. Groups created in another
+// VPC may also be usable through a VPC association. Refresh these associations with the security group results.
+func (p *DefaultProvider) getAssociatedSecurityGroups(ctx context.Context, vpcID string, candidates map[string]ec2types.SecurityGroup) ([]ec2types.SecurityGroup, error) {
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	paginator := ec2.NewDescribeSecurityGroupVpcAssociationsPaginator(p.ec2api, &ec2.DescribeSecurityGroupVpcAssociationsInput{
+		MaxResults: aws.Int32(500),
+		Filters: []ec2types.Filter{
+			{Name: aws.String("vpc-id"), Values: []string{vpcID}},
+			{Name: aws.String("state"), Values: []string{string(ec2types.SecurityGroupVpcAssociationStateAssociated)}},
+		},
+	})
+	var groups []ec2types.SecurityGroup
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("describing security group VPC associations, %w", err)
+		}
+		for _, association := range output.SecurityGroupVpcAssociations {
+			if group, ok := candidates[aws.ToString(association.GroupId)]; ok {
+				groups = append(groups, group)
+			}
+		}
+	}
+	return groups, nil
 }
 
 // scopeToClusterVPC reports whether the cluster VPC can be resolved without new requirements on the deployment: both
@@ -144,8 +195,7 @@ func scopeToClusterVPC(ctx context.Context) bool {
 	return opts.EKSControlPlane || opts.ClusterEndpoint == ""
 }
 
-func getFilterSets(terms []v1.SecurityGroupSelectorTerm, vpcID string) (res [][]ec2types.Filter) {
-	vpcFilter := ec2types.Filter{Name: aws.String("vpc-id"), Values: []string{vpcID}}
+func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filter) {
 	idFilter := ec2types.Filter{Name: aws.String("group-id")}
 	nameFilter := ec2types.Filter{Name: aws.String("group-name")}
 	for _, term := range terms {
@@ -169,9 +219,6 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm, vpcID string) (res [][]
 					})
 				}
 			}
-			if vpcID != "" {
-				filters = append(filters, vpcFilter)
-			}
 			res = append(res, filters)
 		}
 	}
@@ -180,7 +227,7 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm, vpcID string) (res [][]
 	}
 	if len(nameFilter.Values) > 0 {
 		// Security group names are only unique within a VPC, so the same name can match groups in other VPCs
-		res = append(res, lo.Ternary(vpcID != "", []ec2types.Filter{nameFilter, vpcFilter}, []ec2types.Filter{nameFilter}))
+		res = append(res, []ec2types.Filter{nameFilter})
 	}
 	return res
 }

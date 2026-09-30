@@ -481,26 +481,135 @@ var _ = Describe("SecurityGroupProvider", func() {
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
 			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter)))
 			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(0))
 		})
 		It("should scope tag-based discovery to the cluster VPC when the cluster endpoint is discovered", func() {
 			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
-			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter)))
 		})
 		It("should scope tag-based discovery to the cluster VPC when eksControlPlane is enabled", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{EKSControlPlane: lo.ToPtr(true)}))
 			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
-			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter)))
+		})
+		DescribeTable("should retain security groups associated with the cluster VPC",
+			func(term v1.SecurityGroupSelectorTerm) {
+				awsEnv.EC2API.SecurityGroupVpcAssociations.Store("sg-other-vpc/vpc-test1", ec2types.SecurityGroupVpcAssociation{
+					GroupId: lo.ToPtr("sg-other-vpc"),
+					VpcId:   lo.ToPtr("vpc-test1"),
+					State:   ec2types.SecurityGroupVpcAssociationStateAssociated,
+				})
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{term}
+				securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+				Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(1))
+				Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.CalledWithInput.Pop().Filters).To(ConsistOf(
+					clusterVPCFilter,
+					ec2types.Filter{Name: lo.ToPtr("state"), Values: []string{"associated"}},
+				))
+			},
+			Entry("tag selector", v1.SecurityGroupSelectorTerm{Tags: map[string]string{"karpenter.sh/discovery": "*"}}),
+			Entry("name selector", v1.SecurityGroupSelectorTerm{Name: "karpenter-nodes"}),
+		)
+		DescribeTable("should exclude groups without an active association to the cluster VPC",
+			func(state ec2types.SecurityGroupVpcAssociationState, vpcID string) {
+				awsEnv.EC2API.SecurityGroupVpcAssociations.Store("association", ec2types.SecurityGroupVpcAssociation{
+					GroupId: lo.ToPtr("sg-other-vpc"), VpcId: lo.ToPtr(vpcID), State: state,
+				})
+				securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			},
+			Entry("associating", ec2types.SecurityGroupVpcAssociationState("associating"), "vpc-test1"),
+			Entry("association failed", ec2types.SecurityGroupVpcAssociationState("association-failed"), "vpc-test1"),
+			Entry("disassociating", ec2types.SecurityGroupVpcAssociationState("disassociating"), "vpc-test1"),
+			Entry("disassociated", ec2types.SecurityGroupVpcAssociationState("disassociated"), "vpc-test1"),
+			Entry("another VPC", ec2types.SecurityGroupVpcAssociationStateAssociated, "vpc-unrelated"),
+		)
+		It("should not query associations when all matching groups were created in the cluster VPC", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": "test-cluster"}}}
+			awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Error.Set(fmt.Errorf("AccessDenied"))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(0))
+		})
+		It("should preserve explicit IDs that also match scoped terms without checking their associations", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{ID: "sg-other-vpc"}, {Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Error.Set(fmt.Errorf("AccessDenied"))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(0))
+		})
+		It("should fail the entire mixed selector and retry after an association lookup error", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{ID: "sg-cluster-vpc"}, {Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			awsEnv.EC2API.SecurityGroupVpcAssociations.Store("association", ec2types.SecurityGroupVpcAssociation{
+				GroupId: lo.ToPtr("sg-other-vpc"), VpcId: lo.ToPtr("vpc-test1"), State: ec2types.SecurityGroupVpcAssociationStateAssociated,
+			})
+			awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Error.Set(fmt.Errorf("AccessDenied"), fake.MaxCalls(1))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("AccessDenied")))
+			Expect(securityGroups).To(BeEmpty())
+			Expect(securityGroupCache.ItemCount()).To(BeZero())
+			securityGroups, err = securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(2))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(1))
+		})
+		It("should paginate associations and only retain groups matched by the selector", func() {
+			awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.OutputPages.Add(
+				&ec2.DescribeSecurityGroupVpcAssociationsOutput{SecurityGroupVpcAssociations: []ec2types.SecurityGroupVpcAssociation{
+					{GroupId: lo.ToPtr("sg-unmatched"), VpcId: lo.ToPtr("vpc-test1"), State: ec2types.SecurityGroupVpcAssociationStateAssociated},
+				}},
+			)
+			awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.OutputPages.Add(
+				&ec2.DescribeSecurityGroupVpcAssociationsOutput{SecurityGroupVpcAssociations: []ec2types.SecurityGroupVpcAssociation{
+					{GroupId: lo.ToPtr("sg-other-vpc"), VpcId: lo.ToPtr("vpc-test1"), State: ec2types.SecurityGroupVpcAssociationStateAssociated},
+				}},
+			)
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(2))
+		})
+		It("should refresh association eligibility with the security group cache", func() {
+			association := ec2types.SecurityGroupVpcAssociation{
+				GroupId: lo.ToPtr("sg-other-vpc"), VpcId: lo.ToPtr("vpc-test1"), State: ec2types.SecurityGroupVpcAssociationStateAssociated,
+			}
+			awsEnv.EC2API.SecurityGroupVpcAssociations.Store("association", association)
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			association.State = ec2types.SecurityGroupVpcAssociationState("disassociated")
+			awsEnv.EC2API.SecurityGroupVpcAssociations.Store("association", association)
+			securityGroups, err = securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(1))
+			securityGroupCache.Flush()
+			securityGroups, err = securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(2))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(1))
 		})
 		It("should scope name-based discovery to the cluster VPC", func() {
 			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Name: "karpenter-nodes"}}
 			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
-			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}}, clusterVPCFilter)))
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}})))
 		})
 		It("should not scope discovery or call DescribeCluster for ID-only selectors", func() {
 			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{ID: "sg-other-vpc"}}
@@ -510,6 +619,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{otherVPCSecurityGroup}, securityGroups)
 			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-id"), Values: []string{"sg-other-vpc"}})))
 			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+			Expect(awsEnv.EC2API.DescribeSecurityGroupVpcAssociationsBehavior.Calls()).To(Equal(0))
 		})
 		It("should only scope the tag-based and name-based terms of a mixed selector and return the union", func() {
 			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
@@ -521,9 +631,9 @@ var _ = Describe("SecurityGroupProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
 			Expect(describeSecurityGroupsFilters()).To(ConsistOf(
-				ConsistOf(wildcardTagFilter, clusterVPCFilter),
+				ConsistOf(wildcardTagFilter),
 				ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-id"), Values: []string{"sg-other-vpc"}}),
-				ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}}, clusterVPCFilter),
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}}),
 			))
 		})
 		It("should fail a mixed selector instead of returning only the ID-based security groups when DescribeCluster fails", func() {

@@ -52,6 +52,10 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen/main.go)
 
+### Security group discovery scope
+
+Tag-based and name-based [security group discovery]({{< ref "../concepts/nodeclasses#specsecuritygroupselectorterms" >}}) is restricted to groups created in or associated with the EKS cluster VPC when `CLUSTER_ENDPOINT` is unset or `EKS_CONTROL_PLANE` is `true`. With an explicit endpoint and `EKS_CONTROL_PLANE=false`, discovery keeps its existing scope. EKS users with an explicit endpoint can enable scoping with `EKS_CONTROL_PLANE=true`, which also switches Kubernetes version discovery to EKS. Explicit security group IDs are not scoped. Checking cross-VPC candidates requires `ec2:DescribeSecurityGroupVpcAssociations`; association eligibility refreshes with the security group cache.
+
 ### Feature Gates
 
 Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features) You can enable the feature gates through the `--feature-gates` CLI environment variable or the `FEATURE_GATES` environment variable in the Karpenter deployment. For example, you can configure drift, spotToSpotConsolidation by setting the CLI argument: `--feature-gates Drift=true,SpotToSpotConsolidation=true,ReservedCapacity=true`.
