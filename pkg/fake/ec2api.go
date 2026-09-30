@@ -71,6 +71,7 @@ type EC2Behavior struct {
 	NextError                           AtomicError
 
 	Subnets                               sync.Map
+	SecurityGroups                        sync.Map
 	LaunchTemplates                       sync.Map
 	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
@@ -106,6 +107,10 @@ func (e *EC2API) Reset() {
 	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Subnets.Range(func(k, v any) bool {
 		e.Subnets.Delete(k)
+		return true
+	})
+	e.SecurityGroups.Range(func(k, v any) bool {
+		e.SecurityGroups.Delete(k)
 		return true
 	})
 	e.Instances.Range(func(k, v any) bool {
@@ -550,6 +555,17 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
 	return e.DescribeSecurityGroupsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
+		output := &ec2.DescribeSecurityGroupsOutput{}
+		e.SecurityGroups.Range(func(key, value any) bool {
+			sg := value.(ec2types.SecurityGroup)
+			if lo.Contains(input.GroupIds, lo.FromPtr(sg.GroupId)) || len(input.Filters) != 0 && len(FilterDescribeSecurtyGroups([]ec2types.SecurityGroup{sg}, input.Filters)) != 0 {
+				output.SecurityGroups = append(output.SecurityGroups, sg)
+			}
+			return true
+		})
+		if len(output.SecurityGroups) != 0 {
+			return output, nil
+		}
 		defaultSecurityGroups := []ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
@@ -558,6 +574,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 			{
 				GroupId:   aws.String("sg-test2"),
@@ -566,6 +583,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 			{
 				GroupId:   aws.String("sg-test3"),
@@ -575,6 +593,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 					{Key: aws.String("TestTag")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
 				},
+				VpcId: aws.String("vpc-test1"),
 			},
 		}
 		if len(input.Filters) == 0 {

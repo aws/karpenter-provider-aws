@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -30,6 +32,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
@@ -40,17 +43,42 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	ec2api sdk.EC2API
+	eksapi sdk.EKSAPI
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
+	vpcID  atomic.Pointer[string]
 }
 
-func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api sdk.EC2API, eksapi sdk.EKSAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
+		eksapi: eksapi,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache cache when we utilize the security groups from the EC2NodeClass.status
 		cache: cache,
 	}
+}
+
+// ResolveVpcID resolves the VPC of the EKS cluster, caching the result for the lifetime of the process. The VPC ID
+// scopes tag-based and name-based security group discovery so that selectors cannot resolve security groups belonging
+// to other VPCs in the same account; those security groups can never be attached to instances in the cluster VPC.
+func (p *DefaultProvider) ResolveVpcID(ctx context.Context) (string, error) {
+	if vpcID := p.vpcID.Load(); vpcID != nil {
+		return *vpcID, nil
+	}
+	out, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: aws.String(options.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return "", err
+	}
+	if out == nil || out.Cluster == nil || out.Cluster.ResourcesVpcConfig == nil || lo.FromPtr(out.Cluster.ResourcesVpcConfig.VpcId) == "" {
+		return "", fmt.Errorf("no vpc id found in DescribeCluster response")
+	}
+	vpcID := out.Cluster.ResourcesVpcConfig.VpcId
+	p.vpcID.Store(vpcID)
+	log.FromContext(ctx).WithValues("vpc-id", *vpcID).V(1).Info("discovered cluster vpc id")
+	return *vpcID, nil
 }
 
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error) {
@@ -71,7 +99,18 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 }
 
 func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.SecurityGroup, error) {
-	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
+	var vpcID string
+	// Selecting security groups by ID is an explicit user intent, so only tag-based and name-based discovery is scoped
+	// to the cluster VPC
+	if scopeToClusterVPC(ctx) && lo.ContainsBy(nodeClass.Spec.SecurityGroupSelectorTerms, func(term v1.SecurityGroupSelectorTerm) bool {
+		return term.ID == ""
+	}) {
+		var err error
+		if vpcID, err = p.ResolveVpcID(ctx); err != nil {
+			return nil, fmt.Errorf("resolving cluster vpc id, %w", err)
+		}
+	}
+	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms, vpcID)
 	hash := utils.GetNodeClassHash(nodeClass)
 	if sg, ok := p.cache.Get(hash); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
@@ -98,7 +137,15 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, nodeClass *v1.E
 	return lo.Values(securityGroups), nil
 }
 
-func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filter) {
+// scopeToClusterVPC reports whether the cluster VPC can be resolved without new requirements on the deployment: both
+// an empty cluster endpoint and an EKS control plane already require DescribeCluster to succeed at startup.
+func scopeToClusterVPC(ctx context.Context) bool {
+	opts := options.FromContext(ctx)
+	return opts.EKSControlPlane || opts.ClusterEndpoint == ""
+}
+
+func getFilterSets(terms []v1.SecurityGroupSelectorTerm, vpcID string) (res [][]ec2types.Filter) {
+	vpcFilter := ec2types.Filter{Name: aws.String("vpc-id"), Values: []string{vpcID}}
 	idFilter := ec2types.Filter{Name: aws.String("group-id")}
 	nameFilter := ec2types.Filter{Name: aws.String("group-name")}
 	for _, term := range terms {
@@ -122,6 +169,9 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filte
 					})
 				}
 			}
+			if vpcID != "" {
+				filters = append(filters, vpcFilter)
+			}
 			res = append(res, filters)
 		}
 	}
@@ -129,7 +179,8 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filte
 		res = append(res, []ec2types.Filter{idFilter})
 	}
 	if len(nameFilter.Values) > 0 {
-		res = append(res, []ec2types.Filter{nameFilter})
+		// Security group names are only unique within a VPC, so the same name can match groups in other VPCs
+		res = append(res, lo.Ternary(vpcID != "", []ec2types.Filter{nameFilter, vpcFilter}, []ec2types.Filter{nameFilter}))
 	}
 	return res
 }

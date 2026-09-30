@@ -16,6 +16,7 @@ package securitygroup_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"testing"
@@ -25,11 +26,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -439,6 +445,128 @@ var _ = Describe("SecurityGroupProvider", func() {
 			))
 		})
 	})
+	Context("Cluster VPC Scoping", func() {
+		var securityGroupProvider *securitygroup.DefaultProvider
+		var securityGroupCache *gocache.Cache
+		clusterVPCFilter := ec2types.Filter{Name: lo.ToPtr("vpc-id"), Values: []string{"vpc-test1"}}
+		// Security group names are only unique within a VPC, so both groups share a name
+		clusterVPCSecurityGroup := ec2types.SecurityGroup{
+			GroupId:   lo.ToPtr("sg-cluster-vpc"),
+			GroupName: lo.ToPtr("karpenter-nodes"),
+			VpcId:     lo.ToPtr("vpc-test1"),
+			Tags:      []ec2types.Tag{{Key: lo.ToPtr("karpenter.sh/discovery"), Value: lo.ToPtr("test-cluster")}},
+		}
+		otherVPCSecurityGroup := ec2types.SecurityGroup{
+			GroupId:   lo.ToPtr("sg-other-vpc"),
+			GroupName: lo.ToPtr("karpenter-nodes"),
+			VpcId:     lo.ToPtr("vpc-other"),
+			Tags:      []ec2types.Tag{{Key: lo.ToPtr("karpenter.sh/discovery"), Value: lo.ToPtr("other-cluster")}},
+		}
+		wildcardTagFilter := ec2types.Filter{Name: lo.ToPtr("tag-key"), Values: []string{"karpenter.sh/discovery"}}
+
+		BeforeEach(func() {
+			// The resolved cluster VPC is cached on the provider and isn't cleared by awsEnv.Reset()
+			securityGroupCache = gocache.New(gocache.NoExpiration, gocache.NoExpiration)
+			securityGroupProvider = securitygroup.NewDefaultProvider(awsEnv.EC2API, awsEnv.EKSAPI, securityGroupCache)
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterEndpoint: lo.ToPtr("")}))
+			awsEnv.EC2API.SecurityGroups.Store(lo.FromPtr(clusterVPCSecurityGroup.GroupId), clusterVPCSecurityGroup)
+			awsEnv.EC2API.SecurityGroups.Store(lo.FromPtr(otherVPCSecurityGroup.GroupId), otherVPCSecurityGroup)
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": "*"}}}
+		})
+		It("should not scope discovery or call DescribeCluster when the cluster endpoint is set explicitly", func() {
+			ctx = options.ToContext(ctx, test.Options())
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("not an EKS cluster"))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter)))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+		})
+		It("should scope tag-based discovery to the cluster VPC when the cluster endpoint is discovered", func() {
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+		})
+		It("should scope tag-based discovery to the cluster VPC when eksControlPlane is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{EKSControlPlane: lo.ToPtr(true)}))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+		})
+		It("should scope name-based discovery to the cluster VPC", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Name: "karpenter-nodes"}}
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}}, clusterVPCFilter)))
+		})
+		It("should not scope discovery or call DescribeCluster for ID-only selectors", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{ID: "sg-other-vpc"}}
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("failed to describe cluster"))
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{otherVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-id"), Values: []string{"sg-other-vpc"}})))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+		})
+		It("should only scope the tag-based and name-based terms of a mixed selector and return the union", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{ID: "sg-other-vpc"},
+				{Name: "karpenter-nodes"},
+				{Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup, otherVPCSecurityGroup}, securityGroups)
+			Expect(describeSecurityGroupsFilters()).To(ConsistOf(
+				ConsistOf(wildcardTagFilter, clusterVPCFilter),
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-id"), Values: []string{"sg-other-vpc"}}),
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("group-name"), Values: []string{"karpenter-nodes"}}, clusterVPCFilter),
+			))
+		})
+		It("should fail a mixed selector instead of returning only the ID-based security groups when DescribeCluster fails", func() {
+			nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{ID: "sg-other-vpc"},
+				{Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("AccessDeniedException"))
+			_, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(0))
+		})
+		DescribeTable("should fail without falling back to unscoped discovery when DescribeCluster returns no VPC ID",
+			func(output *eks.DescribeClusterOutput) {
+				awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(output)
+				_, err := securityGroupProvider.List(ctx, nodeClass)
+				Expect(err).To(HaveOccurred())
+				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(0))
+			},
+			Entry("no cluster", &eks.DescribeClusterOutput{}),
+			Entry("no VPC config", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{}}),
+			Entry("no VPC ID", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{ResourcesVpcConfig: &ekstypes.VpcConfigResponse{}}}),
+			Entry("empty VPC ID", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{ResourcesVpcConfig: &ekstypes.VpcConfigResponse{VpcId: lo.ToPtr("")}}}),
+		)
+		It("should retry resolving the cluster VPC after a failure", func() {
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("ThrottlingException"), fake.MaxCalls(1))
+			_, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			securityGroups, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSecurityGroups([]ec2types.SecurityGroup{clusterVPCSecurityGroup}, securityGroups)
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(2))
+		})
+		It("should keep the resolved cluster VPC when security groups are refreshed", func() {
+			_, err := securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			securityGroupCache.Flush()
+			_, err = securityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(2))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(1))
+		})
+	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		wg := sync.WaitGroup{}
 		for range 10000 {
@@ -456,6 +584,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test1"),
 						GroupName: lo.ToPtr("securityGroup-test1"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -470,6 +599,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test2"),
 						GroupName: lo.ToPtr("securityGroup-test2"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -484,6 +614,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test3"),
 						GroupName: lo.ToPtr("securityGroup-test3"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -585,6 +716,14 @@ var _ = Describe("SecurityGroupProvider", func() {
 		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(3))
 	})
 })
+
+func describeSecurityGroupsFilters() [][]ec2types.Filter {
+	var filters [][]ec2types.Filter
+	awsEnv.EC2API.DescribeSecurityGroupsBehavior.CalledWithInput.ForEach(func(input *ec2.DescribeSecurityGroupsInput) {
+		filters = append(filters, input.Filters)
+	})
+	return filters
+}
 
 func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
 	GinkgoHelper()
