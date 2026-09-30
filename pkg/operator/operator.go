@@ -254,11 +254,11 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		capacityReservationProvider,
 		placementGroupProvider,
 		zsProvider,
-		// Instance cache entries never expire. The cache is actively refreshed by the garbage
-		// collection controller's List() every 2 minutes, and stale entries are evicted by
-		// List() for instances no longer returned by EC2. NoExpiration ensures cached instances
-		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
-		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
+		// Instance cache entries never expire. The cache is actively refreshed by the instance cache
+		// controller's SyncCache() on an interval, which also evicts stale entries for instances no
+		// longer returned by EC2. NoExpiration ensures cached instances in zonally shifted AZs remain
+		// available for the zonal shift guards in Get(), Delete(), and CreateTags(), even if a
+		// DescribeInstances sweep cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
