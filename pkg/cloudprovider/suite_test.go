@@ -1325,6 +1325,36 @@ var _ = Describe("CloudProvider", func() {
 			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
 			Expect(len(bindings.Bindings)).To(Equal(0))
 		})
+		It("should not launch instances into subnets outside of the cluster VPC", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterEndpoint: lo.ToPtr("")}))
+			awsEnv.EC2API.Subnets.Store("test-subnet-1", ec2types.Subnet{
+				SubnetId:                aws.String("test-subnet-1"),
+				AvailabilityZone:        aws.String("test-zone-1a"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int32(10),
+				VpcId:                   aws.String("vpc-test1"),
+				Tags:                    []ec2types.Tag{{Key: aws.String("karpenter.sh/discovery"), Value: aws.String("test-cluster")}},
+			})
+			awsEnv.EC2API.Subnets.Store("test-subnet-2", ec2types.Subnet{
+				SubnetId:                aws.String("test-subnet-2"),
+				AvailabilityZone:        aws.String("test-zone-1a"),
+				AvailabilityZoneId:      aws.String("tstz1-1a"),
+				AvailableIpAddressCount: aws.Int32(100),
+				VpcId:                   aws.String("vpc-other"),
+				Tags:                    []ec2types.Tag{{Key: aws.String("karpenter.sh/discovery"), Value: aws.String("other-cluster")}},
+			})
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": "*"}}}
+			controller := nodeclass.NewController(awsEnv.Clock, env.Client, cloudProvider, recorder, fake.DefaultRegion, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.InstanceTypesProvider, awsEnv.LaunchTemplateProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.EC2API, awsEnv.ValidationCache, awsEnv.RecreationCache, awsEnv.AMIResolver, awsEnv.CELEnvironment, options.FromContext(ctx).DisableDryRun)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.Subnets).To(ConsistOf(v1.Subnet{ID: "test-subnet-1", Zone: "test-zone-1a", ZoneID: "tstz1-1a"}))
+			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+		})
 		It("should launch instances into subnets that are excluded by another NodePool", func() {
 			awsEnv.EC2API.Subnets.Store("test-zone-1a", ec2types.Subnet{
 				SubnetId:                aws.String("test-subnet-1"),
