@@ -11,6 +11,8 @@ jobs:
     # A failed trigger means the PR's site never built, so there is nothing to ship and the
     # error already surfaced on the PR's own check
     if: github.event.workflow_run.conclusion == 'success'
+    # Gate the credentialed deploy behind an Environment protection rule. See .github/security-notice.md.
+    environment: website-preview
     permissions:
       id-token: write
       contents: read
@@ -19,6 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Do not persist GITHUB_TOKEN into .git/config: this privileged job
+          # extracts an artifact from the untrusted fork build, and a symlink to
+          # .git/config would otherwise leak the token. API calls here use the
+          # actions' github-token input (octokit), not the git CLI, so this is safe.
+          persist-credentials: false
       - uses: ./.github/actions/download-artifact
       # WebsitePreviewTrigger builds the PR's own site, so the PR can run arbitrary code there and
       # rewrite the metadata artifact after it is written. Take the commit from the event payload,

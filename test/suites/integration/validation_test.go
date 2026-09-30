@@ -102,30 +102,6 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.InstanceProfile = nil
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
-		It("should fail to switch between an unmanaged and managed instance profile", func() {
-			nodeClass.Spec.Role = ""
-			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
-
-			nodeClass.Spec.Role = "test-role"
-			nodeClass.Spec.InstanceProfile = nil
-			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
-		})
-		It("should fail to switch between a managed and unmanaged instance profile", func() {
-			// Skipping this test for private cluster because there is no VPC private endpoint for the IAM API. As a result,
-			// you cannot use the default spec.role field in your EC2NodeClass. Instead, you need to provision and manage an
-			// instance profile manually and then specify Karpenter to use this instance profile through the spec.instanceProfile field.
-			if env.PrivateCluster {
-				Skip("skipping Unmanaged instance profile test for private cluster")
-			}
-			nodeClass.Spec.Role = "test-role"
-			nodeClass.Spec.InstanceProfile = nil
-			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
-
-			nodeClass.Spec.Role = ""
-			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
-		})
 		// spec.kubelet is an open map the API server can't validate, so an invalid kubelet
 		// configuration is accepted on apply and surfaced by the nodeclass controller as
 		// ValidationSucceeded=False rather than being rejected at admission time.

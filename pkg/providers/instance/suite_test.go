@@ -16,6 +16,7 @@ package instance_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -563,6 +564,27 @@ var _ = Describe("InstanceProvider", func() {
 
 		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
 		Expect(after - before).To(Equal(float64(1)))
+	})
+	It("should surface a specific launch failure when the EC2NodeClass disables requested Nitro Enclaves", func() {
+		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+		nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
+			v1.ResourceNitroSandbox: resource.MustParse("1"),
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		for _, instanceType := range instanceTypes {
+			instanceType.Capacity[v1.ResourceNitroSandbox] = resource.MustParse("1")
+		}
+
+		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		var createError *corecloudprovider.CreateError
+		Expect(errors.As(err, &createError)).To(BeTrue())
+		Expect(createError.ConditionReason).To(Equal("NitroEnclavesDisabled"))
+		Expect(createError.ConditionMessage).To(Equal("Error getting launch template configs: EC2NodeClass disables Nitro Enclaves while the NodeClaim requests eks.amazonaws.com/nitro-sandbox"))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
 	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()

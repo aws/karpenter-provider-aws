@@ -278,8 +278,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -334,7 +332,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and placement group labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -347,8 +345,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
-					// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-					v1.LabelInstanceNitroEnclavesSupported,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -396,7 +392,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -409,8 +405,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -3486,9 +3480,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
-	Context("NitroEnclavesSupported", func() {
+	Context("Nitro Enclaves", func() {
 		// makeNitroEnclaveInstanceType returns a minimal ec2types.InstanceTypeInfo for testing
-		// the LabelInstanceNitroEnclavesSupported requirement, parameterized by NitroEnclavesSupport.
+		// Nitro Enclaves compatibility, parameterized by NitroEnclavesSupport.
 		makeNitroEnclaveInstanceType := func(support ec2types.NitroEnclavesSupport) ec2types.InstanceTypeInfo {
 			return ec2types.InstanceTypeInfo{
 				InstanceType:                  "m5.large",
@@ -3542,39 +3536,32 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			})
 		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"true\" when NitroEnclavesSupport is supported", func() {
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportSupported)},
-			})
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("true"))
-		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"false\" when NitroEnclavesSupport is unsupported", func() {
+		It("should isolate cached offering availability by enclave configuration", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
 				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
 			})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
 
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
+			nodeClass.Spec.EnclaveOptions = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
 		})
 	})
 	Context("Offering Resolvers", func() {
@@ -3650,6 +3637,43 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).ToNot(BeEmpty())
+		})
+	})
+	Context("Resolver Exclusions", func() {
+		// A resolver returning a nil instance type with no error is declining to offer that instance type at all.
+		// Unlike a resolution failure, that must not fail the whole List - otherwise a resolver that excludes any
+		// instance type takes the entire catalog down with it.
+		It("should skip an excluded instance type and return the rest from List", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})).To(BeFalse(), "an excluded instance type must not be listed")
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.xlarge"
+			})).To(BeTrue(), "excluding one instance type must not drop the others")
+		})
+		It("should report a failed lookup from Get for an excluded instance type", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			// Get reports the exclusion as an error rather than returning a nil instance type, since it injects
+			// offerings into the result and its callers dereference it.
+			instanceType, err := provider.Get(ctx, nodeClass, "m5.large")
+			Expect(err).To(MatchError(ContainSubstring("failed to generate instance type m5.large")))
+			Expect(instanceType).To(BeNil())
 		})
 	})
 	Context("Resolution Failures", func() {
@@ -4006,6 +4030,45 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 		})
 	}
 	return offerings
+}
+
+// newProviderWithResolver builds an instance type provider backed by the given Resolver, sharing the test
+// environment's caches and dependencies.
+func newProviderWithResolver(resolver instancetype.Resolver) *instancetype.DefaultProvider {
+	return instancetype.NewDefaultProvider(
+		awsEnv.InstanceTypeCache,
+		awsEnv.OfferingCache,
+		awsEnv.DiscoveredCapacityCache,
+		awsEnv.EC2API,
+		awsEnv.SubnetProvider,
+		awsEnv.PricingProvider,
+		awsEnv.CapacityReservationProvider,
+		awsEnv.PlacementGroupProvider,
+		awsEnv.UnavailableOfferingsCache,
+		resolver,
+		awsEnv.ZonalShiftProvider,
+		env.Client,
+		awsEnv.CELEnvironment,
+	)
+}
+
+// excludingResolver is a test Resolver that declines to offer a single named instance type, returning a nil
+// instance type and no error the way a resolver that filters the catalog (e.g. against an allowlist) does.
+// Every other instance type is delegated to the real resolver.
+type excludingResolver struct {
+	delegate  instancetype.Resolver
+	excludeOn ec2types.InstanceType
+}
+
+func (r *excludingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
+	return r.delegate.CacheKey(nodeClass)
+}
+
+func (r *excludingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
+	if info.InstanceType == r.excludeOn {
+		return nil, nil
+	}
+	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }
 
 // failingResolver is a test Resolver that fails to resolve a single named instance type, standing in for a
