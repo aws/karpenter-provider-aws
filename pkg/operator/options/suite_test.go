@@ -137,6 +137,28 @@ var _ = Describe("Options", func() {
 		Expect(opts.SecurityGroupRefreshInterval).To(Equal(time.Minute))
 	})
 
+	It("should correctly use pricing-region when CLI flag is set", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs,
+			"--cluster-name", "test-cluster",
+			"--pricing-region", "eu-west-1")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.PricingRegion).To(Equal("eu-west-1"))
+	})
+	It("should correctly use pricing-region from env var", func() {
+		os.Setenv("PRICING_REGION", "us-west-2")
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.PricingRegion).To(Equal("us-west-2"))
+	})
+	It("should default pricing-region to empty string when not specified", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.PricingRegion).To(Equal(""))
+	})
+
 	Context("FeatureGates", func() {
 		BeforeEach(func() {
 			opts.AddFlags(fs)
@@ -228,5 +250,6 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
 	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
+	Expect(optsA.PricingRegion).To(Equal(optsB.PricingRegion))
 	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
 }

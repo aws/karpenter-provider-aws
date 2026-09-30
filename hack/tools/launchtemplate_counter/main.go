@@ -67,7 +67,7 @@ func main() {
 		ec2api,
 		subnetProvider,
 		pricing.NewDefaultProvider(
-			pricing.NewAPI(cfg),
+			pricing.NewAPI(cfg, ""),
 			ec2api,
 			cfg.Region,
 			true,
