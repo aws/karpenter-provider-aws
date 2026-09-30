@@ -6,49 +6,53 @@ description: >
   Configure Karpenter
 ---
 
-Karpenter surfaces environment variables and CLI parameters to allow you to configure certain global settings on the controllers. These settings are described below.
+Karpenter surfaces environment variables to allow you to configure certain global settings on the controllers. These settings are typically configured through Helm values. The settings are described below.
 
 [comment]: <> (the content below is generated from hack/docs/configuration_gen/main.go)
 
-| Environment Variable | CLI Flag | Description |
-|--|--|--|
-| AMI_REFRESH_INTERVAL | \-\-ami-refresh-interval | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. (default = 1m0s)|
-| AWS_FEATURE_GATES | \-\-aws-feature-gates | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL. (default = NodeClassCEL=false)|
-| BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
-| BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
-| CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
-| CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.|
-| CLUSTER_NAME | \-\-cluster-name | [REQUIRED] The kubernetes cluster name for resource discovery.|
-| CPU_REQUESTS | \-\-cpu-requests | CPU requests in millicores on the container running the controller. (default = 1000)|
-| DISABLE_CLUSTER_STATE_OBSERVABILITY | \-\-disable-cluster-state-observability | Disable cluster state metrics and events|
-| DISABLE_CONTROLLER_WARMUP | \-\-disable-controller-warmup | Disable controller warmup which starts controller sources before leader election is won. Controller warmup pre-populates caches and improves leader failover time.|
-| DISABLE_DRY_RUN | \-\-disable-dry-run | If true, then disable dry run validation for EC2NodeClasses.|
-| DISABLE_LEADER_ELECTION | \-\-disable-leader-election | Disable the leader election client before executing the main loop. Disable when running replicated components for high availability is not desired.|
-| EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
-| ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
-| ENABLE_ZONAL_SHIFT | \-\-enable-zonal-shift | If true, then enable zonal shifting feature.|
-| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, StaticCapacity, CapacityBuffer, TerminateFirstDrift, and TerminateFirstRepair. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false,CapacityBuffer=false,TerminateFirstDrift=false,TerminateFirstRepair=false)|
-| HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
-| IGNORE_DRA_REQUESTS | \-\-ignore-dra-requests | When set, Karpenter will ignore pods' DRA requests during scheduling simulations. NOTE: This flag will be removed once formal DRA support is GA in Karpenter.|
-| INTERRUPTION_QUEUE | \-\-interruption-queue | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
-| ISOLATED_VPC | \-\-isolated-vpc | If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.|
-| KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate|
-| KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
-| KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver (default = 200)|
-| LEADER_ELECTION_NAME | \-\-leader-election-name | Leader election name to create and monitor the lease if running outside the cluster (default = karpenter-leader-election)|
-| LEADER_ELECTION_NAMESPACE | \-\-leader-election-namespace | Leader election namespace to create and monitor the lease if running outside the cluster|
-| LOG_ERROR_OUTPUT_PATHS | \-\-log-error-output-paths | Optional comma separated paths for logging error output (default = stderr)|
-| LOG_LEVEL | \-\-log-level | Log verbosity level. Can be one of 'debug', 'info', or 'error' (default = info)|
-| LOG_OUTPUT_PATHS | \-\-log-output-paths | Optional comma separated paths for directing log output (default = stdout)|
-| MEMORY_LIMIT | \-\-memory-limit | Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value. (default = -1)|
-| METRICS_PORT | \-\-metrics-port | The port the metric endpoint binds to for operating metrics about the controller itself (default = 8080)|
-| MIN_VALUES_POLICY | \-\-min-values-policy | Min values policy for scheduling. Options include 'Strict' for existing behavior where min values are strictly enforced or 'BestEffort' where Karpenter relaxes min values when it isn't satisfied. (default = Strict)|
-| PREFERENCE_POLICY | \-\-preference-policy | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' (default = Respect)|
-| RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
-| SCHEDULER_CONFIG | \-\-scheduler-config | A YAML/JSON document configuring the parts of the cluster's kube-scheduler behavior that Karpenter must mirror during scheduling simulation, currently only podTopologySpread.defaultConstraints. Empty means no scheduler-config overrides.|
-| SECURITY_GROUP_REFRESH_INTERVAL | \-\-security-group-refresh-interval | How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m. (default = 1m0s)|
-| SUBNET_REFRESH_INTERVAL | \-\-subnet-refresh-interval | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. (default = 1m0s)|
-| VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
+{{% alert title="Note" color="primary" %}}
+Karpenter settings are configured through environment variables, typically set via Helm values (e.g. `settings.clusterName`). Equivalent CLI flags exist but are not intended for direct use since the Karpenter binary is not distributed independently. If both an environment variable and its CLI flag are set, the CLI flag takes precedence.
+{{% /alert %}}
+
+| Environment Variable | Description |
+|--|--|
+| AMI_REFRESH_INTERVAL | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. (default = 1m0s)|
+| AWS_FEATURE_GATES | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL. (default = NodeClassCEL=false)|
+| BATCH_IDLE_DURATION | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
+| BATCH_MAX_DURATION | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
+| CLUSTER_CA_BUNDLE | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
+| CLUSTER_ENDPOINT | The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.|
+| CLUSTER_NAME | [REQUIRED] The kubernetes cluster name for resource discovery.|
+| CPU_REQUESTS | CPU requests in millicores on the container running the controller. (default = 1000)|
+| DISABLE_CLUSTER_STATE_OBSERVABILITY | Disable cluster state metrics and events|
+| DISABLE_CONTROLLER_WARMUP | Disable controller warmup which starts controller sources before leader election is won. Controller warmup pre-populates caches and improves leader failover time.|
+| DISABLE_DRY_RUN | If true, then disable dry run validation for EC2NodeClasses.|
+| DISABLE_LEADER_ELECTION | Disable the leader election client before executing the main loop. Disable when running replicated components for high availability is not desired.|
+| EKS_CONTROL_PLANE | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
+| ENABLE_PROFILING | Enable the profiling on the metric endpoint|
+| ENABLE_ZONAL_SHIFT | If true, then enable zonal shifting feature.|
+| FEATURE_GATES | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, StaticCapacity, CapacityBuffer, TerminateFirstDrift, and TerminateFirstRepair. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false,CapacityBuffer=false,TerminateFirstDrift=false,TerminateFirstRepair=false)|
+| HEALTH_PROBE_PORT | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
+| IGNORE_DRA_REQUESTS | When set, Karpenter will ignore pods' DRA requests during scheduling simulations. NOTE: This flag will be removed once formal DRA support is GA in Karpenter.|
+| INTERRUPTION_QUEUE | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
+| ISOLATED_VPC | If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.|
+| KARPENTER_SERVICE | The Karpenter Service name for the dynamic webhook certificate|
+| KUBE_CLIENT_BURST | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
+| KUBE_CLIENT_QPS | The smoothed rate of qps to kube-apiserver (default = 200)|
+| LEADER_ELECTION_NAME | Leader election name to create and monitor the lease if running outside the cluster (default = karpenter-leader-election)|
+| LEADER_ELECTION_NAMESPACE | Leader election namespace to create and monitor the lease if running outside the cluster|
+| LOG_ERROR_OUTPUT_PATHS | Optional comma separated paths for logging error output (default = stderr)|
+| LOG_LEVEL | Log verbosity level. Can be one of 'debug', 'info', or 'error' (default = info)|
+| LOG_OUTPUT_PATHS | Optional comma separated paths for directing log output (default = stdout)|
+| MEMORY_LIMIT | Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value. (default = -1)|
+| METRICS_PORT | The port the metric endpoint binds to for operating metrics about the controller itself (default = 8080)|
+| MIN_VALUES_POLICY | Min values policy for scheduling. Options include 'Strict' for existing behavior where min values are strictly enforced or 'BestEffort' where Karpenter relaxes min values when it isn't satisfied. (default = Strict)|
+| PREFERENCE_POLICY | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' (default = Respect)|
+| RESERVED_ENIS | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
+| SCHEDULER_CONFIG | A YAML/JSON document configuring the parts of the cluster's kube-scheduler behavior that Karpenter must mirror during scheduling simulation, currently only podTopologySpread.defaultConstraints. Empty means no scheduler-config overrides.|
+| SECURITY_GROUP_REFRESH_INTERVAL | How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m. (default = 1m0s)|
+| SUBNET_REFRESH_INTERVAL | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. (default = 1m0s)|
+| VM_MEMORY_OVERHEAD_PERCENT | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen/main.go)
 

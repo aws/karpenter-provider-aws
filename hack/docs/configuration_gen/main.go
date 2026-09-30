@@ -56,13 +56,18 @@ func main() {
 	(&coreoptions.Options{}).AddFlags(fs)
 	(&options.Options{}).AddFlags(fs)
 
-	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
-	envVarsBlock += "|--|--|--|\n"
+	envVarsBlock := "{{% alert title=\"Note\" color=\"primary\" %}}\n"
+	envVarsBlock += "Karpenter settings are configured through environment variables, typically set via Helm values (e.g. `settings.clusterName`). "
+	envVarsBlock += "Equivalent CLI flags exist but are not intended for direct use since the Karpenter binary is not distributed independently. "
+	envVarsBlock += "If both an environment variable and its CLI flag are set, the CLI flag takes precedence.\n"
+	envVarsBlock += "{{% /alert %}}\n\n"
+	envVarsBlock += "| Environment Variable | Description |\n"
+	envVarsBlock += "|--|--|\n"
 	fs.VisitAll(func(f *flag.Flag) {
 		if f.DefValue == "" {
-			envVarsBlock += fmt.Sprintf("| %s | %s | %s|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage)
+			envVarsBlock += fmt.Sprintf("| %s | %s|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), f.Usage)
 		} else {
-			envVarsBlock += fmt.Sprintf("| %s | %s | %s (default = %s)|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage, f.DefValue)
+			envVarsBlock += fmt.Sprintf("| %s | %s (default = %s)|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), f.Usage, f.DefValue)
 		}
 	})
 
