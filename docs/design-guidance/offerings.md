@@ -9,9 +9,25 @@ should explain why. Maintainers have the final say on every feature interface.
 Existing code doesn't consistently follow this guidance. For new work, treat this document as the
 source of truth, not the existing code.
 
+Before requesting review, check your design against the evaluation criteria in §2.3.
+
+**Contents**
+
+- [1. The InstanceType model](#1-the-instancetype-model)
+  - [1.1 Overview](#11-overview)
+  - [1.2 Independent vs. dependent options](#12-independent-vs-dependent-options)
+  - [1.3 Surfacing features via instance types and offerings](#13-surfacing-features-via-instance-types-and-offerings)
+- [2. Evaluating a feature](#2-evaluating-a-feature)
+  - [2.1 Selecting a surface](#21-selecting-a-surface)
+  - [2.2 Invariants](#22-invariants)
+  - [2.3 Evaluation criteria](#23-evaluation-criteria)
+  - [2.4 Wiring checklist](#24-wiring-checklist)
+
 ---
 
 ## 1. The InstanceType model
+
+### 1.1 Overview
 
 Karpenter's scheduler reasons about two layers.
 
@@ -44,51 +60,7 @@ offerings encode only the differences.** The full set of launch configurations K
 is the **cross product** of the instance type's multi-valued requirements and its offerings. The six
 offerings above, crossed with two tenancy values, describe twelve distinct launch configurations.
 
-### 1.1 Invariants
-
-These hold regardless of which surface you choose. A design that breaks one of them will either
-silently fail to schedule or launch nodes that don't match what the scheduler simulated.
-
-**The union rule.** The scheduler filters instance types *before* it looks at offerings: it discards
-any instance type whose requirements don't intersect the pod's, and checks offerings only on the
-survivors. An offering-level requirement key must therefore appear on the instance type with the
-**union** of every value its offerings carry. An offering the instance type doesn't advertise is
-unreachable.
-
-**Absence is a value.** Every well-known label must be defined on the instance type's requirements,
-using `DoesNotExist` when it has no values. The same applies to offerings: an on-demand offering
-declares `DoesNotExist` for the capacity reservation keys so it stays compatible with pods that
-require those labels to be absent. Omitting the key means "no constraint", which is a different
-statement.
-
-**Unavailable, not absent.** `GetInstanceTypes` always returns every instance type. When something
-makes an instance type unusable, such as an insufficient-capacity signal, a zonal shift, or a
-NodeClass the instance type can't satisfy, set `Available: false` on the affected offerings instead
-of dropping the instance type. Dropping it degrades scheduling error messages and breaks
-consolidation's view of the world.
-
-**Launch candidates are re-derived from the NodeClaim.** The NodeClaim's requirements are the whole
-contract between the scheduler and the cloud provider. The scheduler doesn't communicate which
-offering it settled on during simulation, and `Create` must not depend on the scheduler's
-implementation, such as which constraints it chose to write or how it narrowed them. Instead,
-`Create` derives the compatible instance types and offerings from `nodeClaim.Spec.Requirements` and
-builds its launch candidates from that set.
-
-This has two consequences. First, the compatible set is usually larger than one offering, which is
-useful: every compatible (instance type, zone) pair becomes a `CreateFleet` override, so several
-offerings coexist in a single launch and EC2 chooses among them. Second, some dimensions can't
-coexist in one launch request and must be collapsed to a single value, since a fleet request has one
-tenancy and one capacity type. Which case applies is a **per-feature decision**, and the design must
-state it: can compatible values coexist as alternatives in one launch, or must one be selected? If
-one is selected, what happens when several values are compatible, or when none is constrained?
-
-**Labels must round-trip.** Whatever `Create` resolves must come back as a NodeClaim label, so the
-node is labeled with what was actually launched. A value that can't be resolved and reported
-shouldn't be a label.
-
----
-
-## 2. Independent vs. dependent options
+### 1.2 Independent vs. dependent options
 
 **Independent** options can be set regardless of the rest of the launch configuration. Instance
 tenancy is independent: tenancy can be chosen freely whatever the zone, capacity type, or placement
@@ -119,13 +91,11 @@ combinations are actually possible. A pod that selects `cr-abc` and `us-west-2b`
 type filter but finds no compatible offering. That is the correct outcome: it's reported as an
 unsatisfiable scheduling constraint rather than a failed launch.
 
----
-
-## 3. Choosing a surface
+### 1.3 Surfacing features via instance types and offerings
 
 There are three surfaces, and two of them can be combined.
 
-### 3.1 Requirement values on the instance type
+#### 1.3.1 Requirement values on the instance type
 
 *Example: instance tenancy.*
 
@@ -182,7 +152,7 @@ node reflects what was launched.
 
 Use this surface when the option has a small, closed set of values and the choice is per-workload.
 
-### 3.2 Distinct offerings
+#### 1.3.2 Distinct offerings
 
 *Examples: capacity reservations, placement group partitions.*
 
@@ -196,7 +166,7 @@ shapes: it either appends sparse cells or fans out existing ones.
 
 **Sparse: append new cells.** Capacity reservations are the example. A reservation is valid for one
 instance type in one zone, so the resolver appends one offering per reservation, filling in the
-reserved rows of the matrix in §2. Each offering carries its own price, availability, and capacity:
+reserved rows of the matrix in §1.2. Each offering carries its own price, availability, and capacity:
 
 ```go
 // pkg/providers/instancetype/offering/reserved_capacity_resolver.go (illustrative)
@@ -218,7 +188,7 @@ product. The offering count grows with the number of underlying resources (here,
 with the size of the matrix.
 
 **Fan-out: expand existing cells.** Partition placement groups are the example. Partitions are
-independent of the rest of the launch configuration, so by §2 they would belong on the instance
+independent of the rest of the launch configuration, so by §1.2 they would belong on the instance
 type, and topology alone doesn't change that: the scheduler builds topology domains from
 instance-type requirements, so advertising `[1..N]` there is enough for topology spread constraints.
 They're offerings because each partition carries its **own availability signal**. An insufficient
@@ -247,7 +217,7 @@ for _, offering := range offerings {
 Use this shape when an option applies to every offering but each value needs its own availability
 or resources. Fan-out multiplies the offering count, so the resolver should be a no-op unless the
 feature is configured; the placement group resolver returns its input unchanged when the NodeClass
-has no partition placement group (see §4). Because a fan-out resolver expands whatever it receives,
+has no partition placement group (see §2.4). Because a fan-out resolver expands whatever it receives,
 it runs after the resolvers that append cells, so reserved offerings are expanded too.
 
 Fan-out is also the expected shape for **mutually exclusive views of the same hardware.** Offerings
@@ -259,7 +229,7 @@ advertises the resources that mode exposes. A multi-valued requirement on the in
 express this, because the modes disagree about capacity and capacity only varies at the offering
 layer.
 
-### 3.3 NodeClass configuration
+#### 1.3.3 NodeClass configuration
 
 *Examples: `blockDeviceMappings`, `networkInterfaces`, `cpuOptions`, `connectionTracking`.*
 
@@ -295,9 +265,9 @@ A capability label can sit alongside NodeClass configuration. For example,
 distinction clear. A capability label is a **fact** about an instance type: it has one value per
 type, is derived from `DescribeInstanceTypes`, and selects instance types rather than launch
 configurations. A label with several values on one instance type is a **choice**, and belongs in
-§3.1 or §3.2.
+§1.3.1 or §1.3.2.
 
-### 3.4 Combined: NodeClass constrains, labels select
+#### 1.3.4 Combined: NodeClass constrains, labels select
 
 No existing feature uses the fully combined pattern, but it's the recommended way to add
 administrator control to an already label-driven option without a breaking change. A hypothetical
@@ -327,26 +297,7 @@ Because a nil value preserves the existing advertised set, adding the field is n
 order matters: **adding a NodeClass field first and labels later is a compatible evolution; adding
 labels first and narrowing them later is not.**
 
-### 3.5 Rules of thumb
-
-- **Labels** fit when the configuration is **user-driven**, or when it needs per-pod dynamism rather
-  than per-NodePool/NodeClass control. Users drive labels through node affinity. Cluster
-  administrators *can* restrict affinity with a validating admission policy, but treat labels as
-  user-facing configuration by default.
-- **NodeClass configuration** fits when the configuration space is too high-cardinality to enumerate
-  as label values, or when only the cluster administrator should control the option.
-- **When in doubt, choose NodeClass configuration.** It minimizes the exposed configuration surface,
-  it's self-documenting through the CRD (labels are only documented indirectly, through CEL
-  validation on the NodePool and NodeClaim CRDs and through the website), and it leaves an upgrade
-  path to labels open.
-- **Use distinct offerings whenever the option is dependent on other launch parameters, or changes
-  price, availability, or advertised resources.** Prefer them over encoding the same information
-  implicitly, even when an implicit encoding would be cheaper.
-- **Don't give one dimension two competing authorities.** If an option appears both on the NodeClass
-  and as a label, the NodeClass must constrain and the label must select within that constraint
-  (§3.4).
-
-### 3.6 Discouraged: signalling through pod resource requests
+#### 1.3.5 Discouraged: signalling through pod resource requests
 
 An older pattern encodes dynamic configuration as an extended resource: every offering advertises
 the resource in memory, pods request it, and the provider infers the configuration at launch from
@@ -363,11 +314,147 @@ explicitly through a label selector or a `spec.requirements` entry on a static N
 
 A planned refactor will add a post-processing layer that makes distinct offerings and these
 "implied offerings" functionally identical, so new work should be modeled as distinct offerings.
-That is also the only model that can express mutually exclusive resources (§3.2).
+That is also the only model that can express mutually exclusive resources (§1.3.2).
 
 ---
 
-## 4. Wiring checklist
+## 2. Evaluating a feature
+
+### 2.1 Selecting a surface
+
+- **Labels** fit when the configuration is **user-driven**, or when it needs per-pod dynamism rather
+  than per-NodePool/NodeClass control. Users drive labels through node affinity. Cluster
+  administrators *can* restrict affinity with a validating admission policy, but treat labels as
+  user-facing configuration by default.
+- **NodeClass configuration** fits when the configuration space is too high-cardinality to enumerate
+  as label values, or when only the cluster administrator should control the option.
+- **When in doubt, choose NodeClass configuration.** It minimizes the exposed configuration surface,
+  it's self-documenting through the CRD (labels are only documented indirectly, through CEL
+  validation on the NodePool and NodeClaim CRDs and through the website), and it leaves an upgrade
+  path to labels open.
+- **Use distinct offerings whenever the option is dependent on other launch parameters, or changes
+  price, availability, or advertised resources.** Prefer them over encoding the same information
+  implicitly, even when an implicit encoding would be cheaper.
+- **Don't give one dimension two competing authorities.** If an option appears both on the NodeClass
+  and as a label, the NodeClass must constrain and the label must select within that constraint
+  (§1.3.4).
+
+### 2.2 Invariants
+
+These hold regardless of which surface you choose. A design that breaks one of them will either
+silently fail to schedule or launch nodes that don't match what the scheduler simulated.
+
+**Labels must round-trip.** Whatever `Create` resolves must come back as a NodeClaim label, so the
+node is labeled with what was actually launched. A value that can't be resolved and reported
+shouldn't be a label.
+
+**The union rule.** The scheduler filters instance types *before* it looks at offerings: it discards
+any instance type whose requirements don't intersect the pod's, and checks offerings only on the
+survivors. An offering-level requirement key must therefore appear on the instance type with the
+**union** of every value its offerings carry. An offering the instance type doesn't advertise is
+unreachable.
+
+**Absence is a value.** Every well-known label must be defined on the instance type's requirements,
+using `DoesNotExist` when it has no values. The same applies to offerings: an on-demand offering
+declares `DoesNotExist` for the capacity reservation keys so it stays compatible with pods that
+require those labels to be absent. Omitting the key means "no constraint", which is a different
+statement.
+
+**Unavailable, not absent.** `GetInstanceTypes` always returns every instance type. When something
+makes an instance type unusable, such as an insufficient-capacity signal, a zonal shift, or a
+NodeClass the instance type can't satisfy, set `Available: false` on the affected offerings instead
+of dropping the instance type. Dropping it degrades scheduling error messages and breaks
+consolidation's view of the world.
+
+**Launch candidates are re-derived from the NodeClaim.** The NodeClaim's requirements are the whole
+contract between the scheduler and the cloud provider. The scheduler doesn't communicate which
+offering it settled on during simulation, and `Create` must not depend on the scheduler's
+implementation, such as which constraints it chose to write or how it narrowed them. Instead,
+`Create` derives the compatible instance types and offerings from `nodeClaim.Spec.Requirements` and
+builds its launch candidates from that set.
+
+This has two consequences. First, the compatible set is usually larger than one offering, which is
+useful: every compatible (instance type, zone) pair becomes a `CreateFleet` override, so several
+offerings coexist in a single launch and EC2 chooses among them. Second, some dimensions can't
+coexist in one launch request and must be collapsed to a single value, since a fleet request has one
+tenancy and one capacity type. Which case applies is a **per-feature decision**, and the design must
+state it: can compatible values coexist as alternatives in one launch, or must one be selected? If
+one is selected, what happens when several values are compatible, or when none is constrained?
+
+### 2.3 Evaluation criteria
+
+Use these checks to review a design or implementation against this guidance. Each item describes
+what a passing answer looks like. Items are **advisory**: a design may fail one and still be the
+right call if it explains why. Flag the gap and the reasoning rather than blocking on the letter of
+the rule.
+
+#### Surface selection
+
+- **S1: A surface is named and justified.** The design states whether the option is exposed as
+  instance-type requirement values, distinct offerings, NodeClass configuration, or a combination,
+  and why. *Fails if the choice is implicit.*
+- **S2: Cardinality is addressed.** The design states how many values the dimension can take. A
+  high-cardinality or open-ended dimension exposed as label values needs an explicit justification.
+- **S3: Audience matches the surface.** Label-driven options are justified by per-pod or user-driven
+  need. Options that must be administrator-controlled are on the NodeClass.
+- **S4: Dependency is classified.** The design says whether the option is independent of the rest of
+  the launch configuration or dependent on it. Dependent options are modeled as distinct offerings,
+  not as instance-type requirement values.
+- **S5: Divergent price, availability, or resources implies offerings.** If the option changes any
+  of these, it is modeled as distinct offerings.
+- **S6: Single authority per dimension.** If the option appears both on the NodeClass and as a
+  label, the NodeClass constrains, the label selects within that constraint, and the precedence is
+  documented.
+
+#### Model correctness
+
+- **M1: Union rule.** Every offering-level requirement key is advertised on the instance type with
+  the union of all values its offerings carry. *Failure mode: instance types are filtered out before
+  offerings are consulted, and the feature appears to do nothing.*
+- **M2: Absence declared.** Keys with no values are declared `DoesNotExist` on the instance type and
+  on offerings that don't carry them. *Failure mode: pods requiring the label to be absent match
+  offerings they shouldn't, or vice versa.*
+- **M3: Unavailable, not absent.** Instance types are never dropped from `GetInstanceTypes` to
+  express unavailability; `Available: false` is used instead.
+- **M4: Coexist or select, stated.** For each new key, the design says whether multiple compatible
+  values can coexist as alternatives in a single launch request (like zones) or one must be selected
+  (like tenancy). If one is selected, the behavior when several values are compatible or none is
+  constrained is documented user-facing behavior, not an implementation accident.
+- **M5: No dependence on scheduler internals.** `Create` derives its launch candidates from the
+  NodeClaim's requirements, not from assumptions about which constraints the scheduler writes or how
+  it narrowed them.
+- **M6: Round-trip.** The launched value is set as a NodeClaim label, and `Create`, `Get`, and
+  `List` agree on it.
+- **M7: Infeasibility surfaces in scheduling.** A configuration that can't be launched leaves pods
+  unschedulable, with no compatible instance type or offering. *Fails if a NodeClaim is created and
+  then errors at launch.*
+
+#### Lifecycle and cost
+
+- **L1: Cache key completeness.** Any NodeClass field that affects offerings is part of the offering
+  cache key.
+- **L2: Drift decided.** The design states whether changing the option drifts existing nodes, and
+  the NodeClass hash reflects that decision.
+- **L3: Offering growth bounded.** If the change multiplies offering count, it applies only when
+  configured, and the expected magnitude is stated.
+- **L4: Compatibility.** New fields default to today's behavior. Narrowing an already-advertised set
+  of label values is called out as a breaking change.
+
+#### Discouraged patterns
+
+- **D1: No new resource-request signalling.** New dynamic configuration is not inferred from
+  extended resources in `nodeClaim.Spec.Resources` (§1.3.5) unless the design explains why offerings
+  can't work. Exceptions may be permitted while the offering refactor is pending. *Failure mode: the
+  feature can't be enabled on NodeClaims that pods don't drive, such as those from static NodePools.*
+
+#### Documentation and tests
+
+- **T1: Discoverability.** New NodeClass fields have godoc/CRD descriptions. New labels are added to
+  the website's label reference and, if the value set is closed, to `WellKnownValuesForRequirements`.
+- **T2: Negative coverage.** Tests cover the unavailable/incompatible path and the unconstrained
+  launch-time default, not just the happy path.
+
+### 2.4 Wiring checklist
 
 The touchpoints a new option typically hits. Not every option needs all of them.
 
@@ -392,78 +479,3 @@ Every design should address two cost considerations:
   while it's new.
 - **Cache correctness beats cache hit rate.** A missing cache key component is a correctness bug; an
   extra one only costs recomputation.
-
----
-
-## 5. Evaluation criteria
-
-Use these checks to review a design or implementation against this guidance. Each item describes
-what a passing answer looks like. Items are **advisory**: a design may fail one and still be the
-right call if it explains why. Flag the gap and the reasoning rather than blocking on the letter of
-the rule.
-
-### Surface selection
-
-- **S1: A surface is named and justified.** The design states whether the option is exposed as
-  instance-type requirement values, distinct offerings, NodeClass configuration, or a combination,
-  and why. *Fails if the choice is implicit.*
-- **S2: Cardinality is addressed.** The design states how many values the dimension can take. A
-  high-cardinality or open-ended dimension exposed as label values needs an explicit justification.
-- **S3: Audience matches the surface.** Label-driven options are justified by per-pod or user-driven
-  need. Options that must be administrator-controlled are on the NodeClass.
-- **S4: Dependency is classified.** The design says whether the option is independent of the rest of
-  the launch configuration or dependent on it. Dependent options are modeled as distinct offerings,
-  not as instance-type requirement values.
-- **S5: Divergent price, availability, or resources implies offerings.** If the option changes any
-  of these, it is modeled as distinct offerings.
-- **S6: Single authority per dimension.** If the option appears both on the NodeClass and as a
-  label, the NodeClass constrains, the label selects within that constraint, and the precedence is
-  documented.
-
-### Model correctness
-
-- **M1: Union rule.** Every offering-level requirement key is advertised on the instance type with
-  the union of all values its offerings carry. *Failure mode: instance types are filtered out before
-  offerings are consulted, and the feature appears to do nothing.*
-- **M2: Absence declared.** Keys with no values are declared `DoesNotExist` on the instance type and
-  on offerings that don't carry them. *Failure mode: pods requiring the label to be absent match
-  offerings they shouldn't, or vice versa.*
-- **M3: Unavailable, not absent.** Instance types are never dropped from `GetInstanceTypes` to
-  express unavailability; `Available: false` is used instead.
-- **M4: Coexist or select, stated.** For each new key, the design says whether multiple compatible
-  values can coexist as alternatives in a single launch request (like zones) or one must be selected
-  (like tenancy). If one is selected, the behavior when several values are compatible or none is
-  constrained is documented user-facing behavior, not an implementation accident.
-- **M5: No dependence on scheduler internals.** `Create` derives its launch candidates from the
-  NodeClaim's requirements, not from assumptions about which constraints the scheduler writes or how
-  it narrowed them.
-- **M6: Round-trip.** The launched value is set as a NodeClaim label, and `Create`, `Get`, and
-  `List` agree on it.
-- **M7: Infeasibility surfaces in scheduling.** A configuration that can't be launched leaves pods
-  unschedulable, with no compatible instance type or offering. *Fails if a NodeClaim is created and
-  then errors at launch.*
-
-### Lifecycle and cost
-
-- **L1: Cache key completeness.** Any NodeClass field that affects offerings is part of the offering
-  cache key.
-- **L2: Drift decided.** The design states whether changing the option drifts existing nodes, and
-  the NodeClass hash reflects that decision.
-- **L3: Offering growth bounded.** If the change multiplies offering count, it applies only when
-  configured, and the expected magnitude is stated.
-- **L4: Compatibility.** New fields default to today's behavior. Narrowing an already-advertised set
-  of label values is called out as a breaking change.
-
-### Discouraged patterns
-
-- **D1: No new resource-request signalling.** New dynamic configuration is not inferred from
-  extended resources in `nodeClaim.Spec.Resources` (§3.6) unless the design explains why offerings
-  can't work. Exceptions may be permitted while the offering refactor is pending. *Failure mode: the
-  feature can't be enabled on NodeClaims that pods don't drive, such as those from static NodePools.*
-
-### Documentation and tests
-
-- **T1: Discoverability.** New NodeClass fields have godoc/CRD descriptions. New labels are added to
-  the website's label reference and, if the value set is closed, to `WellKnownValuesForRequirements`.
-- **T2: Negative coverage.** Tests cover the unavailable/incompatible path and the unconstrained
-  launch-time default, not just the happy path.
