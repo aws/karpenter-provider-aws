@@ -111,6 +111,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * Nodes running fewer pods
 * Nodes that will expire soon
 * Nodes with lower priority pods
+* Nodes with pods that have a lower [`karpenter.sh/disruption-cost`]({{<ref "#disruption-cost" >}})
 
 If consolidation is enabled, Karpenter periodically reports events against nodes that indicate why the node can't be consolidated.  These events can be used to investigate nodes that you expect to have been consolidated, but still remain in your cluster.
 
@@ -139,6 +140,20 @@ spec:
 By default every pod contributes an equal weight to disruption, so an action's disruption is effectively the number of pods it evicts, and scoring reduces to a comparison of savings against pod count. Pods that are more expensive to move can carry more weight — for example, higher-priority pods count as more disruptive — which makes their node less likely to be consolidated.
 
 Karpenter records each scoring decision so you can see why an action was or wasn't taken. Approved actions emit a `ConsolidationApproved` event (on the Node and on the NodeClaim for single-node actions, on the NodePool for multi-node actions) that includes the score and the savings and disruption percentages. Scoring decisions are also exported as the `karpenter_consolidation_score` and `karpenter_consolidation_moves_total` [metrics]({{<ref "../reference/metrics" >}}), labeled by decision, NodePool, and policy, and logged at `--log-level debug`.
+
+#### Pod deletion cost management
+
+When a Deployment scales in, the ReplicaSet controller chooses which pods to delete without knowing which nodes Karpenter wants to consolidate. It often removes pods from nodes that Karpenter would keep, leaving the nodes Karpenter wants to remove still running pods that Karpenter then has to evict. Enabling the `PodDeletionCostManagement` [feature gate]({{<ref "../reference/settings#feature-gates" >}}) lets Karpenter steer ReplicaSet scale-down toward the nodes it wants to consolidate, so fewer pods are evicted during consolidation.
+
+With the feature gate enabled, Karpenter periodically ranks its nodes by consolidation preference and writes the [`controller.kubernetes.io/pod-deletion-cost`](https://kubernetes.io/docs/reference/labels-annotations-taints/#pod-deletion-cost) annotation on ReplicaSet-owned pods on those nodes. The ReplicaSet controller deletes pods with the lowest deletion cost first, so pods on the nodes Karpenter most wants to remove are deleted first:
+
+* Pods on nodes that Karpenter is already disrupting get the lowest possible cost, so a scale-down removes pods that would otherwise be waiting on eviction.
+* Pods on drifted nodes and on consolidation candidates are ranked next, with drifted nodes first. The number of nodes ranked in each NodePool is limited by that NodePool's `Drifted` and `Underutilized` [disruption budgets]({{<ref "#nodepool-disruption-budgets" >}}).
+* Karpenter removes the annotation from pods on nodes it can't disrupt, such as nodes with `karpenter.sh/do-not-disrupt` pods, nodes in NodePools with `consolidateAfter: Never` that aren't drifted, or nodes that exceed their NodePool's budget.
+
+{{% alert title="Warning" color="warning" %}}
+With `PodDeletionCostManagement` enabled, Karpenter overwrites any existing `controller.kubernetes.io/pod-deletion-cost` values on ReplicaSet-owned pods on its nodes, and its consolidation logic ignores that annotation. If you set `controller.kubernetes.io/pod-deletion-cost` to influence consolidation, switch to [`karpenter.sh/disruption-cost`]({{<ref "#disruption-cost" >}}) before enabling the feature gate.
+{{% /alert %}}
 
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
@@ -445,6 +460,27 @@ The `karpenter.sh/do-not-disrupt` annotation does **not** exclude nodes from the
 While both interruption and node repair have implicit upper-bounds on termination time, expiration and manual termination do not.
 Manual intervention may be required to unblock node termination, by removing pods with the `karpenter.sh/do-not-disrupt` annotation.
 For this reason, it is not recommended to use the `karpenter.sh/do-not-disrupt` annotation with `expireAfter` **if** you have not also configured `terminationGracePeriod`.
+{{% /alert %}}
+
+#### Disruption Cost
+
+You can make Karpenter more or less willing to consolidate a node by setting the `karpenter.sh/disruption-cost` annotation on its pods. The value is a 32-bit integer (`-2147483648` to `2147483647`). A lower value makes a pod cheaper to disrupt, so its node is more likely to be consolidated first, and a higher value makes it more expensive. Unlike `karpenter.sh/do-not-disrupt`, this annotation never blocks disruption; it only changes the order in which Karpenter considers nodes.
+
+Karpenter turns the annotation into a per-pod disruption cost. Every pod starts at `1`, the annotation adds `value / 2^27` (about `±16` at the extremes of the range), and the pod's [priority](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/) adds `priority / 2^25`. A pod with no annotation and no priority has a cost of `1`. The result is clamped to `-10` through `10`, so a single pod never counts for more than about ten unannotated pods, and annotation values beyond roughly `±1.2` billion have no additional effect.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    metadata:
+      annotations:
+        # Prefer to consolidate nodes running this workload before others
+        karpenter.sh/disruption-cost: "-1000"
+```
+
+{{% alert title="Note" color="primary" %}}
+Earlier versions of Karpenter read the Kubernetes [`controller.kubernetes.io/pod-deletion-cost`](https://kubernetes.io/docs/reference/labels-annotations-taints/#pod-deletion-cost) annotation for this purpose. Using that annotation to steer Karpenter consolidation is deprecated. While the `PodDeletionCostManagement` feature gate is disabled, Karpenter still falls back to `controller.kubernetes.io/pod-deletion-cost` on pods that don't have `karpenter.sh/disruption-cost`. When the feature gate is enabled, Karpenter reads only `karpenter.sh/disruption-cost`, and the fallback will be removed entirely when the feature gate graduates to beta. `controller.kubernetes.io/pod-deletion-cost` keeps its normal Kubernetes meaning for ReplicaSet scale-down. See [Pod deletion cost management]({{<ref "#pod-deletion-cost-management" >}}).
 {{% /alert %}}
 
 ### Node-Level Controls
