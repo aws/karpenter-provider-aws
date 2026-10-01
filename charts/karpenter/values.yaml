@@ -196,6 +196,9 @@ settings:
   clusterName: ""
   # -- Cluster endpoint. If not set, will be discovered during startup (EKS only).
   clusterEndpoint: ""
+  # -- AWS region containing the Price List Query API endpoint. If not set, Karpenter selects an endpoint region based on the cluster region.
+  # This does not change the region for which prices are retrieved and has no effect when isolatedVPC is enabled.
+  pricingEndpointRegion: ""
   # -- If true then assume we can't reach AWS services which don't have a VPC endpoint.
   # This also has the effect of disabling look-ups to the AWS pricing endpoint.
   isolatedVPC: false

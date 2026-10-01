@@ -155,6 +155,10 @@ spec:
             - name: CLUSTER_ENDPOINT
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.pricingEndpointRegion }}
+            - name: PRICING_ENDPOINT_REGION
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.isolatedVPC }}
             - name: ISOLATED_VPC
               value: "{{ tpl (toString .) $ }}"

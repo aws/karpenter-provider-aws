@@ -45,6 +45,7 @@ type Options struct {
 	ClusterCABundle              string
 	ClusterName                  string
 	ClusterEndpoint              string
+	PricingEndpointRegion        string
 	IsolatedVPC                  bool
 	EKSControlPlane              bool
 	VMMemoryOverheadPercent      float64
@@ -62,6 +63,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.ClusterCABundle, "cluster-ca-bundle", env.WithDefaultString("CLUSTER_CA_BUNDLE", ""), "Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.")
 	fs.StringVar(&o.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "[REQUIRED] The kubernetes cluster name for resource discovery.")
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
+	fs.StringVar(&o.PricingEndpointRegion, "pricing-endpoint-region", env.WithDefaultString("PRICING_ENDPOINT_REGION", ""), "The AWS region containing the Price List Query API endpoint. If not specified, Karpenter selects an endpoint region based on the cluster region. This does not change the region for which prices are retrieved and has no effect when isolated-vpc is enabled.")
 	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.")
 	fs.BoolVarWithEnv(&o.EKSControlPlane, "eks-control-plane", "EKS_CONTROL_PLANE", false, "Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API ")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", utils.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable.")

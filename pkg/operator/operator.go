@@ -128,6 +128,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		os.Exit(1)
 	}
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
+	pricingEndpointRegion := options.FromContext(ctx).PricingEndpointRegion
+	if pricingEndpointRegion != "" {
+		log.FromContext(ctx).WithValues("cluster-region", cfg.Region, "pricing-endpoint-region", pricingEndpointRegion).V(1).Info("configured pricing endpoint region")
+	}
 	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
@@ -172,7 +176,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 	)
 	pricingProvider := pricing.NewDefaultProvider(
-		pricing.NewAPI(cfg),
+		pricing.NewAPIWithEndpointRegion(cfg, pricingEndpointRegion),
 		ec2api,
 		cfg.Region,
 		options.FromContext(ctx).IsolatedVPC,

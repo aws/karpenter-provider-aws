@@ -60,6 +60,7 @@ var _ = Describe("Options", func() {
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
+			"--pricing-endpoint-region", "us-east-1",
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
@@ -73,6 +74,7 @@ var _ = Describe("Options", func() {
 			ClusterCABundle:              lo.ToPtr("env-bundle"),
 			ClusterName:                  lo.ToPtr("env-cluster"),
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			PricingEndpointRegion:        lo.ToPtr("us-east-1"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
@@ -87,6 +89,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
 		os.Setenv("CLUSTER_NAME", "env-cluster")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
+		os.Setenv("PRICING_ENDPOINT_REGION", "us-east-1")
 		os.Setenv("ISOLATED_VPC", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
@@ -105,6 +108,7 @@ var _ = Describe("Options", func() {
 			ClusterCABundle:              lo.ToPtr("env-bundle"),
 			ClusterName:                  lo.ToPtr("env-cluster"),
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			PricingEndpointRegion:        lo.ToPtr("us-east-1"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
@@ -192,6 +196,31 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-endpoint", "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com")
 			Expect(err).To(HaveOccurred())
 		})
+		DescribeTable("should accept supported pricingEndpointRegion",
+			func(region string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--pricing-endpoint-region", region)
+				Expect(err).ToNot(HaveOccurred())
+			},
+			Entry("US endpoint", "us-east-1"),
+			Entry("Asia Pacific endpoint", "ap-south-1"),
+			Entry("Europe endpoint", "eu-central-1"),
+			Entry("China endpoint", "cn-northwest-1"),
+			Entry("European isolated endpoint", "eu-isoe-west-1"),
+			Entry("European sovereign endpoint", "eusc-de-east-1"),
+			Entry("US isolated endpoint", "us-iso-east-1"),
+			Entry("US isolated B endpoint", "us-isob-east-1"),
+			Entry("US isolated F endpoint", "us-isof-south-1"),
+		)
+		DescribeTable("should fail when pricingEndpointRegion is invalid",
+			func(region string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--pricing-endpoint-region", region)
+				Expect(err).To(HaveOccurred())
+			},
+			Entry("unsupported endpoint region", "us-west-2"),
+			Entry("URL", "https://api.pricing.us-east-1.amazonaws.com"),
+			Entry("uppercase", "US-EAST-1"),
+			Entry("whitespace", " us-east-1"),
+		)
 		It("should fail when vmMemoryOverheadPercent is negative", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--vm-memory-overhead-percent", "-0.01")
 			Expect(err).To(HaveOccurred())
@@ -220,6 +249,7 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
+	Expect(optsA.PricingEndpointRegion).To(Equal(optsB.PricingEndpointRegion))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
