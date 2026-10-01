@@ -56,16 +56,24 @@ InstanceType: m5.large
 ```
 
 The model is hierarchical: **properties shared by every offering live on the instance type, and
-offerings encode only the differences.** The full set of launch configurations Karpenter can produce
-is the **cross product** of the instance type's multi-valued requirements and its offerings. The six
-offerings above, crossed with two tenancy values, describe twelve distinct launch configurations.
+offerings encode only the differences.**
+
+**Which keys live on offerings.** A key appears on offerings when its value changes something
+tracked per offering: whether the combination exists at all (a reservation exists in one zone), or
+its price, availability, or resources. Every other key stays on the instance type and applies to
+every offering. The launch configurations Karpenter can produce are therefore the offerings, each
+combined with every value of the instance-type-only keys. The six offerings above, each with either
+tenancy, give twelve. Dependency (§1.2) is the most common reason a key needs offerings, but not the
+only one: every partition is valid with every offering, yet partitions are enumerated because each
+has its own availability (§1.3.2).
 
 ### 1.2 Independent vs. dependent options
 
 **Independent** options can be set regardless of the rest of the launch configuration. Instance
 tenancy is independent: tenancy can be chosen freely whatever the zone, capacity type, or placement
 group. An independent option forms a full cross product with the other dimensions, so it belongs on
-the instance type as a multi-valued requirement and needs no offerings.
+the instance type as a multi-valued requirement and needs no offerings, unless it changes something
+tracked per offering (§1.1).
 
 **Dependent** options are only valid in combination with specific other parameters. Capacity
 reservations are zonal: a reservation exists in exactly one zone, for one instance type. The valid
@@ -188,12 +196,10 @@ product. The offering count grows with the number of underlying resources (here,
 with the size of the matrix.
 
 **Fan-out: expand existing cells.** Partition placement groups are the example. Partitions are
-independent of the rest of the launch configuration, so by §1.2 they would belong on the instance
-type, and topology alone doesn't change that: the scheduler builds topology domains from
-instance-type requirements, so advertising `[1..N]` there is enough for topology spread constraints.
-They're offerings because each partition carries its **own availability signal**. An insufficient
-capacity error in one partition shouldn't block the others, and availability only exists at the
-offering layer. The resolver replaces each offering with one copy per partition, adding the
+independent (§1.2), and topology alone doesn't need offerings: the scheduler builds topology domains
+from instance-type requirements, so advertising `[1..N]` there is enough for topology spread
+constraints. They're offerings because each partition carries its **own availability signal**
+(§1.1): an insufficient capacity error in one partition shouldn't block the others. The resolver replaces each offering with one copy per partition, adding the
 partition requirement, scoping availability to that partition, and carrying everything else through.
 Since the input offerings are already zonal, each copy is a (zone, partition) cell, which matches
 EC2's model of up to seven partitions per Availability Zone:
