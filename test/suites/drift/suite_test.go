@@ -637,5 +637,35 @@ var _ = Describe("Drift", Ordered, func() {
 			// Since the nodeclaim is only compatible with reserved instances, we should drift the node when it's demoted to on-demand
 			env.EventuallyExpectDrifted(nc)
 		})
+		It("should terminate the drifted nodeclaim before launching its replacement when the reservation is full", func() {
+			capacityReservationID := aws.ExpectCapacityReservationCreated(
+				env.Context,
+				env.EC2API,
+				ec2types.InstanceTypeM5Large,
+				env.ZoneInfo[0].Zone,
+				1,
+				nil,
+				nil,
+			)
+			DeferCleanup(func() {
+				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+			})
+
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
+			env.ExpectCreated(dep, nodeClass, nodePool)
+			pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			node := env.ExpectCreatedNodeCount("==", 1)[0]
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
+
+			nodeClass.Spec.Tags = lo.Assign(nodeClass.Spec.Tags, map[string]string{"test-key": "test-value"})
+			env.ExpectUpdated(nodeClass)
+			env.EventuallyExpectDrifted(nodeClaim)
+
+			delete(pod.Annotations, karpv1.DoNotDisruptAnnotationKey)
+			env.ExpectUpdated(pod)
+			env.EventuallyExpectNotFound(pod, nodeClaim, node)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+		})
 	})
 })

@@ -23,6 +23,8 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.featureGates.nodeOverlay=true \
   --set settings.featureGates.staticCapacity=true \
   --set settings.featureGates.capacityBuffer=true \
+  --set settings.featureGates.terminateFirstDrift=true \
+  --set settings.featureGates.terminateFirstRepair=true \
   --set settings.awsFeatureGates.nodeClassCEL=true \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
