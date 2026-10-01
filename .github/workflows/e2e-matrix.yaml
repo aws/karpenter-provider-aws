@@ -132,7 +132,7 @@ jobs:
   summary:
     # Collapse the per-suite Slack pings into one message per run: highlight failures, note the rest passed.
     needs: [e2e, e2e-upgrade]
-    if: always() && inputs.workflow_trigger == 'matrix'
+    if: ${{ !cancelled() && inputs.workflow_trigger == 'matrix' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
