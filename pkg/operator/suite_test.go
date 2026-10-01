@@ -24,6 +24,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetesfake "k8s.io/client-go/kubernetes/fake"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -95,6 +98,54 @@ var _ = Describe("Operator", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
+	It("should read the cluster DNS IP from the default kube-system/kube-dns Service", func() {
+		ctx = options.ToContext(ctx, test.Options())
+		kubeClient := kubernetesfake.NewSimpleClientset(dnsService("kube-system", "kube-dns", "10.100.0.10"))
+
+		ip, err := awscontext.KubeDNSIP(ctx, kubeClient)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ip.String()).To(Equal("10.100.0.10"))
+	})
+	It("should read the cluster DNS IP from a Service named by configuration", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			KubeDNSServiceName:      lo.ToPtr("coredns"),
+			KubeDNSServiceNamespace: lo.ToPtr("dns-system"),
+		}))
+		kubeClient := kubernetesfake.NewSimpleClientset(dnsService("dns-system", "coredns", "10.100.0.53"))
+
+		ip, err := awscontext.KubeDNSIP(ctx, kubeClient)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ip.String()).To(Equal("10.100.0.53"))
+	})
+	It("should prefer an explicitly configured cluster DNS IP over the Service", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			ClusterDNSIP: lo.ToPtr("10.100.0.99"),
+		}))
+		kubeClient := kubernetesfake.NewSimpleClientset(dnsService("kube-system", "kube-dns", "10.100.0.10"))
+
+		ip, err := awscontext.KubeDNSIP(ctx, kubeClient)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ip.String()).To(Equal("10.100.0.99"))
+	})
+	It("should not need a Service at all when the cluster DNS IP is configured", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			ClusterDNSIP: lo.ToPtr("10.100.0.99"),
+		}))
+		kubeClient := kubernetesfake.NewSimpleClientset()
+
+		ip, err := awscontext.KubeDNSIP(ctx, kubeClient)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ip.String()).To(Equal("10.100.0.99"))
+	})
+	It("should not fall back to kube-dns once a Service name is configured", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			KubeDNSServiceName: lo.ToPtr("coredns"),
+		}))
+		kubeClient := kubernetesfake.NewSimpleClientset(dnsService("kube-system", "kube-dns", "10.100.0.10"))
+
+		_, err := awscontext.KubeDNSIP(ctx, kubeClient)
+		Expect(err).To(HaveOccurred())
+	})
 	It("should propagate error if API fails", func() {
 		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 			ClusterEndpoint: lo.ToPtr(""),
@@ -105,3 +156,10 @@ var _ = Describe("Operator", func() {
 		Expect(err).To(HaveOccurred())
 	})
 })
+
+func dnsService(namespace, name, clusterIP string) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name},
+		Spec:       corev1.ServiceSpec{ClusterIP: clusterIP},
+	}
+}

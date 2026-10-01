@@ -62,7 +62,10 @@ var _ = Describe("Options", func() {
 			"--cluster-endpoint", "https://env-cluster",
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
+			"--cluster-dns-ip", "10.100.0.53",
 			"--interruption-queue", "env-cluster",
+			"--kube-dns-service-name", "coredns",
+			"--kube-dns-service-namespace", "dns-system",
 			"--reserved-enis", "10",
 			"--disable-dry-run",
 			"--ami-refresh-interval", "15m",
@@ -75,7 +78,10 @@ var _ = Describe("Options", func() {
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			ClusterDNSIP:                 lo.ToPtr("10.100.0.53"),
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			KubeDNSServiceName:           lo.ToPtr("coredns"),
+			KubeDNSServiceNamespace:      lo.ToPtr("dns-system"),
 			ReservedENIs:                 lo.ToPtr(10),
 			DisableDryRun:                lo.ToPtr(true),
 			AMIRefreshInterval:           lo.ToPtr(15 * time.Minute),
@@ -89,7 +95,10 @@ var _ = Describe("Options", func() {
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
 		os.Setenv("ISOLATED_VPC", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
+		os.Setenv("CLUSTER_DNS_IP", "10.100.0.53")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
+		os.Setenv("KUBE_DNS_SERVICE_NAME", "coredns")
+		os.Setenv("KUBE_DNS_SERVICE_NAMESPACE", "dns-system")
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
@@ -107,13 +116,29 @@ var _ = Describe("Options", func() {
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			ClusterDNSIP:                 lo.ToPtr("10.100.0.53"),
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			KubeDNSServiceName:           lo.ToPtr("coredns"),
+			KubeDNSServiceNamespace:      lo.ToPtr("dns-system"),
 			ReservedENIs:                 lo.ToPtr(10),
 			DisableDryRun:                lo.ToPtr(false),
 			AMIRefreshInterval:           lo.ToPtr(30 * time.Minute),
 			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
 			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
 		}))
+	})
+
+	It("should reject a cluster-dns-ip that is not an IP address", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-dns-ip", "not-an-ip")
+		Expect(err).To(HaveOccurred())
+	})
+	It("should default the kube-dns service to kube-system/kube-dns", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.KubeDNSServiceName).To(Equal("kube-dns"))
+		Expect(opts.KubeDNSServiceNamespace).To(Equal("kube-system"))
 	})
 
 	It("should correctly use default ami-refresh-interval when not specified", func() {
@@ -222,7 +247,10 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
+	Expect(optsA.ClusterDNSIP).To(Equal(optsB.ClusterDNSIP))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
+	Expect(optsA.KubeDNSServiceName).To(Equal(optsB.KubeDNSServiceName))
+	Expect(optsA.KubeDNSServiceNamespace).To(Equal(optsB.KubeDNSServiceNamespace))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))

@@ -17,6 +17,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
 | BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
+| CLUSTER_DNS_IP | \-\-cluster-dns-ip | IP address of the cluster DNS service, used as the default kubelet clusterDNS for provisioned nodes. Takes precedence over the Service lookup, and is itself overridden by clusterDNS on an EC2NodeClass. If empty, the address is read from the cluster DNS Service.|
 | CLUSTER_ENDPOINT | \-\-cluster-endpoint | The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.|
 | CLUSTER_NAME | \-\-cluster-name | [REQUIRED] The kubernetes cluster name for resource discovery.|
 | CPU_REQUESTS | \-\-cpu-requests | CPU requests in millicores on the container running the controller. (default = 1000)|
@@ -35,6 +36,8 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | KARPENTER_SERVICE | \-\-karpenter-service | The Karpenter Service name for the dynamic webhook certificate|
 | KUBE_CLIENT_BURST | \-\-kube-client-burst | The maximum allowed burst of queries to the kube-apiserver (default = 300)|
 | KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver (default = 200)|
+| KUBE_DNS_SERVICE_NAME | \-\-kube-dns-service-name | Name of the Service fronting cluster DNS. Karpenter reads its ClusterIP and uses it as the default kubelet clusterDNS for provisioned nodes. Set this if your cluster DNS Service is not named kube-dns. (default = kube-dns)|
+| KUBE_DNS_SERVICE_NAMESPACE | \-\-kube-dns-service-namespace | Namespace of the Service fronting cluster DNS. (default = kube-system)|
 | LEADER_ELECTION_NAME | \-\-leader-election-name | Leader election name to create and monitor the lease if running outside the cluster (default = karpenter-leader-election)|
 | LEADER_ELECTION_NAMESPACE | \-\-leader-election-namespace | Leader election namespace to create and monitor the lease if running outside the cluster|
 | LOG_ERROR_OUTPUT_PATHS | \-\-log-error-output-paths | Optional comma separated paths for logging error output (default = stderr)|

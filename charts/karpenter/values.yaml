@@ -207,6 +207,15 @@ settings:
   # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
+  # -- IP address of the cluster DNS service, used as the default kubelet clusterDNS for provisioned
+  # nodes. Takes precedence over the Service lookup below, and is itself overridden by clusterDNS on
+  # an EC2NodeClass. If empty, the address is read from the cluster DNS Service.
+  clusterDNSIP: ""
+  # -- Name of the Service fronting cluster DNS. Karpenter reads its ClusterIP and uses it as the
+  # default kubelet clusterDNS for provisioned nodes. Set this if your cluster DNS Service is not named kube-dns.
+  kubeDNSServiceName: "kube-dns"
+  # -- Namespace of the Service fronting cluster DNS.
+  kubeDNSServiceNamespace: "kube-system"
   # -- Marking this true signals Karpenter to respect zonal shifts when making node claims.
   # More information about Zonal Shift here: https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html#zone-shift-enable-steps
   enableZonalShift: false
