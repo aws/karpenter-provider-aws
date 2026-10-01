@@ -17,15 +17,20 @@ package integration_test
 import (
 	"time"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	karpenterv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 )
 
@@ -93,4 +98,41 @@ var _ = Describe("Repair Policy", func() {
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
 		}),
 	)
+	It("should terminate the unhealthy nodeclaim before launching its replacement when the reservation is full", func() {
+		capacityReservationID := aws.ExpectCapacityReservationCreated(
+			env.Context,
+			env.EC2API,
+			ec2types.InstanceTypeM5Large,
+			env.ZoneInfo[0].Zone,
+			1,
+			nil,
+			nil,
+		)
+		DeferCleanup(func() {
+			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+		})
+
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
+		nodePool = coretest.ReplaceRequirements(nodePool, karpenterv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpenterv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpenterv1.CapacityTypeReserved},
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		// Use the initialized node, otherwise the status update strips the initialized label
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
+
+		// Use a Node Monitoring Agent condition, the kubelet reverts Ready before repair observes it
+		node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
+			Type:               "StorageReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		})
+		env.ExpectStatusUpdated(node)
+
+		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+	})
 })
