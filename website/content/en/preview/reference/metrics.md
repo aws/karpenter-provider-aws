@@ -336,6 +336,25 @@ Node system daemon overhead are the resources reserved for system overhead, the 
   - `managed`
   - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
 
+### `karpenter_nodes_reboots_total`
+Number of node reboots carried out by Karpenter, labeled by terminal result (succeeded, provider_error, recovery_timeout).
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: BETA
+- Dimensions:
+  - `result`
+
+### `karpenter_nodes_reboot_recovery_duration_seconds`
+Time from issuing a reboot until the node proved a new boot and rejoined (bootID changed + Ready). Recorded on successful reboots only.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+
+### `karpenter_nodes_reboot_duration_seconds`
+Duration of the full reboot action from request to terminal outcome, labeled by result.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+- Dimensions:
+  - `result`
+
 ### `karpenter_nodes_lifetime_duration_seconds`
 The lifetime duration of the nodes since creation.
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
@@ -826,6 +845,22 @@ Number of pods ignored during scheduling by Karpenter
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
 - Stability Level: ALPHA
 
+## Pod Deletion Cost Metrics
+
+### `karpenter_pod_deletion_cost_pod_annotation_writes_total`
+Number of pod-deletion-cost annotation write attempts. Labeled by outcome.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `result`
+
+### `karpenter_pod_deletion_cost_nodes_with_pending_annotation_writes`
+Number of nodes with at least one pending pod-deletion-cost annotation change enqueued this cycle.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
 ## Interruption Metrics
 
 ### `karpenter_interruption_received_messages_total`
@@ -970,6 +1005,7 @@ Total number of errors returned from CloudProvider calls.
     - `NodeClassNotReadyError` — The referenced NodeClass is not yet ready.
     - `InsufficientCapacityError` — The cloud provider had insufficient capacity to fulfill the request.
     - `unknown` — An error that does not match a well-known CloudProvider error category.
+  - `nodepool` — The name of the NodePool that owns the resource.
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.

@@ -113,6 +113,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * Nodes running fewer pods
 * Nodes that will expire soon
 * Nodes with lower priority pods
+* Nodes that have a lower total [`disruption-cost`]({{<ref "#disruption-cost" >}})
 
 If consolidation is enabled, Karpenter periodically reports events against nodes that indicate why the node can't be consolidated.  These events can be used to investigate nodes that you expect to have been consolidated, but still remain in your cluster.
 
@@ -142,6 +143,10 @@ By default every pod contributes an equal weight to disruption, so an action's d
 
 Karpenter records each scoring decision so you can see why an action was or wasn't taken. Approved actions emit a `ConsolidationApproved` event (on the Node and on the NodeClaim for single-node actions, on the NodePool for multi-node actions) that includes the score and the savings and disruption percentages. Scoring decisions are also exported as the `karpenter_consolidation_score` and `karpenter_consolidation_moves_total` [metrics]({{<ref "../reference/metrics" >}}), labeled by decision, NodePool, and policy, and logged at `--log-level debug`.
 
+#### Pod deletion cost management
+
+When a Deployment scales in, the ReplicaSet controller doesn't know which nodes Karpenter wants to consolidate. The alpha `PodDeletionCostManagement` feature gate lets Karpenter steer ReplicaSet scale-down toward those nodes. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
@@ -152,7 +157,6 @@ We refer to the number of instances that Karpenter has within its launch decisio
 2) We launch with enough instance types that there’s high likelihood that our replacement instance has comparable availability to our current one.
 
 Karpenter requires a minimum instance type flexibility of 15 instance types when performing single node spot-to-spot consolidations (1 node to 1 node). It does not have the same instance type flexibility requirement for multi-node spot-to-spot consolidations (many nodes to 1 node) since doing so without requiring flexibility won't lead to "race to the bottom" scenarios.
-
 
 ### Drift
 Drift handles changes to the NodePool/EC2NodeClass. For Drift, values in the NodePool/EC2NodeClass are reflected in the NodeClaimTemplateSpec/EC2NodeClassSpec in the same way that they’re set. A NodeClaim will be detected as drifted if the values in its owning NodePool/EC2NodeClass do not match the values in the NodeClaim. Similar to the upstream `deployment.spec.template` relationship to pods, Karpenter will annotate the owning NodePool and EC2NodeClass with a hash of the NodeClaimTemplateSpec to check for drift. Some special cases will be discovered either from Karpenter or through the CloudProvider interface, triggered by NodeClaim/Instance/NodePool/EC2NodeClass changes.
@@ -183,7 +187,6 @@ Behavioral Fields are treated as over-arching settings on the NodePool to dictat
 | spec.disruption.*   |
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
-
 
 Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
@@ -491,6 +494,46 @@ It also does not exclude nodes from [Node Auto Repair]({{<ref "#node-auto-repair
 While both interruption and node repair have implicit upper-bounds on termination time, expiration and manual termination do not.
 Manual intervention may be required to unblock node termination, by removing pods with the `karpenter.sh/do-not-disrupt` annotation.
 For this reason, it is not recommended to use the `karpenter.sh/do-not-disrupt` annotation with `expireAfter` **if** you have not also configured `terminationGracePeriod`.
+{{% /alert %}}
+
+#### Disruption Cost
+
+You can tell Karpenter which workloads are expensive to disrupt with the `karpenter.sh/disruption-cost` annotation. Set a higher value on pods that are costly to evict, such as pods with long startup times or warm caches, and Karpenter prefers to consolidate other nodes first. Set a lower value on pods that are cheap to evict, and Karpenter prefers to consolidate their nodes first. The value is a 32-bit integer (`-2147483648` to `2147483647`). Karpenter limits how much a single pod can affect its node's disruption cost, so past a certain point, larger positive or negative values have no additional effect.
+
+Here are two example workloads using `karpenter.sh/disruption-cost`: a database StatefulSet that is expensive to disrupt because it has to replicate its data after each restart, and a stateless web frontend Deployment that is cheap to disrupt.
+
+```yaml
+# Expensive workload: Karpenter prefers to consolidate other nodes first
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+spec:
+  template:
+    metadata:
+      annotations:
+        karpenter.sh/disruption-cost: "1000000000"
+---
+# Inexpensive workload: Karpenter prefers to consolidate nodes running it first
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+spec:
+  template:
+    metadata:
+      annotations:
+        karpenter.sh/disruption-cost: "-100000000"
+```
+
+Kubernetes doesn't validate this annotation. If the value isn't an integer in the 32-bit range, Karpenter logs a `failed parsing disruption cost` error that includes the pod and the value, and treats the annotation as unset.
+
+{{% alert title="Warning" color="warning" %}}
+Unlike `karpenter.sh/do-not-disrupt`, this annotation doesn't block disruption outright, but a high value can stop the `Balanced` [consolidation policy]({{<ref "#balanced-consolidation" >}}) from consolidating a node. If every pod on a node has a very low value, Karpenter treats the node as empty and can remove it without first checking that its pods fit on other nodes.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+Earlier versions of Karpenter read the Kubernetes [`controller.kubernetes.io/pod-deletion-cost`](https://kubernetes.io/docs/reference/labels-annotations-taints/#pod-deletion-cost) annotation for this purpose. Using that annotation to steer Karpenter consolidation is deprecated. While the `PodDeletionCostManagement` feature gate is disabled, Karpenter still falls back to `controller.kubernetes.io/pod-deletion-cost` on pods that don't have `karpenter.sh/disruption-cost`. When the feature gate is enabled, Karpenter reads only `karpenter.sh/disruption-cost`, and the fallback is planned to be removed in a future release. `controller.kubernetes.io/pod-deletion-cost` keeps its normal Kubernetes meaning for ReplicaSet scale-down. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
 {{% /alert %}}
 
 ### Node-Level Controls
