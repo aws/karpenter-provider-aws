@@ -286,7 +286,7 @@ func (env *Environment) Reset() {
 
 	env.AMICache.Flush()
 	env.EC2Cache.Flush()
-	env.InstanceCache.Flush()
+	env.InstanceProvider.ResetCache()
 	env.UnavailableOfferingsCache.Flush()
 	env.OfferingCache.Flush()
 	env.LaunchTemplateCache.Flush()

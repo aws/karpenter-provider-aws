@@ -121,6 +121,9 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 	})
 	It("should demote nodeclaims and nodes from reserved to on-demand", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, node)
+		// The capacity-type controller reads instances from the instance cache, which is refreshed out-of-band by the
+		// instance cache controller. Sync it so the reconcile observes the current DescribeInstances state.
+		Expect(awsEnv.InstanceProvider.SyncCache(ctx)).To(Succeed())
 		ExpectSingletonReconciled(ctx, controller)
 
 		// Since the backing instance is still under a capacity reservation, we shouldn't demote the nodeclaim or node
@@ -139,6 +142,7 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 
 		// Now that the backing instance is no longer part of a capacity reservation, we should demote the resources by
 		// updating the capacity type to on-demand and removing the reservation ID label.
+		Expect(awsEnv.InstanceProvider.SyncCache(ctx)).To(Succeed())
 		ExpectSingletonReconciled(ctx, controller)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 		Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
@@ -153,6 +157,7 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 		out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
 		out.Reservations[0].Instances[0].CapacityReservationId = nil
 		awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+		Expect(awsEnv.InstanceProvider.SyncCache(ctx)).To(Succeed())
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		ExpectSingletonReconciled(ctx, controller)

@@ -1164,7 +1164,7 @@ var _ = Describe("InstanceProvider", func() {
 			// Remove the instance from EC2 (simulates spot reclaim)
 			awsEnv.EC2API.Instances.Delete(id)
 
-			// Call List — this should evict the stale cache entry
+			// Call List — its lazy sync should evict the stale cache entry
 			_, err = awsEnv.InstanceProvider.List(ctx)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -1209,7 +1209,7 @@ var _ = Describe("InstanceProvider", func() {
 			})
 			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
 
-			// List should NOT evict because the zone is shifted
+			// List's lazy sync should NOT evict because the zone is shifted
 			_, err = awsEnv.InstanceProvider.List(ctx)
 			Expect(err).ToNot(HaveOccurred())
 
