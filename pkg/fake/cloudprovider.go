@@ -66,6 +66,10 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *karpv1.NodePool) 
 	}, nil
 }
 
+func (c *CloudProvider) Reboot(_ context.Context, _ *karpv1.NodeClaim, _ string) error {
+	return corecloudprovider.NewNodeRebootNotImplementedError()
+}
+
 func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *karpv1.NodeClaim) (corecloudprovider.DriftReason, error) {
 	return "drifted", nil
 }

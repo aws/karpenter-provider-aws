@@ -264,6 +264,10 @@ func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
 	return nil
 }
 
+func (c *CloudProvider) Reboot(_ context.Context, _ *karpv1.NodeClaim, _ string) error {
+	return cloudprovider.NewNodeRebootNotImplementedError()
+}
+
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {
 	// Not needed when GetInstanceTypes removes nodepool dependency
 	nodePoolName, ok := nodeClaim.Labels[karpv1.NodePoolLabelKey]
