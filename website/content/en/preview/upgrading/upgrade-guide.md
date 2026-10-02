@@ -86,6 +86,12 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Security group discovery permissions
+
+Before upgrading to a version that scopes [security group discovery]({{< ref "../concepts/nodeclasses#specsecuritygroupselectorterms" >}}) to the EKS cluster VPC, add `ec2:DescribeSecurityGroupVpcAssociations` to the controller role's regional read permissions. The supplied [CloudFormation policy]({{< ref "../reference/cloudformation#allowregionalreadactions" >}}) includes this action. Karpenter uses it when a tag or name matches security groups created outside the cluster VPC, retaining those with an `associated` VPC association. Without this permission, discovery fails for these candidates rather than silently dropping potentially valid groups.
+
+Scoping applies when `settings.clusterEndpoint` is omitted or `settings.eksControlPlane` is `true`. Explicit IDs remain unscoped. After the first successful reconcile, `status.securityGroups` contains only explicit IDs and eligible tag/name matches. Errors leave the previous status unchanged. Review broad selectors and controller permissions before upgrading.
+
 ### Upgrading to `1.15.0`+
 
 {{% alert title="Warning" color="warning" %}}

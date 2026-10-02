@@ -761,6 +761,16 @@ spec:
 Security Group Selector Terms allow you to specify selection logic for all security groups that will be attached to an instance launched from the `EC2NodeClass`. The security group of an instance is comparable to a set of firewall rules.
 [EKS creates at least two security groups by default](https://docs.aws.amazon.com/eks/latest/userguide/sec-group-reqs.html).
 
+When `settings.clusterEndpoint` is omitted or `settings.eksControlPlane` is `true`, tag-based and name-based discovery is restricted to security groups created in the EKS cluster VPC or associated with it in the `associated` state. Groups created in other VPCs remain eligible when they have a valid [VPC association](https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html). Karpenter checks these associations using `ec2:DescribeSecurityGroupVpcAssociations` when a tag or name matches a group created outside the cluster VPC. Add this read-only permission to the controller role before upgrading; the supplied CloudFormation policy includes it.
+
+With an explicit endpoint and `eksControlPlane: false`, security group discovery keeps its existing scope and does not resolve the VPC through EKS or query VPC associations. EKS users with an explicit endpoint can enable scoping with `eksControlPlane: true`; this also changes Kubernetes version discovery to use EKS.
+
+Explicit `id` terms are not restricted by the cluster VPC and need no VPC or association lookup. Mixed selectors return the union of explicit IDs and eligible tag/name matches, with duplicates removed. If resolving the cluster VPC or checking a required association fails, the entire discovery operation fails and retries without returning partial results. The cluster VPC is cached after its first successful lookup. Security groups and their association eligibility are refreshed together on the configured security group refresh interval.
+
+{{% alert title="Upgrade behavior" color="primary" %}}
+When VPC scoping applies, the first successful reconcile after upgrading removes tag/name-selected groups that are neither created in nor associated with the cluster VPC from `status.securityGroups`. Explicit IDs remain eligible. Discovery errors leave the existing status unchanged, so they do not immediately prevent use of previously discovered groups.
+{{% /alert %}}
+
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different security groups that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
 ```yaml
