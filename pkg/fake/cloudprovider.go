@@ -95,6 +95,10 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 	return []status.Object{&v1.EC2NodeClass{}}
 }
 
+func (c *CloudProvider) Reboot(_ context.Context, _ *karpv1.NodeClaim, _ string) error {
+	return corecloudprovider.NewNodeRebootNotImplementedError()
+}
+
 func (c *CloudProvider) RepairPolicies() []corecloudprovider.RepairPolicy {
 	return []corecloudprovider.RepairPolicy{}
 }
