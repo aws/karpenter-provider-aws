@@ -23,6 +23,7 @@ import (
 	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -45,6 +46,8 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	// Bottlerocket AMIs versions are prefixed with a v on GitHub, but not in the SSM path. We should accept both.
 	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
 	ids := map[string][]Variant{}
+	allNotFound := true
+	var lastErr error
 	for path, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard, VariantNeuron},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
@@ -56,13 +59,27 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			if !errors.IsNotFound(err) {
+				allNotFound = false
+				lastErr = err
+			}
 			continue
 		}
 		ids[imageID] = variants
 	}
-	// Failed to discover any AMIs, we should short circuit AMI discovery
+	// Failed to discover any AMIs. If every error was NotFound, the alias truly has no
+	// matching AMI and we short-circuit with a terminal AMIsNotDiscoveredForAliasError.
+	// If any error was transient (throttling, 5xx, timeout), return a non-typed error so
+	// the controller requeues without flipping AMIsReady to False.
 	if len(ids) == 0 {
-		return DescribeImageQuery{}, serrors.Wrap(fmt.Errorf(`failed to discover any AMIs for alias`), "alias", fmt.Sprintf("bottlerocket@%s", amiVersion))
+		if allNotFound {
+			return DescribeImageQuery{}, serrors.Wrap(&AMIsNotDiscoveredForAliasError{
+				error: fmt.Errorf("failed to discover any AMIs for alias"),
+			}, "alias", fmt.Sprintf("bottlerocket@%s", amiVersion))
+		}
+		return DescribeImageQuery{}, serrors.Wrap(
+			fmt.Errorf("resolving ssm parameters for alias: %w", lastErr),
+			"alias", fmt.Sprintf("bottlerocket@%s", amiVersion))
 	}
 
 	return DescribeImageQuery{
