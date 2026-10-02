@@ -86,6 +86,22 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.15.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* **Breaking:** the `reason` label on the `karpenter_nodepool_allowed_disruptions` and `karpenter_nodepool_nodes_consuming_budgets` metrics is now emitted in lowercase (for example `underutilized` instead of `Underutilized`), matching the `reason` label on Karpenter's other disruption metrics. Update any dashboards or alerts that filter these two metrics by a capitalized `reason` value.
+* **Breaking:** [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) (alpha, `NodeRepair` feature gate) is now a graceful disruption method. Instead of forcefully terminating an unhealthy node, Karpenter pre-spins a replacement, respects [NodePool Disruption Budgets]({{<ref "../concepts/disruption#nodepool-disruption-budgets" >}}) under the new `Unhealthy` reason, and drains the node while respecting PDBs. The drain is bounded by a per-condition termination grace period; see [Monitored Node Conditions]({{<ref "../concepts/disruption#monitored-node-conditions" >}}). Use the new `karpenter.sh/do-not-repair: "true"` node annotation to opt individual nodes out of repair. With the default budget (`nodes: 10%`), Karpenter repairs at most 10% of a NodePool's nodes at a time. The CRD adds `Unhealthy` to the budget `reasons` enum, so upgrade your CRDs alongside the controller. See [CRD Upgrades](#crd-upgrades) above.
+* **Breaking:** the `error` label on the `karpenter_cloudprovider_errors_total` metric now uses `unknown` instead of an empty string for errors that don't match a well-known category. Update any dashboards or alerts that filter this metric by an empty `error` value.
+* This version adds the `TerminateFirstDrift` and `TerminateFirstRepair` alpha feature gates for [Terminate-First Disruption]({{<ref "../concepts/disruption#terminate-first-disruption" >}}). When enabled, Karpenter can drift or repair nodes in full capacity reservations and in static NodePools at their node limit by terminating them before launching their replacement. Both gates are disabled by default.
+
+Full Changelog:
+* https://github.com/aws/karpenter-provider-aws/releases/tag/v1.15.0
+* https://github.com/kubernetes-sigs/karpenter/releases/tag/v1.15.0
+
 ### Upgrading to `1.14.0`+
 
 {{% alert title="Warning" color="warning" %}}

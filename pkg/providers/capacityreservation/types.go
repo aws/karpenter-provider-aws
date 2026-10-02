@@ -171,7 +171,9 @@ func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int 
 	return entry.(*availabilityCacheEntry).count
 }
 
-// TODO: Determine better abstraction for setting availability in tests without reconciling the nodeclass controller
+// SetAvailableInstanceCount forces the cached availability for a reservation. The launch path uses it to zero a
+// reservation on a ReservationCapacityExceeded error (so a shared ODCR filled out-of-band stops being selected before
+// the next EC2 sync); tests also use it to seed availability without reconciling the nodeclass controller.
 func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, count int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -179,16 +181,4 @@ func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, coun
 		count:    count,
 		syncTime: c.clk.Now(),
 	})
-}
-
-func (c *availabilityCache) MarkUnavailable(reservationIDs ...string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, id := range reservationIDs {
-		entry, ok := c.cache.Get(id)
-		if !ok {
-			continue
-		}
-		entry.(*availabilityCacheEntry).count = 0
-	}
 }
