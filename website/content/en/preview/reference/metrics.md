@@ -18,6 +18,7 @@ Score of balanced consolidation moves. Labeled by decision, NodePool, and policy
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -29,6 +30,7 @@ Number of balanced consolidation moves. Labeled by decision, NodePool, and polic
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -101,17 +103,21 @@ The number of nodes for a given NodePool that can be concurrently disrupting at 
 ## Nodeclaims Metrics
 
 ### `karpenter_nodeclaims_unhealthy_disrupted_total`
-Number of unhealthy nodeclaims disrupted in total by Karpenter. Labeled by the condition the node was disrupted on, the owning nodepool, the capacity type, and the image ID.
+Number of unhealthy nodeclaims disrupted in total by node repair. Labeled by the condition the node was disrupted on, the owning nodepool, the capacity type, the image ID, and the termination mode.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
 - Stability Level: ALPHA
 - Dimensions:
-  - `condition` — The node status condition type that failed the repair health check and triggered disruption.
+  - `condition` — The node status condition type that triggered node repair disruption.
   - `nodepool` — The name of the NodePool that owns the resource.
   - `capacity_type` — The capacity type of the instance.
     - `on-demand` — On-demand capacity.
     - `spot` — Spot capacity, which can be reclaimed by the cloud provider.
     - `reserved` — Reserved capacity, backed by a capacity reservation.
   - `image_id` — The image ID of the node that was disrupted.
+  - `termination_mode` — The termination mode used to disrupt the node.
+    - `graceful` — The NodeClaim has no terminationGracePeriod, so termination respects blocking pod PDBs and the do-not-disrupt annotation.
+    - `eventual` — The NodeClaim has a positive terminationGracePeriod, so termination is bounded by it and overrides blocking pod PDBs and the do-not-disrupt annotation.
+    - `forceful` — The NodeClaim has a zero (non-positive) terminationGracePeriod, so it is terminated immediately.
 
 ### `karpenter_nodeclaims_termination_duration_seconds`
 Duration of NodeClaim termination in seconds.
