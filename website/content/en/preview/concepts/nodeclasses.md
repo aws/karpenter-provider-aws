@@ -270,13 +270,16 @@ These are all optional and provide support for additional customization and use 
 Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
 
-Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version are configurable. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
+Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version is configurable. This version of Karpenter is built against `k8s.io/kubelet` `v0.37.0`, so the fields of the Kubernetes `1.37` `KubeletConfiguration` are accepted. Karpenter doesn't check fields against your nodes' Kubernetes version: a field newer than the kubelet running on the node is accepted by Karpenter but ignored by the kubelet, which only logs a message at startup. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
 `kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
 unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
 configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
 
 Field names and values are validated by Karpenter, so an invalid
-configuration is accepted on apply and reported on the EC2NodeClass afterwards:
+configuration is accepted on apply and reported on the EC2NodeClass afterwards. In addition to
+checking field names and types, Karpenter validates the keys and values of `evictionHard`,
+`evictionSoft`, `evictionSoftGracePeriod`, and `evictionMinimumReclaim`, and rejects
+`registerWithTaints`, which Karpenter sets itself from the NodeClaim's taints:
 
 ```sh
 kubectl get ec2nodeclass default -o jsonpath='{.status.conditions[?(@.type=="ValidationSucceeded")]}'
@@ -478,7 +481,7 @@ Rounding is always *up*, so a reservation is never smaller than the expression a
 Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSucceeded` status condition. They are not rejected at admission. Validation happens in two stages:
 
 1. **Compile-time**, per expression: the expression must parse, type-check against the available variables, and return an int or double. Failures set reason `KubeletExpressionInvalid`.
-2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvalFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
+2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvaluationFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
 
 A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended*. Ensure to test expressions against your target instance types before applying them to a live cluster.
 
@@ -2062,5 +2065,15 @@ NodeClasses have the following status conditions:
 | PlacementGroupReady  | Referenced placement groups are discovered.                                                                                                                                                                                       |
 | CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
+
+The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet`]({{< ref "#speckubelet" >}}):
+
+| Reason                              | Description                                                                                                                                                       |
+|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| InvalidKubeletConfiguration         | `spec.kubelet` has an unknown field, a value of the wrong type, or a value that fails Karpenter's semantic checks.                                                |
+| KubeletExpressionsDisabled          | `spec.kubelet` contains a [CEL expression]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}), but the `NodeClassCEL` feature gate is disabled.       |
+| KubeletExpressionInvalid            | A kubelet expression fails to compile or type-check.                                                                                                              |
+| UnsupportedKubeletConfiguration     | `spec.kubelet` sets a field the NodeClass's AMI family doesn't apply. See [AMI Family Support]({{< ref "#ami-family-support" >}}).                               |
+| KubeletExpressionEvaluationFailed   | A kubelet expression fails to evaluate, or produces an unusable value, for at least one known instance type.                                                     |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.
