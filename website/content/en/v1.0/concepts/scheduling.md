@@ -123,6 +123,20 @@ spec:
 Security groups for pods are [currently unsupported for Windows nodes](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html)
 {{% /alert %}}
 
+### DaemonSet overhead
+
+When Karpenter calculates the size of a node for a set of pending pods, it adds the resource requests of every DaemonSet that would run on that node to the pods' own requests, and picks an instance type large enough for the total.
+
+This overhead is only used to size the node.
+Karpenter does not reserve that capacity on the node after it joins the cluster, and it does not bind pods itself.
+
+{{% alert title="Note" color="primary" %}}
+Options to help DaemonSet pods get that capacity include:
+
+* [Startup taints]({{<ref "./nodepools/#spectemplatespecstartuptaints" >}}) will keep workload pods off the node until an external agent removes them, so DaemonSets that tolerate those taints will schedule first.
+* Setting a sufficiently high [PriorityClass](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/) on your DaemonSet pods will cause kube-scheduler to preempt lower-priority pods to make room for them. This is best-effort: pods of equal or higher priority will never be preempted, and PodDisruptionBudgets are only honored on a best-effort basis.
+{{% /alert %}}
+
 ## Selecting nodes
 
 With `nodeSelector` you can ask for a node that matches selected key-value pairs.
