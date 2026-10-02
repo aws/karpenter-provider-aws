@@ -249,6 +249,12 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
+    # -- terminateFirstDrift is ALPHA and is disabled by default.
+    # Setting this to true lets drift terminate a node before launching its replacement on a capacity-constrained NodePool.
+    terminateFirstDrift: false
+    # -- terminateFirstRepair is ALPHA and is disabled by default.
+    # Setting this to true lets repair terminate an unhealthy node before launching its replacement on a capacity-constrained NodePool.
+    terminateFirstRepair: false
   # -- AWS-specific Feature Gate configuration values.
   awsFeatureGates:
     # -- nodeClassCEL is ALPHA and is disabled by default.
