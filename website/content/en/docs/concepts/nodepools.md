@@ -231,6 +231,7 @@ As a result, NodeClaims created for the same static NodePool could result in dif
 - key: `karpenter.k8s.aws/instance-category`
 - key: `karpenter.k8s.aws/instance-generation`
 - key: `karpenter.k8s.aws/instance-capability-flex`
+- key: `karpenter.k8s.aws/instance-capability-nested-virtualization`
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 

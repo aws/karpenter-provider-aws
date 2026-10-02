@@ -172,6 +172,9 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.ProcessorInfo.Manufacturer))
 	fmt.Fprintf(src, "SupportedArchitectures: []ec2types.ArchitectureType{%s},\n", getStringSliceData(info.ProcessorInfo.SupportedArchitectures))
 	fmt.Fprintf(src, "SustainedClockSpeedInGhz: aws.Float64(%f),\n", lo.FromPtr(info.ProcessorInfo.SustainedClockSpeedInGhz))
+	if len(info.ProcessorInfo.SupportedFeatures) != 0 {
+		fmt.Fprintf(src, "SupportedFeatures: []ec2types.SupportedAdditionalProcessorFeature{%s},\n", getStringSliceData(info.ProcessorInfo.SupportedFeatures))
+	}
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "VCpuInfo: &ec2types.VCpuInfo{\n")
 	fmt.Fprintf(src, "DefaultCores: aws.Int32(%d),\n", lo.FromPtr(info.VCpuInfo.DefaultCores))
@@ -284,6 +287,6 @@ func getGPUDeviceInfo(info ec2types.GpuDeviceInfo) string {
 	return src.String()
 }
 
-func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType | ec2types.PlacementGroupStrategy](slice []T) string {
+func getStringSliceData[T ec2types.UsageClassType | ec2types.VirtualizationType | ec2types.ArchitectureType | ec2types.PlacementGroupStrategy | ec2types.SupportedAdditionalProcessorFeature](slice []T) string {
 	return strings.Join(lo.Map(slice, func(s T, _ int) string { return fmt.Sprintf(`"%s"`, s) }), ",")
 }
