@@ -23,6 +23,8 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -30,6 +32,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -79,6 +82,25 @@ var _ = Describe("CEL/Validation", func() {
 	It("should fail if not specifying one of instance profile and role", func() {
 		nc.Spec.Role = ""
 		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+	})
+	DescribeTable("should accept valid enclave options",
+		func(enclaveOptions *v1.EnclaveOptions) {
+			nc.Spec.EnclaveOptions = enclaveOptions
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		},
+		Entry("when omitted", (*v1.EnclaveOptions)(nil)),
+		Entry("when enabled", &v1.EnclaveOptions{Enabled: true}),
+		Entry("when disabled", &v1.EnclaveOptions{Enabled: false}),
+	)
+	It("should reject enclave options when enabled is omitted", func() {
+		data, err := json.Marshal(nc)
+		Expect(err).ToNot(HaveOccurred())
+		object := map[string]any{}
+		Expect(json.Unmarshal(data, &object)).To(Succeed())
+		Expect(unstructured.SetNestedMap(object, map[string]any{}, "spec", "enclaveOptions")).To(Succeed())
+		unstructuredNC := &unstructured.Unstructured{Object: object}
+		unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
+		Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
 	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
