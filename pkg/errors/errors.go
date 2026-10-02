@@ -15,6 +15,7 @@ limitations under the License.
 package errors
 
 import (
+	stderrors "errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -32,9 +33,13 @@ const (
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
 	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
+	InvalidUserDataMalformedCode                   = "InvalidUserData.Malformed"
 )
 
 var (
+	// ErrNitroEnclavesDisabled indicates that an EC2NodeClass explicitly disables Nitro Enclaves requested by a NodeClaim.
+	ErrNitroEnclavesDisabled = stderrors.New("EC2NodeClass disables Nitro Enclaves")
+
 	// This is not an exhaustive list, add to it as needed
 	notFoundErrorCodes = sets.New(
 		"InvalidCapacityReservationId.NotFound",
@@ -60,6 +65,7 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
 	)
 )
@@ -218,10 +224,23 @@ func IsInstanceProfileNotFound(err error) bool {
 	return false
 }
 
-// ToReasonMessage converts an error message from AWS into a well-known condition reason
-// and well-known condition message that can be used for Launch failure classification
+func IsUserDataTooLarge(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == InvalidUserDataMalformedCode && strings.Contains(apiErr.ErrorMessage(), "User data is limited to")
+	}
+	return false
+}
+
+// ToReasonMessage converts an instance launch error into a well-known condition reason
+// and well-known condition message that can be used for launch failure classification
 // nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
+	if stderrors.Is(err, ErrNitroEnclavesDisabled) {
+		return "NitroEnclavesDisabled", "EC2NodeClass disables Nitro Enclaves while the NodeClaim requests eks.amazonaws.com/nitro-sandbox"
+	}
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
 		return "SpotSLRCreationFailed", "User does not have sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"
 	}
@@ -245,6 +264,9 @@ func ToReasonMessage(err error) (string, string) {
 	}
 	if strings.Contains(err.Error(), "InvalidLaunchTemplateId.NotFound") {
 		return "LaunchTemplateNotFound", "Launch template used for instance launch wasn't found"
+	}
+	if strings.Contains(err.Error(), "User data is limited to") {
+		return "UserDataSizeLimitExceeded", "Rendered user data exceeds the EC2 user data size limit"
 	}
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
 		return "InvalidAMIID", "AMI used for instance launch is invalid"

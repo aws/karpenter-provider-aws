@@ -16,6 +16,7 @@ package launchtemplate
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net"
@@ -172,7 +173,7 @@ func (p *DefaultProvider) EnsureAll(
 			}
 		}
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tenancyType, opts, pgID, pgPartition)
 	if err != nil {
 		return nil, err
 	}
@@ -277,6 +278,14 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	userData, err := options.UserData.Script(ctx)
 	if err != nil {
 		return ec2types.LaunchTemplate{}, err
+	}
+	// EC2 enforces its limit against the decoded bytes, so measure those rather than the base64 string.
+	if raw, err := base64.StdEncoding.DecodeString(userData); err == nil {
+		UserDataBytes.Set(float64(len(raw)), map[string]string{nodeClassLabel: options.NodeClassName})
+		if len(raw) >= userDataWarnBytes {
+			log.FromContext(ctx).Info("rendered user data is approaching the EC2 user data size limit",
+				"userdata-bytes", len(raw), "warn-threshold", userDataWarnBytes, "limit", userDataMaxBytes)
+		}
 	}
 	createLaunchTemplateInput := NewCreateLaunchTemplateInputBuilder(options, p.ClusterIPFamily, userData).WithLaunchModeProvider(p).Build(ctx)
 	output, err := p.ec2api.CreateLaunchTemplate(ctx, createLaunchTemplateInput)
@@ -519,6 +528,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 	if len(ltNames) > 0 {
 		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(lo.FromSlicePtr(ltNames), 5)).V(1).Info("deleted launch templates")
 	}
+	UserDataBytes.Delete(map[string]string{nodeClassLabel: nodeClass.Name})
 	if deleteErr != nil {
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
 	}

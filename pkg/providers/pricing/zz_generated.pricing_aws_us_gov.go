@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-07-20T13:44:38Z for us-east-1
+// generated at 2026-08-24T13:29:56Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -67,6 +67,10 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"c7i.12xlarge": 2.570400, "c7i.16xlarge": 3.427200, "c7i.24xlarge": 5.140800, "c7i.2xlarge": 0.428400,
 		"c7i.48xlarge": 10.281600, "c7i.4xlarge": 0.856800, "c7i.8xlarge": 1.713600, "c7i.large": 0.107100,
 		"c7i.metal-24xl": 5.654880, "c7i.metal-48xl": 10.281600, "c7i.xlarge": 0.214200,
+		// c8g family
+		"c8g.12xlarge": 2.289120, "c8g.16xlarge": 3.052160, "c8g.24xlarge": 4.578240, "c8g.2xlarge": 0.381520,
+		"c8g.48xlarge": 9.156480, "c8g.4xlarge": 0.763040, "c8g.8xlarge": 1.526080, "c8g.large": 0.095380,
+		"c8g.medium": 0.047690, "c8g.metal-24xl": 5.036060, "c8g.metal-48xl": 9.156480, "c8g.xlarge": 0.190760,
 		// c8gn family
 		"c8gn.12xlarge": 3.423400, "c8gn.16xlarge": 4.564500, "c8gn.24xlarge": 6.846700, "c8gn.2xlarge": 0.570600,
 		"c8gn.4xlarge": 1.141100, "c8gn.8xlarge": 2.282200, "c8gn.large": 0.142600, "c8gn.medium": 0.071300,

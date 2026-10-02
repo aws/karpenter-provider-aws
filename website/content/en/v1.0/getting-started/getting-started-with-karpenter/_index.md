@@ -33,9 +33,9 @@ via a ServiceAccount.
 
 Install these tools before proceeding:
 
-1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
+1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html) (>= v2.36.21)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` (>= v0.191.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
+3. `eksctl` (>= v0.230.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
@@ -78,6 +78,7 @@ The following cluster configuration will:
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
 * Set KARPENTER_IAM_ROLE_ARN variables.
 * Create a role to allow spot instances.
+* Configure the cluster's `kube-scheduler` to use the `MostAllocated` scoring strategy so it packs pods onto fewer nodes, complementing Karpenter's bin-packing and consolidation for higher utilization and lower cost. See [kube-scheduler settings]({{<ref "../../concepts/scheduling#kube-scheduler-settings" >}}).
 * Run Helm to install Karpenter
 
 {{< tabpane text=true right=false >}}

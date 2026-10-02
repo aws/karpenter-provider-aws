@@ -77,6 +77,7 @@ func main() {
 			overlayUndecoratedCloudProvider,
 			clusterState,
 			op.InstanceTypeStore,
+			op.PredictionStore,
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
@@ -106,6 +107,7 @@ func main() {
 			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,
 			lo.ToPtr(""),
+			op.CELEnvironment,
 		)...).
 		Start(ctx)
 	wg.Wait()

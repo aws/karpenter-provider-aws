@@ -305,10 +305,18 @@ var _ = Describe("Drift", Ordered, func() {
 			AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}},
 		}),
 		Entry("KubeletConfiguration", v1.EC2NodeClassSpec{
-			Kubelet: &v1.KubeletConfiguration{
-				EvictionSoft:            map[string]string{"memory.available": "5%"},
-				EvictionSoftGracePeriod: map[string]metav1.Duration{"memory.available": {Duration: time.Minute}},
-			},
+			Kubelet: test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"evictionSoft":            map[string]string{"memory.available": "5%"},
+				"evictionSoftGracePeriod": map[string]string{"memory.available": "1m0s"},
+			}),
+		}),
+		// Drift keys off the NodeClass spec, so adding a maxPods CEL expression must drift the node even
+		// though the expression is only resolved to a concrete value later. Requires the NodeClassCEL gate,
+		// which the e2e install enables via test/hack/e2e_scripts/install_karpenter.sh.
+		Entry("KubeletConfiguration with a CEL expression", v1.EC2NodeClassSpec{
+			Kubelet: test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": "min(110, vcpus * 20)",
+			}),
 		}),
 		Entry("NetworkInterfaces", v1.EC2NodeClassSpec{
 			NetworkInterfaces: []*v1.NetworkInterface{

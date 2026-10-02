@@ -51,11 +51,21 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
-		// mac-m3ultra.metal is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
 		// r3.large has vague bandwidth information, bandwidth is Moderate
 		// r3.xlarge has vague bandwidth information, bandwidth is Moderate
+		// r9gd.12xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.24xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.48xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.8xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.medium is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.metal-48xl is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// t1.micro has vague bandwidth information, bandwidth is Very Low
 		// t2.2xlarge has vague bandwidth information, bandwidth is Moderate
 		// t2.large has vague bandwidth information, bandwidth is Low to Moderate
@@ -584,6 +594,7 @@ var (
 		"m5ad.12xlarge":        10000,
 		"m5d.8xlarge":          10000,
 		"m5zn.2xlarge":         10000,
+		"mac-m3ultra.metal":    10000,
 		"mac-m4.metal":         10000,
 		"mac-m4max.metal":      10000,
 		"mac-m4pro.metal":      10000,
@@ -973,6 +984,7 @@ var (
 		"d3en.6xlarge":         40000,
 		"g5.12xlarge":          40000,
 		"g6.12xlarge":          40000,
+		"g7.2xlarge":           40000,
 		"m8a.24xlarge":         40000,
 		"m8a.metal-24xl":       40000,
 		"m8g.24xlarge":         40000,
@@ -1107,8 +1119,6 @@ var (
 		"i7i.metal-24xl":       56250,
 		"i8g.24xlarge":         56250,
 		"i8g.metal-24xl":       56250,
-		"g7.2xlarge":           60000,
-		"g7.4xlarge":           60000,
 		"c8gb.8xlarge":         66660,
 		"c8ib.16xlarge":        66660,
 		"m8gb.8xlarge":         66660,
@@ -1163,7 +1173,7 @@ var (
 		"x8aedz.metal-24xl":    75000,
 		"x8i.48xlarge":         75000,
 		"x8i.metal-48xl":       75000,
-		"g7.8xlarge":           80000,
+		"g7.4xlarge":           80000,
 		"x8i.64xlarge":         80000,
 		"i8g.metal-48xl":       90000,
 		"c5n.18xlarge":         100000,
@@ -1189,6 +1199,7 @@ var (
 		"g5.48xlarge":          100000,
 		"g6.48xlarge":          100000,
 		"g6e.12xlarge":         100000,
+		"g7.8xlarge":           100000,
 		"g7e.8xlarge":          100000,
 		"hpc6a.48xlarge":       100000,
 		"i3en.24xlarge":        100000,
