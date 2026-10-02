@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	"github.com/patrickmn/go-cache"
@@ -131,7 +132,7 @@ below are the resources available with some assumptions and after the instance o
 	for _, region := range []string{"us-east-1", "us-east-2", "us-west-2"} {
 		cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRegion(region)))
 		ec2api := ec2.NewFromConfig(cfg)
-		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval))
+		subnetProvider := subnet.NewDefaultProvider(ec2api, eks.NewFromConfig(cfg), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval))
 		celEnv := lo.Must(kubeletcel.NewEnvironment())
 		instanceTypeProvider := instancetype.NewDefaultProvider(
 			cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),

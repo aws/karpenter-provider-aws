@@ -16,6 +16,7 @@ package subnet_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"testing"
@@ -25,11 +26,16 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	gocache "github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -454,6 +460,136 @@ var _ = Describe("SubnetProvider", func() {
 			))
 		})
 	})
+	Context("Cluster VPC Scoping", func() {
+		var subnetProvider *subnet.DefaultProvider
+		var subnetCache *gocache.Cache
+		clusterVPCFilter := ec2types.Filter{Name: lo.ToPtr("vpc-id"), Values: []string{"vpc-test1"}}
+		clusterVPCSubnet := ec2types.Subnet{
+			SubnetId:                lo.ToPtr("subnet-cluster-vpc"),
+			AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+			AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+			AvailableIpAddressCount: lo.ToPtr[int32](10),
+			VpcId:                   lo.ToPtr("vpc-test1"),
+			Tags:                    []ec2types.Tag{{Key: lo.ToPtr("karpenter.sh/discovery"), Value: lo.ToPtr("test-cluster")}},
+		}
+		otherVPCSubnet := ec2types.Subnet{
+			SubnetId:                lo.ToPtr("subnet-other-vpc"),
+			AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+			AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
+			AvailableIpAddressCount: lo.ToPtr[int32](1000),
+			VpcId:                   lo.ToPtr("vpc-other"),
+			Tags:                    []ec2types.Tag{{Key: lo.ToPtr("karpenter.sh/discovery"), Value: lo.ToPtr("other-cluster")}},
+		}
+		wildcardTagFilter := ec2types.Filter{Name: lo.ToPtr("tag-key"), Values: []string{"karpenter.sh/discovery"}}
+
+		BeforeEach(func() {
+			// The resolved cluster VPC is cached on the provider and isn't cleared by awsEnv.Reset()
+			subnetCache = gocache.New(gocache.NoExpiration, gocache.NoExpiration)
+			subnetProvider = subnet.NewDefaultProvider(awsEnv.EC2API, awsEnv.EKSAPI, subnetCache, gocache.New(gocache.NoExpiration, gocache.NoExpiration))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{ClusterEndpoint: lo.ToPtr("")}))
+			awsEnv.EC2API.Subnets.Store(lo.FromPtr(clusterVPCSubnet.SubnetId), clusterVPCSubnet)
+			awsEnv.EC2API.Subnets.Store(lo.FromPtr(otherVPCSubnet.SubnetId), otherVPCSubnet)
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": "*"}}}
+		})
+		It("should not scope discovery or call DescribeCluster when the cluster endpoint is set explicitly", func() {
+			ctx = options.ToContext(ctx, test.Options())
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("not an EKS cluster"))
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet, otherVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter)))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+		})
+		It("should scope tag-based discovery to the cluster VPC when the cluster endpoint is discovered", func() {
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+		})
+		It("should scope tag-based discovery to the cluster VPC when eksControlPlane is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{EKSControlPlane: lo.ToPtr(true)}))
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(ConsistOf(wildcardTagFilter, clusterVPCFilter)))
+		})
+		It("should scope every tag-based term to the cluster VPC", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{Tags: map[string]string{"karpenter.sh/discovery": "test-cluster"}},
+				{Tags: map[string]string{"karpenter.sh/discovery": "other-cluster"}},
+			}
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("tag:karpenter.sh/discovery"), Values: []string{"test-cluster"}}, clusterVPCFilter),
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("tag:karpenter.sh/discovery"), Values: []string{"other-cluster"}}, clusterVPCFilter),
+			))
+		})
+		It("should not scope discovery or call DescribeCluster for ID-only selectors", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{ID: "subnet-other-vpc"}}
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("failed to describe cluster"))
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{otherVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(ConsistOf(ec2types.Filter{Name: lo.ToPtr("subnet-id"), Values: []string{"subnet-other-vpc"}})))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(0))
+		})
+		It("should only scope the tag-based terms of a mixed selector and return the union", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{ID: "subnet-other-vpc"},
+				{ID: "subnet-cluster-vpc"},
+				{Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet, otherVPCSubnet}, subnets)
+			Expect(describeSubnetsFilters()).To(ConsistOf(
+				ConsistOf(wildcardTagFilter, clusterVPCFilter),
+				ConsistOf(ec2types.Filter{Name: lo.ToPtr("subnet-id"), Values: []string{"subnet-other-vpc", "subnet-cluster-vpc"}}),
+			))
+		})
+		It("should fail a mixed selector instead of returning only the ID-based subnets when DescribeCluster fails", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{ID: "subnet-other-vpc"},
+				{Tags: map[string]string{"karpenter.sh/discovery": "*"}},
+			}
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("AccessDeniedException"))
+			_, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(0))
+		})
+		DescribeTable("should fail without falling back to unscoped discovery when DescribeCluster returns no VPC ID",
+			func(output *eks.DescribeClusterOutput) {
+				awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(output)
+				_, err := subnetProvider.List(ctx, nodeClass)
+				Expect(err).To(HaveOccurred())
+				Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(0))
+			},
+			Entry("no cluster", &eks.DescribeClusterOutput{}),
+			Entry("no VPC config", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{}}),
+			Entry("no VPC ID", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{ResourcesVpcConfig: &ekstypes.VpcConfigResponse{}}}),
+			Entry("empty VPC ID", &eks.DescribeClusterOutput{Cluster: &ekstypes.Cluster{ResourcesVpcConfig: &ekstypes.VpcConfigResponse{VpcId: lo.ToPtr("")}}}),
+		)
+		It("should retry resolving the cluster VPC after a failure", func() {
+			awsEnv.EKSAPI.DescribeClusterBehavior.Error.Set(fmt.Errorf("ThrottlingException"), fake.MaxCalls(1))
+			_, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			subnets, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			ExpectConsistsOfSubnets([]ec2types.Subnet{clusterVPCSubnet}, subnets)
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(2))
+		})
+		It("should keep the resolved cluster VPC when subnets are refreshed", func() {
+			_, err := subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			subnetCache.Flush()
+			_, err = subnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
+			Expect(awsEnv.EKSAPI.DescribeClusterBehavior.Calls()).To(Equal(1))
+		})
+	})
 	It("should not cause data races when calling List() simultaneously", func() {
 		wg := sync.WaitGroup{}
 		for range 10000 {
@@ -548,6 +684,14 @@ var _ = Describe("SubnetProvider", func() {
 		wg.Wait()
 	})
 })
+
+func describeSubnetsFilters() [][]ec2types.Filter {
+	var filters [][]ec2types.Filter
+	awsEnv.EC2API.DescribeSubnetsBehavior.CalledWithInput.ForEach(func(input *ec2.DescribeSubnetsInput) {
+		filters = append(filters, input.Filters)
+	})
+	return filters
+}
 
 func ExpectConsistsOfSubnets(expected, actual []ec2types.Subnet) {
 	GinkgoHelper()
