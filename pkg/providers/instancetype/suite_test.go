@@ -55,6 +55,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
@@ -64,6 +65,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -96,7 +98,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -276,8 +278,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -331,7 +331,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and placement group labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -344,8 +344,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
-					// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-					v1.LabelInstanceNitroEnclavesSupported,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -392,7 +390,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -405,8 +403,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -972,7 +968,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should not set pods to 110 if using ENI-based pod density", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+		kc := &v1.ParsedKubeletConfig{}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -982,12 +979,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPodsInt(),
-				nodeClass.Spec.Kubelet.PodsPerCore,
-				nodeClass.Spec.Kubelet.KubeReserved,
-				nodeClass.Spec.Kubelet.SystemReserved,
-				nodeClass.Spec.Kubelet.EvictionHard,
-				nodeClass.Spec.Kubelet.EvictionSoft,
+				maxPodsOf(kc),
+				kc.PodsPerCore,
+				kc.KubeReserved,
+				kc.SystemReserved,
+				kc.EvictionHard,
+				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
 			)
@@ -997,7 +994,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should set pods to 110 if AMI Family doesn't support", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
-		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+		kc := &v1.ParsedKubeletConfig{}
+		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 		for _, info := range instanceInfo.InstanceTypes {
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1007,12 +1005,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 				windowsNodeClass.Spec.BlockDeviceMappings,
 				windowsNodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPodsInt(),
-				nodeClass.Spec.Kubelet.PodsPerCore,
-				nodeClass.Spec.Kubelet.KubeReserved,
-				nodeClass.Spec.Kubelet.SystemReserved,
-				nodeClass.Spec.Kubelet.EvictionHard,
-				nodeClass.Spec.Kubelet.EvictionSoft,
+				maxPodsOf(kc),
+				kc.PodsPerCore,
+				kc.KubeReserved,
+				kc.SystemReserved,
+				kc.EvictionHard,
+				kc.EvictionSoft,
 				windowsNodeClass.AMIFamily(),
 				nil,
 			)
@@ -1084,7 +1082,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+				kc := &v1.ParsedKubeletConfig{}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1093,12 +1092,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1107,13 +1106,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("0"))
 			})
 			It("should override system reserved cpus when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceCPU):              "2",
 						string(corev1.ResourceMemory):           "20Gi",
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1122,12 +1122,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1138,7 +1138,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Context("Kube Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+				kc := &v1.ParsedKubeletConfig{}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1147,12 +1148,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1161,7 +1162,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("1Gi"))
 			})
 			It("should override kube reserved when specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceCPU):              "1",
 						string(corev1.ResourceMemory):           "20Gi",
@@ -1173,6 +1174,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						string(corev1.ResourceEphemeralStorage): "2Gi",
 					},
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1181,12 +1183,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1203,7 +1205,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Context("Eviction Hard", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1214,6 +1216,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1222,19 +1225,19 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1245,6 +1248,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1253,19 +1257,19 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1276,6 +1280,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1284,19 +1289,19 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 				})
 				It("should used default eviction threshold for memory when evictionHard not specified", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1307,6 +1312,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "50Mi",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1315,12 +1321,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1329,7 +1335,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Context("Eviction Soft", func() {
 				It("should use default threshold when only evictionSoft is specified", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1340,6 +1346,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1348,19 +1355,19 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				})
 				It("should use evictionHard percentage and ignore evictionSoft percentage", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1374,6 +1381,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1382,19 +1390,19 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 				})
 				It("should use default threshold when evictionSoft is 100% (ignored)", func() {
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1405,6 +1413,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1413,12 +1422,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1426,7 +1435,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+					kc := &v1.ParsedKubeletConfig{
 						SystemReserved: map[string]string{
 							string(corev1.ResourceMemory): "20Gi",
 						},
@@ -1440,6 +1449,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							instancetype.MemoryAvailable: "10Gi",
 						},
 					}
+					nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 					it := instancetype.NewInstanceType(ctx,
 						info,
 						fake.DefaultRegion,
@@ -1448,12 +1458,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1461,7 +1471,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				})
 			})
 			It("should take the default eviction threshold when none is specified", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+				kc := &v1.ParsedKubeletConfig{}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1470,12 +1481,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1484,7 +1495,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
 			It("should use only evictionHard for overhead, ignoring evictionSoft", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
 					},
@@ -1498,6 +1509,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1506,12 +1518,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1519,7 +1531,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 			})
 			It("should use only evictionHard percentage for overhead, ignoring evictionSoft", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
 					},
@@ -1533,6 +1545,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "5%",
 					},
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1541,12 +1554,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1554,7 +1567,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
 			It("should use only evictionHard value with mixed percentage/value types", func() {
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceMemory): "20Gi",
 					},
@@ -1568,6 +1581,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1576,12 +1590,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1592,7 +1606,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should default max pods based off of network interfaces", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+			kc := &v1.ParsedKubeletConfig{}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
@@ -1603,12 +1618,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1623,12 +1638,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1639,9 +1654,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1651,12 +1667,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1675,9 +1691,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				kc := &v1.ParsedKubeletConfig{
 					MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 				}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 				it := instancetype.NewInstanceType(ctx,
 					t3Large,
 					fake.DefaultRegion,
@@ -1686,12 +1703,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1714,9 +1731,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should override max-pods value", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1726,12 +1744,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1753,7 +1771,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+				kc := &v1.ParsedKubeletConfig{}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 
 				it := instancetype.NewInstanceType(ctx,
 					t3Large,
@@ -1763,12 +1782,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1799,7 +1818,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				return info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
+			kc := &v1.ParsedKubeletConfig{}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
 				fake.DefaultRegion,
@@ -1808,12 +1828,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 				nodeClass.Spec.BlockDeviceMappings,
 				nodeClass.Spec.InstanceStorePolicy,
 				nil,
-				nodeClass.Spec.Kubelet.MaxPodsInt(),
-				nodeClass.Spec.Kubelet.PodsPerCore,
-				nodeClass.Spec.Kubelet.KubeReserved,
-				nodeClass.Spec.Kubelet.SystemReserved,
-				nodeClass.Spec.Kubelet.EvictionHard,
-				nodeClass.Spec.Kubelet.EvictionSoft,
+				maxPodsOf(kc),
+				kc.PodsPerCore,
+				kc.KubeReserved,
+				kc.SystemReserved,
+				kc.EvictionHard,
+				kc.EvictionSoft,
 				nodeClass.AMIFamily(),
 				nil,
 			)
@@ -1829,9 +1849,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should override pods-per-core value", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1841,12 +1862,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1858,10 +1879,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should take the minimum of pods-per-core and max-pods", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(4)),
 				MaxPods:     lo.ToPtr(intstr.FromInt32(20)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1871,12 +1893,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1887,9 +1909,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(1)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1899,12 +1922,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					nodeClass.Spec.BlockDeviceMappings,
 					nodeClass.Spec.InstanceStorePolicy,
 					nil,
-					nodeClass.Spec.Kubelet.MaxPodsInt(),
-					nodeClass.Spec.Kubelet.PodsPerCore,
-					nodeClass.Spec.Kubelet.KubeReserved,
-					nodeClass.Spec.Kubelet.SystemReserved,
-					nodeClass.Spec.Kubelet.EvictionHard,
-					nodeClass.Spec.Kubelet.EvictionSoft,
+					maxPodsOf(kc),
+					kc.PodsPerCore,
+					kc.KubeReserved,
+					kc.SystemReserved,
+					kc.EvictionHard,
+					kc.EvictionSoft,
 					nodeClass.AMIFamily(),
 					nil,
 				)
@@ -1915,9 +1938,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			kc := &v1.ParsedKubeletConfig{
 				PodsPerCore: lo.ToPtr(int32(0)),
 			}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(kc)
 			for _, info := range instanceInfo.InstanceTypes {
 				if info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx,
@@ -1928,12 +1952,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -1948,12 +1972,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						nodeClass.Spec.BlockDeviceMappings,
 						nodeClass.Spec.InstanceStorePolicy,
 						nil,
-						nodeClass.Spec.Kubelet.MaxPodsInt(),
-						nodeClass.Spec.Kubelet.PodsPerCore,
-						nodeClass.Spec.Kubelet.KubeReserved,
-						nodeClass.Spec.Kubelet.SystemReserved,
-						nodeClass.Spec.Kubelet.EvictionHard,
-						nodeClass.Spec.Kubelet.EvictionSoft,
+						maxPodsOf(kc),
+						kc.PodsPerCore,
+						kc.KubeReserved,
+						kc.SystemReserved,
+						kc.EvictionHard,
+						kc.EvictionSoft,
 						nodeClass.AMIFamily(),
 						nil,
 					)
@@ -2628,7 +2652,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// kubelet.systemReserved
 			// kubelet.evictionHard
 			// kubelet.maxPods
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
 				KubeReserved:   map[string]string{string(corev1.ResourceCPU): "1"},
 				SystemReserved: map[string]string{string(corev1.ResourceCPU): "1"},
 				EvictionHard:   map[string]string{"memory.available": "5%"},
@@ -2637,12 +2661,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 					"nodefs.available": {Duration: time.Minute},
 				},
 				MaxPods: lo.ToPtr(intstr.FromInt32(10)),
-			}
-			kubeletChanges := []*v1.KubeletConfiguration{
-				{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}},
-				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
-				{EvictionHard: map[string]string{"memory.available": "52%"}},
-				{MaxPods: lo.ToPtr(intstr.FromInt32(20))},
+			})
+			kubeletChanges := []v1.KubeletConfiguration{
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{EvictionHard: map[string]string{"memory.available": "52%"}}),
+				test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(20))}),
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Adding the general set of to the instancetype into the cache
@@ -2653,7 +2677,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 			sorted := nodePool.DeepCopy()
 			for _, change := range kubeletChanges {
 				nodePool = sorted.DeepCopy()
-				Expect(mergo.Merge(nodeClass.Spec.Kubelet, change, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(BeNil())
+				// spec.kubelet is a map, so a change is applied by overriding the keys it sets
+				// and leaving the rest of the configuration in place.
+				for k, v := range change {
+					nodeClass.Spec.Kubelet[k] = v
+				}
 				// Calling the provider and storing the instance type list to the instancetype provider cache
 				_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
@@ -3021,6 +3049,60 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
+		// resolveReservedOffering resolves the instance type list and returns the reserved offering for the given
+		// reservation ID (nil if not present).
+		resolveReservedOffering := func(reservationID string) *corecloudprovider.Offering {
+			GinkgoHelper()
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == crInstanceType })
+			Expect(ok).To(BeTrue())
+			offering, _ := lo.Find(it.Offerings, func(o *corecloudprovider.Offering) bool {
+				return o.CapacityType() == karpv1.CapacityTypeReserved && o.Requirements.Get(v1.LabelCapacityReservationID).Any() == reservationID
+			})
+			return offering
+		}
+		It("should decouple Available (health) from ReservationCapacity (slots) when the reservation is ICE'd", func() {
+			// Baseline: a healthy reservation resolves to Available with its configured capacity.
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeTrue())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+
+			// Mark the reservation ICE'd via the shared unavailable-offerings cache (scoped by reservation ID, the same
+			// channel the launch path uses).
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// Re-resolve: Available flips to false (ICE'd) while ReservationCapacity is untouched (>0), proving the two
+			// axes are independent.
+			offering = resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			Expect(offering.ReservationCapacity).To(BeNumerically(">", 0))
+		})
+		It("should scope reservation ICE by reservation ID so one reservation's unavailability doesn't poison another sharing its instance type and zone", func() {
+			const otherID = "cr-other"
+			// A second reservation sharing crInstanceType + crZone but with a distinct ID.
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(otherID, 1)
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+				AvailabilityZone: crZone,
+				ID:               otherID,
+				InstanceType:     crInstanceType,
+				ReservationType:  v1.CapacityReservationTypeDefault,
+			})
+
+			// Mark ONLY crID unavailable.
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// The ICE'd reservation is Available=false while the other, sharing its instance type + zone, stays Available.
+			icedOffering := resolveReservedOffering(crID)
+			Expect(icedOffering).ToNot(BeNil())
+			Expect(icedOffering.Available).To(BeFalse())
+			otherOffering := resolveReservedOffering(otherID)
+			Expect(otherOffering).ToNot(BeNil())
+			Expect(otherOffering.Available).To(BeTrue())
+		})
 	})
 	It("should mark offerings as unavailable for zones shifted away from", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -3409,9 +3491,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
-	Context("NitroEnclavesSupported", func() {
+	Context("Nitro Enclaves", func() {
 		// makeNitroEnclaveInstanceType returns a minimal ec2types.InstanceTypeInfo for testing
-		// the LabelInstanceNitroEnclavesSupported requirement, parameterized by NitroEnclavesSupport.
+		// Nitro Enclaves compatibility, parameterized by NitroEnclavesSupport.
 		makeNitroEnclaveInstanceType := func(support ec2types.NitroEnclavesSupport) ec2types.InstanceTypeInfo {
 			return ec2types.InstanceTypeInfo{
 				InstanceType:                  "m5.large",
@@ -3465,39 +3547,32 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			})
 		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"true\" when NitroEnclavesSupport is supported", func() {
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportSupported)},
-			})
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("true"))
-		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"false\" when NitroEnclavesSupport is unsupported", func() {
+		It("should isolate cached offering availability by enclave configuration", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
 				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
 			})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
 
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
+			nodeClass.Spec.EnclaveOptions = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
 		})
 	})
 	Context("Offering Resolvers", func() {
@@ -3541,6 +3616,75 @@ var _ = Describe("InstanceTypeProvider", func() {
 					return exists && qty.Value() == 4
 				})
 			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
+		})
+	})
+	Context("Undecodable Kubelet Configuration", func() {
+		// An undecodable spec.kubelet is refused rather than answered from defaults. Substituting defaults
+		// would have Karpenter compute allocatable and pod capacity from values the user never set, so pods
+		// would be packed onto nodes that can't hold them and the node Karpenter asked for would stop
+		// matching the one it gets -- both silently. ValidateKubeletConfig rejects such a config first, so
+		// the user already has the reason on the EC2NodeClass; this is what keeps it from being acted on
+		// anyway in the meantime.
+		BeforeEach(func() {
+			// clusterDNS is a list, so a bare string decodes against the upstream kubelet type's field but
+			// not into ParsedKubeletConfig.
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"clusterDNS": v1.JSONValue("10.0.0.10")}
+		})
+		It("should fail List rather than resolve instance types from defaults", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("parsing spec.kubelet")))
+			Expect(instanceTypes).To(BeNil(), "instance types resolved from defaults would misreport allocatable for every pod scheduled against them")
+		})
+		It("should fail Get rather than resolve an instance type from defaults", func() {
+			instanceType, err := awsEnv.InstanceTypesProvider.Get(ctx, nodeClass, "m5.large")
+			Expect(err).To(MatchError(ContainSubstring("parsing spec.kubelet")))
+			Expect(instanceType).To(BeNil())
+		})
+		It("should resolve normally once the configuration is corrected", func() {
+			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(HaveOccurred())
+			// The failure must not be cached or otherwise sticky: fixing the config has to be enough.
+			nodeClass.Spec.Kubelet = v1.KubeletConfiguration{"clusterDNS": v1.JSONValue([]string{"10.0.0.10"})}
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+		})
+	})
+	Context("Resolver Exclusions", func() {
+		// A resolver returning a nil instance type with no error is declining to offer that instance type at all.
+		// Unlike a resolution failure, that must not fail the whole List - otherwise a resolver that excludes any
+		// instance type takes the entire catalog down with it.
+		It("should skip an excluded instance type and return the rest from List", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := provider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})).To(BeFalse(), "an excluded instance type must not be listed")
+			Expect(lo.SomeBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.xlarge"
+			})).To(BeTrue(), "excluding one instance type must not drop the others")
+		})
+		It("should report a failed lookup from Get for an excluded instance type", func() {
+			provider := newProviderWithResolver(&excludingResolver{
+				delegate:  awsEnv.InstanceTypesResolver,
+				excludeOn: "m5.large",
+			})
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			// Get reports the exclusion as an error rather than returning a nil instance type, since it injects
+			// offerings into the result and its callers dereference it.
+			instanceType, err := provider.Get(ctx, nodeClass, "m5.large")
+			Expect(err).To(MatchError(ContainSubstring("failed to generate instance type m5.large")))
+			Expect(instanceType).To(BeNil())
 		})
 	})
 	Context("Resolution Failures", func() {
@@ -3628,7 +3772,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 					FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 				}))
-				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString(maxPods))}
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": maxPods})
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3645,7 +3789,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString("min(110, vcpus * 8)"))}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "min(110, vcpus * 8)"})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3667,7 +3811,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
 			}))
 			// This expression would evaluate to 7; a gate-off resolution must yield t3.large's default of 35.
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr(intstr.FromString("7"))}
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"maxPods": "7"})
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3679,6 +3823,89 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(ok).To(BeTrue())
 			// t3.large defaults to 35 pods based on its network interfaces.
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+		})
+		It("should resolve kubeReserved expressions into the instance type's reserved overhead", func() {
+			// The failure/gate-off cases above only prove an expression is rejected or dropped. This is the
+			// positive path: a kubeReserved CEL expression must resolve per instance type and land in the
+			// reserved overhead, which is what actually shrinks the node's allocatable.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"kubeReserved": map[string]string{
+					// m5.large has 2 vCPUs and 8192 MiB: cpu -> 60m (already a 10m multiple), memory ->
+					// 8192/100 = 81, rounded up to the next 16Mi -> 96Mi. Static entries in the same map
+					// must pass through untouched alongside the resolved expressions.
+					string(corev1.ResourceCPU):              "vcpus * 30",
+					string(corev1.ResourceMemory):           "memory_mib / 100",
+					string(corev1.ResourceEphemeralStorage): "3Gi",
+				},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("60m"))
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("96Mi"))
+			Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("3Gi"))
+		})
+		It("should evaluate a max_pods reference in kubeReserved against the resolved maxPods expression", func() {
+			// The resolver evaluates maxPods first and threads its result into the reserved-resource CEL vars,
+			// so a kubeReserved expression that references max_pods sees the resolved maxPods -- not the
+			// AMI-family default. This ordering is load-bearing (see DefaultResolver.Resolve); assert it here
+			// so a reordering that fed the default into reserved expressions would be caught.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			// m5.large has 2 vCPUs, so maxPods resolves to min(110, 16) = 16. kubeReserved memory is then
+			// max_pods * 11 = 176 (already a 16Mi multiple). Were max_pods the AMI-family default rather than
+			// the resolved 16, the reserved memory would differ, so 176Mi proves the resolved value was used.
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods":      "min(110, vcpus * 8)",
+				"kubeReserved": map[string]string{string(corev1.ResourceMemory): "max_pods * 11"},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 16))
+			Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("176Mi"))
+		})
+		It("should resolve systemReserved expressions into the instance type's reserved overhead", func() {
+			// systemReserved shares the resolution path with kubeReserved but lands in a different overhead
+			// field via a distinct passthrough (systemReservedResources), so it needs its own positive case.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{
+				// m5.large has 2 vCPUs and 8192 MiB: cpu -> 60m (already a 10m multiple), memory ->
+				// 8192/100 = 81, rounded up to the next 16Mi -> 96Mi.
+				"systemReserved": map[string]string{
+					string(corev1.ResourceCPU):    "vcpus * 30",
+					string(corev1.ResourceMemory): "memory_mib / 100",
+				},
+			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return it.Name == "m5.large"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("60m"))
+			Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("96Mi"))
 		})
 	})
 
@@ -3774,6 +4001,13 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 	return rsp
 }
 
+// maxPodsOf returns the parsed maxPods as the *int32 NewInstanceType takes, dropping a CEL
+// expression that only resolves against a specific instance type.
+func maxPodsOf(kc *v1.ParsedKubeletConfig) *int32 {
+	maxPods, _ := kc.MaxPodsValue()
+	return maxPods
+}
+
 // fakeOfferingResolver is a test resolver that appends offerings with a CapacityOverride.
 type fakeOfferingResolver struct {
 	called       bool
@@ -3809,6 +4043,45 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 	return offerings
 }
 
+// newProviderWithResolver builds an instance type provider backed by the given Resolver, sharing the test
+// environment's caches and dependencies.
+func newProviderWithResolver(resolver instancetype.Resolver) *instancetype.DefaultProvider {
+	return instancetype.NewDefaultProvider(
+		awsEnv.InstanceTypeCache,
+		awsEnv.OfferingCache,
+		awsEnv.DiscoveredCapacityCache,
+		awsEnv.EC2API,
+		awsEnv.SubnetProvider,
+		awsEnv.PricingProvider,
+		awsEnv.CapacityReservationProvider,
+		awsEnv.PlacementGroupProvider,
+		awsEnv.UnavailableOfferingsCache,
+		resolver,
+		awsEnv.ZonalShiftProvider,
+		env.Client,
+		awsEnv.CELEnvironment,
+	)
+}
+
+// excludingResolver is a test Resolver that declines to offer a single named instance type, returning a nil
+// instance type and no error the way a resolver that filters the catalog (e.g. against an allowlist) does.
+// Every other instance type is delegated to the real resolver.
+type excludingResolver struct {
+	delegate  instancetype.Resolver
+	excludeOn ec2types.InstanceType
+}
+
+func (r *excludingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
+	return r.delegate.CacheKey(nodeClass)
+}
+
+func (r *excludingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
+	if info.InstanceType == r.excludeOn {
+		return nil, nil
+	}
+	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
+}
+
 // failingResolver is a test Resolver that fails to resolve a single named instance type, standing in for a
 // per-instance-type resolution failure such as a kubelet CEL expression that can't be evaluated. Every
 // other instance type is delegated to the real resolver so only the targeted failure is exercised.
@@ -3822,9 +4095,9 @@ func (r *failingResolver) CacheKey(nodeClass instancetype.NodeClass) string {
 	return r.delegate.CacheKey(nodeClass)
 }
 
-func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass) (*corecloudprovider.InstanceType, error) {
+func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
 	if info.InstanceType == r.failOn {
 		return nil, fmt.Errorf("%s", r.failureText)
 	}
-	return r.delegate.Resolve(ctx, info, zones, nodeClass)
+	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }

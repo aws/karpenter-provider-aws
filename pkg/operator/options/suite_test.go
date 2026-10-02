@@ -66,19 +66,21 @@ var _ = Describe("Options", func() {
 			"--reserved-enis", "10",
 			"--disable-dry-run",
 			"--ami-refresh-interval", "15m",
-			"--subnet-refresh-interval", "15m")
+			"--subnet-refresh-interval", "15m",
+			"--security-group-refresh-interval", "15m")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
-			DisableDryRun:           lo.ToPtr(true),
-			AMIRefreshInterval:      lo.ToPtr(15 * time.Minute),
-			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
+			ClusterCABundle:              lo.ToPtr("env-bundle"),
+			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:                  lo.ToPtr(true),
+			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			ReservedENIs:                 lo.ToPtr(10),
+			DisableDryRun:                lo.ToPtr(true),
+			AMIRefreshInterval:           lo.ToPtr(15 * time.Minute),
+			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
+			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
@@ -92,6 +94,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("DISABLE_DRY_RUN", "false")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
 		os.Setenv("SUBNET_REFRESH_INTERVAL", "15m")
+		os.Setenv("SECURITY_GROUP_REFRESH_INTERVAL", "15m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -99,16 +102,17 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
-			DisableDryRun:           lo.ToPtr(false),
-			AMIRefreshInterval:      lo.ToPtr(30 * time.Minute),
-			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
+			ClusterCABundle:              lo.ToPtr("env-bundle"),
+			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			IsolatedVPC:                  lo.ToPtr(true),
+			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			ReservedENIs:                 lo.ToPtr(10),
+			DisableDryRun:                lo.ToPtr(false),
+			AMIRefreshInterval:           lo.ToPtr(30 * time.Minute),
+			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
+			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
 		}))
 	})
 
@@ -124,6 +128,13 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs, "--cluster-name", "test-cluster")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(opts.SubnetRefreshInterval).To(Equal(time.Minute))
+	})
+
+	It("should correctly use default security-group-refresh-interval when not specified", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.SecurityGroupRefreshInterval).To(Equal(time.Minute))
 	})
 
 	Context("FeatureGates", func() {
@@ -197,6 +208,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--subnet-refresh-interval", "30s")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when security-group-refresh-interval is less than 1m", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--security-group-refresh-interval", "30s")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -212,5 +227,6 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
+	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
 	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
 }

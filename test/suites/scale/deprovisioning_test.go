@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -189,9 +188,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			}
 			wg.Wait()
 
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 			// Create a separate nodeClass for drift so that we can change the nodeClass later without it affecting
 			// the other nodePools
 			driftNodeClass := awstest.EC2NodeClass()
@@ -342,9 +341,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -395,9 +394,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -521,9 +520,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -577,9 +576,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 			// Enable Expiration
 			nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("5m")
 
@@ -641,9 +640,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -692,9 +691,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
-				MaxPods: lo.ToPtr(intstr.FromInt32(int32(maxPodDensity))),
-			}
+			nodeClass.Spec.Kubelet = awstest.MustMakeKubeletConfiguration(map[string]interface{}{
+				"maxPods": int32(maxPodDensity),
+			})
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)

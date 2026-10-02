@@ -31,12 +31,11 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/metrics"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 )
 
 type Action string
@@ -50,12 +49,11 @@ const (
 // InterruptionHandler contains shared logic for handling interruption messages
 // from both the SQS queue and the DescribeInstanceStatus API.
 type InterruptionHandler struct {
-	kubeClient                  client.Client
-	clk                         clock.Clock
-	cloudProvider               cloudprovider.CloudProvider
-	recorder                    events.Recorder
-	unavailableOfferingsCache   *cache.UnavailableOfferings
-	capacityReservationProvider capacityreservation.Provider
+	kubeClient                client.Client
+	clk                       clock.Clock
+	cloudProvider             cloudprovider.CloudProvider
+	recorder                  events.Recorder
+	unavailableOfferingsCache *cache.UnavailableOfferings
 }
 
 // handleMessage takes an action against every node involved in the message that is owned by a NodePool.
@@ -141,10 +139,16 @@ func (h *InterruptionHandler) markUnavailableOfferings(ctx context.Context, msg 
 			h.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeSpot, unavailableReason)
 		}
 	}
-	if msg.Kind() == messages.CapacityReservationInterruptionKind && h.capacityReservationProvider != nil {
-		reservationID := nodeClaim.Labels[v1.LabelCapacityReservationID]
-		if reservationID != "" {
-			h.capacityReservationProvider.MarkUnavailable(reservationID)
+	if msg.Kind() == messages.CapacityReservationInterruptionKind && h.unavailableOfferingsCache != nil {
+		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
+		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
+		reservationID := nodeClaim.Labels[cloudprovider.ReservationIDLabel]
+		if zone != "" && instanceType != "" && reservationID != "" {
+			// An interruption is a health event (unlike being out of capacity), so it belongs in the UnavailableOfferings
+			// cache that drives Available — scoped to this reservation ID so it doesn't mark siblings unavailable.
+			h.unavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(instanceType), zone, karpv1.CapacityTypeReserved, map[string]string{
+				"reason": string(msg.Kind()),
+			}, cache.WithReservationID(reservationID))
 		}
 	}
 }
@@ -163,6 +167,10 @@ func (h *InterruptionHandler) deleteNodeClaim(ctx context.Context, msg messages.
 		metrics.ReasonLabel:       string(msg.Kind()),
 		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
 		metrics.CapacityTypeLabel: nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
+		// Interruption isn't consolidation, so there's no consolidation policy to report - the same as the
+		// core health controller reports when it deletes an unhealthy node.
+		metrics.ConsolidationPolicyLabel: "",
+		metrics.TerminationModeLabel:     nodeclaimutils.DisruptionTerminationMode(nodeClaim),
 	})
 	return nil
 }

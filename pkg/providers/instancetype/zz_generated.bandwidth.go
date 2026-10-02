@@ -51,11 +51,21 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
-		// mac-m3ultra.metal is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
 		// r3.4xlarge has vague bandwidth information, bandwidth is High
 		// r3.large has vague bandwidth information, bandwidth is Moderate
 		// r3.xlarge has vague bandwidth information, bandwidth is Moderate
+		// r9gd.12xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.16xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.24xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.48xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.8xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.medium is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.metal-48xl is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// r9gd.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// t1.micro has vague bandwidth information, bandwidth is Very Low
 		// t2.2xlarge has vague bandwidth information, bandwidth is Moderate
 		// t2.large has vague bandwidth information, bandwidth is Low to Moderate
@@ -584,6 +594,7 @@ var (
 		"m5ad.12xlarge":        10000,
 		"m5d.8xlarge":          10000,
 		"m5zn.2xlarge":         10000,
+		"mac-m3ultra.metal":    10000,
 		"mac-m4.metal":         10000,
 		"mac-m4max.metal":      10000,
 		"mac-m4pro.metal":      10000,

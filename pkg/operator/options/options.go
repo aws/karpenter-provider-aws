@@ -42,19 +42,20 @@ type FeatureGates struct {
 }
 
 type Options struct {
-	ClusterCABundle         string
-	ClusterName             string
-	ClusterEndpoint         string
-	IsolatedVPC             bool
-	EKSControlPlane         bool
-	VMMemoryOverheadPercent float64
-	InterruptionQueue       string
-	ReservedENIs            int
-	DisableDryRun           bool
-	EnableZonalShift        bool
-	AMIRefreshInterval      time.Duration
-	SubnetRefreshInterval   time.Duration
-	FeatureGates            FeatureGates
+	ClusterCABundle              string
+	ClusterName                  string
+	ClusterEndpoint              string
+	IsolatedVPC                  bool
+	EKSControlPlane              bool
+	VMMemoryOverheadPercent      float64
+	InterruptionQueue            string
+	ReservedENIs                 int
+	DisableDryRun                bool
+	EnableZonalShift             bool
+	AMIRefreshInterval           time.Duration
+	SubnetRefreshInterval        time.Duration
+	SecurityGroupRefreshInterval time.Duration
+	FeatureGates                 FeatureGates
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -70,6 +71,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
+	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
 	fs.StringVar(&o.FeatureGates.inputStr, "aws-feature-gates", env.WithDefaultString("AWS_FEATURE_GATES", "NodeClassCEL=false"), "Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL.")
 }
 

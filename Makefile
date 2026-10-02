@@ -90,6 +90,7 @@ e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		ENABLE_ZONAL_SHIFT=true \
 		go test \
 		-p 1 \
 		-count 1 \
@@ -105,17 +106,20 @@ e2etests: ## Run the e2e suite against your local cluster
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
 	cd $(KARPENTER_CORE_DIR) && go test \
+		-p 1 \
 		-count 1 \
 		-timeout 12h \
 		-v \
 		./test/suites/regression/... \
+		./test/suites/disruption/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
-		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
+		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
+		--repair-condition="KernelReady=False"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
@@ -137,7 +141,9 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
-	hack/validation/kubelet.sh
+	# The scripts below rewrite the CRDs they edit in yq's formatting rather than controller-gen's.
+	# ec2nodeclasses.yaml is no longer one of them, so it's passed through yq to keep its formatting stable
+	yq eval --inplace '.' pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	bash -c 'source ./hack/validation/requirements.sh && injectDomainRequirementRestrictions "karpenter.k8s.aws"'
 	bash -c 'source ./hack/validation/labels.sh && injectDomainLabelRestrictions "karpenter.k8s.aws"'
 	cp pkg/apis/crds/* charts/karpenter-crd/templates

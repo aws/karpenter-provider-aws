@@ -78,7 +78,7 @@ params:
   github_branch: main
   # Canonical production host, used to build absolute URLs in llms.txt (the
   # site's baseURL is "/", which yields root-relative links an LLM can't
-  # resolve). Deploy previews override baseURL and are preferred when absolute.
+  # resolve). An absolute baseURL, if one is ever set, wins over this.
   llms_base_url: "https://karpenter.sh"
   images:
     - banner.png
@@ -106,7 +106,7 @@ params:
         url: "https://slack.k8s.io/"
         icon: fab fa-slack
         desc: "Chat with us on Slack in the #aws-provider channel"
-  latest_release_version: "1.14.0"
+  latest_release_version: "1.14.1"
   latest_k8s_version: "1.36"
   versions:
     - v1.14

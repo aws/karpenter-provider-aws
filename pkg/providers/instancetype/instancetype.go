@@ -68,9 +68,10 @@ type NodeClass interface {
 	BlockDeviceMappings() []*v1.BlockDeviceMapping
 	CapacityReservations() []v1.CapacityReservation
 	CPUOptions() *v1.CPUOptions
+	EnclaveOptions() *v1.EnclaveOptions
 	InstanceStorePolicy() *v1.InstanceStorePolicy
 	NetworkInterfaces() []*v1.NetworkInterface
-	KubeletConfiguration() *v1.KubeletConfiguration
+	KubeletConfiguration() v1.KubeletConfiguration
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 	ConnectionTracking() *v1.ConnectionTracking
@@ -177,12 +178,22 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type)
+		parsedKubelet, err := parseKubeletConfig(nodeClass)
+		if err != nil {
+			return nil, err
+		}
+		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
+		// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
+		// instance type, not a failure to resolve one.
 		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
 		for name := range p.instanceTypesInfo {
-			it, err := p.get(ctx, nodeClass, name)
+			it, err := p.get(ctx, nodeClass, name, parsedKubelet)
 			if err != nil {
 				return nil, err
+			}
+			// A nil instance type with no error is the Resolver declining to offer this one; skip it.
+			if it == nil {
+				continue
 			}
 			instanceTypes = append(instanceTypes, it)
 		}
@@ -223,26 +234,54 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2
 		})
 	}
 	if instanceType == nil {
-		var err error
-		instanceType, err = p.get(ctx, nodeClass, name)
+		parsedKubelet, err := parseKubeletConfig(nodeClass)
 		if err != nil {
 			return nil, err
+		}
+		instanceType, err = p.get(ctx, nodeClass, name, parsedKubelet)
+		if err != nil {
+			return nil, err
+		}
+		// The Resolver declined to offer this instance type. Get looks up one named instance type and its
+		// callers dereference the result, so "not offered" is reported as a failed lookup rather than passed
+		// back as a nil instance type.
+		if instanceType == nil {
+			return nil, fmt.Errorf("failed to generate instance type %s", name)
 		}
 	}
 	return p.offeringProvider.InjectOfferings(ctx, []*cloudprovider.InstanceType{instanceType}, p.instanceTypesInfo, nodeClass, p.allZones)[0], nil
 }
 
-func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
+// parseKubeletConfig decodes the NodeClass' kubelet config, failing rather than falling back to empty
+// defaults when it won't decode.
+//
+// A failure here means ValidateKubeletConfig accepted a config ParseKubeletConfig can't read. The
+// validation controller reports the same decode error on the EC2NodeClass as ValidationSucceeded=False,
+// so the reason is already visible to the user where they'd look for it; this error is what stops the
+// undecodable config from being acted on in the meantime. The "ValidateKubeletConfig/ParseKubeletConfig
+// invariant" specs in pkg/apis/v1 are what keep it from being reachable at all.
+func parseKubeletConfig(nodeClass NodeClass) (*v1.ParsedKubeletConfig, error) {
+	parsed, err := v1.ParseKubeletConfig(nodeClass.KubeletConfiguration())
+	if err != nil {
+		return nil, fmt.Errorf("parsing spec.kubelet, %w", err)
+	}
+	return parsed, nil
+}
+
+func (p *DefaultProvider) get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error) {
 	info, ok := p.instanceTypesInfo[name]
 	if !ok {
 		return nil, fmt.Errorf("instance type %s not found in cache", name)
 	}
-	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass)
+	it, err := p.instanceTypesResolver.Resolve(ctx, info, p.instanceTypesOfferings[info.InstanceType].UnsortedList(), nodeClass, parsedKubelet)
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type %s, %w", name, err)
 	}
+	// A nil instance type with no error is the Resolver declining to offer this instance type at all. Pass it
+	// through rather than erroring: List skips it, and Get turns it into a lookup failure. Returning early is
+	// also required because everything below dereferences it.
 	if it == nil {
-		return nil, fmt.Errorf("failed to generate instance type %s", name)
+		return nil, nil
 	}
 	if cached, ok := p.discoveredCapacityCache.Get(discoveredCapacityCacheKey(it.Name, nodeClass)); ok {
 		it.Capacity[corev1.ResourceMemory] = cached.(resource.Quantity)
@@ -281,10 +320,17 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	if kc == nil {
 		return nil
 	}
+	// The kubelet config is an open map; parse it once into the typed struct the per-instance-type
+	// evaluators read from, then reuse it for the expression check below. A parse error means there's
+	// nothing to evaluate.
+	parsed, err := v1.ParseKubeletConfig(kc)
+	if err != nil {
+		return nil
+	}
 	// If every kubelet value is a static literal there are no CEL expressions to evaluate, so skip the
 	// per-instance-type loop entirely. The same applies when expressions are gated off -- the validation
 	// controller has already rejected the NodeClass by this point.
-	if !kc.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+	if !parsed.HasExpressions() || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}
 	p.muInstanceTypesInfo.RLock()
@@ -295,7 +341,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	for _, info := range p.instanceTypesInfo {
-		if err := p.evaluateKubeletExpressions(ctx, info, kc, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
+		if err := p.evaluateKubeletExpressions(ctx, info, parsed, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
 		}
 	}
@@ -307,7 +353,7 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 // produces a negative result, or (for maxPods) overflows int32. It is used at validation time to surface
 // per-instance-type evaluation failures that a compile-only check cannot catch. A nil return means every
 // expression evaluated to a usable value for this instance type.
-func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.KubeletConfiguration, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
+func (p *DefaultProvider) evaluateKubeletExpressions(ctx context.Context, info ec2types.InstanceTypeInfo, kc *v1.ParsedKubeletConfig, amiFamily amifamily.AMIFamily, networkInterfaces []*v1.NetworkInterface) error {
 	if kc == nil {
 		return nil
 	}

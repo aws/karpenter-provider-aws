@@ -57,7 +57,7 @@ spec:
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
   # Optional, dictates UserData generation and default block device mappings.
-  # May be ommited when using an `alias` amiSelectorTerm, otherwise required.
+  # May be omitted when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
@@ -792,7 +792,7 @@ alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
 
-The following commands can be used to determine the versions availble for an alias in your region:
+The following commands can be used to determine the versions available for an alias in your region:
 
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
@@ -1295,6 +1295,12 @@ aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decrypt
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
+
+{{% alert title="Warning" color="warning" %}}
+During an [EKS cluster certificate authority (CA) rotation](https://docs.aws.amazon.com/eks/latest/userguide/certificate-authority-rotation.html#_updating_your_kubernetes_clients), your cluster goes through a dual trust period where its trust bundle contains two CA certificates: the outgoing CA and the successor CA. Karpenter embeds your cluster's CA data in the UserData it generates, so your total user data grows while both CAs are trusted.
+
+If your `spec.userData` is close to the [EC2 user data limit](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html), the addition of the successor CA can cause launch template creation to fail, which prevents Karpenter from provisioning new nodes. Karpenter does not compress user data, so reduce the size of your `spec.userData` before the dual trust period begins &mdash; for example, by baking configuration into your AMI or having your script fetch its contents at boot instead of inlining them.
+{{% /alert %}}
 
 ### AL2
 

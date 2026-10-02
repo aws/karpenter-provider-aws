@@ -48,8 +48,11 @@ func (b Bottlerocket) Script(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
-		s.Settings.Kubernetes.MaxPods = aws.Int(b.KubeletConfig.MaxPods.IntValue())
+	// A maxPods CEL expression is resolved per instance type before bootstrap, so only a
+	// concrete integer is written here; an unresolved expression is skipped rather than
+	// serialized into the node's settings.
+	if maxPods, ok := b.KubeletConfig.MaxPodsValue(); ok {
+		s.Settings.Kubernetes.MaxPods = aws.Int(int(lo.FromPtr(maxPods)))
 	}
 
 	if b.KubeletConfig != nil {
