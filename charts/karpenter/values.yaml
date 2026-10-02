@@ -254,3 +254,7 @@ settings:
     # -- nodeClassCEL is ALPHA and is disabled by default.
     # Setting this to true will enable CEL validation on EC2NodeClass resources.
     nodeClassCEL: false
+    # -- dra is ALPHA and is disabled by default.
+    # Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU and EFA
+    # drivers publish, so it can account for DRA claims when it sizes new nodes.
+    dra: false

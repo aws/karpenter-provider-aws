@@ -26,6 +26,7 @@ import (
 
 type FeatureGates struct {
 	NodeClassCEL *bool
+	DRA          *bool
 }
 
 type OptionsFields struct {
@@ -68,6 +69,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		EnableZonalShift:             lo.FromPtrOr(opts.EnableZonalShift, false),
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
+			DRA:          lo.FromPtrOr(opts.FeatureGates.DRA, false),
 		},
 	}
 }

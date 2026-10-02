@@ -811,6 +811,7 @@ func withOfferings(offerings ...*cloudprovider.Offering) mockInstanceTypeOptions
 	}
 }
 
+//nolint:gosec
 func makeInstanceType(name string, opts ...mockInstanceTypeOptions) *cloudprovider.InstanceType {
 	instanceType := option.Resolve(opts...)
 	rand.Shuffle(len(instanceType.Offerings), func(i, j int) {

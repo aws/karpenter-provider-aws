@@ -128,7 +128,7 @@ spec:
             - name: FEATURE_GATES
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }}"
             - name: AWS_FEATURE_GATES
-              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }}"
+              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }},DRA={{ .Values.settings.awsFeatureGates.dra }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"

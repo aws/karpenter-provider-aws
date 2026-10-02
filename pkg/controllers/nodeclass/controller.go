@@ -122,7 +122,7 @@ func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
-//nolint:gocyclo
+//nolint:gocyclo,staticcheck
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
@@ -213,6 +213,7 @@ func (c *Controller) cleanupManagedInstanceProfiles(ctx context.Context, nodeCla
 	return c.cleanupLegacyInstanceProfile(ctx, nodeClass)
 }
 
+//nolint:staticcheck
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
