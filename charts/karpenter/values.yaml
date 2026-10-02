@@ -258,5 +258,5 @@ settings:
   # -- AWS-specific Feature Gate configuration values.
   awsFeatureGates:
     # -- nodeClassCEL is ALPHA and is disabled by default.
-    # Setting this to true will enable CEL validation on EC2NodeClass resources.
+    # Setting this to true will enable CEL expressions in EC2NodeClass spec.kubelet (maxPods, kubeReserved, and systemReserved).
     nodeClassCEL: false
