@@ -42,10 +42,21 @@ const (
 	// One error message will be fired to notify
 	MinK8sVersion = "1.26"
 	MaxK8sVersion = "1.36"
+
+	// maxVersionSkew is the number of minor versions a kubelet is allowed to trail the API server by.
+	// See https://kubernetes.io/releases/version-skew-policy/#kubelet
+	maxVersionSkew = 3
 )
 
 type Provider interface {
+	// Get returns the Kubernetes version of the cluster's control plane, as discovered through the
+	// Kubernetes API server or the EKS DescribeCluster API. This is the version Karpenter's own
+	// compatibility is validated against, and it is never overridden by user configuration.
 	Get(ctx context.Context) string
+	// GetNodeVersion returns the Kubernetes version to provision nodes with, which drives AMI
+	// discovery. This is the discovered control plane version, unless it has been explicitly pinned
+	// through the node-kubernetes-version setting.
+	GetNodeVersion(ctx context.Context) string
 }
 
 // DefaultProvider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
@@ -69,6 +80,16 @@ func (p *DefaultProvider) Get(ctx context.Context) string {
 	return *p.version.Load()
 }
 
+// GetNodeVersion returns the pinned node version if one is configured, and the discovered control plane
+// version otherwise. The pinned version is resolved on read rather than cached, since options are immutable
+// for the lifetime of the process.
+func (p *DefaultProvider) GetNodeVersion(ctx context.Context) string {
+	if v := options.FromContext(ctx).NodeKubernetesVersion; v != "" {
+		return v
+	}
+	return p.Get(ctx)
+}
+
 func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
 	var version string
 	var err error
@@ -87,6 +108,7 @@ func (p *DefaultProvider) UpdateVersion(ctx context.Context) error {
 	p.version.Store(&version)
 	return nil
 }
+
 func (p *DefaultProvider) UpdateVersionWithValidation(ctx context.Context) error {
 	err := p.UpdateVersion(ctx)
 	if err != nil {
@@ -97,6 +119,17 @@ func (p *DefaultProvider) UpdateVersionWithValidation(ctx context.Context) error
 		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
 			return fmt.Errorf("validating kubernetes version, %w", err)
+		}
+	}
+	// The control plane version is re-discovered on every reconcile, so the skew between it and the pinned
+	// node version is validated here rather than at startup. This also catches a control plane that drifts
+	// away from the pinned version after Karpenter has started.
+	if nodeVersion := p.GetNodeVersion(ctx); nodeVersion != version {
+		if p.cm.HasChanged("node-kubernetes-version", fmt.Sprintf("%s/%s", nodeVersion, version)) {
+			log.FromContext(ctx).WithValues("nodeVersion", nodeVersion, "version", version).Info("pinning kubernetes version for node provisioning")
+		}
+		if err := validateNodeK8sVersion(ctx, nodeVersion, version); err != nil {
+			return fmt.Errorf("validating node kubernetes version, %w", err)
 		}
 	}
 	return nil
@@ -123,6 +156,34 @@ func validateK8sVersion(v string) error {
 	if k8sVersion.LessThan(version.MustParseGeneric(MinK8sVersion)) ||
 		version.MustParseGeneric(MaxK8sVersion).LessThan(k8sVersion) {
 		return serrors.Wrap(fmt.Errorf("karpenter is not compatible with kubernetes version"), "version", k8sVersion)
+	}
+
+	return nil
+}
+
+// validateNodeK8sVersion validates the pinned node version against the discovered control plane version.
+// Kubelets are never supported ahead of the API server, which is treated as an error. Trailing the API server
+// by more than maxVersionSkew minor versions is unsupported as well, but is only surfaced as a warning: pinning
+// a node version is an operation of last resort (e.g. a control plane rollback), and hard failing would remove
+// the operator's ability to recover.
+func validateNodeK8sVersion(ctx context.Context, nodeVersion, controlPlaneVersion string) error {
+	node, err := version.ParseGeneric(nodeVersion)
+	if err != nil {
+		return serrors.Wrap(fmt.Errorf("parsing node kubernetes version, %w", err), "node-kubernetes-version", nodeVersion)
+	}
+	controlPlane, err := version.ParseGeneric(controlPlaneVersion)
+	if err != nil {
+		// The control plane version is discovered rather than user provided, so there's no actionable
+		// misconfiguration to report here. Skip skew validation and let compatibility validation surface it.
+		return nil
+	}
+	if controlPlane.LessThan(node) {
+		return serrors.Wrap(fmt.Errorf("node kubernetes version may not be newer than the control plane version"),
+			"node-version", nodeVersion, "control-plane-version", controlPlaneVersion)
+	}
+	if node.Major() != controlPlane.Major() || controlPlane.Minor()-node.Minor() > maxVersionSkew {
+		log.FromContext(ctx).WithValues("nodeVersion", nodeVersion, "version", controlPlaneVersion, "maxVersionSkew", maxVersionSkew).
+			Error(nil, "node kubernetes version trails the control plane version by more than the supported kubelet version skew")
 	}
 
 	return nil

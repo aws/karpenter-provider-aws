@@ -106,6 +106,8 @@ spec:
                         description: |-
                           Name is the ami name in EC2.
                           This value is the name field, which is different from the name tag.
+                          The placeholder {kubernetesVersion} can be used and will be replaced with the Kubernetes
+                          version nodes are provisioned with (e.g. "my-ami-{kubernetesVersion}-*").
                         type: string
                       owner:
                         description: |-
@@ -113,7 +115,10 @@ spec:
                           You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                         type: string
                       ssmParameter:
-                        description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                        description: |-
+                          SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                          The placeholder {kubernetesVersion} can be used and will be replaced with the Kubernetes
+                          version nodes are provisioned with (e.g. "/aws/service/eks/optimized-ami/{kubernetesVersion}/amazon-linux-2023/x86_64/standard/recommended/image_id").
                         type: string
                       tags:
                         additionalProperties:

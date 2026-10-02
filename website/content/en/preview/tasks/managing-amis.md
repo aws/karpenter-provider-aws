@@ -54,6 +54,7 @@ Karpenter's automated node replacement functionality in tandem with the `EC2Node
 Karpenter offers you various controls to ensure you don't take on too much risk as you rollout new versions of AMIs to your production clusters. Below shows how you can use these controls:
 
 * [Pinning AMIs]({{< relref "#pinning-amis" >}}): If workloads require a particluar AMI, this control ensures that it is the only AMI used by Karpenter. This can be used in combination with [Testing AMIs]({{< relref "#testing-amis" >}}) where you lock down the AMI in production, but allow the newest AMIs in a test cluster while you test your workloads before upgrading production.
+* [Pinning the Kubernetes version used for nodes]({{< relref "#pinning-the-kubernetes-version-used-for-nodes" >}}): Karpenter resolves EKS-optimized AMIs based on the discovered control plane version. Pinning that version decouples the AMIs Karpenter selects from the control plane, which is what makes it possible to roll nodes back alongside an EKS control plane version rollback.
 * [Testing AMIs]({{< relref "#testing-amis" >}}): The safest way for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but most effectively models how your workloads will run in production, allowing you to catch issues ahead of time. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. Combining this with other controls like [Using Disruption Budgets]({{< relref "#using-disruption-budgets" >}}) can allow you to catch problems before they impact your whole cluster.
 * [Using Disruption Budgets]({{< relref "#using-disruption-budgets" >}}): This option can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time to respond to rollout issues.
 
@@ -102,6 +103,37 @@ amiSelectorTerms:
 
 See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details.
 Keep in mind, that this could prevent you from getting critical security patches when new AMIs are available, but it does give you control over exactly which AMI is running.
+
+### Pinning the Kubernetes version used for nodes
+
+By default, Karpenter provisions nodes using the Kubernetes version it discovers from the cluster's control plane, and that version drives which EKS-optimized AMI an `alias` resolves to.
+
+This is the right default, but it means that a control plane version change immediately changes the AMIs Karpenter selects.
+EKS supports rolling an in-place control plane upgrade back to the previous minor version, and nodes that were already upgraded need to be rolled back with it.
+Because the control plane version is discovered rather than configured, there's otherwise no way to move nodes back to the older version.
+
+The `NODE_KUBERNETES_VERSION` setting (`--node-kubernetes-version`) pins the version used for node provisioning:
+
+```bash
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --set settings.nodeKubernetesVersion=1.32 \
+  # ...
+```
+
+When set, Karpenter resolves `alias` terms and the `{kubernetesVersion}` placeholder against the pinned version, drifting existing nodes onto AMIs for that version.
+Karpenter continues to discover the control plane version separately and uses it for its own compatibility checks, so pinning a node version never hides an unsupported control plane.
+
+Karpenter validates the pinned version against the discovered control plane version on every reconcile:
+
+* Pinning a version **newer** than the control plane is rejected, since kubelets are never supported ahead of the API server.
+* Pinning a version more than three minor versions **behind** the control plane logs an error, but is allowed. This is outside of the [supported kubelet version skew](https://kubernetes.io/releases/version-skew-policy/#kubelet), so treat it as a temporary state.
+
+Once the control plane is back on the intended version, remove the setting so Karpenter resumes tracking it.
+
+{{% alert title="Note" color="primary" %}}
+This setting is cluster-wide and applies to every EC2NodeClass that resolves AMIs by `alias` or by the `{kubernetesVersion}` placeholder.
+It has no effect on nodes selected by `id`, or by a `name`/`ssmParameter` that doesn't use the placeholder.
+{{% /alert %}}
 
 ### Testing AMIs
 
