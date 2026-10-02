@@ -10,6 +10,10 @@ Karpenter makes several metrics available in Prometheus format to allow monitori
 
 Each metric below lists its type, stability level, and dimensions (labels). The type is one of the [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/): a `Counter` only increases, a `Gauge` can go up or down, a `Histogram` samples observations into buckets, and a `Summary` tracks configurable quantiles over a sliding time window.
 
+{{% alert title="Note" color="primary" %}}
+Not every dimension listed for a metric is populated on every series at all times. A dimension that doesn't apply to the object's current state is emitted as an empty string, which Prometheus treats the same as the label being absent, so a selector such as `{zone="us-west-2a"}` won't match those series. For example, `karpenter_pods_state` only populates its node-derived dimensions (`node`, `nodepool`, `zone`, `arch`, `capacity_type`, and `instance_type`) once the pod is bound to a node. Until then they're empty and `managed` is `false`.
+{{% /alert %}}
+
 [comment]: <> (the content below is generated from hack/docs/metrics_gen/main.go)
 
 ### `karpenter_consolidation_score`
