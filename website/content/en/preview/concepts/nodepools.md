@@ -549,6 +549,10 @@ spec:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
 
+Karpenter pre-spins replacements for drifted nodes in static NodePools, so `limits.nodes` must leave headroom above `replicas`.
+If `limits.nodes` is equal to `replicas`, drifted nodes can't be replaced unless you enable the `TerminateFirstDrift` feature gate. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
+This doesn't affect [expiration]({{<ref "./disruption#expiration" >}}): Karpenter terminates expired nodes without pre-spinning a replacement, and then provisions back up to `replicas`.
+
 ### Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects), it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
