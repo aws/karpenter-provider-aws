@@ -810,14 +810,16 @@ spec:
         MyTag: '*'
 ```
 
-Select by name and tag (all criteria must match):
+Select by name:
 ```yaml
 spec:
   securityGroupSelectorTerms:
     - name: my-security-group
-      tags:
-        MyTag: '*' # matches all resources with the tag
 ```
+
+{{% alert title="Note" color="primary" %}}
+Within a single term, `id`, `name`, and `tags` are mutually exclusive, evaluated in that order of precedence: if `id` is set the others are ignored; otherwise if `name` is set `tags` are ignored. Combining `name` and `tags` in one term does **not** require both to match — `tags` are ignored and selection is by `name` alone. To select on tags, use a term that sets only `tags`.
+{{% /alert %}}
 
 Select using multiple tag terms:
 ```yaml
