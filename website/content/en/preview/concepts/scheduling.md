@@ -524,7 +524,7 @@ The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tre
 
 ## Weighted NodePools
 
-Karpenter allows you to order your NodePools using the `.spec.weight` field so that the Karpenter scheduler will attempt to schedule one NodePool before another.
+Karpenter allows you to order your NodePools using the `.spec.weight` field (range: 1–100) so that the Karpenter scheduler will attempt to schedule one NodePool before another. NodePools with higher weights are preferred first.
 
 ### Savings Plans and Reserved Instances
 
