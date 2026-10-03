@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/awslabs/operatorpkg/serrors"
@@ -29,6 +30,8 @@ import (
 )
 
 type SSMAPI struct {
+	sync.Mutex
+
 	sdk.SSMAPI
 	Parameters         map[string]string
 	GetParameterOutput *ssm.GetParameterOutput
@@ -43,7 +46,10 @@ func NewSSMAPI() *SSMAPI {
 	}
 }
 
-func (a SSMAPI) GetParameter(_ context.Context, input *ssm.GetParameterInput, _ ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
+func (a *SSMAPI) GetParameter(_ context.Context, input *ssm.GetParameterInput, _ ...func(*ssm.Options)) (*ssm.GetParameterOutput, error) {
+	a.Lock()
+	defer a.Unlock()
+
 	parameter := lo.FromPtr(input.Name)
 	if a.WantErr != nil {
 		return &ssm.GetParameterOutput{}, a.WantErr
@@ -79,6 +85,9 @@ func (a SSMAPI) GetParameter(_ context.Context, input *ssm.GetParameterInput, _ 
 }
 
 func (a *SSMAPI) Reset() {
+	a.Lock()
+	defer a.Unlock()
+
 	a.Parameters = nil
 	a.GetParameterOutput = nil
 	a.WantErr = nil

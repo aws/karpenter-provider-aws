@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -65,7 +66,23 @@ func NewIAMAPI() *IAMAPI {
 	}
 }
 
+// copyInstanceProfile returns an independent copy of the given instance profile. It performs a shallow copy of the
+// struct and clones the Roles and Tags slices so that mutations to the returned object (e.g. reassigning or appending
+// to Roles/Tags) can't race with, or leak into, the copy held in the fake's internal map.
+func copyInstanceProfile(ip *iamtypes.InstanceProfile) *iamtypes.InstanceProfile {
+	if ip == nil {
+		return nil
+	}
+	cp := *ip
+	cp.Roles = slices.Clone(ip.Roles)
+	cp.Tags = slices.Clone(ip.Tags)
+	return &cp
+}
+
 func (s *IAMAPI) Reset() {
+	s.Lock()
+	defer s.Unlock()
+
 	s.GetInstanceProfileBehavior.Reset()
 	s.CreateInstanceProfileBehavior.Reset()
 	s.DeleteInstanceProfileBehavior.Reset()
@@ -84,7 +101,9 @@ func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstancePro
 		defer s.Unlock()
 
 		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
-			return &iam.GetInstanceProfileOutput{InstanceProfile: i}, nil
+			// Return a copy so callers can't mutate the internally-stored object without going through the
+			// (locked) API methods. A real AWS API deserializes a fresh, independent object per response.
+			return &iam.GetInstanceProfileOutput{InstanceProfile: copyInstanceProfile(i)}, nil
 		}
 		return nil, &smithy.GenericAPIError{
 			Code: "NoSuchEntity",
@@ -114,7 +133,8 @@ func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInsta
 			Tags:                input.Tags,
 		}
 		s.InstanceProfiles[aws.ToString(input.InstanceProfileName)] = instanceProfile
-		return &iam.CreateInstanceProfileOutput{InstanceProfile: instanceProfile}, nil
+		// Return a copy so callers can't mutate the internally-stored object outside of the (locked) API methods.
+		return &iam.CreateInstanceProfileOutput{InstanceProfile: copyInstanceProfile(instanceProfile)}, nil
 	})
 }
 
@@ -225,7 +245,8 @@ func (s *IAMAPI) ListInstanceProfiles(_ context.Context, input *iam.ListInstance
 		var profiles []iamtypes.InstanceProfile
 		for _, profile := range s.InstanceProfiles {
 			if profile.Path != nil && strings.HasPrefix(*profile.Path, *input.PathPrefix) {
-				profiles = append(profiles, *profile)
+				// Append a copy so the returned slice doesn't alias the internally-stored objects' Roles/Tags slices.
+				profiles = append(profiles, *copyInstanceProfile(profile))
 			}
 		}
 		return &iam.ListInstanceProfilesOutput{
