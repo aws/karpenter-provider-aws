@@ -15,6 +15,15 @@ Fixes #N/A <!-- issue number -->
 
 **Description**
 
+**Does this PR introduce a user-facing change?**
+<!--
+If no, just write "NONE" in the release-note block below.
+If yes, add release note in the block below detailing user-facing change. If this may require actions for users switching to new release, include string "action required".
+-->
+```release-note
+
+```
+
 **How was this change tested?**
 
 **Does this change impact docs?**
