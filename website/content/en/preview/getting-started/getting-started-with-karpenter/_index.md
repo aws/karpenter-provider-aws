@@ -155,6 +155,15 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 
 Karpenter is now active and ready to begin provisioning nodes.
 
+{{% alert title="Note" color="primary" %}}
+If you plan to use Services with `type: LoadBalancer` targeting Karpenter-managed nodes, you may need to add a `kubernetes.io/cluster/${CLUSTER_NAME}: owned` tag to your cluster's shared node security group. Without this tag, the AWS Load Balancer Controller cannot identify the correct security group and will fail with a "Multiple untagged security groups" error. You can add the tag with:
+
+```bash
+SHARED_SG=$(aws ec2 describe-security-groups --filters "Name=tag:aws:eks:cluster-name,Values=${CLUSTER_NAME}" --query 'SecurityGroups[?Description!=`EKS created security group`].GroupId' --output text)
+aws ec2 create-tags --resources ${SHARED_SG} --tags Key=kubernetes.io/cluster/${CLUSTER_NAME},Value=owned
+```
+{{% /alert %}}
+
 ### 6. Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
