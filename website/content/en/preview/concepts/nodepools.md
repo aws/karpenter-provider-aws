@@ -460,6 +460,8 @@ Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca
 
 Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
+The `weight` field accepts values in the range **1–100** (inclusive). NodePools with higher weights are preferred during scheduling — Karpenter will attempt to schedule pods using the highest-weighted NodePool first before falling back to lower-weighted ones. If unset, the weight defaults to `0` (lowest priority).
+
 For more information on weighting NodePools, see the [Weighted NodePools section]({{<ref "scheduling#weighted-nodepools" >}}) in the scheduling docs.
 
 ## status.conditions
