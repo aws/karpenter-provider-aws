@@ -129,6 +129,7 @@ func (r *BaseResolver) ResolveOfferings(
 						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
 						scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
 						scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1.LabelInstanceMatchCriteria, corev1.NodeSelectorOpDoesNotExist),
 						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
 					),
 					Price:     price,

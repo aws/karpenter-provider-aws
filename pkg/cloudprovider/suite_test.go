@@ -1531,21 +1531,23 @@ var _ = Describe("CloudProvider", func() {
 		BeforeEach(func() {
 			crs = []ec2types.CapacityReservation{}
 			crs = lo.FlatMap(v1.CapacityReservationType("").Values(), func(crt v1.CapacityReservationType, _ int) []ec2types.CapacityReservation {
-				return lo.FilterMap([]bool{true, false}, func(interruptible bool, _ int) (ec2types.CapacityReservation, bool) {
-					if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
-						return ec2types.CapacityReservation{}, false
-					}
-					return ec2types.CapacityReservation{
-						AvailabilityZone:       lo.ToPtr("test-zone-1a"),
-						InstanceType:           lo.ToPtr("m5.large"),
-						OwnerId:                lo.ToPtr("012345678901"),
-						InstanceMatchCriteria:  ec2types.InstanceMatchCriteriaTargeted,
-						CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s-%s", string(crt), strconv.FormatBool(interruptible))),
-						AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
-						State:                  ec2types.CapacityReservationStateActive,
-						ReservationType:        ec2types.CapacityReservationType(crt),
-						Interruptible:          lo.ToPtr(interruptible),
-					}, true
+				return lo.FlatMap([]ec2types.InstanceMatchCriteria{ec2types.InstanceMatchCriteriaOpen, ec2types.InstanceMatchCriteriaTargeted}, func(matchCriteria ec2types.InstanceMatchCriteria, _ int) []ec2types.CapacityReservation {
+					return lo.FilterMap([]bool{true, false}, func(interruptible bool, _ int) (ec2types.CapacityReservation, bool) {
+						if interruptible && crt == v1.CapacityReservationTypeCapacityBlock {
+							return ec2types.CapacityReservation{}, false
+						}
+						return ec2types.CapacityReservation{
+							AvailabilityZone:       lo.ToPtr("test-zone-1a"),
+							InstanceType:           lo.ToPtr("m5.large"),
+							OwnerId:                lo.ToPtr("012345678901"),
+							InstanceMatchCriteria:  matchCriteria,
+							CapacityReservationId:  lo.ToPtr(fmt.Sprintf("cr-m5.large-1a-%s-%s-%s", string(crt), strconv.FormatBool(interruptible), string(matchCriteria))),
+							AvailableInstanceCount: lo.ToPtr[int32](reservationCapacity),
+							State:                  ec2types.CapacityReservationStateActive,
+							ReservationType:        ec2types.CapacityReservationType(crt),
+							Interruptible:          lo.ToPtr(interruptible),
+						}, true
+					})
 				})
 			})
 			for _, cr := range crs {
@@ -1594,10 +1596,11 @@ var _ = Describe("CloudProvider", func() {
 		})
 		DescribeTable(
 			"should include capacity reservation labels",
-			func(crt v1.CapacityReservationType, interruptible bool) {
+			func(crt v1.CapacityReservationType, interruptible bool, matchCriteria ec2types.InstanceMatchCriteria) {
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelCapacityReservationType:          string(crt),
+						v1.LabelInstanceMatchCriteria:            string(matchCriteria),
 						v1.LabelCapacityReservationInterruptible: strconv.FormatBool(interruptible),
 					},
 				})
@@ -1608,17 +1611,32 @@ var _ = Describe("CloudProvider", func() {
 				Expect(ncs).To(HaveLen(1))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				expectedCR := lo.Must(lo.Find(crs, func(cr ec2types.CapacityReservation) bool {
-					return string(cr.ReservationType) == string(crt) && *cr.Interruptible == interruptible
+					return string(cr.ReservationType) == string(crt) && *cr.Interruptible == interruptible && cr.InstanceMatchCriteria == matchCriteria
 				}))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, *expectedCR.CapacityReservationId))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(crt)))
+				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelInstanceMatchCriteria, string(matchCriteria)))
 				Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, strconv.FormatBool(interruptible)))
 
 			},
-			Entry("when the capacity reservation type is default non-interruptible", v1.CapacityReservationTypeDefault, false),
-			Entry("when the capacity reservation type is default interruptible", v1.CapacityReservationTypeDefault, true),
-			Entry("when the capacity reservation type is capacity-block", v1.CapacityReservationTypeCapacityBlock, false),
+			Entry("when the capacity reservation is default, non-interruptible, and open", v1.CapacityReservationTypeDefault, false, ec2types.InstanceMatchCriteriaOpen),
+			Entry("when the capacity reservation is default, interruptible, and targeted", v1.CapacityReservationTypeDefault, true, ec2types.InstanceMatchCriteriaTargeted),
+			Entry("when the capacity reservation is a targeted capacity-block", v1.CapacityReservationTypeCapacityBlock, false, ec2types.InstanceMatchCriteriaTargeted),
 		)
+		It("should support instance match criteria in NodePool requirements", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceMatchCriteria,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{string(ec2types.InstanceMatchCriteriaOpen)},
+			})
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ncs := ExpectNodeClaims(ctx, env.Client)
+			Expect(ncs).To(HaveLen(1))
+			Expect(ncs[0].Labels).To(HaveKeyWithValue(v1.LabelInstanceMatchCriteria, string(ec2types.InstanceMatchCriteriaOpen)))
+		})
 	})
 })
 

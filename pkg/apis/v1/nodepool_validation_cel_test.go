@@ -57,7 +57,7 @@ var _ = Describe("CEL/Validation", func() {
 	Context("Requirements", func() {
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelInstanceTenancy)) {
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey, karpv1.CapacityTypeLabelKey, v1.LabelInstanceTenancy, v1.LabelInstanceMatchCriteria)) {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{Key: label, Operator: corev1.NodeSelectorOpIn, Values: []string{"test"}},
 				}
@@ -134,6 +134,30 @@ var _ = Describe("CEL/Validation", func() {
 				Key:      v1.LabelInstanceTenancy,
 				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{string(ec2types.TenancyDefault), "xdedicated"}, // Valid and invalid value
+			})
+			Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+			Expect(nodePool.RuntimeValidate(ctx)).To(Succeed())
+			Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+			nodePool = oldNodePool.DeepCopy()
+		})
+		It("should fail validation with only invalid instance match criteria", func() {
+			oldNodePool := nodePool.DeepCopy()
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceMatchCriteria,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"target"},
+			})
+			Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+			Expect(nodePool.RuntimeValidate(ctx)).ToNot(Succeed())
+			Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+			nodePool = oldNodePool.DeepCopy()
+		})
+		It("should pass validation with valid instance match criteria", func() {
+			oldNodePool := nodePool.DeepCopy()
+			test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceMatchCriteria,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{string(ec2types.InstanceMatchCriteriaOpen), string(ec2types.InstanceMatchCriteriaTargeted)},
 			})
 			Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
 			Expect(nodePool.RuntimeValidate(ctx)).To(Succeed())
