@@ -357,6 +357,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, fmt.Sprint(lo.FromPtr(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1.LabelInstanceCPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceCPUSustainedClockSpeedMhz, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelInstanceCPUBurstable, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceMemory, corev1.NodeSelectorOpIn, fmt.Sprint(lo.FromPtr(info.MemoryInfo.SizeInMiB))),
 		scheduling.NewRequirement(v1.LabelInstanceEBSBandwidth, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceNetworkBandwidth, corev1.NodeSelectorOpDoesNotExist),
@@ -461,6 +462,13 @@ func computeRequirements(
 	if info.ProcessorInfo != nil {
 		// Convert from Ghz to Mhz and round to nearest whole number - converting from float64 to int to support Gt and Lt operators
 		requirements.Get(v1.LabelInstanceCPUSustainedClockSpeedMhz).Insert(fmt.Sprint(int(math.Round(aws.ToFloat64(info.ProcessorInfo.SustainedClockSpeedInGhz) * 1000))))
+	}
+	// CPU Burstable - burstable performance instances (e.g. the t-family) earn CPU credits and can throttle to a
+	// baseline once credits are exhausted; all other instance types deliver sustained full-core throughput.
+	if lo.FromPtr(info.BurstablePerformanceSupported) {
+		requirements.Get(v1.LabelInstanceCPUBurstable).Insert("true")
+	} else {
+		requirements.Get(v1.LabelInstanceCPUBurstable).Insert("false")
 	}
 	// EBS Max Bandwidth
 	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && info.EbsInfo.EbsOptimizedSupport == ec2types.EbsOptimizedSupportDefault {

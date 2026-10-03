@@ -104,6 +104,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					v1.LabelInstanceCPU:                       "2",
 					v1.LabelInstanceCPUManufacturer:           "intel",
 					v1.LabelInstanceCPUSustainedClockSpeedMhz: "3400",
+					v1.LabelInstanceCPUBurstable:              "false",
 					v1.LabelInstanceMemory:                    "4096",
 					v1.LabelInstanceEBSBandwidth:              "4750",
 					v1.LabelInstanceNetworkBandwidth:          "750",
