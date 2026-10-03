@@ -1,0 +1,16 @@
+{{- with .Values.settings.nodeRepairConfigMapName }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ . }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" $ | nindent 4 }}
+  {{- with $.Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  policies.json: |-
+    {{- toPrettyJson $.Values.settings.nodeRepairPolicies | nindent 4 }}
+{{- end }}
