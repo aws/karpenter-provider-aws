@@ -460,6 +460,29 @@ metadata:
     karpenter.sh/do-not-disrupt: "true"
 ```
 
+#### Example: Isolate a Node for Debugging
+
+For security compliance or post-mortem analysis, you may need to isolate a node to prevent it from being disrupted while you investigate. Use the `karpenter.sh/do-not-disrupt` annotation combined with `kubectl cordon` to keep the node running and prevent new pods from scheduling:
+
+```bash
+# Prevent Karpenter from disrupting the node
+kubectl annotate node ${NODE_NAME} karpenter.sh/do-not-disrupt=true
+
+# Prevent the scheduler from placing new pods on the node
+kubectl cordon ${NODE_NAME}
+
+# Perform your investigation (SSH, logs, etc.)
+# ...
+
+# When done, remove the annotation and uncordon
+kubectl annotate node ${NODE_NAME} karpenter.sh/do-not-disrupt-
+kubectl uncordon ${NODE_NAME}
+```
+
+{{% alert title="Note" color="primary" %}}
+The `karpenter.sh/do-not-disrupt` annotation does not prevent expiration or interruption. If your NodePool has `expireAfter` configured with a `terminationGracePeriod`, the node may still be terminated after the grace period elapses. For long investigations, consider temporarily removing the `expireAfter` setting on the NodePool or deleting the owning NodeClaim's `expireAfter` status condition.
+{{% /alert %}}
+
 #### Example: Disable Disruption on a NodePool
 
 To disable disruption for all nodes launched by a NodePool, you can configure its `.spec.disruption.budgets`. Setting a budget of zero nodes will prevent any of those nodes from being considered for voluntary disruption.
