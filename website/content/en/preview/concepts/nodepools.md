@@ -278,6 +278,10 @@ If a NodePool is compatible with multiple capacity types, Karpenter will priorit
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
 If there are no other possible offerings available for a higher priority capacity type, Karpenter will attempt to fallback to a lower priority capacity type, generally within milliseconds.
 
+{{% alert title="Note" color="primary" %}}
+**Spot fallback behavior:** If your NodePool specifies both `spot` and `on-demand` as allowed capacity types, Karpenter will automatically fall back to on-demand instances when spot capacity is unavailable. If your NodePool specifies **only** `spot`, Karpenter will not fall back to on-demand — provisioning will remain pending until spot capacity becomes available.
+{{% /alert %}}
+
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
 #### Tenancy
