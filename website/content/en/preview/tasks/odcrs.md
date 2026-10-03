@@ -79,6 +79,19 @@ Karpenter will prioritize ODCRs, but if none are available or none are compatibl
 Similarly, Karpenter will prioritize reserved capacity during consolidation.
 Since ODCRs are pre-paid, Karpenter will model them as free and consolidate spot / on-demand nodes when possible.
 
+## Disrupting Nodes in Full Reservations
+
+Karpenter pre-spins a replacement before it disrupts a node.
+When a node's reservation is full and its pods can't run anywhere else, such as a lower-weight on-demand NodePool, Karpenter can't pre-spin a replacement, and [Drift]({{<ref "../concepts/disruption#drift" >}}) and [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) are blocked for that node.
+To replace these nodes in place, enable the `TerminateFirstDrift` and `TerminateFirstRepair` [feature gates]({{<ref "../reference/settings#feature-gates" >}}).
+Karpenter will then terminate the node first and launch its replacement into the freed reservation slot.
+See [Terminate-First Disruption]({{<ref "../concepts/disruption#terminate-first-disruption" >}}) for details.
+
+{{% alert title="Warning" color="warning" %}}
+Don't enable terminate-first disruption unless this Karpenter installation is the only thing that launches into its capacity reservations.
+Anything else that launches into the reservation, such as another Karpenter installation, an Auto Scaling group, or a matching instance consuming an `open` reservation, can claim the freed slot first, leaving the terminated node's pods pending indefinitely.
+{{% /alert %}}
+
 ## Expiration
 
 An instance launched into an ODCR is not necessarily in that ODCR indefinitely.

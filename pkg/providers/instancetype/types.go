@@ -62,6 +62,11 @@ type Resolver interface {
 	// CacheKey tells the InstanceType cache if something changes about the InstanceTypes or Offerings based on the NodeClass.
 	CacheKey(NodeClass) string
 	// Resolve generates an InstanceType based on raw InstanceTypeInfo and NodeClass setting data.
+	//
+	// An error means resolution failed and is fatal to the whole listing - e.g. a kubelet CEL expression that
+	// can't be evaluated - since it usually means the NodeClass is misconfigured rather than that one instance
+	// type is unusable. To decline to offer an instance type without failing the listing, return a nil
+	// InstanceType and a nil error; List skips it and Get reports a failed lookup.
 	Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*cloudprovider.InstanceType, error)
 }
 
@@ -370,7 +375,6 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
-		scheduling.NewRequirement(v1.LabelInstanceNitroEnclavesSupported, corev1.NodeSelectorOpIn, fmt.Sprint(info.NitroEnclavesSupport == ec2types.NitroEnclavesSupportSupported)),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
 	)
 

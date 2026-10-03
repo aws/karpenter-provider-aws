@@ -52,7 +52,7 @@ When a Karpenter node is deleted, the Karpenter finalizer will block deletion an
     # Delete all nodes owned by any nodepool
     kubectl delete nodes -l karpenter.sh/nodepool
 
-    # Delete all nodeclaims owned by a specific nodepoolXS
+    # Delete all nodeclaims owned by a specific nodepool
     kubectl delete nodeclaims -l karpenter.sh/nodepool=$NODEPOOL_NAME
     ```
 * **NodePool Deletion**: NodeClaims are owned by the NodePool through an [owner reference](https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/#owner-references-in-object-specifications) that launched them. Karpenter will gracefully terminate nodes through cascading deletion when the owning NodePool is deleted.
@@ -244,7 +244,7 @@ A pod with the `karpenter.sh/do-not-disrupt` annotation and a 300 second (5 minu
 
 If the pod is still running 55 minutes after the Node begins to drain, the pod will be deleted to ensure its `terminationGracePeriodSeconds` value is respected.
 If a pod's `terminationGracePeriodSeconds` value exceeds that of the Node it is scheduled to, Karpenter will prioritize the Node's `terminationGracePeriod`.
-The pod will be deleted as soon as the Node begins to drain, and it will not receive it's full `terminationGracePeriodSeconds`.
+The pod will be deleted as soon as the Node begins to drain, and it will not receive its full `terminationGracePeriodSeconds`.
 {{% /alert %}}
 
 ### NodePool Disruption Budgets

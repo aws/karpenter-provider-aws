@@ -34,9 +34,9 @@ import (
 type Provider interface {
 	List(context.Context, ...v1.CapacityReservationSelectorTerm) ([]*ec2types.CapacityReservation, error)
 	GetAvailableInstanceCount(string) int
+	SetAvailableInstanceCount(string, int)
 	MarkLaunched(string)
 	MarkTerminated(string)
-	MarkUnavailable(...string)
 }
 
 type DefaultProvider struct {
