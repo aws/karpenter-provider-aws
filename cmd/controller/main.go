@@ -15,6 +15,8 @@ limitations under the License.
 package main
 
 import (
+	"time"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
@@ -24,10 +26,17 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
+	nodeclaimlifecycle "sigs.k8s.io/karpenter/pkg/controllers/nodeclaim/lifecycle"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 )
+
+func init() {
+	// Override the upstream NodeClaim launch timeout. If an instance doesn't launch
+	// within this window, the NodeClaim is deleted and launch is retried.
+	nodeclaimlifecycle.LaunchTimeout = 45 * time.Second
+}
 
 func main() {
 	ctx, op := operator.NewOperator(coreoperator.NewOperator())
