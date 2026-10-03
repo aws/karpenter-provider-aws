@@ -103,41 +103,35 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    Karpenter has deprecated and moved a number of Helm values as part of the v1beta1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1beta1. You can find detail for all the settings that were moved in the [v1beta1 Upgrade Reference]({{<ref "v1beta1-migration#helm-values" >}}).
    {{% /alert %}}
 
-7. Install the `karpenter-convert` tool to help convert the alpha Karpenter manifests to beta manifests:
+7. Convert each AWSNodeTemplate to an EC2NodeClass. Manually apply changes to API components following the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-migration#awsnodetemplate---ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects.
 
-    ```bash
-    go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@release-v0.32.x
-    ```
-
-8. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/tools/karpenter-convert) CLI tool. See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-migration#awsnodetemplate---ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects.
+   {{% alert title="Note" color="warning" %}}
+   The `karpenter-convert` CLI tool was previously recommended for automated conversion of v1alpha5 manifests to v1beta1. This tool is **no longer available** via `go install` and will fail with a "no matching versions" error. Please perform manual conversion by following the [Changelog]({{< relref "v1beta1-migration#changelog" >}}) section below.
+   {{% /alert %}}
 
    For each EC2NodeClass, specify the `$KARPENTER_NODE_ROLE` you will use for nodes launched with this node class. Karpenter v1beta1 [drops the need for managing your own instance profile and uses node roles directly]({{< ref "v1beta1-migration#instanceprofile" >}}). The example below shows how to migrate your AWSNodeTemplate to an EC2NodeClass if your node role is the same role that was used when creating your cluster with the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}).
 
     ```bash
     export KARPENTER_NODE_ROLE="KarpenterNodeRole-${CLUSTER_NAME}"
-    karpenter-convert -f awsnodetemplate.yaml | envsubst > ec2nodeclass.yaml
+    # Manually create ec2nodeclass.yaml following the Changelog section below
     ```
 
-9. When you are satisfied with your EC2NodeClass file, apply it as follows:
+8. When you are satisfied with your EC2NodeClass file, apply it as follows:
 
     ```bash
     kubectl apply -f ec2nodeclass.yaml
     ```
 
-10. Convert each Provisioner to a NodePool. Again, either manually update your Provisioner manifests or use the [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/tools/karpenter-convert) CLI tool:
+9. Convert each Provisioner to a NodePool. Manually update your Provisioner manifests following the [Provisioner to NodePool]({{< relref "v1beta1-migration#provisioner---nodepool" >}}) section of the Changelog below.
 
-    ```bash
-    karpenter-convert -f provisioner.yaml > nodepool.yaml
-    ```
-
-11. When you are satisfied with your NodePool file, apply it as follows:
+10. When you are satisfied with your NodePool file, apply it as follows:
 
     ```bash
     kubectl apply -f nodepool.yaml
     ```
 
 {{% alert title="Note" color="warning" %}}
-The [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/tools/karpenter-convert) CLI tool will auto-inject the previous requirement defaulting logic that was orchestrated by webhooks in alpha. This defaulting logic set things like the `karpenter.sh/capacity-type`, `karpenter.k8s.aws/instance-generation`, `karpenter.k8s.aws/instance-category`, etc. These defaults are no longer set by the webhooks and need to be explicitly defined by the user in the NodePool.
+When migrating from v1alpha5 to v1beta1, you need to explicitly define requirement defaults that were previously auto-injected by webhooks. This includes settings like `karpenter.sh/capacity-type`, `karpenter.k8s.aws/instance-generation`, `karpenter.k8s.aws/instance-category`, etc. These defaults are no longer set by the webhooks and need to be explicitly defined by the user in the NodePool.
 {{% /alert %}}
 
 12. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
