@@ -314,7 +314,7 @@ The pod will be deleted as soon as the Node begins to drain, and it will not rec
 
 ### NodePool Disruption Budgets
 
-You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through drift, emptiness, and consolidation. Note that NodePool Disruption Budgets do not prevent Karpenter from terminating expired nodes.
+You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from voluntarily disrupting nodes through drift, emptiness, and consolidation. You can further scope budgets to specific disruption reasons using the `reasons` field (e.g. only blocking `Drifted` disruptions during business hours). Note that disruption budgets do not prevent Karpenter from terminating expired nodes or handling interruption events — these are non-voluntary and always proceed regardless of budget configuration.
 
 #### Reasons
 Karpenter allows specifying if a budget applies to any of `Drifted`, `Underutilized`, or `Empty`. When a budget has no reasons, it's assumed that it applies to all reasons. When calculating allowed disruptions for a given reason, Karpenter will take the minimum of the budgets that have listed the reason or have left reasons undefined.
