@@ -1824,10 +1824,9 @@ spec:
 {{% alert title="Note" color="primary" %}}
 The behavior depends on whether `enclaveOptions` is specified:
 
-- When omitted, Nitro Enclaves are disabled unless a NodeClaim requests `eks.amazonaws.com/nitro-sandbox`, preserving the existing behavior.
+- When omitted or `enabled` is `false`, Nitro Enclaves are disabled.
 - When specified, `enabled` is required.
 - When `enabled` is `true`, Karpenter enables Nitro Enclaves and excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`.
-- When `enabled` is `false`, Nitro Enclaves are explicitly disabled. A NodeClaim requesting `eks.amazonaws.com/nitro-sandbox` with this EC2NodeClass fails before EC2 instance creation with reason `NitroEnclavesDisabled`. Karpenter retries the NodeClaim until its launch timeout, and the workload remains pending until the conflict is resolved.
 
 Adding, removing, or changing `enclaveOptions` participates in EC2NodeClass drift, so it replaces affected NodeClaims according to the NodePool's disruption settings.
 {{% /alert %}}

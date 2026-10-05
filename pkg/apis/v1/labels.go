@@ -140,7 +140,6 @@ var (
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
-	ResourceNitroSandbox       corev1.ResourceName = "eks.amazonaws.com/nitro-sandbox"
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"

@@ -38,7 +38,6 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
-	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
@@ -102,7 +101,7 @@ type LaunchTemplate struct {
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
 	EFACount                         int
-	EnclaveEnabled                   bool
+	EnclaveEnabled                   bool // Resolvers other than DefaultResolver may set this from their own signals
 	NetworkInterfaces                []*ResolvedNetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
@@ -170,10 +169,7 @@ func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.C
 //nolint:gocyclo
 func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
-	enclaveEnabled, err := resolveEnclaveEnabled(nodeClass, nodeClaim)
-	if err != nil {
-		return nil, err
-	}
+	enclaveEnabled := nodeClass.Spec.EnclaveOptions != nil && nodeClass.Spec.EnclaveOptions.Enabled
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
@@ -293,17 +289,6 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 		}
 	}
 	return resolvedTemplates, nil
-}
-
-func resolveEnclaveEnabled(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) (bool, error) {
-	_, nitroSandboxRequested := nodeClaim.Spec.Resources.Requests[v1.ResourceNitroSandbox]
-	if nodeClass.Spec.EnclaveOptions == nil {
-		return nitroSandboxRequested, nil
-	}
-	if !nodeClass.Spec.EnclaveOptions.Enabled && nitroSandboxRequested {
-		return false, fmt.Errorf("%w but NodeClaim requests %q", awserrors.ErrNitroEnclavesDisabled, v1.ResourceNitroSandbox)
-	}
-	return nodeClass.Spec.EnclaveOptions.Enabled, nil
 }
 
 func GetAMIFamily(amiFamily string, options *Options) AMIFamily {

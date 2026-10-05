@@ -2756,8 +2756,8 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
-	Context("Legacy Nitro Sandbox Resource", func() {
-		It("should disable enclave options when the field is omitted and the resource is not requested", func() {
+	Context("Default Enclave Options", func() {
+		It("should disable enclave options when the field is omitted", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2765,38 +2765,6 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
-			})
-		})
-		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-
-			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
-			// simulating what the scheduler sets when pods request that resource
-			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
-				Spec: karpv1.NodeClaimSpec{
-					Resources: karpv1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							v1.ResourceNitroSandbox: resource.MustParse("1"),
-						},
-					},
-					NodeClassRef: &karpv1.NodeClassReference{
-						Group: "karpenter.k8s.aws",
-						Kind:  "EC2NodeClass",
-						Name:  nodeClass.Name,
-					},
-				},
-			})
-
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(instanceTypes).ToNot(BeEmpty())
-
-			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
 	})

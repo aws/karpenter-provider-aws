@@ -38,6 +38,9 @@ import (
 
 var ctx context.Context
 
+// extendedSlots is an arbitrary extended resource used to exercise offering CapacityOverrides.
+var extendedSlots = corev1.ResourceName("test.com/extended-slots")
+
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
@@ -158,7 +161,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 		// The filter must use AllocatableOfferingsList() so that within-group fit+availability is checked
 		// correctly, mirroring the scheduler's fits() logic.
 		//
-		// These four cases all share the same shape: a zone requirement + CPU/NIP-slots requests,
+		// These four cases all share the same shape: a zone requirement + CPU/extended-slots requests,
 		// one instance type with a base offering and one override offering, expect kept/rejected.
 		DescribeTable("CapacityOverride offering groups",
 			func(baseAvailable, overrideAvailable bool, overrideZone string, overrideSlots string, expectKept bool) {
@@ -167,8 +170,8 @@ var _ = Describe("InstanceFiltersTest", func() {
 					corev1.NodeSelectorOpIn,
 					"zone-1a",
 				)), corev1.ResourceList{
-					corev1.ResourceCPU:      resource.MustParse("2000m"),
-					v1.ResourceNitroSandbox: resource.MustParse("1"),
+					corev1.ResourceCPU: resource.MustParse("2000m"),
+					extendedSlots:      resource.MustParse("1"),
 				})
 				kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 					makeInstanceType("it",
@@ -177,7 +180,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 						withOfferings(
 							makeOffering(karpv1.CapacityTypeOnDemand, baseAvailable, withZone("zone-1a")),
 							makeOffering(karpv1.CapacityTypeOnDemand, overrideAvailable, withZone(overrideZone),
-								withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse(overrideSlots)})),
+								withCapacityOverride(corev1.ResourceList{extendedSlots: resource.MustParse(overrideSlots)})),
 						)),
 				})
 				if expectKept {
@@ -211,7 +214,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
 						// Override offering also present but irrelevant — base group already satisfies.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("4")}),
+							withCapacityOverride(corev1.ResourceList{extendedSlots: resource.MustParse("4")}),
 						),
 					),
 				),
@@ -220,7 +223,7 @@ var _ = Describe("InstanceFiltersTest", func() {
 			Expect(rejected).To(BeEmpty())
 		})
 		It("should keep an instance type when only the second of multiple override groups satisfies requests", func() {
-			// Three allocatable groups: base (no NIP slots), override-A (2 slots — not enough),
+			// Three allocatable groups: base (no extended slots), override-A (2 slots — not enough),
 			// override-B (8 slots — satisfies the request of 4). Validates the loop iterates past a
 			// non-fitting override group before finding one that does fit.
 			f := filter.CompatibleLaunchableFilter(scheduling.NewRequirements(scheduling.NewRequirement(
@@ -228,8 +231,8 @@ var _ = Describe("InstanceFiltersTest", func() {
 				corev1.NodeSelectorOpIn,
 				"zone-1a",
 			)), corev1.ResourceList{
-				corev1.ResourceCPU:      resource.MustParse("2000m"),
-				v1.ResourceNitroSandbox: resource.MustParse("4"),
+				corev1.ResourceCPU: resource.MustParse("2000m"),
+				extendedSlots:      resource.MustParse("4"),
 			})
 			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
 				makeInstanceType(
@@ -237,15 +240,15 @@ var _ = Describe("InstanceFiltersTest", func() {
 					withRequirements(scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "zone-1a")),
 					withResource(corev1.ResourceCPU, resource.MustParse("4000m")),
 					withOfferings(
-						// Base offering: available + compatible, but no NIP slots — doesn't fit.
+						// Base offering: available + compatible, but no extended slots — doesn't fit.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a")),
-						// Override-A: fits CPU, but only 2 NIP slots — doesn't satisfy 4.
+						// Override-A: fits CPU, but only 2 extended slots — doesn't satisfy 4.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("2")}),
+							withCapacityOverride(corev1.ResourceList{extendedSlots: resource.MustParse("2")}),
 						),
-						// Override-B: available + compatible + 8 NIP slots — satisfies request.
+						// Override-B: available + compatible + 8 extended slots — satisfies request.
 						makeOffering(karpv1.CapacityTypeOnDemand, true, withZone("zone-1a"),
-							withCapacityOverride(corev1.ResourceList{v1.ResourceNitroSandbox: resource.MustParse("8")}),
+							withCapacityOverride(corev1.ResourceList{extendedSlots: resource.MustParse("8")}),
 						),
 					),
 				),
