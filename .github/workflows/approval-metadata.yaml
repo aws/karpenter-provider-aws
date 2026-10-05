@@ -1,0 +1,48 @@
+name: ApprovalMetadata
+# Shared by every /karpenter command producer: checks that the reviewer is an org member and records
+# the review so the privileged workflow_run consumers can read it. This lives in one place on purpose
+# - it is the membership gate for every credentialed command, and two copies of it would drift.
+#
+# Each command gets its own caller workflow rather than one workflow fanning out to every consumer,
+# because workflow_run selects by *workflow name*: a consumer that triggers on PreviewComment can
+# never be reached by /karpenter snapshot, and vice versa. That routing is structural, where a body
+# check inside each consumer is a convention every consumer has to remember to implement.
+on:
+  workflow_call:
+jobs:
+  approval-metadata:
+    runs-on: ubuntu-latest
+    # Any PR review submission reaches this workflow, and it needs no repo scopes: the membership
+    # check is an org read and artifact upload uses the runtime token, not GITHUB_TOKEN
+    permissions: {}
+    steps:
+      - name: Check reviewer is org member
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            await github.rest.orgs.checkMembershipForUser({
+              org: context.repo.owner,
+              username: context.payload.review.user.login
+            }).catch(error => {
+              if (error.status === 404) {
+                core.setFailed('Reviewer is not an org member');
+                return;
+              }
+              throw error;
+            });
+      - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
+        env:
+          # We store these values in environment variables to avoid bash script injection
+          # Specifically, it's important that we do this for github.event.review.body since this is user-controlled input
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
+          REVIEW_BODY: ${{ github.event.review.body }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_ID: ${{ github.event.review.commit_id }}
+        run: |
+          mkdir -p /tmp/artifacts
+          { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
+          cat /tmp/artifacts/metadata.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: artifacts
+          path: /tmp/artifacts

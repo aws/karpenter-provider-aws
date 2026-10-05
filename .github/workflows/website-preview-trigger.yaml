@@ -8,27 +8,26 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  # Renders the pull request's site so that WebsitePreviewPR can ship it when a maintainer asks for
+  # a preview. This has to stay on `pull_request`: the job runs the pull request's own code, and on
+  # that trigger a fork gets a fork-scoped token and a `refs/pull/N/merge` cache scope, so nothing it
+  # writes is reachable from the default branch. Building it from a `workflow_run` workflow instead
+  # would hand that code the base repository's default-branch cache scope.
+  # https://gh.io/securely-using-pull_request_target
   preview-trigger:
     runs-on: ubuntu-latest
     if: github.repository == 'aws/karpenter-provider-aws'
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Preview the PR head, not the merge commit checkout defaults to, so that the preview,
-          # the commit status and the "built from commit" comment all describe the same commit
+          # Preview the PR head, not the merge commit checkout defaults to, so that the preview, the
+          # commit status and the "built from commit" comment all describe the same commit. The
+          # deploy workflow finds this run by that same head SHA.
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-      # Only the PR number, and the deploy workflow verifies even that against the API. The commit
-      # is not recorded here because the deploy workflow reads it from its own event payload, which
-      # this job cannot influence - anything written here is attacker-controlled once the PR's own
-      # build steps below start running
-      - name: Save info about the PR as an artifact for other workflows that run on workflow_run to download them
-        env:
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          mkdir -p /tmp/artifacts
-          echo "$PULL_REQUEST_NUMBER" >> /tmp/artifacts/website-metadata.txt
-          cat /tmp/artifacts/website-metadata.txt
+          persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: website/go.mod
@@ -37,10 +36,7 @@ jobs:
         with:
           hugo-version: '0.120.3'
           extended: true
-      # The site is built here, in the PR's own context, which holds no secrets. The privileged
-      # deploy workflow only ships this artifact, so it never executes PR code.
-      # https://gh.io/securely-using-pull_request_target
-      - name: Build the site into the artifact for the deploy workflow to ship
+      - name: Build the site for the deploy workflow to ship
         working-directory: website
         env:
           HUGO_ENV: production
@@ -50,11 +46,12 @@ jobs:
           NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
         run: |
           npm ci --prefer-offline
-          hugo --gc --minify --buildFuture -d /tmp/artifacts/site
+          hugo --gc --minify --buildFuture -d /tmp/site
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: artifacts
-          path: /tmp/artifacts
-          # The rendered site rides along in here, so keep it only as long as the deploy
-          # workflow needs to pick it up
-          retention-days: 1
+          name: website-preview-site
+          path: /tmp/site
+          # A maintainer has to ask for the preview, which can be days after the push, so this has to
+          # outlive the review. Past this window /karpenter preview reports that the build expired
+          # and the author needs to push again.
+          retention-days: 14
