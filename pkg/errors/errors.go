@@ -15,7 +15,6 @@ limitations under the License.
 package errors
 
 import (
-	stderrors "errors"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -37,9 +36,6 @@ const (
 )
 
 var (
-	// ErrNitroEnclavesDisabled indicates that an EC2NodeClass explicitly disables Nitro Enclaves requested by a NodeClaim.
-	ErrNitroEnclavesDisabled = stderrors.New("EC2NodeClass disables Nitro Enclaves")
-
 	// This is not an exhaustive list, add to it as needed
 	notFoundErrorCodes = sets.New(
 		"InvalidCapacityReservationId.NotFound",
@@ -238,9 +234,6 @@ func IsUserDataTooLarge(err error) bool {
 // and well-known condition message that can be used for launch failure classification
 // nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
-	if stderrors.Is(err, ErrNitroEnclavesDisabled) {
-		return "NitroEnclavesDisabled", "EC2NodeClass disables Nitro Enclaves while the NodeClaim requests eks.amazonaws.com/nitro-sandbox"
-	}
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
 		return "SpotSLRCreationFailed", "User does not have sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"
 	}

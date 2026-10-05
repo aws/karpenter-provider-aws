@@ -156,11 +156,9 @@ type EC2NodeClassSpec struct {
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
-	// When enclaveOptions is omitted, Nitro Enclaves are disabled unless a NodeClaim requests
-	// the `eks.amazonaws.com/nitro-sandbox` resource.
+	// When enabled, instance types are restricted to those that support Nitro Enclaves.
+	// When enclaveOptions is omitted or enabled is false, Nitro Enclaves are disabled.
 	// When enclaveOptions is specified, enabled is required.
-	// Setting enabled to false causes the NodeClaim launch to fail before EC2 instance creation
-	// when the NodeClaim requests the `eks.amazonaws.com/nitro-sandbox` resource.
 	// +optional
 	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 
