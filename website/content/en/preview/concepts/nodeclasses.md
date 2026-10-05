@@ -1824,10 +1824,9 @@ spec:
 {{% alert title="Note" color="primary" %}}
 The behavior depends on whether `enclaveOptions` is specified:
 
-- When omitted, Nitro Enclaves are disabled.
+- When omitted or `enabled` is `false`, Nitro Enclaves are disabled.
 - When specified, `enabled` is required.
 - When `enabled` is `true`, Karpenter enables Nitro Enclaves and excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`.
-- When `enabled` is `false`, Nitro Enclaves are disabled.
 
 Adding, removing, or changing `enclaveOptions` participates in EC2NodeClass drift, so it replaces affected NodeClaims according to the NodePool's disruption settings.
 {{% /alert %}}
