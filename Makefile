@@ -106,17 +106,20 @@ e2etests: ## Run the e2e suite against your local cluster
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
 	cd $(KARPENTER_CORE_DIR) && go test \
+		-p 1 \
 		-count 1 \
 		-timeout 12h \
 		-v \
 		./test/suites/regression/... \
+		./test/suites/disruption/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
-		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
+		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
+		--repair-condition="KernelReady=False"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \

@@ -344,7 +344,7 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
 			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 	})
-	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
+	It("should return an ICE error but keep the reservation Available when it is out of capacity (ReservationCapacityExceeded)", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
 		// Ensure that Karpenter believes a reservation is available, but the API returns no capacity when attempting to launch
 		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 1)
@@ -387,8 +387,11 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		// Ensure we marked the reservation as unavailable after encountering the error
-		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
+		// ReservationCapacityExceeded means the reservation is out of capacity, not unhealthy. Capacity and health are
+		// independent axes, so the offering must stay Available (it is not marked in the UnavailableOfferings cache) —
+		// its zero remaining capacity is tracked by the reservation manager. The launch still ICEs because a full
+		// reservation isn't launchable, but the offering must remain a valid target for when a slot frees up.
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", nil, karpv1.CapacityTypeReserved)).To(BeFalse())
 	})
 	It("should not mark capacity reservations unavailable for RequestLimitExceeded CreateFleet errors", func() {
 		const targetReservationID = "cr-m5.large-1a-1"

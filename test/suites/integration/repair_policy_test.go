@@ -17,6 +17,7 @@ package integration_test
 import (
 	"time"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,9 +25,12 @@ import (
 	karpenterv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 )
 
@@ -34,25 +38,17 @@ var _ = Describe("Repair Policy", func() {
 	var selector labels.Selector
 	var dep *appsv1.Deployment
 	var numPods int
-	var unhealthyCondition corev1.NodeCondition
 
 	BeforeEach(func() {
-		unhealthyCondition = corev1.NodeCondition{
-			Type:               corev1.NodeReady,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}
 		numPods = 1
-		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
+		// Repair drains like other voluntary disruption, bounded by the NodePool's TerminationGracePeriod (unset here),
+		// so these pods must not carry do-not-disrupt or the drain would never finish
 		dep = coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
 			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "my-app",
-					},
-					Annotations: map[string]string{
-						karpenterv1.DoNotDisruptAnnotationKey: "true",
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
@@ -73,17 +69,8 @@ var _ = Describe("Repair Policy", func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
-		// Kubelet Supported Conditions
-		Entry("Node Ready False", corev1.NodeCondition{
-			Type:               corev1.NodeReady,
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
-		Entry("Node Ready Unknown", corev1.NodeCondition{
-			Type:               corev1.NodeReady,
-			Status:             corev1.ConditionUnknown,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
+		// Kubelet Ready False/Unknown aren't tested here: the kubelet owns Ready and re-patches it within its status
+		// update loop, so an injected value reverts before the disruption loop can act. Core's KWOK suite covers them.
 		// Node Monitoring Agent Supported Conditions
 		Entry("Node AcceleratedHardwareReady False", corev1.NodeCondition{
 			Type:               "AcceleratedHardwareReady",
@@ -111,46 +98,38 @@ var _ = Describe("Repair Policy", func() {
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
 		}),
 	)
-	It("should ignore disruption budgets", func() {
-		nodePool.Spec.Disruption.Budgets = []karpenterv1.Budget{
-			{
-				Nodes: "0",
-			},
-		}
+	It("should terminate the unhealthy nodeclaim before launching its replacement when the reservation is full", func() {
+		capacityReservationID := aws.ExpectCapacityReservationCreated(
+			env.Context,
+			env.EC2API,
+			ec2types.InstanceTypeM5Large,
+			env.ZoneInfo[0].Zone,
+			1,
+			nil,
+			nil,
+		)
+		DeferCleanup(func() {
+			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+		})
+
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
+		nodePool = coretest.ReplaceRequirements(nodePool, karpenterv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpenterv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpenterv1.CapacityTypeReserved},
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectInitializedNodeCount("==", 1)
+		// Use the initialized node, otherwise the status update strips the initialized label
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 
-		node = common.ReplaceNodeConditions(node, unhealthyCondition)
-		env.ExpectStatusUpdated(node)
-
-		env.EventuallyExpectNotFound(pod, node)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-	})
-	It("should ignore do-not-disrupt annotation on node", func() {
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-
-		node.Annotations[karpenterv1.DoNotDisruptAnnotationKey] = "true"
-		env.ExpectUpdated(node)
-
-		node = common.ReplaceNodeConditions(node, unhealthyCondition)
-		env.ExpectStatusUpdated(node)
-
-		env.EventuallyExpectNotFound(pod, node)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-	})
-	It("should ignore terminationGracePeriod on the nodepool", func() {
-		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Hour}
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-
-		node = common.ReplaceNodeConditions(node, unhealthyCondition)
+		// Use a Node Monitoring Agent condition, the kubelet reverts Ready before repair observes it
+		node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
+			Type:               "StorageReady",
+			Status:             corev1.ConditionFalse,
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+		})
 		env.ExpectStatusUpdated(node)
 
 		env.EventuallyExpectNotFound(pod, node)
