@@ -3,6 +3,9 @@ on:
   schedule:
     - cron: '3 */1 * * *' # every hour
   workflow_dispatch:
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:

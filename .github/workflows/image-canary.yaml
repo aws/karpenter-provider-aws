@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   schedule:
   - cron: '0 */1 * * *'
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   image-canary:
     runs-on: ubuntu-latest
