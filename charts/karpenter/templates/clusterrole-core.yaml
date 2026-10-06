@@ -77,7 +77,11 @@ rules:
     verbs: ["create"]
   - apiGroups: [""]
     resources: ["pods"]
+    {{- if .Values.settings.featureGates.podDeletionCostManagement }}
+    verbs: ["delete", "patch"]
+    {{- else }}
     verbs: ["delete"]
+    {{- end }}
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
   {{- end -}}

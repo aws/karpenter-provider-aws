@@ -255,6 +255,10 @@ settings:
     # -- terminateFirstRepair is ALPHA and is disabled by default.
     # Setting this to true lets repair terminate an unhealthy node before launching its replacement on a capacity-constrained NodePool.
     terminateFirstRepair: false
+    # -- podDeletionCostManagement is ALPHA and is disabled by default.
+    # Setting this to true will enable Karpenter to manage pod-deletion-cost annotations on ReplicaSet pods on its nodes,
+    # so that ReplicaSet scale-down prefers to remove pods from nodes Karpenter wants to consolidate.
+    podDeletionCostManagement: false
   # -- AWS-specific Feature Gate configuration values.
   awsFeatureGates:
     # -- nodeClassCEL is ALPHA and is disabled by default.
