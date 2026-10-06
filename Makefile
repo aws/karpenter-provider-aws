@@ -206,6 +206,9 @@ snapshot: ## Builds and publishes snapshot release
 release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
+latest-release: ## Mark the highest stable release as GitHub's Latest release
+	./hack/release/latest.sh
+
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 
