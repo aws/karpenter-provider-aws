@@ -5,7 +5,7 @@ ADDITIONAL_FLAGS=""
 if (( "$PRIVATE_CLUSTER" == 'true' )); then
   CHART=$(find . -name kube-prometheus-stack*)
   ENABLED=false
-  ADDITIONAL_FLAGS="--set prometheusOperator.admissionWebhooks.patch.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/k8s --set prometheusOperator.prometheusConfigReloader.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set prometheusOperator.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set kube-state-metrics.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/k8s --set alertmanager.alertmanagerSpec.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set prometheus.prometheusSpec.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set grafana.enabled=$ENABLED"
+  ADDITIONAL_FLAGS="--set prometheusOperator.admissionWebhooks.patch.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/k8s --set prometheusOperator.admissionWebhooks.patch.image.repository=ingress-nginx/kube-webhook-certgen --set prometheusOperator.admissionWebhooks.patch.image.tag=v1.6.9 --set prometheusOperator.prometheusConfigReloader.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set prometheusOperator.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set kube-state-metrics.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/k8s --set alertmanager.alertmanagerSpec.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set prometheus.prometheusSpec.image.registry=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/quay --set grafana.enabled=$ENABLED"
 fi
 
 helm upgrade --install prometheus "${CHART}" \
