@@ -86,6 +86,7 @@ type Provider interface {
 	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
+	Reboot(context.Context, string, string) error
 	CreateTags(context.Context, string, map[string]string) error
 }
 
@@ -290,6 +291,30 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 			})
 			return err
 		}
+	}
+	return nil
+}
+
+// Reboot restarts the instance in place via ec2:RebootInstances.
+// EC2 has no client token; restart safety is handled by the reboot controller.
+func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID string) error {
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id, "operation-id", operationID))
+	// Get populates the cache with the instance's zone for the zonal-shift guard below.
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Avoid rebooting instances during zonal shift
+	if out.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, out.ZoneID) {
+		return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping reboot", id, out.Zone, out.ZoneID)
+	}
+	if _, err := p.ec2api.RebootInstances(ctx, &ec2.RebootInstancesInput{
+		InstanceIds: []string{id},
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("rebooting instance, %w", err))
+		}
+		return fmt.Errorf("rebooting instance, %w", err)
 	}
 	return nil
 }

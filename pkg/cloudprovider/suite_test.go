@@ -36,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
+	"github.com/aws/smithy-go"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -51,6 +52,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
+	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -326,6 +328,49 @@ var _ = Describe("CloudProvider", func() {
 		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
+	})
+	Context("RepairPolicies", func() {
+		It("should define a policy set that core's repair matcher accepts", func() {
+			_, err := health.NewRepairPolicyMatcher(cloudProvider.RepairPolicies(), sets.New(corecloudprovider.ReplaceNode, corecloudprovider.RebootNode))
+			Expect(err).ToNot(HaveOccurred())
+		})
+	})
+	Context("Reboot", func() {
+		It("should reboot the instance via ec2:RebootInstances", func() {
+			instance := test.EC2Instance()
+			id := aws.ToString(instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(id)
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Pop().InstanceIds).To(ConsistOf(id))
+		})
+		It("should propagate an error when RebootInstances fails", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+		})
+		It("should return NodeClaimNotFound without rebooting when the instance is gone", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should return NodeClaimNotFound when the instance disappears before RebootInstances", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(&smithy.GenericAPIError{Code: "InvalidInstanceID.NotFound"})
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+		})
+		It("should return an error for an unparseable provider id", func() {
+			nodeClaim.Status.ProviderID = "not-a-valid-provider-id"
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
 	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"

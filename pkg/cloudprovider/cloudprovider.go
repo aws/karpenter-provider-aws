@@ -260,12 +260,17 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	return err
 }
 
-func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
-	return nil
+func (c *CloudProvider) Reboot(ctx context.Context, nodeClaim *karpv1.NodeClaim, operationID string) error {
+	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
+	if err != nil {
+		return fmt.Errorf("getting instance ID, %w", err)
+	}
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
+	return c.instanceProvider.Reboot(ctx, id, operationID)
 }
 
-func (c *CloudProvider) Reboot(_ context.Context, _ *karpv1.NodeClaim, _ string) error {
-	return cloudprovider.NewNodeRebootNotImplementedError()
+func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
+	return nil
 }
 
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {
@@ -309,42 +314,57 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 	return []cloudprovider.RepairPolicy{
 		// Supported Kubelet Node Conditions
+		//
+		// Ready=False is the global fallback (empty ReasonRegex); every other policy matches all reasons with ".*".
 		{
 			ConditionType:      corev1.NodeReady,
 			ConditionStatus:    corev1.ConditionFalse,
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:      corev1.NodeReady,
 			ConditionStatus:    corev1.ConditionUnknown,
+			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		// Support Node Monitoring Agent Conditions
 		//
 		{
 			ConditionType:      "AcceleratedHardwareReady",
 			ConditionStatus:    corev1.ConditionFalse,
+			ReasonRegex:        ".*",
 			TolerationDuration: 10 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:      "StorageReady",
 			ConditionStatus:    corev1.ConditionFalse,
+			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:      "NetworkingReady",
 			ConditionStatus:    corev1.ConditionFalse,
+			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:      "KernelReady",
 			ConditionStatus:    corev1.ConditionFalse,
+			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:      "ContainerRuntimeReady",
 			ConditionStatus:    corev1.ConditionFalse,
+			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
+			Action:             cloudprovider.ReplaceNode,
 		},
 	}
 }

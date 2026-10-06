@@ -265,7 +265,7 @@ Likewise, `RequestTag/eks:eks-cluster-name` must be set to `${ClusterName}`, if 
 
 #### AllowScopedDeletion
 
-The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set. These tags must be present on all resources that Karpenter is going to delete. This ensures that Karpenter can only delete instances and launch templates that are associated with it.
+The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set. These tags must be present on all resources that Karpenter is going to delete. This ensures that Karpenter can only delete instances and launch templates that are associated with it. The same scoping applies to [RebootInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RebootInstances.html), which Karpenter uses to reboot a node in place when node repair selects a reboot, so it can only reboot instances that are associated with it.
 
 ```json
 {
@@ -277,6 +277,7 @@ The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.
   ],
   "Action": [
     "ec2:TerminateInstances",
+    "ec2:RebootInstances",
     "ec2:DeleteLaunchTemplate"
   ],
   "Condition": {
