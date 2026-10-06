@@ -906,6 +906,51 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("BlockDeviceMappings", func() {
+		It("should succeed with only a volumeSizeExpression", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSizeExpression: aws.String("vcpus * 10")}},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should fail with both volumeSize and volumeSizeExpression", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(50, resource.Giga), VolumeSizeExpression: aws.String("vcpus * 10")}},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail with a volumeSizeExpression over 512 characters", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSizeExpression: aws.String(strings.Repeat("1", 513))}},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).ToNot(Succeed())
+		})
 		It("should succeed if more than one root volume is specified", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),

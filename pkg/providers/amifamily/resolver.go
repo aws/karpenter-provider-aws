@@ -203,11 +203,15 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 			// (serialized as "key1=val1,key2=val2" for comparability) when CEL expressions are used.
 			resolvedKubeReserved   string
 			resolvedSystemReserved string
+			// volumeSizes holds the resolved volume size of each blockDeviceMapping (serialized for comparability)
+			// so instance types whose volumeSizeExpressions resolve differently get different launch templates.
+			volumeSizes string
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
 			reservationIDs           string
 			reservationType          v1.CapacityReservationType
 			reservationInterruptible bool
 		}
+		paramsToBlockDeviceMappings := map[launchTemplateParams][]*v1.BlockDeviceMapping{}
 		// paramsForInstanceType computes the launch template grouping key for an instance type.
 		paramsForInstanceType := func(it *cloudprovider.InstanceType) (launchTemplateParams, error) {
 			var reservationType v1.CapacityReservationType
@@ -258,7 +262,15 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					fmt.Errorf("resolving systemReserved, %w", err),
 					"instance-type", it.Name)
 			}
-			return launchTemplateParams{
+			// volumeSizeExpressions are resolved through the same shared path as the scheduler's ephemeral-storage
+			// capacity (ResolveBlockDeviceMappings), so the volume created matches the capacity that was reserved.
+			resolvedBlockDeviceMappings, err := ResolveBlockDeviceMappings(ctx, r.celEnv, nodeClass.Spec.BlockDeviceMappings, func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) })
+			if err != nil {
+				return launchTemplateParams{}, serrors.Wrap(
+					fmt.Errorf("resolving blockDeviceMappings, %w", err),
+					"instance-type", it.Name)
+			}
+			params := launchTemplateParams{
 				// Must agree with the instance provider's getEFACountForInstance, which records the count on the instance.
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim),
@@ -268,13 +280,17 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 				maxPods:                int(it.Capacity.Pods().Value()),
 				resolvedKubeReserved:   serializeResourceMap(resolvedKubeReserved),
 				resolvedSystemReserved: serializeResourceMap(resolvedSystemReserved),
+				volumeSizes:            serializeVolumeSizes(resolvedBlockDeviceMappings),
 				// If we're dealing with reserved instances, there's only going to be a single instance per group. This invariant
 				// is due to reservation IDs not being shared across instance types. Because of this, we don't need to worry about
 				// ordering in this string.
 				reservationIDs:           strings.Join(reservationIDs, ","),
 				reservationType:          reservationType,
 				reservationInterruptible: reservationInterruptible,
-			}, nil
+			}
+			// Every instance type sharing these params resolved to the same volume sizes, so they share the mappings.
+			paramsToBlockDeviceMappings[params] = resolvedBlockDeviceMappings
+			return params, nil
 		}
 		paramsToInstanceTypes := map[launchTemplateParams][]*cloudprovider.InstanceType{}
 		for _, it := range instanceTypes {
@@ -287,7 +303,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled, paramsToBlockDeviceMappings[params])...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -365,6 +381,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedSystemReserved map[string]string,
 	parsedKubelet *v1.ParsedKubeletConfig,
 	enclaveEnabled bool,
+	blockDeviceMappings []*v1.BlockDeviceMapping,
 ) []*LaunchTemplate {
 	// Copied rather than re-parsed because the fields below are mutated per launch template -- maxPods
 	// and the resolved reservations differ by instance type -- so each template needs its own copy.
@@ -448,7 +465,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 				nodeClass.Spec.UserData,
 				options.InstanceStorePolicy,
 			),
-			BlockDeviceMappings:              nodeClass.Spec.BlockDeviceMappings,
+			BlockDeviceMappings:              blockDeviceMappings,
 			MetadataOptions:                  nodeClass.Spec.MetadataOptions,
 			CPUOptions:                       nodeClass.Spec.CPUOptions,
 			DetailedMonitoring:               aws.ToBool(nodeClass.Spec.DetailedMonitoring),

@@ -282,6 +282,39 @@ func (c *CELEnvironment) ValidateExpression(expression string) error {
 	return err
 }
 
+// MaxVolumeSizeGiB is the largest volume size volumeSizeExpression may resolve to. It matches the upper bound
+// of the static volumeSize pattern on BlockDevice (59000Gi).
+const MaxVolumeSizeGiB = 59000
+
+// ResolveVolumeSize evaluates a volumeSizeExpression against the given instance type variables, returning the
+// volume size in whole GiB. The expression's number is GiB, the unit EBS volume sizes are expressed in, so
+// "vcpus * 10" on a 16 vCPU instance is 160Gi. Results below 1 are rejected since EBS can't create an empty
+// volume, and results above MaxVolumeSizeGiB are rejected to match the static volumeSize schema limit. This is the single evaluation path shared by the scheduler (ephemeral-storage capacity) and the
+// launch template resolver (the volume that's created), so identical inputs always produce identical results.
+func (c *CELEnvironment) ResolveVolumeSize(expression string, vars InstanceTypeVars) (resource.Quantity, error) {
+	result, err := c.EvaluateExpression(expression, vars)
+	if err != nil {
+		return resource.Quantity{}, err
+	}
+	if result < 1 {
+		return resource.Quantity{}, serrors.Wrap(
+			fmt.Errorf("volume size expression evaluated to a value below 1 GiB"),
+			"expression", expression,
+			"instance-type", vars.InstanceType,
+			"result", result,
+		)
+	}
+	if result > MaxVolumeSizeGiB {
+		return resource.Quantity{}, serrors.Wrap(
+			fmt.Errorf("volume size expression evaluated to a value above %d GiB", MaxVolumeSizeGiB),
+			"expression", expression,
+			"instance-type", vars.InstanceType,
+			"result", result,
+		)
+	}
+	return resource.MustParse(fmt.Sprintf("%dGi", result)), nil
+}
+
 // ResolveResourceMap evaluates the CEL expressions in a kubelet resource map (kubeReserved or
 // systemReserved). Values that already parse as valid Kubernetes resource quantities are passed
 // through unchanged; values that don't are evaluated as CEL expressions and replaced with their

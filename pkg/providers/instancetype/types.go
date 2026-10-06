@@ -134,13 +134,23 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			fmt.Errorf("resolving systemReserved, %w", err),
 			"instance-type", info.InstanceType)
 	}
+	// volumeSizeExpressions are resolved through the same shared path the launch template resolver uses, so the
+	// ephemeral-storage capacity computed below matches the volume that's actually created.
+	blockDeviceMappings, err := amifamily.ResolveBlockDeviceMappings(ctx, d.celEnv, nodeClass.BlockDeviceMappings(), func() (kubeletcel.InstanceTypeVars, error) {
+		return buildCELVars(ctx, info, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces()), nil
+	})
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving blockDeviceMappings, %w", err),
+			"instance-type", info.InstanceType)
+	}
 	return NewInstanceType(
 		ctx,
 		info,
 		d.region,
 		zones,
 		nodeClass.ZoneInfo(),
-		nodeClass.BlockDeviceMappings(),
+		blockDeviceMappings,
 		nodeClass.InstanceStorePolicy(),
 		nodeClass.NetworkInterfaces(),
 		maxPods,

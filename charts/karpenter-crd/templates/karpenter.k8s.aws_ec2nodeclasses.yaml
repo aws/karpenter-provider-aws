@@ -225,6 +225,16 @@ spec:
                                  * standard: 1-1,024
                             pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
                             type: string
+                          volumeSizeExpression:
+                            description: |-
+                              VolumeSizeExpression is a CEL expression evaluated per instance type to compute the volume size, so one
+                              EC2NodeClass can size volumes differently across a heterogeneous fleet. It is mutually exclusive with
+                              volumeSize. The expression must return an int or double number of GiB (e.g. `200` is 200Gi), which is
+                              truncated to a whole number, and must evaluate to between 1 and 59000.
+                              The available variables are instance_type, vcpus, memory_mib, default_enis, ips_per_eni, and max_pods.
+                              Requires the NodeClassCEL feature gate.
+                            maxLength: 512
+                            type: string
                           volumeType:
                             description: |-
                               VolumeType of the block device.
@@ -241,8 +251,10 @@ spec:
                             type: string
                         type: object
                         x-kubernetes-validations:
-                          - message: snapshotID or volumeSize must be defined
-                            rule: has(self.snapshotID) || has(self.volumeSize)
+                          - message: snapshotID, volumeSize, or volumeSizeExpression must be defined
+                            rule: has(self.snapshotID) || has(self.volumeSize) || has(self.volumeSizeExpression)
+                          - message: volumeSize and volumeSizeExpression are mutually exclusive
+                            rule: '!(has(self.volumeSize) && has(self.volumeSizeExpression))'
                           - message: snapshotID must be set when volumeInitializationRate is set
                             rule: '!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '''')'
                       rootVolume:

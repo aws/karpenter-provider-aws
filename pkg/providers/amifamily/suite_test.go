@@ -1247,6 +1247,38 @@ var _ = Describe("AMIResolver", func() {
 		Expect(err.Error()).To(ContainSubstring("parsing kubelet configuration"))
 		Expect(launchTemplates).To(BeEmpty())
 	})
+	Context("VolumeSizeExpression", func() {
+		BeforeEach(func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: aws.String("/dev/xvda"),
+				EBS:        &v1.BlockDevice{VolumeSizeExpression: aws.String("vcpus * 50")},
+			}}
+		})
+		It("should give instance types that resolve to different volume sizes distinct launch templates", func() {
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			small := lo.Filter(instanceTypes, func(it *corecloudprovider.InstanceType, _ int) bool {
+				return it.Name == "m5.large" || it.Name == "m5.xlarge"
+			})
+			Expect(small).To(HaveLen(2))
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, awsEnv.InstanceTypesProvider.ENILimits, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, small, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).To(HaveLen(2))
+			// The launch template's volume matches the ephemeral-storage the scheduler computed for the same type.
+			for _, lt := range launchTemplates {
+				Expect(lt.InstanceTypes).To(HaveLen(1))
+				Expect(lt.BlockDeviceMappings).To(HaveLen(1))
+				Expect(lt.BlockDeviceMappings[0].EBS.VolumeSizeExpression).To(BeNil())
+				Expect(lt.BlockDeviceMappings[0].EBS.VolumeSize.Cmp(*lt.InstanceTypes[0].Capacity.StorageEphemeral())).To(Equal(0))
+			}
+		})
+	})
 	Context("EnclaveEnabled", func() {
 		It("should set EnclaveEnabled to false by default when no resources are requested", func() {
 			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)

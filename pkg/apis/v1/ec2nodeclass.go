@@ -392,7 +392,8 @@ type BlockDeviceMapping struct {
 	// +optional
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
-	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
+	// +kubebuilder:validation:XValidation:message="snapshotID, volumeSize, or volumeSizeExpression must be defined",rule="has(self.snapshotID) || has(self.volumeSize) || has(self.volumeSizeExpression)"
+	// +kubebuilder:validation:XValidation:message="volumeSize and volumeSizeExpression are mutually exclusive",rule="!(has(self.volumeSize) && has(self.volumeSizeExpression))"
 	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '')"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
@@ -469,6 +470,15 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Type:=string
 	// +optional
 	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
+	// VolumeSizeExpression is a CEL expression evaluated per instance type to compute the volume size, so one
+	// EC2NodeClass can size volumes differently across a heterogeneous fleet. It is mutually exclusive with
+	// volumeSize. The expression must return an int or double number of GiB (e.g. `200` is 200Gi), which is
+	// truncated to a whole number, and must evaluate to between 1 and 59000.
+	// The available variables are instance_type, vcpus, memory_mib, default_enis, ips_per_eni, and max_pods.
+	// Requires the NodeClassCEL feature gate.
+	// +kubebuilder:validation:MaxLength:=512
+	// +optional
+	VolumeSizeExpression *string `json:"volumeSizeExpression,omitempty"`
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.
@@ -584,6 +594,13 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) m
 		EKSClusterNameTagKey:   clusterName,
 		LabelNodeClass:         in.Name,
 		v1.LabelTopologyRegion: region,
+	})
+}
+
+// HasVolumeSizeExpressions returns true if any blockDeviceMappings entry sizes its volume with a CEL expression
+func (in *EC2NodeClass) HasVolumeSizeExpressions() bool {
+	return lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool {
+		return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSizeExpression != nil
 	})
 }
 

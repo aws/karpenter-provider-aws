@@ -57,22 +57,25 @@ import (
 )
 
 const (
-	requeueAfterTime                               = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed             = "TagValidationFailed"
-	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
-	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
-	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
-	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
-	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
-	ConditionReasonConsumableCapacityInvalid       = "NVIDIAConsumableCapacityInvalid"
-	ConditionReasonDRADisabled                     = "DRADisabled"
+	requeueAfterTime                                      = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed                  = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed         = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed                 = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound                = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady                   = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed                    = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration            = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid               = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed            = "KubeletExpressionEvaluationFailed"
+	ConditionReasonKubeletExpressionsDisabled             = "KubeletExpressionsDisabled"
+	ConditionReasonBlockDeviceMappingExpressionsDisabled  = "BlockDeviceMappingExpressionsDisabled"
+	ConditionReasonBlockDeviceMappingExpressionInvalid    = "BlockDeviceMappingExpressionInvalid"
+	ConditionReasonBlockDeviceMappingExpressionEvalFailed = "BlockDeviceMappingExpressionEvaluationFailed"
+	ConditionReasonUnsupportedKubeletConfiguration        = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                         = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge                       = "UserDataSizeLimitExceeded"
+	ConditionReasonConsumableCapacityInvalid              = "NVIDIAConsumableCapacityInvalid"
+	ConditionReasonDRADisabled                            = "DRADisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -201,6 +204,28 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
 	}
 
+	if nodeClass.HasVolumeSizeExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonBlockDeviceMappingExpressionsDisabled,
+			"spec.blockDeviceMappings contains a volumeSizeExpression, but the NodeClassCEL feature gate is disabled",
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("blockDeviceMapping expressions are disabled"))
+	}
+	for _, bdm := range nodeClass.Spec.BlockDeviceMappings {
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSizeExpression == nil {
+			continue
+		}
+		if err := v.celEnv.ValidateExpression(*bdm.EBS.VolumeSizeExpression); err != nil {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonBlockDeviceMappingExpressionInvalid,
+				err.Error(),
+			)
+			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating volumeSizeExpression for device %q, %w", lo.FromPtr(bdm.DeviceName), err))
+		}
+	}
+
 	// Reject kubelet fields the NodeClass' AMI family won't apply. Without this they'd be dropped
 	// silently at bootstrap, launching a node that lacks the configuration the user set.
 	if err := validateKubeletFieldsSupported(nodeClass, parsedKubelet); err != nil {
@@ -277,6 +302,18 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating kubelet expressions, %w", err))
+	}
+
+	if err := v.instanceTypeProvider.ValidateBlockDeviceMappingExpressions(ctx, nodeClass); err != nil {
+		if errors.Is(err, instancetype.ErrInstanceTypesNotHydrated) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonBlockDeviceMappingExpressionEvalFailed,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating volumeSizeExpressions, %w", err))
 	}
 
 	nodeClaim := &karpv1.NodeClaim{

@@ -3829,6 +3829,56 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// m5.large has 2 vCPUs, so min(110, 16) resolves to 16 rather than the AMI family default.
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 16))
 		})
+		It("should size ephemeral-storage per instance type from a volumeSizeExpression", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/xvda"),
+				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus * 50")},
+			}}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			for name, expected := range map[string]string{"m5.large": "100Gi", "m5.xlarge": "200Gi"} {
+				it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == name })
+				Expect(ok).To(BeTrue(), name)
+				Expect(it.Capacity.StorageEphemeral().Cmp(resource.MustParse(expected))).To(Equal(0), name)
+			}
+		})
+		It("should fail resolution when the volumeSizeExpression evaluates below 1 GiB", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/xvda"),
+				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus - vcpus")},
+			}}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("resolving blockDeviceMappings")))
+		})
+		It("should fall back to the default ephemeral-storage when a volumeSizeExpression is set but the gate is disabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
+			}))
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/xvda"),
+				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus * 50")},
+			}}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "m5.large" })
+			Expect(ok).To(BeTrue())
+			Expect(it.Capacity.StorageEphemeral().Cmp(resource.MustParse("20Gi"))).To(Equal(0))
+		})
 		It("should use the default maxPods (not the expression result) when the gate is disabled", func() {
 			// With the NodeClassCEL gate off, the resolution path must not honor a CEL maxPods expression --
 			// it falls back to the AMI family default rather than evaluating it. The validation controller

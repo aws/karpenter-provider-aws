@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
@@ -46,6 +47,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -85,6 +87,9 @@ type Provider interface {
 	// type and returns an error describing the first per-instance-type evaluation failure. A compile-only check
 	// cannot catch these because the instance-type variables aren't known until an instance type is in hand.
 	ValidateKubeletExpressions(context.Context, NodeClass) error
+	// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' volumeSizeExpressions against every known
+	// instance type, returning the first evaluation failure.
+	ValidateBlockDeviceMappingExpressions(context.Context, NodeClass) error
 }
 
 type DefaultProvider struct {
@@ -343,6 +348,46 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	for _, info := range p.instanceTypesInfo {
 		if err := p.evaluateKubeletExpressions(ctx, info, parsed, amiFamily, nodeClass.NetworkInterfaces()); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' volumeSizeExpressions against every known
+// instance type. It returns the first evaluation failure so the caller can surface it on the NodeClass status,
+// catching what a compile-only check can't: a result below 1 GiB, or an error that only some instance types hit.
+func (p *DefaultProvider) ValidateBlockDeviceMappingExpressions(ctx context.Context, nodeClass NodeClass) error {
+	// Without expressions there is nothing to evaluate. The same applies when expressions are gated off -- the
+	// validation controller has already rejected the NodeClass by this point.
+	if !lo.ContainsBy(nodeClass.BlockDeviceMappings(), func(bdm *v1.BlockDeviceMapping) bool {
+		return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSizeExpression != nil
+	}) || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+		return nil
+	}
+	p.muInstanceTypesInfo.RLock()
+	defer p.muInstanceTypesInfo.RUnlock()
+
+	if len(p.instanceTypesInfo) == 0 {
+		return ErrInstanceTypesNotHydrated
+	}
+	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
+	var podsPerCore *int32
+	var maxPods *intstr.IntOrString
+	if kc := nodeClass.KubeletConfiguration(); kc != nil {
+		if parsed, err := v1.ParseKubeletConfig(kc); err == nil {
+			podsPerCore, maxPods = parsed.PodsPerCore, parsed.MaxPods
+		}
+	}
+	for _, info := range p.instanceTypesInfo {
+		// Resolve through the same call Resolve makes, so max_pods holds exactly what it would at resolution time.
+		resolvedMaxPods, err := resolveMaxPods(ctx, p.celEnv, info, maxPods, amiFamily, podsPerCore, nodeClass.NetworkInterfaces())
+		if err != nil {
+			return err
+		}
+		if _, err := amifamily.ResolveBlockDeviceMappings(ctx, p.celEnv, nodeClass.BlockDeviceMappings(), func() (kubeletcel.InstanceTypeVars, error) {
+			return buildCELVars(ctx, info, amiFamily, resolvedMaxPods, podsPerCore, nodeClass.NetworkInterfaces()), nil
+		}); err != nil {
+			return serrors.Wrap(err, "instance-type", info.InstanceType)
 		}
 	}
 	return nil

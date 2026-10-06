@@ -1295,6 +1295,22 @@ spec:
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
 
+### Sizing volumes per instance type with `volumeSizeExpression`
+
+Instead of a fixed `volumeSize`, an EBS device may set `volumeSizeExpression`, a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. It is mutually exclusive with `volumeSize` and requires the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000 (the same upper bound as `volumeSize`); fractional results are truncated.
+
+The same resolved size is used for the node's `ephemeral-storage` capacity and the launch template, so instance types resolving to different sizes get different launch templates.
+
+```yaml
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      rootVolume: true
+      ebs:
+        volumeSizeExpression: "min(max(vcpus * 20, 50), 500)"
+        volumeType: gp3
+```
+
 ## spec.networkInterfaces
 
 The `networkInterfaces` field allows you to configure network interface attachments for instances, including support for EFA (Elastic Fabric Adapter) devices for high-performance computing and machine learning workloads. For more information see the [AWS EFA docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html).
