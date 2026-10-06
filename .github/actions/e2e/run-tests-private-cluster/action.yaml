@@ -103,8 +103,8 @@ runs:
             commands:
               # Make sure goenv is up to date
               - cd $HOME/.goenv && git pull --ff-only && cd -
-              # Install Go 1.22
-              - goenv install 1.22 && goenv global 1.22
+              # Install the Go version from go.mod; -s skips the install if the image already has it
+              - GO_VERSION="$(sed -n 's/^go //p' go.mod)" && goenv install -s "$GO_VERSION" && goenv global "$GO_VERSION"
           build:
             commands:
               - aws eks update-kubeconfig --name $CLUSTER_NAME

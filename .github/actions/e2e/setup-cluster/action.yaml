@@ -30,7 +30,7 @@ inputs:
     default: "1.36"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.202.0
+    default: v0.217.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"
@@ -39,6 +39,8 @@ inputs:
     default: 'false'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  karpenter_git_ref:
+    description: "The git commit, tag, or branch of the Karpenter to install. Defaults to git_ref. Requires a corresponding Karpenter snapshot release"
   enable_local_zones:
     description: "Whether to include local zones in the VPC created for the cluster."
     default: 'false'
@@ -282,5 +284,5 @@ runs:
       ecr_region: ${{ inputs.ecr_region }}
       cluster_name: ${{ inputs.cluster_name }}
       k8s_version: ${{ inputs.k8s_version }}
-      git_ref: ${{ inputs.git_ref }}
+      git_ref: ${{ inputs.karpenter_git_ref || inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}

@@ -3,8 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       from_git_ref:
+        description: "Git ref to upgrade from. Defaults to the latest release"
         type: string
-        required: true
       region:
         type: choice
         options:
@@ -34,8 +34,8 @@ on:
   workflow_call:
     inputs:
       from_git_ref:
+        description: "Git ref to upgrade from. Defaults to the latest release"
         type: string
-        required: true
       to_git_ref:
         type: string
       region:
@@ -58,12 +58,12 @@ on:
 jobs:
   run-suite:
     permissions:
+      contents: read # gh release view
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
     name: suite-upgrade
     runs-on: ubuntu-latest
     steps:
-      # This additional checkout can be removed when the commit status action is added to the from_git_ref version of Karpenter
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.to_git_ref }}
@@ -73,9 +73,22 @@ jobs:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ inputs.from_git_ref }}
+      - id: resolve-from-git-ref
+        name: resolve from_git_ref
+        env:
+          FROM_GIT_REF: ${{ inputs.from_git_ref }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [[ -z "$FROM_GIT_REF" ]]; then
+            FROM_GIT_REF=$(gh release view --repo "$REPOSITORY" --json tagName --jq .tagName)
+          fi
+          if [[ -z "$FROM_GIT_REF" ]]; then
+            echo "::error::unable to resolve the latest release of $REPOSITORY"
+            exit 1
+          fi
+          echo "Upgrading from \"$FROM_GIT_REF\""
+          echo FROM_GIT_REF="$FROM_GIT_REF" >> "$GITHUB_OUTPUT"
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
@@ -96,9 +109,12 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.202.0
+          eksctl_version: v0.217.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
-          git_ref: ${{ inputs.from_git_ref }}
+          # Build the cluster with this ref's eksctl config and IAM so it already has what the upgraded Karpenter needs
+          # (e.g. zonal shift), and only install Karpenter from the from-ref
+          git_ref: ${{ inputs.to_git_ref }}
+          karpenter_git_ref: ${{ steps.resolve-from-git-ref.outputs.FROM_GIT_REF }}
           ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
@@ -122,7 +138,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.202.0
+          eksctl_version: v0.217.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
           ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
@@ -174,7 +190,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-          eksctl_version: v0.202.0
+          eksctl_version: v0.217.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
