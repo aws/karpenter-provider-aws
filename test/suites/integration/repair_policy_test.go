@@ -60,8 +60,8 @@ var _ = Describe("Repair Policy", func() {
 	DescribeTable("Conditions", func(unhealthyCondition corev1.NodeCondition) {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
-		node := env.ExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectInitializedNodeCount("==", 1)
+		// Use the initialized node, otherwise the status update strips the initialized label
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 
 		node = common.ReplaceNodeConditions(node, unhealthyCondition)
 		env.ExpectStatusUpdated(node)
