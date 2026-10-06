@@ -76,7 +76,7 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       INTERRUPTION_QUEUE: ${{ inputs.cluster_name }}
       REGION: ${{ inputs.region }}
-      HELM_VERSION: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
+      HELM_VERSION: v3.18.6
       PROMETHEUS_REGION: ${{ inputs.prometheus_region }}
       WORKSPACE_ID: ${{ inputs.prometheus_workspace_id }}
       ACCOUNT_ID: ${{ inputs.account_id }}
