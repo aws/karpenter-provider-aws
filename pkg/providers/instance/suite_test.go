@@ -1048,6 +1048,13 @@ var _ = Describe("InstanceProvider", func() {
 			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
 			Expect(after - before).To(Equal(float64(0)))
 		})
+		It("should not call RebootInstances for instances in a zonally shifted AZ", func() {
+			err := awsEnv.InstanceProvider.Reboot(ctx, instanceID, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
 		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
 			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
 			Expect(err).To(HaveOccurred())
@@ -1112,6 +1119,13 @@ var _ = Describe("InstanceProvider", func() {
 				// DescribeInstances is called by Get() inside Delete() to fetch instance data
 				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
 				Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			})
+			It("should not call RebootInstances even with a cold cache since Reboot calls Get first", func() {
+				err := awsEnv.InstanceProvider.Reboot(ctx, uncachedInstanceID, "op-1")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 			})
 			It("should proceed with CreateTags when instance is not in the cache", func() {
 				err := awsEnv.InstanceProvider.CreateTags(ctx, uncachedInstanceID, map[string]string{"test-key": "test-value"})
