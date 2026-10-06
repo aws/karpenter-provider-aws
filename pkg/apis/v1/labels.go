@@ -17,10 +17,14 @@ package v1
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
+	"github.com/awslabs/operatorpkg/docs"
+	"github.com/awslabs/operatorpkg/wellknown"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -183,3 +187,67 @@ var (
 	LaunchTemplateNamePrefix = apis.Group
 	EKSClusterNameTagKey     = "eks:eks-cluster-name"
 )
+
+var trueValue = strconv.FormatBool(true)
+
+var (
+	EC2NodeClassHashAnnotation = wellknown.Annotation{
+		Name:    AnnotationEC2NodeClassHash,
+		Example: "5763643673275251833",
+		UsedOn:  []runtime.Object{&EC2NodeClass{}, &karpv1.NodeClaim{}},
+		Help: "Karpenter sets this to a hash of the EC2NodeClass, on the EC2NodeClass and on each NodeClaim it " +
+			"launches. A NodeClaim whose hash differs from its EC2NodeClass's is drifted.",
+		Stage:        docs.Alpha,
+		InternalOnly: true,
+	}
+	EC2NodeClassHashVersionAnnotation = wellknown.Annotation{
+		Name:    AnnotationEC2NodeClassHashVersion,
+		Example: EC2NodeClassHashVersion,
+		UsedOn:  []runtime.Object{&EC2NodeClass{}, &karpv1.NodeClaim{}},
+		Help: "Karpenter sets this to the version of the karpenter.k8s.aws/ec2nodeclass-hash algorithm. Hashes " +
+			"are only compared when versions match; when the version changes, Karpenter rehashes NodeClaims " +
+			"instead of drifting them.",
+		Values:       []docs.Value{{Name: EC2NodeClassHashVersion, Help: "The current hash version."}},
+		Stage:        docs.Alpha,
+		InternalOnly: true,
+	}
+	InstanceTaggedAnnotation = wellknown.Annotation{
+		Name:    AnnotationInstanceTagged,
+		Example: trueValue,
+		UsedOn:  []runtime.Object{&karpv1.NodeClaim{}},
+		Help: "Karpenter sets this once it has tagged the NodeClaim's EC2 instance with its Name, " +
+			"karpenter.sh/nodeclaim, and eks:eks-cluster-name tags.",
+		Values:       []docs.Value{{Name: trueValue, Help: "The instance is tagged."}},
+		Stage:        docs.Alpha,
+		InternalOnly: true,
+	}
+	ClusterNameTaggedAnnotation = wellknown.Annotation{
+		Name:    AnnotationClusterNameTaggedCompatability,
+		Example: trueValue,
+		UsedOn:  []runtime.Object{&karpv1.NodeClaim{}},
+		Help: "Karpenter sets this once it has tagged the NodeClaim's EC2 instance with the eks:eks-cluster-name " +
+			"tag, so instances tagged before that tag was introduced are tagged again.",
+		Values:       []docs.Value{{Name: trueValue, Help: "The instance has the eks:eks-cluster-name tag."}},
+		Stage:        docs.Alpha,
+		InternalOnly: true,
+	}
+	InstanceProfileAnnotation = wellknown.Annotation{
+		Name:    AnnotationInstanceProfile,
+		Example: "my-cluster_15263850463527461230",
+		UsedOn:  []runtime.Object{&karpv1.NodeClaim{}},
+		Help: "Karpenter sets this to the name of the instance profile the NodeClaim's instance was launched " +
+			"with. Instance profiles still referenced by a NodeClaim are not garbage collected, so they outlive " +
+			"a change to the EC2NodeClass's role.",
+		Stage:        docs.Alpha,
+		InternalOnly: true,
+	}
+)
+
+// AWSAnnotations are the well known annotations the AWS provider reads or writes.
+var AWSAnnotations = []wellknown.Annotation{
+	EC2NodeClassHashAnnotation,
+	EC2NodeClassHashVersionAnnotation,
+	InstanceTaggedAnnotation,
+	ClusterNameTaggedAnnotation,
+	InstanceProfileAnnotation,
+}

@@ -23,4 +23,5 @@ go run hack/docs/metrics_gen/main.go pkg/ "${KARPENTER_CORE_DIR}/pkg" "${CONTROL
 go run hack/docs/instancetypes_gen/main.go website/content/en/preview/reference/instance-types.md
 go run hack/docs/configuration_gen/main.go website/content/en/preview/reference/settings.md
 go run hack/docs/repairpolicies_gen/main.go website/content/en/preview/concepts/disruption.md
+go run hack/docs/annotations_gen/main.go website/content/en/preview/reference/annotations.md
 cd charts/karpenter && helm-docs
