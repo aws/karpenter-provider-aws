@@ -71,6 +71,16 @@ cat << EOF > controller-policy.json
             "Sid": "EKSClusterEndpointLookup"
         },
         {
+            "Sid": "AllowInterruptionQueueActions",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:DeleteMessage",
+                "sqs:GetQueueUrl",
+                "sqs:ReceiveMessage"
+            ],
+            "Resource": "arn:${AWS_PARTITION}:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}"
+        },
+        {
             "Sid": "AllowScopedInstanceProfileCreationActions",
             "Effect": "Allow",
             "Resource": "*",
