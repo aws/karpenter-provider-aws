@@ -156,7 +156,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// Providers
 	pricingProvider := pricing.NewDefaultProvider(fakePricingAPI, ec2api, fake.DefaultRegion, false)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache)
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, eksapi, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, eksapi)
 	// Ensure we're able to hydrate the version before starting any reliant controllers.
 	// Version updates are hydrated asynchronously after this, in the event of a failure

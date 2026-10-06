@@ -343,6 +343,7 @@ Resources:
                 "ec2:DescribeLaunchTemplates",
                 "ec2:DescribePlacementGroups",
                 "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSecurityGroupVpcAssociations",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:DescribeSubnets"
               ],

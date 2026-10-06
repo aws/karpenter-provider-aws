@@ -89,7 +89,12 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2types.Filter) []ec2types.SecurityGroup {
 	return lo.Filter(sgs, func(group ec2types.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, *group.GroupName, "", "", group.Tags)
+		return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
+			if aws.ToString(filter.Name) == "vpc-id" {
+				return slices.Contains(filter.Values, aws.ToString(group.VpcId))
+			}
+			return Filter([]ec2types.Filter{filter}, *group.GroupId, *group.GroupName, "", "", group.Tags)
+		})
 	})
 }
 
