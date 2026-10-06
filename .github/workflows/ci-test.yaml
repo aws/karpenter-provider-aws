@@ -7,9 +7,10 @@ on:
       - 'staging/*'
   pull_request:
   workflow_dispatch:
-# A new push to a pull request cancels that pull request's in-flight run.
+# A new push to a pull request cancels that pull request's in-flight run. On a branch, a
+# newer commit replaces any older run still waiting to start; in-flight runs finish.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   ci-test:
