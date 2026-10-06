@@ -49,7 +49,11 @@ Karpenter needs `patch` permission on `pods` in all namespaces to write the anno
 
 ## Disabling it
 
-Disabling the feature gate doesn't remove the annotations Karpenter wrote, and with the gate off, consolidation falls back to reading them on pods without `karpenter.sh/disruption-cost`. Pods on nodes that were being disrupted then look free to disrupt. To roll back cleanly, remove the annotations Karpenter wrote from pods on Karpenter-managed nodes.
+Disabling the feature gate doesn't remove the `controller.kubernetes.io/pod-deletion-cost` annotations Karpenter wrote. With the gate off, consolidation falls back to reading them on pods without `karpenter.sh/disruption-cost`. Pods on nodes that were being disrupted then look free to disrupt. The nodes could then be considered empty and removed without replacement. To roll back safely do the following:
+- Disable the gate or rollback. Then wait for the new controller pods to come up and verify that no Karpenter pod with the gate enabled is still running.
+- Remove every negative `pod-deletion-cost` that you didn't set for pods on Karpenter nodes.
+
+Note: Empty consolidation running during this entire process may still delete nodes without replacements. If you want to strictly avoid it you can temporarily set an Empty budget of 0 during this process.
 
 ## Metrics
 
