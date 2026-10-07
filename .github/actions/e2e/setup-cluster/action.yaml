@@ -100,7 +100,9 @@ runs:
 
       # Disable Pod Identity for Private Clusters
       # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html#pod-id-considerations
-      if [[ "$PRIVATE_CLUSTER" == 'true' ]]; then
+      # and for IPv6: with eks-pod-identity-agent, eksctl (>= v0.207.0) requires a vpc-cni pod identity, which it then
+      # describes with eks:DescribePodIdentityAssociation (not granted to the CI role). IRSA keeps vpc-cni on IRSA too.
+      if [[ "$PRIVATE_CLUSTER" == 'true' ]] || [[ "$IP_FAMILY" == 'IPv6' ]]; then
         KARPENTER_IAM="""
           - metadata:
               name: karpenter
@@ -204,23 +206,6 @@ runs:
           ebsCSIController: true
       $POD_IDENTITY
       EOF
-
-      # eksctl (>= v0.207.0) rejects IPv6 clusters that run eks-pod-identity-agent unless vpc-cni has a pod identity.
-      # Its default association omits the permissions boundary, so define it here with eksctl's IPv6 CNI policy.
-      if [[ $IP_FAMILY == 'IPv6' ]] && [[ $PRIVATE_CLUSTER == 'false' ]]; then
-        yq -i '(.addons[] | select(.name == "vpc-cni")).podIdentityAssociations = [{
-          "namespace": "kube-system",
-          "serviceAccountName": "aws-node",
-          "permissionsBoundaryARN": "arn:aws:iam::" + strenv(ACCOUNT_ID) + ":policy/GithubActionsPermissionsBoundary",
-          "permissionPolicy": {
-            "Version": "2012-10-17",
-            "Statement": [
-              {"Effect": "Allow", "Action": ["ec2:AssignIpv6Addresses", "ec2:DescribeInstances", "ec2:DescribeTags", "ec2:DescribeNetworkInterfaces", "ec2:DescribeInstanceTypes"], "Resource": "*"},
-              {"Effect": "Allow", "Action": ["ec2:CreateTags"], "Resource": "arn:aws:ec2:*:*:network-interface/*"}
-            ]
-          }
-        }]' clusterconfig.yaml
-      fi
 
       if [[ $ENABLE_LOCAL_ZONES == "true" ]]; then
         local_zones=$(AWS_REGION=$REGION aws ec2 describe-availability-zones | yq '.AvailabilityZones | filter(.ZoneType == "local-zone") | [.[].ZoneName] | join(" ")')
