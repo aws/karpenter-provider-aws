@@ -119,7 +119,8 @@ upstream-e2etests: tidy download
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
-		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error"
+		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
+		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
