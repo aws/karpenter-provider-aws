@@ -2,10 +2,11 @@ name: CI-TEST
 on:
   push:
     branches:
-      - 'main'
       - 'release-v*'
       - 'staging/*'
   pull_request:
+  # The merge queue tests the exact commit that lands on main, so pushes to main don't rerun these.
+  merge_group:
   workflow_dispatch:
 # A new push to a pull request cancels that pull request's in-flight run.
 concurrency:
