@@ -693,6 +693,14 @@ The `Custom` AMIFamily ships without any default userData to allow you to config
 
 Subnet Selector Terms allow you to specify selection logic for a set of subnet options that Karpenter can choose from when launching an instance from the `EC2NodeClass`. Karpenter discovers subnets through the `EC2NodeClass` using ids or [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). When launching nodes, a subnet is automatically chosen that matches the desired zone. If multiple subnets exist for a zone, the one with the most available IP addresses will be used.
 
+When `settings.clusterEndpoint` is omitted or `settings.eksControlPlane` is `true`, tag-based subnet discovery is restricted to the cluster VPC reported by EKS. This includes wildcard tag selectors. These settings already require `eks:DescribeCluster` during startup. With an explicit endpoint and `eksControlPlane: false`, subnet discovery keeps its existing scope and does not call EKS. EKS users with an explicit endpoint can enable scoping with `eksControlPlane: true`; this also changes Kubernetes version discovery to use EKS.
+
+Explicit `id` terms are not restricted by the cluster VPC. A mixed selector returns the union of the scoped tag matches and explicit IDs, with duplicates removed. If the cluster VPC cannot be resolved, the entire discovery operation fails and retries; it does not return only the ID matches or fall back to unrestricted tag discovery.
+
+{{% alert title="Upgrade behavior" color="primary" %}}
+When VPC scoping applies, the first successful reconcile after upgrading removes subnets from other VPCs that were selected only by tags from `status.subnets`. A discovery error leaves the existing status unchanged, so an error does not immediately prevent use of previously discovered subnets. The cluster VPC is cached after a successful lookup; subnet results continue to refresh on the configured interval.
+{{% /alert %}}
+
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different subnets that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
 ```yaml

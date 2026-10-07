@@ -19,10 +19,12 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/awslabs/operatorpkg/serrors"
 
 	"github.com/patrickmn/go-cache"
@@ -31,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -52,10 +55,12 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	ec2api                  sdk.EC2API
+	eksapi                  sdk.EKSAPI
 	cache                   *cache.Cache
 	availableIPAddressCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 	inflightIPs             map[string]int32
+	vpcID                   atomic.Pointer[string]
 }
 
 type Subnet struct {
@@ -65,9 +70,10 @@ type Subnet struct {
 	AvailableIPAddressCount int32
 }
 
-func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api sdk.EC2API, eksapi sdk.EKSAPI, cache *cache.Cache, availableIPAddressCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
+		eksapi: eksapi,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
@@ -78,10 +84,42 @@ func NewDefaultProvider(ec2api sdk.EC2API, cache *cache.Cache, availableIPAddres
 	}
 }
 
+// ResolveVpcID resolves the VPC of the EKS cluster, caching the result for the lifetime of the process. The VPC ID
+// scopes tag-based subnet discovery so that selectors like {"karpenter.sh/discovery": "*"} cannot resolve subnets
+// belonging to other VPCs in the same account; instances launched into those subnets can never join this cluster.
+func (p *DefaultProvider) ResolveVpcID(ctx context.Context) (string, error) {
+	if vpcID := p.vpcID.Load(); vpcID != nil {
+		return *vpcID, nil
+	}
+	out, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
+		Name: aws.String(options.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return "", err
+	}
+	if out == nil || out.Cluster == nil || out.Cluster.ResourcesVpcConfig == nil || lo.FromPtr(out.Cluster.ResourcesVpcConfig.VpcId) == "" {
+		return "", fmt.Errorf("no vpc id found in DescribeCluster response")
+	}
+	vpcID := out.Cluster.ResourcesVpcConfig.VpcId
+	p.vpcID.Store(vpcID)
+	log.FromContext(ctx).WithValues("vpc-id", *vpcID).V(1).Info("discovered cluster vpc id")
+	return *vpcID, nil
+}
+
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]ec2types.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms)
+	var vpcID string
+	// Selecting subnets by ID is an explicit user intent, so only tag-based discovery is scoped to the cluster VPC
+	if scopeToClusterVPC(ctx) && lo.ContainsBy(nodeClass.Spec.SubnetSelectorTerms, func(term v1.SubnetSelectorTerm) bool {
+		return term.ID == ""
+	}) {
+		var err error
+		if vpcID, err = p.ResolveVpcID(ctx); err != nil {
+			return nil, fmt.Errorf("resolving cluster vpc id, %w", err)
+		}
+	}
+	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms, vpcID)
 	if len(filterSets) == 0 {
 		return []ec2types.Subnet{}, nil
 	}
@@ -264,7 +302,14 @@ func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, r
 	return int32(pods)
 }
 
-func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
+// scopeToClusterVPC reports whether the cluster VPC can be resolved without new requirements on the deployment: both
+// an empty cluster endpoint and an EKS control plane already require DescribeCluster to succeed at startup.
+func scopeToClusterVPC(ctx context.Context) bool {
+	opts := options.FromContext(ctx)
+	return opts.EKSControlPlane || opts.ClusterEndpoint == ""
+}
+
+func getFilterSets(terms []v1.SubnetSelectorTerm, vpcID string) (res [][]ec2types.Filter) {
 	idFilter := ec2types.Filter{Name: aws.String("subnet-id")}
 	for _, term := range terms {
 		switch {
@@ -284,6 +329,9 @@ func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
 						Values: []string{v},
 					})
 				}
+			}
+			if vpcID != "" {
+				filters = append(filters, ec2types.Filter{Name: aws.String("vpc-id"), Values: []string{vpcID}})
 			}
 			res = append(res, filters)
 		}

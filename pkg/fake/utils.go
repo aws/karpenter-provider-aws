@@ -97,7 +97,12 @@ func FilterDescribeSecurtyGroups(sgs []ec2types.SecurityGroup, filters []ec2type
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []ec2types.Subnet, filters []ec2types.Filter) []ec2types.Subnet {
 	return lo.Filter(subnets, func(subnet ec2types.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, "", "", "", subnet.Tags)
+		return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
+			if aws.ToString(filter.Name) == "vpc-id" {
+				return slices.Contains(filter.Values, aws.ToString(subnet.VpcId))
+			}
+			return Filter([]ec2types.Filter{filter}, *subnet.SubnetId, "", "", "", subnet.Tags)
+		})
 	})
 }
 
