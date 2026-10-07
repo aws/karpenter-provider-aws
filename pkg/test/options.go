@@ -41,6 +41,7 @@ type OptionsFields struct {
 	AMIRefreshInterval           *time.Duration
 	SubnetRefreshInterval        *time.Duration
 	SecurityGroupRefreshInterval *time.Duration
+	PricingRegion                *string
 	EnableZonalShift             *bool
 	FeatureGates                 FeatureGates
 }
@@ -65,6 +66,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		AMIRefreshInterval:           lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
 		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),
+		PricingRegion:                lo.FromPtrOr(opts.PricingRegion, ""),
 		EnableZonalShift:             lo.FromPtrOr(opts.EnableZonalShift, false),
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),

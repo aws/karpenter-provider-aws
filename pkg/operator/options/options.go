@@ -55,6 +55,7 @@ type Options struct {
 	AMIRefreshInterval           time.Duration
 	SubnetRefreshInterval        time.Duration
 	SecurityGroupRefreshInterval time.Duration
+	PricingRegion                string
 	FeatureGates                 FeatureGates
 }
 
@@ -72,6 +73,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
 	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
+	fs.StringVar(&o.PricingRegion, "pricing-region", env.WithDefaultString("PRICING_REGION", ""), "The AWS region to use for the Pricing API. If not specified, Karpenter will use the default pricing endpoint for the cluster's region prefix (e.g. us-east-1 for us-*, ap-south-1 for ap-*, etc). This is useful for environments where access to the default pricing region is restricted.")
 	fs.StringVar(&o.FeatureGates.inputStr, "aws-feature-gates", env.WithDefaultString("AWS_FEATURE_GATES", "NodeClassCEL=false"), "Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL.")
 }
 
