@@ -1,39 +1,73 @@
 name: DownloadArtifacts
 description: 'Downloads and unarchives artifacts for a workflow that runs on workflow_run so that it can use its data'
+inputs:
+  name:
+    description: 'Name of the artifact to download'
+    required: false
+    default: 'artifacts'
+  run-id:
+    description: 'Run to download the artifact from. Defaults to the workflow_run that triggered this workflow.'
+    required: false
+    default: ''
+  path:
+    description: 'Directory to extract the artifact into'
+    required: false
+    default: '/tmp/artifacts'
 runs:
   using: "composite"
   steps:
+    # Extraction happens with `unzip` on purpose. Entries in these artifacts are attacker-controlled,
+    # and `unzip` drops `../` path components, so a hostile entry cannot write outside the target
+    # directory. actions/download-artifact extracts via unzip-stream, which joins the entry path onto
+    # the destination with no containment check, so it must not be used for these artifacts.
     - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      env:
+        ARTIFACT_NAME: ${{ inputs.name }}
+        ARTIFACT_RUN_ID: ${{ inputs.run-id }}
       with:
         script: |
-          let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+          const runId = process.env.ARTIFACT_RUN_ID
+            ? Number(process.env.ARTIFACT_RUN_ID)
+            : context.payload.workflow_run.id;
+          if (!Number.isInteger(runId)) {
+            core.setFailed(`malformed run id: ${JSON.stringify(process.env.ARTIFACT_RUN_ID)}`);
+            return;
+          }
+          const allArtifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
              owner: context.repo.owner,
              repo: context.repo.repo,
-             run_id: context.payload.workflow_run.id,
+             run_id: runId,
           });
-          let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-            return artifact.name == "artifacts"
-          })[0];
-          let download = await github.rest.actions.downloadArtifact({
+          const matchArtifact = allArtifacts.find(a => a.name === process.env.ARTIFACT_NAME);
+          if (!matchArtifact) {
+            core.setFailed(`run ${runId} has no artifact named ${process.env.ARTIFACT_NAME}`);
+            return;
+          }
+          const download = await github.rest.actions.downloadArtifact({
              owner: context.repo.owner,
              repo: context.repo.repo,
              artifact_id: matchArtifact.id,
              archive_format: 'zip',
           });
-          let fs = require('fs');
+          const fs = require('fs');
           fs.writeFileSync(`/tmp/artifacts.zip`, Buffer.from(download.data));
-    - run: |
-        mkdir -p /tmp/artifacts
-        unzip /tmp/artifacts.zip -d /tmp/artifacts
+    - env:
+        ARTIFACT_PATH: ${{ inputs.path }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$ARTIFACT_PATH"
+        unzip -o /tmp/artifacts.zip -d "$ARTIFACT_PATH"
         # The artifact comes from the untrusted fork build so treat its contents as hostile. Symlink or other
         # non-regular entries can point at credential files. Fail closed on anything but dirs/regular files.
-        if [ -n "$(find /tmp/artifacts -not -type d -not -type f -print -quit)" ]; then
+        if [ -n "$(find "$ARTIFACT_PATH" -not -type d -not -type f -print -quit)" ]; then
           echo "::error::Refusing artifact: it contains non-regular files (symlinks/devices/fifos)."
-          find /tmp/artifacts -not -type d -not -type f -ls
+          find "$ARTIFACT_PATH" -not -type d -not -type f -ls
           exit 1
         fi
       shell: bash
-    - run: |
+    - env:
+        ARTIFACT_PATH: ${{ inputs.path }}
+      run: |
         echo "Downloaded artifacts:"
-        ls -ablh /tmp/artifacts
+        ls -ablh "$ARTIFACT_PATH"
       shell: bash
