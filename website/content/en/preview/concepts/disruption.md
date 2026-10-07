@@ -256,15 +256,17 @@ The toleration duration is how long a node must report the condition before Karp
 
 [comment]: <> (the content below is generated from hack/docs/repairpolicies_gen/main.go)
 
-| Condition Type | Status | Toleration Duration | Termination Grace Period |
-|---|---|---|---|
-| `Ready` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `Ready` | `Unknown` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `AcceleratedHardwareReady` | `False` | 10 minutes | NodeClaim's `terminationGracePeriod` |
-| `StorageReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `NetworkingReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `KernelReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `ContainerRuntimeReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
+| Condition Type | Status | Reason | Toleration Duration | Termination Grace Period | Action |
+|---|---|---|---|---|---|
+| `Ready` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|119\|120).*` | 10 minutes | 5 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | Any reason not matched by another policy for the condition | 30 minutes | 10 minutes | `ReplaceNode` |
+| `StorageReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `NetworkingReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `KernelReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `ContainerRuntimeReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 
 [comment]: <> (end docs generated content from hack/docs/repairpolicies_gen/main.go)
 

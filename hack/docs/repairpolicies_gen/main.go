@@ -56,15 +56,16 @@ func main() {
 	// Priority only affects ordering, so the column is only worth showing once policies disagree on it.
 	showPriority := len(lo.UniqBy(policies, func(p corecloudprovider.RepairPolicy) int { return p.Priority })) > 1
 
-	block := "| Condition Type | Status | Toleration Duration | Termination Grace Period |"
-	sep := "|---|---|---|---|"
+	block := "| Condition Type | Status | Reason | Toleration Duration | Termination Grace Period | Action |"
+	sep := "|---|---|---|---|---|---|"
 	if showPriority {
 		block += " Priority |"
 		sep += "---|"
 	}
 	block += "\n" + sep + "\n"
 	for _, p := range policies {
-		block += fmt.Sprintf("| `%s` | `%s` | %s | %s |", p.ConditionType, p.ConditionStatus, formatDuration(p.TolerationDuration), formatTerminationGracePeriod(p.TerminationGracePeriod))
+		block += fmt.Sprintf("| `%s` | `%s` | %s | %s | %s | `%s` |", p.ConditionType, p.ConditionStatus, formatReasonRegex(p.ReasonRegex),
+			formatDuration(p.TolerationDuration), formatTerminationGracePeriod(p.TerminationGracePeriod), p.Action)
 		if showPriority {
 			block += fmt.Sprintf(" %d |", p.Priority)
 		}
@@ -77,6 +78,19 @@ func main() {
 		log.Fatalf("unable to open %s to write generated output: %v", outputFileName, err)
 	}
 	f.WriteString(topDoc + block + bottomDoc)
+}
+
+// formatReasonRegex renders the reason a policy matches. The empty regex is the policy set's default fallback.
+func formatReasonRegex(reasonRegex string) string {
+	switch reasonRegex {
+	case "":
+		return "Any reason not matched by another policy for the condition"
+	case ".*":
+		return "Any"
+	default:
+		// Escape pipes so regex alternation doesn't split the table cell.
+		return fmt.Sprintf("`%s`", strings.ReplaceAll(reasonRegex, "|", `\|`))
+	}
 }
 
 func formatTerminationGracePeriod(tgp *time.Duration) string {
