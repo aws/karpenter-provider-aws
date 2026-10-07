@@ -1,42 +1,16 @@
 name: ApprovalComment
+# Producer for the commands that build and publish the pull request's own code. /karpenter preview is
+# deliberately NOT here - it has its own producer (PreviewComment) so that asking for a docs preview
+# cannot reach the snapshot or E2E pipelines. See .github/workflows/approval-metadata.yaml
 on:
   pull_request_review:
     types: [submitted]
+# The membership check and artifact upload in approval-metadata.yaml need no GITHUB_TOKEN scopes
+permissions: {}
 jobs:
   approval-comment:
     if: |
       startsWith(github.event.review.body, '/karpenter snapshot') ||
       startsWith(github.event.review.body, '/karpenter scale') ||
       startsWith(github.event.review.body, '/karpenter versionCompatibility')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check reviewer is org member
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            await github.rest.orgs.checkMembershipForUser({
-              org: context.repo.owner,
-              username: context.payload.review.user.login
-            }).catch(error => {
-              if (error.status === 404) {
-                core.setFailed('Reviewer is not an org member');
-                return;
-              }
-              throw error;
-            });
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
-        env:
-          REVIEW_BODY: ${{ github.event.review.body }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.review.commit_id }}
-        run: |
-          mkdir -p /tmp/artifacts
-          { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
-          cat /tmp/artifacts/metadata.txt
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: artifacts
-          path: /tmp/artifacts
+    uses: ./.github/workflows/approval-metadata.yaml

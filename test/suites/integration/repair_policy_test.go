@@ -15,13 +15,16 @@ limitations under the License.
 package integration_test
 
 import (
+	"strings"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpenterv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -57,6 +60,8 @@ var _ = Describe("Repair Policy", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 
+	// Core clamps an unhealthy condition's LastTransitionTime to the Node's creation time, so no policy fires until the
+	// node is older than the policy's toleration, however far the injected condition is backdated.
 	DescribeTable("Conditions", func(unhealthyCondition corev1.NodeCondition) {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -72,32 +77,60 @@ var _ = Describe("Repair Policy", func() {
 		// Kubelet Ready False/Unknown aren't tested here: the kubelet owns Ready and re-patches it within its status
 		// update loop, so an injected value reverts before the disruption loop can act. Core's KWOK suite covers them.
 		// Node Monitoring Agent Supported Conditions
+		// A fatal XID replaces after 10m. Other AcceleratedHardwareReady reasons wait 30m or reboot instead.
 		Entry("Node AcceleratedHardwareReady False", corev1.NodeCondition{
 			Type:               "AcceleratedHardwareReady",
 			Status:             corev1.ConditionFalse,
+			Reason:             "NvidiaXID79Error",
 			LastTransitionTime: metav1.Time{Time: time.Now().Add(-11 * time.Minute)},
 		}),
-		Entry("Node StorageReady False", corev1.NodeCondition{
-			Type:               "StorageReady",
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
-		Entry("Node NetworkingReady False", corev1.NodeCondition{
-			Type:               "NetworkingReady",
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
-		Entry("Node KernelReady False", corev1.NodeCondition{
-			Type:               "KernelReady",
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
-		Entry("Node ContainerRuntimeReady False", corev1.NodeCondition{
-			Type:               "ContainerRuntimeReady",
-			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
-		}),
 	)
+	It("should repair the Node Monitoring Agent conditions with a 30 minute toleration", func() {
+		// Each condition gets its own NodePool so the conditions share one 30 minute wait without tripping the repair
+		// breaker, which stops repair in a pool once more than 20% (rounded up) of its nodes are unhealthy
+		conditionTypes := []corev1.NodeConditionType{"StorageReady", "NetworkingReady", "KernelReady", "ContainerRuntimeReady"}
+		var selectors []labels.Selector
+		var pods []*corev1.Pod
+		var repaired []client.Object
+		env.ExpectCreated(nodeClass)
+		for _, conditionType := range conditionTypes {
+			pool := env.DefaultNodePool(nodeClass)
+			d := coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: 1,
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "repair-" + strings.ToLower(string(conditionType))},
+					},
+					NodeSelector:                  map[string]string{karpenterv1.NodePoolLabelKey: pool.Name},
+					TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
+				},
+			})
+			env.ExpectCreated(pool, d)
+			selectors = append(selectors, labels.SelectorFromSet(d.Spec.Selector.MatchLabels))
+			pods = append(pods, env.EventuallyExpectHealthyPodCount(selectors[len(selectors)-1], 1)[0])
+		}
+		env.EventuallyExpectInitializedNodeCount("==", len(conditionTypes))
+		for i, conditionType := range conditionTypes {
+			node := env.GetNode(pods[i].Spec.NodeName)
+			node = *common.ReplaceNodeConditions(&node, corev1.NodeCondition{
+				Type:               conditionType,
+				Status:             corev1.ConditionFalse,
+				LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+			})
+			env.ExpectStatusUpdated(&node)
+			repaired = append(repaired, pods[i], &node)
+		}
+
+		// The default timeout is shorter than the toleration
+		Eventually(func(g Gomega) {
+			for _, object := range repaired {
+				g.Expect(errors.IsNotFound(env.Client.Get(env, client.ObjectKeyFromObject(object), object))).To(BeTrue())
+			}
+		}).WithTimeout(45 * time.Minute).Should(Succeed())
+		for _, s := range selectors {
+			env.EventuallyExpectHealthyPodCount(s, 1)
+		}
+	})
 	It("should terminate the unhealthy nodeclaim before launching its replacement when the reservation is full", func() {
 		capacityReservationID := aws.ExpectCapacityReservationCreated(
 			env.Context,
@@ -124,11 +157,12 @@ var _ = Describe("Repair Policy", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 
-		// Use a Node Monitoring Agent condition, the kubelet reverts Ready before repair observes it
+		// Use a Node Monitoring Agent condition, the kubelet reverts Ready before repair observes it. AcceleratedHardwareReady
+		// has the shortest toleration, which keeps the spec inside the default timeout.
 		node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
-			Type:               "StorageReady",
+			Type:               "AcceleratedHardwareReady",
 			Status:             corev1.ConditionFalse,
-			LastTransitionTime: metav1.Time{Time: time.Now().Add(-31 * time.Minute)},
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-11 * time.Minute)},
 		})
 		env.ExpectStatusUpdated(node)
 

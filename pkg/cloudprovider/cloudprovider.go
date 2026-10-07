@@ -315,56 +315,91 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 	return []cloudprovider.RepairPolicy{
 		// Supported Kubelet Node Conditions
 		//
-		// Ready=False is the global fallback (empty ReasonRegex); every other policy matches all reasons with ".*".
+		// The AcceleratedHardwareReady catch-all below is the global fallback (empty ReasonRegex); every other policy sets a ReasonRegex.
 		{
 			ConditionType:      corev1.NodeReady,
 			ConditionStatus:    corev1.ConditionFalse,
-			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
-		},
-		{
-			ConditionType:      corev1.NodeReady,
-			ConditionStatus:    corev1.ConditionUnknown,
 			ReasonRegex:        ".*",
 			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			// Kubelet is reporting NotReady but is still alive, so a bounded graceful drain can honor PDBs. The bound
+			// exists so repair is never the unbounded (~19-day) drain hang that a nil NodeClaim TerminationGracePeriod
+			// would otherwise permit.
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          corev1.NodeReady,
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
 		},
 		// Support Node Monitoring Agent Conditions
 		//
+		// AcceleratedHardwareReady is split by reason: the Node Monitoring Agent emits the GPU XID code in the
+		// condition reason, and different XID families warrant different handling (mirroring MNG's repairRules).
+		// ReasonRegex is a Go regex over each reason; the wrapping ".*" lets it match an XID code embedded anywhere in
+		// the reason token.
 		{
-			ConditionType:      "AcceleratedHardwareReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			ReasonRegex:        ".*",
-			TolerationDuration: 10 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			// Reboot-clearable GPU faults (transient XIDs). These are the RebootNode family in the design: rebooting
+			// preserves the scarce GPU instance.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|136|140|143|155|156|158).*`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.RebootNode,
 		},
 		{
-			ConditionType:      "StorageReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			ReasonRegex:        ".*",
-			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			// Fatal / uncorrectable GPU errors — replace fast, a reboot would only waste time on dead hardware.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            `.*XID(64|74|79|119|120).*`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
-			ConditionType:      "NetworkingReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			ReasonRegex:        ".*",
-			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			// Default fallback (empty ReasonRegex, the only one allowed per policy set): an unrecognized GPU fault gets a
+			// longer 30m confidence delay before we replace, since we can't attribute it to a known reboot/replace family.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
-			ConditionType:      "KernelReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			ReasonRegex:        ".*",
-			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			ConditionType:          "StorageReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
-			ConditionType:      "ContainerRuntimeReady",
-			ConditionStatus:    corev1.ConditionFalse,
-			ReasonRegex:        ".*",
-			TolerationDuration: 30 * time.Minute,
-			Action:             cloudprovider.ReplaceNode,
+			ConditionType:          "NetworkingReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "KernelReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "ContainerRuntimeReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
 		},
 	}
 }
