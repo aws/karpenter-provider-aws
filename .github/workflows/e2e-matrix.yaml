@@ -102,6 +102,9 @@ jobs:
           - name: Repair
             region: ${{ inputs.region }}
             source: upstream
+          - name: Reboot
+            region: ${{ inputs.region }}
+            source: upstream
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2
             region: us-west-2
