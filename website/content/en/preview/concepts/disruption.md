@@ -257,6 +257,9 @@ Each [monitored condition](#monitored-node-conditions) has a repair action, and 
 * **Reboot:** Karpenter reboots the node's instance in place, keeping the instance, its capacity, and its local storage. This suits faults that a reboot clears, on instances that are scarce or slow to replace.
 
 A reboot follows these steps:
+
+![reboot](/reboot.png)
+
 1. Karpenter taints the node with `karpenter.sh/rebooting:NoSchedule` so that no new pods schedule to it.
 2. Karpenter drains the node through the eviction API, which respects PDBs, bounded by the same termination grace period as a replacement. Pods that haven't been evicted when the grace period ends stay on the node through the reboot; Karpenter doesn't delete them. With a termination grace period of `0`, Karpenter skips the drain and every pod stays on the node.
 3. Karpenter reboots the instance through the cloud provider (`ec2:RebootInstances`).
@@ -267,7 +270,7 @@ Pods that stay on the node restart in place when it comes back, unless the kubel
 While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
 
 Karpenter replaces the node if the reboot fails: if the cloud provider keeps rejecting the reboot for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
-If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again. Karpenter keeps this count in memory, so a controller restart resets it.
+If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.
 
 To follow a reboot, check the NodeClaim's `Rebooting` status condition. Its reason moves from `RebootRequested` (draining) to `RebootIssued` (rebooting), and then to `RebootSucceeded` or `RebootFailed`.
 Karpenter records reboot outcomes in the `karpenter_nodes_reboots_total` [metric]({{<ref "../reference/metrics" >}}), labeled by `result`, and records reboot decisions as `reboot` in the `decision` label of `karpenter_voluntary_disruption_decisions_total`.
