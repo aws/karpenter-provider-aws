@@ -2,6 +2,9 @@ name: E2EMatrix
 on:
   workflow_call:
     inputs:
+      runs_on:
+        type: string
+        default: "ubuntu-latest"
       region:
         type: string
         default: "us-east-2"
@@ -23,6 +26,13 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      runs_on:
+        description: "Runner label. Use karpenter_ubuntu-latest_4-core (dedicated larger-runner group, billed per minute) for release validation when the shared pool is saturated"
+        type: choice
+        options:
+          - "ubuntu-latest"
+          - "karpenter_ubuntu-latest_4-core"
+        default: "ubuntu-latest"
       region:
         type: choice
         options:
@@ -115,6 +125,7 @@ jobs:
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
       source: ${{ matrix.suite.source }}
+      runs_on: ${{ inputs.runs_on || 'ubuntu-latest' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
@@ -130,13 +141,14 @@ jobs:
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
       source: all
+      runs_on: ${{ inputs.runs_on || 'ubuntu-latest' }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   summary:
     # Collapse the per-suite Slack pings into one message per run: highlight failures, note the rest passed.
     needs: [e2e, e2e-upgrade]
     if: ${{ !cancelled() && inputs.workflow_trigger == 'matrix' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on || 'ubuntu-latest' }}
     permissions:
       actions: read
       contents: read
