@@ -37,6 +37,7 @@ func init() {
 	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
 		LabelCapacityReservationID,
 		LabelCapacityReservationType,
+		LabelInstanceMatchCriteria,
 		LabelCapacityReservationInterruptible,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
@@ -67,6 +68,7 @@ func init() {
 	)
 
 	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
+	karpv1.WellKnownValuesForRequirements[LabelInstanceMatchCriteria] = sets.New(string(ec2types.InstanceMatchCriteriaOpen), string(ec2types.InstanceMatchCriteriaTargeted))
 
 	karpv1.WellKnownResources.Insert(
 		ResourceAWSPodENI,
@@ -145,6 +147,7 @@ var (
 
 	LabelCapacityReservationID                = apis.Group + "/capacity-reservation-id"
 	LabelCapacityReservationType              = apis.Group + "/capacity-reservation-type"
+	LabelInstanceMatchCriteria                = apis.Group + "/capacity-reservation-instance-match-criteria"
 	LabelCapacityReservationInterruptible     = apis.Group + "/capacity-reservation-interruptible"
 	LabelInstanceHypervisor                   = apis.Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = apis.Group + "/instance-encryption-in-transit-supported"

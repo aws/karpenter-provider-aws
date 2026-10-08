@@ -274,6 +274,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// TODO: add back to test with a preconfigured reserved instance type
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelInstanceMatchCriteria,
 			v1.LabelCapacityReservationInterruptible,
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
@@ -337,6 +338,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				karpv1.WellKnownLabels.Difference(sets.New(
 					v1.LabelCapacityReservationID,
 					v1.LabelCapacityReservationType,
+					v1.LabelInstanceMatchCriteria,
 					v1.LabelCapacityReservationInterruptible,
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
@@ -394,6 +396,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
+			v1.LabelInstanceMatchCriteria,
 			v1.LabelCapacityReservationInterruptible,
 			v1.LabelInstanceGPUCount,
 			v1.LabelInstanceGPUName,
@@ -3002,10 +3005,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 		BeforeEach(func() {
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(crID, crCapacity)
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{{
-				AvailabilityZone: crZone,
-				ID:               crID,
-				InstanceType:     crInstanceType,
-				ReservationType:  v1.CapacityReservationTypeCapacityBlock,
+				AvailabilityZone:      crZone,
+				ID:                    crID,
+				InstanceMatchCriteria: string(ec2types.InstanceMatchCriteriaTargeted),
+				InstanceType:          crInstanceType,
+				ReservationType:       v1.CapacityReservationTypeCapacityBlock,
 			}}
 		})
 		DescribeTable(
@@ -3041,6 +3045,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(offering.Requirements.Get(corev1.LabelTopologyZone).Any()).To(Equal(crZone))
 				Expect(offering.Requirements.Has(v1.LabelCapacityReservationType)).To(BeTrue())
 				Expect(offering.Requirements.Get(v1.LabelCapacityReservationType).Any()).To(Equal(string(v1.CapacityReservationTypeCapacityBlock)))
+				Expect(offering.Requirements.Has(v1.LabelInstanceMatchCriteria)).To(BeTrue())
+				Expect(offering.Requirements.Get(v1.LabelInstanceMatchCriteria).Any()).To(Equal(string(ec2types.InstanceMatchCriteriaTargeted)))
 				Expect(offering.Requirements.Has(v1.LabelCapacityReservationID)).To(BeTrue())
 				Expect(offering.Requirements.Get(v1.LabelCapacityReservationID).Any()).To(Equal(crID))
 				Expect(offering.Available).To(Equal(state != v1.CapacityReservationStateExpiring))
