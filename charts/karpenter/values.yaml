@@ -213,8 +213,14 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
-  # -- Ignore pods' DRA requests during scheduling simulations.
-  ignoreDRARequests: true
+  # -- enableDRA is ALPHA and is disabled by default.
+  # Setting this to true will enable every AWS DRA driver feature gate (awsFeatureGates.draNVIDIAGPU and
+  # awsFeatureGates.draEFA) and set ignoreDRARequests to false. It can't be combined with any of those values.
+  enableDRA: false
+  # -- (bool) Ignore pods' DRA requests during scheduling simulations. Enabling either AWS DRA feature gate
+  # (awsFeatureGates.draNVIDIAGPU or awsFeatureGates.draEFA) overrides this to false. Can't be combined with enableDRA.
+  # @default -- `true`
+  ignoreDRARequests: null
   # -- Disable cluster state metrics and events.
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
@@ -264,7 +270,13 @@ settings:
     # -- nodeClassCEL is ALPHA and is disabled by default.
     # Setting this to true will enable CEL validation on EC2NodeClass resources.
     nodeClassCEL: false
-    # -- dra is ALPHA and is disabled by default.
-    # Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU and EFA
-    # drivers publish, so it can account for DRA claims when it sizes new nodes.
-    dra: false
+    # -- (bool) draNVIDIAGPU is ALPHA and is disabled by default.
+    # Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU driver publishes,
+    # so it can account for gpu.nvidia.com claims when it sizes new nodes. Can't be combined with settings.enableDRA.
+    # @default -- `false`
+    draNVIDIAGPU: null
+    # -- (bool) draEFA is ALPHA and is disabled by default.
+    # Setting this to true will make Karpenter calculate the DRA devices the dranet driver publishes for
+    # EFA interfaces, so it can account for dra.net claims when it sizes new nodes. Can't be combined with settings.enableDRA.
+    # @default -- `false`
+    draEFA: null

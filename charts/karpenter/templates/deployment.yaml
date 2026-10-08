@@ -1,3 +1,4 @@
+{{- $dra := include "karpenter.dra" . | fromJson }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -128,7 +129,7 @@ spec:
             - name: FEATURE_GATES
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }},TerminateFirstDrift={{ .Values.settings.featureGates.terminateFirstDrift }},TerminateFirstRepair={{ .Values.settings.featureGates.terminateFirstRepair }},PodDeletionCostManagement={{ .Values.settings.featureGates.podDeletionCostManagement }}"
             - name: AWS_FEATURE_GATES
-              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }},DRA={{ .Values.settings.awsFeatureGates.dra }}"
+              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }},DRANVIDIAGPU={{ $dra.draNVIDIAGPU }},DRAEFA={{ $dra.draEFA }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -179,10 +180,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.ignoreDRARequests }}
+          {{- /* Always rendered: `with` would drop an explicit false, leaving core's default of true in place. See
+          karpenter.dra for how enableDRA and the DRA driver gates resolve it. */}}
             - name: IGNORE_DRA_REQUESTS
-              value: "{{ tpl (toString .) $ }}"
-          {{- end }}
+              value: "{{ $dra.ignoreDRARequests }}"
           {{- with .Values.settings.disableClusterStateObservability }}
             - name: DISABLE_CLUSTER_STATE_OBSERVABILITY
               value: "{{ tpl (toString .) $ }}"
