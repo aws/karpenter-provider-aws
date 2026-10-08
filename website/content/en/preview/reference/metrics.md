@@ -715,6 +715,7 @@ The number of times that an enqueued disruption decision failed. Labeled by disr
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
     - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
@@ -756,6 +757,7 @@ Number of disruption decisions performed. Labeled by disruption decision, reason
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
     - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
@@ -777,6 +779,7 @@ Number of disruption decisions performed by nodepool. Labeled by nodepool name, 
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
     - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
