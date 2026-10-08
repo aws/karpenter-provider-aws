@@ -36,9 +36,13 @@ const PoolName = "gpus"
 // Attributes the driver only resolves at runtime, so they're declared as AttributeBindings rather
 // than given a value. Note the allocator ignores bindings covering fewer than two devices, so these
 // do nothing for a single-GPU instance type.
+//
+// These must be fully qualified. A claim's matchAttribute is always domain-qualified, and the allocator
+// looks bindings up by exact name: unlike device attributes, there is no fallback that strips the
+// driver's domain, so an unqualified binding never matches.
 const (
-	AttributeDriverVersion     resourcev1.QualifiedName = "driverVersion"
-	AttributeCUDADriverVersion resourcev1.QualifiedName = "cudaDriverVersion"
+	AttributeDriverVersion     resourcev1.QualifiedName = DriverName + "/driverVersion"
+	AttributeCUDADriverVersion resourcev1.QualifiedName = DriverName + "/cudaDriverVersion"
 )
 
 // Capacities the driver publishes. Memory is always present; shares appears only when the driver runs

@@ -27,16 +27,23 @@ import (
 )
 
 func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass *v1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType) {
-	if !options.FromContext(ctx).FeatureGates.DRA || karpoptions.FromContext(ctx).IgnoreDRARequests {
+	gates := options.FromContext(ctx).FeatureGates
+	if (!gates.DRANVIDIAGPU && !gates.DRAEFA) || karpoptions.FromContext(ctx).IgnoreDRARequests {
 		return
 	}
 
-	consumableCapacity, _ := nvidiadra.ParseConsumableCapacity(nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity])
-
-	// NVIDIA GPU driver: DRA metadata keyed by instance type name.
-	nvidiaResources := c.nvidiaDRAProvider.ResolveDynamicResources(ctx, instanceTypes, consumableCapacity)
-	// dranet EFA driver: DRA metadata keyed by instance type name.
-	efaResources := c.efaDRAProvider.ResolveDynamicResources(ctx, instanceTypes)
+	// Each driver is gated separately. A disabled driver contributes nothing: a nil map reads as the
+	// zero DynamicResources for every instance type.
+	var nvidiaResources, efaResources map[string]cloudprovider.DynamicResources
+	if gates.DRANVIDIAGPU {
+		consumableCapacity, _ := nvidiadra.ParseConsumableCapacity(nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity])
+		// NVIDIA GPU driver: DRA metadata keyed by instance type name.
+		nvidiaResources = c.nvidiaDRAProvider.ResolveDynamicResources(ctx, instanceTypes, consumableCapacity)
+	}
+	if gates.DRAEFA {
+		// dranet EFA driver: DRA metadata keyed by instance type name.
+		efaResources = c.efaDRAProvider.ResolveDynamicResources(ctx, instanceTypes)
+	}
 
 	for _, it := range instanceTypes {
 		// Additional DRA drivers would append their contribution here.

@@ -216,19 +216,22 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// read what the NVIDIA DRA driver is actually configured with, so a value it can't parse is taken as
 	// a configuration mistake rather than guessed at: blocking launch beats sizing every GPU node wrong.
 	if value, ok := nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity]; ok {
-		if !options.FromContext(ctx).FeatureGates.DRA {
-			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
-				v1.ConditionTypeValidationSucceeded,
-				ConditionReasonDRADisabled,
-				fmt.Sprintf("annotation %s is set, but the DRA feature gate is disabled", v1.AnnotationNVIDIAConsumableCapacity),
-			)
-			return reconcile.Result{}, nil
-		}
-		if _, err := nvidiadra.ParseConsumableCapacity(value); err != nil {
+		mode, err := nvidiadra.ParseConsumableCapacity(value)
+		if err != nil {
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				ConditionReasonConsumableCapacityInvalid,
 				fmt.Sprintf("annotation %s, %s", v1.AnnotationNVIDIAConsumableCapacity, err),
+			)
+			return reconcile.Result{}, nil
+		}
+		// Only a sharing mode depends on the gate. An empty or "disabled" value asks for nothing Karpenter would
+		// ignore, so it shouldn't block launches just because the gate is off.
+		if mode != nil && !options.FromContext(ctx).FeatureGates.DRANVIDIAGPU {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonDRADisabled,
+				fmt.Sprintf("annotation %s enables GPU sharing, but the DRANVIDIAGPU feature gate is disabled", v1.AnnotationNVIDIAConsumableCapacity),
 			)
 			return reconcile.Result{}, nil
 		}

@@ -431,9 +431,12 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("DynamicResources", func() {
 		BeforeEach(func() {
-			// Every spec here needs both switches: the AWS gate to contribute templates at all, and the
+			// Every spec here needs both switches: an AWS driver gate to contribute templates at all, and the
 			// core option to stop ignoring DRA. The specs that assert nothing is populated flip one back.
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(true)}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{
+				DRANVIDIAGPU: lo.ToPtr(true),
+				DRAEFA:       lo.ToPtr(true),
+			}}))
 		})
 		It("should populate DynamicResources from every DRA driver that applies", func() {
 			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
@@ -577,8 +580,50 @@ var _ = Describe("CloudProvider", func() {
 			})
 			Expect(plainTemplate.Devices[0].AllowMultipleAllocations).To(BeFalse())
 		})
-		It("should not populate DynamicResources when the DRA feature gate is disabled", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(false)}}))
+		// driversByInstanceType resolves the instance types and returns the set of DRA drivers each one
+		// carries a template for.
+		driversByInstanceType := func() map[string][]string {
+			GinkgoHelper()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			return lo.SliceToMap(instanceTypes, func(it *corecloudprovider.InstanceType) (string, []string) {
+				return it.Name, lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+					return t.Driver.Value()
+				})
+			})
+		}
+		It("should only populate NVIDIA templates when only the DRANVIDIAGPU gate is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(true)}}))
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			drivers := driversByInstanceType()
+			// g6.12xlarge carries both GPU and EFA metadata, so it's the type that tells the gates apart.
+			Expect(drivers["g6.12xlarge"]).To(ConsistOf(nvidiadra.DriverName))
+			for name, d := range drivers {
+				Expect(d).ToNot(ContainElement(efadra.DriverName), name)
+			}
+		})
+		It("should only populate dra.net templates when only the DRAEFA gate is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRAEFA: lo.ToPtr(true)}}))
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			drivers := driversByInstanceType()
+			Expect(drivers["g6.12xlarge"]).To(ConsistOf(efadra.DriverName))
+			for name, d := range drivers {
+				Expect(d).ToNot(ContainElement(nvidiadra.DriverName), name)
+			}
+			// Only the NVIDIA driver contributes attribute bindings, so none survive with it gated off.
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			for _, it := range instanceTypes {
+				Expect(it.DynamicResources.AttributeBindings).To(BeEmpty(), it.Name)
+			}
+		})
+		It("should not populate DynamicResources when every DRA feature gate is disabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{
+				DRANVIDIAGPU: lo.ToPtr(false),
+				DRAEFA:       lo.ToPtr(false),
+			}}))
 			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -1725,6 +1770,51 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
 			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			ExpectLaunchTemplateNetworkInterfaces(ltInput, true, []*v1.NetworkInterface{})
+		})
+		It("should attach EFA interfaces when the nodeclaim was allocated dra.net devices", func() {
+			// A DRA claim for EFA reaches the NodeClaim only through the driver list core records on it, never as
+			// the extended resource. Without the interfaces dranet publishes no EFA devices on the launched node.
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"p5.48xlarge"},
+				},
+			}
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: strings.Join([]string{nvidiadra.DriverName, efadra.DriverName}, ","),
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			// The interfaces are attached either way, so the extended resource is advertised the same as for a request.
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			// The all-EFA check below passes on an empty list, so pin that interfaces were attached at all.
+			Expect(ltInput.LaunchTemplateData.NetworkInterfaces).ToNot(BeEmpty())
+			ExpectLaunchTemplateNetworkInterfaces(ltInput, true, []*v1.NetworkInterface{})
+		})
+		It("shouldn't attach EFA interfaces when the nodeclaim was only allocated devices from other DRA drivers", func() {
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"p5.48xlarge"},
+				},
+			}
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: nvidiadra.DriverName,
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			for _, ni := range ltInput.LaunchTemplateData.NetworkInterfaces {
+				Expect(lo.FromPtr(ni.InterfaceType)).ToNot(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+			}
 		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{

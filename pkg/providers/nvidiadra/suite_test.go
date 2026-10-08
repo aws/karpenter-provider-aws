@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"unique"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,6 +26,7 @@ import (
 	resourcev1 "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling/dynamicresources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
@@ -89,6 +91,25 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 				return d.Device.Value()
 			})).To(ConsistOf("gpu-0", "gpu-1", "gpu-2", "gpu-3"))
 			Expect(binding.Devices[0].Driver.Value()).To(Equal(nvidiadra.DriverName))
+		}
+	})
+	It("should bind under the fully qualified names a claim's matchAttribute uses", func() {
+		// Run the bindings through the allocator's own lookup, keyed by the literal names a ResourceClaim would
+		// carry, so a binding the allocator can't match fails here rather than leaving claims unschedulable.
+		it := &cloudprovider.InstanceType{Name: "g6.12xlarge"}
+		it.DynamicResources = provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{it}, nil)["g6.12xlarge"]
+		bindings := dynamicresources.BuildAttributeBindings(map[string][]*cloudprovider.InstanceType{"default": {it}})
+
+		deviceID := func(name string) dynamicresources.DeviceID {
+			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{
+				Driver: unique.Make(nvidiadra.DriverName),
+				Pool:   unique.Make(nvidiadra.PoolName),
+				Device: unique.Make(name),
+			}}
+		}
+		for _, attribute := range []resourcev1.QualifiedName{"gpu.nvidia.com/driverVersion", "gpu.nvidia.com/cudaDriverVersion"} {
+			Expect(bindings.HasBindings("default", unique.Make(it.Name), attribute, deviceID("gpu-0"))).To(BeTrue(), string(attribute))
+			Expect(bindings.Bound("default", unique.Make(it.Name), attribute, deviceID("gpu-0"), deviceID("gpu-3"))).To(BeTrue(), string(attribute))
 		}
 	})
 	It("should advertise every scraped instance type with its full device count", func() {

@@ -26,7 +26,8 @@ import (
 
 type FeatureGates struct {
 	NodeClassCEL *bool
-	DRA          *bool
+	DRANVIDIAGPU *bool
+	DRAEFA       *bool
 }
 
 type OptionsFields struct {
@@ -69,7 +70,8 @@ func Options(overrides ...OptionsFields) *options.Options {
 		EnableZonalShift:             lo.FromPtrOr(opts.EnableZonalShift, false),
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
-			DRA:          lo.FromPtrOr(opts.FeatureGates.DRA, false),
+			DRANVIDIAGPU: lo.FromPtrOr(opts.FeatureGates.DRANVIDIAGPU, false),
+			DRAEFA:       lo.FromPtrOr(opts.FeatureGates.DRAEFA, false),
 		},
 	}
 }

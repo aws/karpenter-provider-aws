@@ -22,6 +22,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
@@ -107,4 +109,17 @@ var _ = Describe("EFA DRA Provider", func() {
 			}
 		}
 	})
+	DescribeTable("should report whether the NodeClaim was allocated dra.net devices",
+		func(annotations map[string]string, expected bool) {
+			nodeClaim := &karpv1.NodeClaim{ObjectMeta: metav1.ObjectMeta{Annotations: annotations}}
+			Expect(efadra.Requested(nodeClaim)).To(Equal(expected))
+		},
+		Entry("no annotations", nil, false),
+		Entry("an empty driver list", map[string]string{karpv1.DRADriversAnnotationKey: ""}, false),
+		Entry("dra.net alone", map[string]string{karpv1.DRADriversAnnotationKey: "dra.net"}, true),
+		Entry("dra.net among other drivers", map[string]string{karpv1.DRADriversAnnotationKey: "gpu.nvidia.com,dra.net"}, true),
+		Entry("dra.net with surrounding whitespace", map[string]string{karpv1.DRADriversAnnotationKey: "gpu.nvidia.com, dra.net "}, true),
+		Entry("only other drivers", map[string]string{karpv1.DRADriversAnnotationKey: "gpu.nvidia.com"}, false),
+		Entry("a driver that merely contains dra.net", map[string]string{karpv1.DRADriversAnnotationKey: "notdra.net"}, false),
+	)
 })

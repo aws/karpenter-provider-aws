@@ -17,9 +17,11 @@ package efadra
 import (
 	"context"
 	"fmt"
+	"strings"
 	"unique"
 
 	"github.com/samber/lo"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
@@ -59,6 +61,19 @@ func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 		}
 	}
 	return resources
+}
+
+// Requested returns whether the scheduler allocated dra.net devices to pods bound for the NodeClaim, per the
+// driver list core records on it at creation. Karpenter only attaches EFA interfaces on request, so a claim for
+// dra.net devices has to count as one: without the interfaces the driver publishes no EFA devices, and the claim
+// can never be satisfied on the node launched for it.
+//
+// dranet also publishes ordinary network interfaces, but the templates above model only EFA devices, so any
+// dra.net allocation the scheduler made was against an EFA device. Revisit this if non-EFA devices are modeled.
+func Requested(nodeClaim *karpv1.NodeClaim) bool {
+	return lo.ContainsBy(strings.Split(nodeClaim.Annotations[karpv1.DRADriversAnnotationKey], ","), func(driver string) bool {
+		return strings.TrimSpace(driver) == DriverName
+	})
 }
 
 // Provider resolves the dranet DRA metadata for a set of instance types.

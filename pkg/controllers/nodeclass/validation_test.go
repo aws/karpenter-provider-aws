@@ -237,18 +237,50 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 	})
 	Context("NVIDIA Consumable Capacity Validation", func() {
 		BeforeEach(func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(true)}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(true)}}))
 		})
-		It("should set DRADisabled when the annotation is set but the DRA gate is off", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRA: lo.ToPtr(false)}}))
+		DescribeTable("should set DRADisabled when the annotation enables sharing but the DRANVIDIAGPU gate is off",
+			func(value string) {
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(false)}}))
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+					v1.AnnotationNVIDIAConsumableCapacity: value,
+				})
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonDRADisabled))
+			},
+			Entry("memory", "memory"),
+			Entry("unlimited", "unlimited"),
+			Entry("a share count", "4"),
+		)
+		DescribeTable("should not set DRADisabled when the annotation enables no sharing and the DRANVIDIAGPU gate is off",
+			func(value string) {
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(false)}}))
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+					v1.AnnotationNVIDIAConsumableCapacity: value,
+				})
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonDRADisabled))
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonConsumableCapacityInvalid))
+			},
+			Entry("disabled", "disabled"),
+			Entry("empty", ""),
+		)
+		It("should report an invalid annotation as invalid even when the DRANVIDIAGPU gate is off", func() {
+			// The value is wrong regardless of the gate, and that is the more actionable of the two errors.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(false)}}))
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1.AnnotationNVIDIAConsumableCapacity: "memory",
+				v1.AnnotationNVIDIAConsumableCapacity: "sometimes",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonDRADisabled))
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonConsumableCapacityInvalid))
 		})
 		// The annotation is free-form, so the reconciler is the only thing that checks it. A bad value blocks
 		// launch rather than being guessed at, since Karpenter can't read the driver's actual configuration.
