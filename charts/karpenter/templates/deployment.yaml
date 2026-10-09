@@ -184,6 +184,13 @@ spec:
           karpenter.dra for how enableDRA and the DRA driver gates resolve it. */}}
             - name: IGNORE_DRA_REQUESTS
               value: "{{ $dra.ignoreDRARequests }}"
+          {{- if and .Values.settings.legacyNodeRepair .Values.settings.featureGates.terminateFirstRepair }}
+          {{- fail "settings.legacyNodeRepair can't be combined with settings.featureGates.terminateFirstRepair: the legacy node repair controller doesn't support terminate-first repair" }}
+          {{- end }}
+          {{- with .Values.settings.legacyNodeRepair }}
+            - name: LEGACY_NODE_REPAIR
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.disableClusterStateObservability }}
             - name: DISABLE_CLUSTER_STATE_OBSERVABILITY
               value: "{{ tpl (toString .) $ }}"

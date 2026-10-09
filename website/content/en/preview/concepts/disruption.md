@@ -270,6 +270,24 @@ The toleration duration is how long a node must report the condition before Karp
 
 [comment]: <> (end docs generated content from hack/docs/repairpolicies_gen/main.go)
 
+#### Legacy Node Repair
+
+{{% alert title="Warning" color="warning" %}}
+We plan to deprecate the legacy node repair controller. If you use it because the new one does not work for you, please [open an issue](https://github.com/kubernetes-sigs/karpenter/issues) with your use case/problem.
+{{% /alert %}}
+
+To use the legacy node repair controller (pre-1.15) before node repair became a graceful disruption method, enable the `NodeRepair` feature gate and also set `--legacy-node-repair` (`LEGACY_NODE_REPAIR=true`).
+
+The legacy controller only replaces nodes. When a node reports a [monitored condition](#monitored-node-conditions) with the `ReplaceNode` action for longer than its toleration duration, Karpenter deletes the node's NodeClaim and forcefully terminates it, without pre-spinning a replacement. It sets the NodeClaim's termination timestamp to the current time, so the drain bypasses PDBs. It ignores NodePool Disruption Budgets and the `karpenter.sh/do-not-disrupt` annotation. It has its own 20% breaker: if more than 20% of the nodes in a NodePool (or in the cluster, for NodeClaims without a NodePool) report a monitored condition, it stops repairing them and retries every 5 minutes. It emits `karpenter_nodeclaims_unhealthy_disrupted_total` and `karpenter_nodeclaims_disrupted_total` with the `unhealthy` reason.
+
+The legacy controller does not support:
+* [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
+* The `RebootNode` action. Karpenter ignores those policies, so the condition falls through to the `ReplaceNode` policy that matches its reason. For example, a reboot-family GPU XID on `AcceleratedHardwareReady` matches the fallback policy and the node is replaced after 30 minutes.
+* Repair policy priority
+* Per-condition termination grace periods
+* NodePool Disruption Budgets
+* The `karpenter.sh/do-not-repair` annotation
+
 ## Automated Forceful Methods
 
 Automated forceful methods will begin draining nodes as soon as the condition is met.
