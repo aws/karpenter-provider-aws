@@ -526,12 +526,25 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				// Verify the remaining pod is stuck pending
 				Env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(podLabels), 1)
 
-				// Cancel the shift — the pending pod should now get scheduled in the recovered zone
+				// Remove the pending pod before canceling the shift. EKS keeps tainting new nodes in the
+				// shifted zone with eks-arc-zonal-shift/impaired-zone for a short period after the ARC
+				// shift is canceled. If the pod is still pending, Karpenter launches a node into that
+				// zone, sees it tainted, and launches a second one, leaving an extra node behind.
+				deployment.Spec.Replicas = lo.ToPtr(int32(numzones - 1)) //nolint:gosec
+				Env.ExpectUpdated(deployment)
+				Env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(podLabels), 0)
+
+				// Cancel the shift so the recovered zone becomes available again
 				_, err = Env.ARCZONALSHIFTAPI.CancelZonalShift(Env.Context, &arczonalshiftservice.CancelZonalShiftInput{
 					ZonalShiftId: zonalshiftid,
 				})
 				Expect(err).To(BeNil())
 				Env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+
+				// Wait for EKS to stop tainting nodes in the recovered zone, then scale back up
+				time.Sleep(90 * time.Second)
+				deployment.Spec.Replicas = lo.ToPtr(int32(numzones)) //nolint:gosec
+				Env.ExpectUpdated(deployment)
 
 				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones)
 				nodes = Env.EventuallyExpectNodeCount("==", numzones)
