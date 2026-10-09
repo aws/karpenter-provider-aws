@@ -187,6 +187,10 @@ spec:
 Reference the claim from a pod as in the [previous example]({{< relref "#example-requesting-a-specific-gpu-via-dra" >}}).
 Karpenter only launches instance types where a GPU and an EFA share a PCIe root. For example, each of the eight GPUs in a `p5.48xlarge` shares a PCIe root with four EFAs.
 
+{{% alert title="Warning" color="warning" %}}
+Configuring `spec.networkInterfaces` on an EC2NodeClass used for EFA DRA workloads is currently unsupported and results in undefined behavior. Leave it unset.
+{{% /alert %}}
+
 ## Example: Requesting a timesliced GPU
 
 {{% alert title="Note" color="primary" %}}
