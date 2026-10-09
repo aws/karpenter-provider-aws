@@ -105,7 +105,7 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 }
 
 // terminatedInstanceTTL is how long an instance is remembered after its slot is returned.
-const terminatedInstanceTTL = time.Hour
+const terminatedInstanceTTL = 15 * time.Minute
 
 type availabilityCache struct {
 	mu         sync.RWMutex
