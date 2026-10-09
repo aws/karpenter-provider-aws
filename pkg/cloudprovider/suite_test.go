@@ -336,8 +336,10 @@ var _ = Describe("CloudProvider", func() {
 		var matcher *health.RepairPolicyMatcher
 		BeforeEach(func() {
 			var err error
-			matcher, err = health.NewRepairPolicyMatcher(cloudProvider.RepairPolicies(), sets.New(corecloudprovider.ReplaceNode, corecloudprovider.RebootNode))
+			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
+			matcher, err = health.NewRepairPolicyMatcher(repairCtx, cloudProvider)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(matcher).ToNot(BeNil())
 		})
 		// evaluate returns the repair result for a Node that has carried the condition for the elapsed duration.
 		evaluate := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, reason string, elapsed time.Duration) health.RepairResult {
@@ -349,7 +351,7 @@ var _ = Describe("CloudProvider", func() {
 				Reason:             reason,
 				LastTransitionTime: metav1.NewTime(now.Add(-elapsed)),
 			}}
-			return matcher.Evaluate(node, now)
+			return health.Resolve(matcher.Match(node), now, time.Time{})
 		}
 		It("should bound the drain of every policy", func() {
 			for _, policy := range cloudProvider.RepairPolicies() {
