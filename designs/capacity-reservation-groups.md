@@ -150,17 +150,6 @@ A future optimization could consider current reservation association during cons
 
 Current individual-ID targeting remains unchanged for launches that require a specific available reservation and reserved-capacity accounting.
 
-## Provider-owned instance state
-
-The implementation should not require a new Karpenter core `NodeClaim` status field. The AWS provider can represent:
-
-- the configured group target in provider-owned NodeClaim metadata; and
-- the current reservation ID, if any, using provider-owned metadata and metrics.
-
-The full ARN should be an annotation or stored indirectly rather than a Kubernetes label. Current reservation association is mutable and must be documented as observation, not a scheduling guarantee.
-
-When EC2 association changes, the provider must add, update, or remove observed reservation metadata. Updating a NodeClass must not make existing instances appear retargeted; their EC2 configuration changes only through an AWS-supported instance workflow or replacement.
-
 ## Implementation scope
 
 The minimal design is confined to `aws/karpenter-provider-aws`:
@@ -174,37 +163,3 @@ The minimal design is confined to `aws/karpenter-provider-aws`:
 Karpenter core does not need to understand groups because the proposal adds no new core capacity type, offering type, scheduling rule, or reservation accounting model.
 
 Core changes would be needed only for a future design in which mutable group association affects core scheduling, reservation allocation, or consolidation economics. That is outside the initial proposal.
-
-## Lifecycle
-
-| Event | AWS provider behavior |
-|---|---|
-| Group empty or full | Launch On-Demand and retain the group target |
-| Compatible capacity added or freed | Detect through reconciliation and update observed association |
-| Reservation removed, shrunk, canceled, expired, or unshared | Keep the node if EC2 does; clear stale association metadata |
-| Group deleted or inaccessible | Surface validation or launch errors; do not misreport existing targets |
-| NodeClass group changes | Drift affected NodeClaims; existing instances retain their old target until replaced |
-| Group member is incompatible | It does not cover the instance; ordinary fallback remains available |
-
-AWS, not Karpenter, chooses among compatible reservations and instances within the group. A group is a matching boundary, not a quota or fairness mechanism.
-
-## Ownership and cross-account behavior
-
-The first version supports operator-managed groups only. Operators are responsible for:
-
-- group creation and membership;
-- reservation creation, sharing, and lifecycle;
-- recipient-account grouping of shared reservations; and
-- region and Availability Zone compatibility.
-
-A shared reservation referenced by multiple groups remains one finite capacity pool. Groups do not create independent allocations.
-
-The AWS provider should require only the permissions needed to launch and observe instances. Whether it should validate the group before launch—and therefore require Resource Groups read permissions—is an open question.
-
-## Migration and rollback
-
-Adding a group ARN to a NodeClass affects new launches. Existing instances configured with reservation preference `none` are not live-retargeted.
-
-Operators can migrate by creating a canary NodeClass, validating launch behavior, and gradually replacing existing nodes. Normal drift semantics should apply when the configured group ARN changes.
-
-Rollback removes the group ARN from new launch configuration and gradually replaces affected nodes. Existing instances may retain their old group target until stopped or terminated.
