@@ -58,9 +58,9 @@ func NewProvider(
 ) *DefaultProvider {
 	return &DefaultProvider{
 		availabilityCache: availabilityCache{
-			cache:      reservationAvailabilityCache,
-			terminated: cache.New(terminatedInstanceTTL, time.Minute),
-			clk:        clk,
+			availabilityCache: reservationAvailabilityCache,
+			terminationCache:  cache.New(terminatedInstanceTTL, time.Minute),
+			clk:               clk,
 		},
 		ec2api:           ec2api,
 		clk:              clk,

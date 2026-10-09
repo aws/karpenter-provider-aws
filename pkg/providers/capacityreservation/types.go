@@ -108,10 +108,10 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 const terminatedInstanceTTL = 15 * time.Minute
 
 type availabilityCache struct {
-	mu         sync.RWMutex
-	cache      *cache.Cache
-	terminated *cache.Cache // instance IDs whose slot was already returned
-	clk        clock.Clock
+	mu                sync.RWMutex
+	availabilityCache *cache.Cache
+	terminationCache  *cache.Cache // instance IDs whose slot was already returned
+	clk               clock.Clock
 }
 
 type availabilityCacheEntry struct {
@@ -124,7 +124,7 @@ func (c *availabilityCache) syncAvailability(availability map[string]int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for id, count := range availability {
-		c.cache.SetDefault(id, &availabilityCacheEntry{
+		c.availabilityCache.SetDefault(id, &availabilityCacheEntry{
 			count:    count,
 			syncTime: now,
 		})
@@ -135,7 +135,7 @@ func (c *availabilityCache) MarkLaunched(reservationID string) {
 	now := c.clk.Now()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry, ok := c.cache.Get(reservationID)
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return
 	}
@@ -159,11 +159,11 @@ func (c *availabilityCache) MarkTerminated(reservationID, instanceID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Delete keeps returning NotFound after the instance is gone, so only return its slot once.
-	if _, ok := c.terminated.Get(instanceID); ok {
+	if _, ok := c.terminationCache.Get(instanceID); ok {
 		return
 	}
-	c.terminated.SetDefault(instanceID, struct{}{})
-	entry, ok := c.cache.Get(reservationID)
+	c.terminationCache.SetDefault(instanceID, struct{}{})
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return
 	}
@@ -173,7 +173,7 @@ func (c *availabilityCache) MarkTerminated(reservationID, instanceID string) {
 func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	entry, ok := c.cache.Get(reservationID)
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return 0
 	}
@@ -186,7 +186,7 @@ func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int 
 func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, count int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache.SetDefault(reservationID, &availabilityCacheEntry{
+	c.availabilityCache.SetDefault(reservationID, &availabilityCacheEntry{
 		count:    count,
 		syncTime: c.clk.Now(),
 	})
