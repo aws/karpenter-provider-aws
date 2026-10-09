@@ -221,6 +221,10 @@ settings:
   # (awsFeatureGates.draNVIDIAGPU or awsFeatureGates.draEFA) overrides this to false. Can't be combined with enableDRA.
   # @default -- `true`
   ignoreDRARequests: null
+  # -- Run the legacy node repair controller instead of node repair as a disruption method. Only takes effect with
+  # featureGates.nodeRepair, and can't be combined with featureGates.terminateFirstRepair, which the legacy controller
+  # doesn't support. The legacy node repair controller is planned for deprecation.
+  legacyNodeRepair: false
   # -- Disable cluster state metrics and events.
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
