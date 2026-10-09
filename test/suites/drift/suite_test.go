@@ -530,29 +530,12 @@ var _ = Describe("Drift", Ordered, func() {
 		env.ConsistentlyExpectNodeClaimsNotDrifted(time.Minute, nodeClaim)
 	})
 	Context("Capacity Reservations", func() {
-		var largeCapacityReservationID, xlargeCapacityReservationID string
+		var largeCapacityReservation, xlargeCapacityReservation aws.CapacityReservation
 		BeforeAll(func() {
-			largeCapacityReservationID = aws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
-			xlargeCapacityReservationID = aws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Xlarge,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
+			largeCapacityReservation, xlargeCapacityReservation = env.ExpectCapacityReservationPairCreated(1, 1)
 		})
 		AfterAll(func() {
-			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservation.ID, xlargeCapacityReservation.ID)
 		})
 		BeforeEach(func() {
 			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{
@@ -562,7 +545,7 @@ var _ = Describe("Drift", Ordered, func() {
 			}}
 		})
 		It("should drift nodeclaim when the reservation is no longer selected by the nodeclass", func() {
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: largeCapacityReservationID}}
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: largeCapacityReservation.ID}}
 			// Include the do-not-disrupt annotation to prevent replacement NodeClaims from leaking between tests
 			pod := coretest.Pod(coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
@@ -575,24 +558,16 @@ var _ = Describe("Drift", Ordered, func() {
 			nc := env.EventuallyExpectLaunchedNodeClaimCount("==", 1)[0]
 			env.EventuallyExpectNodeClaimsReady(nc)
 			n := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, largeCapacityReservation.InstanceType))
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, largeCapacityReservationID))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, largeCapacityReservation.ID))
 
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservation.ID}}
 			env.ExpectUpdated(nodeClass)
 			env.EventuallyExpectDrifted(nc)
 		})
 		It("should drift nodeclaim when the nodeclaim is demoted to on-demand", func() {
-			capacityReservationID := aws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
+			capacityReservationID := env.ExpectCapacityReservationCreated(1).ID
 			DeferCleanup(func() {
 				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
 			})
@@ -638,15 +613,7 @@ var _ = Describe("Drift", Ordered, func() {
 			env.EventuallyExpectDrifted(nc)
 		})
 		It("should terminate the drifted nodeclaim before launching its replacement when the reservation is full", func() {
-			capacityReservationID := aws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
+			capacityReservationID := env.ExpectCapacityReservationCreated(1).ID
 			DeferCleanup(func() {
 				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
 			})

@@ -17,7 +17,6 @@ package repair_test
 import (
 	"time"
 
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -106,15 +105,7 @@ var _ = Describe("Repair Policy", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should terminate the unhealthy nodeclaim before launching its replacement when the reservation is full", func() {
-		capacityReservationID := aws.ExpectCapacityReservationCreated(
-			env.Context,
-			env.EC2API,
-			ec2types.InstanceTypeM5Large,
-			env.ZoneInfo[0].Zone,
-			1,
-			nil,
-			nil,
-		)
+		capacityReservationID := env.ExpectCapacityReservationCreated(1).ID
 		DeferCleanup(func() {
 			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
 		})
