@@ -20,6 +20,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -134,5 +135,58 @@ var _ = Describe("Repair Policy", func() {
 
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
+	})
+	// A static NodePool with limits.nodes above replicas has headroom, but a reserved-only pool can't use it while its
+	// reservation is full: a pre-spun replacement can't launch until the unhealthy node frees its slot. Repair must
+	// terminate first rather than retry a replacement that never launches.
+	It("should terminate the unhealthy static nodeclaim before launching its replacement when the reservation is full", func() {
+		capacityReservationID := env.ExpectCapacityReservationCreated(1).ID
+		DeferCleanup(func() {
+			aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+		})
+
+		nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
+		nodePool = coretest.ReplaceRequirements(nodePool, karpenterv1.NodeSelectorRequirementWithMinValues{
+			Key:      karpenterv1.CapacityTypeLabelKey,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{karpenterv1.CapacityTypeReserved},
+		})
+		nodePool.Spec.Replicas = lo.ToPtr(int64(1))
+		nodePool.Spec.Limits = karpenterv1.Limits{corev1.ResourceName("nodes"): resource.MustParse("2")}
+		env.ExpectCreated(nodeClass, nodePool)
+		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+
+		// Hold the node so the window between the unhealthy nodeclaim's deletion and its refill stays observable
+		node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+		env.ExpectUpdated(node)
+		node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
+			Type:               "AcceleratedHardwareReady",
+			Status:             corev1.ConditionFalse,
+			Reason:             "NvidiaXID79Error",
+			LastTransitionTime: metav1.Time{Time: time.Now().Add(-11 * time.Minute)},
+		})
+		env.ExpectStatusUpdated(node)
+
+		listNodeClaimNames := func(g Gomega) []string {
+			nodeClaims := &karpenterv1.NodeClaimList{}
+			g.Expect(env.Client.List(env, nodeClaims, client.MatchingLabels{karpenterv1.NodePoolLabelKey: nodePool.Name})).To(Succeed())
+			return lo.Map(nodeClaims.Items, func(nc karpenterv1.NodeClaim, _ int) string { return nc.Name })
+		}
+		// Replace-first would create a second nodeclaim that fails to launch into the full reservation
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.DeletionTimestamp.IsZero()).To(BeFalse())
+			g.Expect(listNodeClaimNames(g)).To(ConsistOf(nodeClaim.Name))
+		}).Should(Succeed())
+		Consistently(func(g Gomega) {
+			g.Expect(listNodeClaimNames(g)).To(ConsistOf(nodeClaim.Name))
+		}, 30*time.Second, 5*time.Second).Should(Succeed())
+
+		Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+		env.EventuallyExpectNotFound(nodeClaim, node)
+		replacement := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+		Expect(replacement.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 	})
 })
