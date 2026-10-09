@@ -825,37 +825,20 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 		})
 
 		Context("Capacity Reservations", func() {
-			var largeCapacityReservationID, xlargeCapacityReservationID string
+			var largeCapacityReservation, xlargeCapacityReservation environmentaws.CapacityReservation
 			BeforeAll(func() {
-				largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Large,
-					Env.ZoneInfo[0].Zone,
-					1,
-					nil,
-					nil,
-				)
-				xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Xlarge,
-					Env.ZoneInfo[0].Zone,
-					2,
-					nil,
-					nil,
-				)
+				largeCapacityReservation, xlargeCapacityReservation = Env.ExpectCapacityReservationPairCreated(1, 2)
 			})
 			AfterAll(func() {
-				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, largeCapacityReservation.ID, xlargeCapacityReservation.ID)
 			})
 			BeforeEach(func() {
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 					{
-						ID: largeCapacityReservationID,
+						ID: largeCapacityReservation.ID,
 					},
 					{
-						ID: xlargeCapacityReservationID,
+						ID: xlargeCapacityReservation.ID,
 					},
 				}
 				NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -879,7 +862,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      v1.LabelCapacityReservationID,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{xlargeCapacityReservationID},
+						Values:   []string{xlargeCapacityReservation.ID},
 					}},
 				})
 				Env.ExpectCreated(NodePool, NodeClass, pod)
@@ -889,13 +872,13 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					return req.Key == v1.LabelCapacityReservationID
 				})
 				Expect(ok).To(BeTrue())
-				Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
+				Expect(req.Values).To(ConsistOf(xlargeCapacityReservation.ID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 			})
 			// NOTE: We're not exercising capacity blocks because it isn't possible to provision them ad-hoc for the use in an
 			// integration test.
@@ -914,7 +897,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 						{
 							Key:      corev1.LabelInstanceTypeStable,
 							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{string(ec2types.InstanceTypeM5Xlarge)},
+							Values:   []string{xlargeCapacityReservation.InstanceType},
 						},
 					},
 				})
@@ -931,7 +914,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 			})
 			It("should fall back when compatible capacity reservations are exhausted", func() {
 				// We create two pods with self anti-affinity and a node selector on a specific instance type. The anti-affinity term
@@ -946,7 +929,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large)},
+						Values:   []string{largeCapacityReservation.InstanceType},
 					}},
 					PodAntiRequirements: []corev1.PodAffinityTerm{{
 						TopologyKey: corev1.LabelHostname,
@@ -964,7 +947,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					})
 					if ok {
 						reservedCount += 1
-						Expect(req.Values).To(ConsistOf(largeCapacityReservationID))
+						Expect(req.Values).To(ConsistOf(largeCapacityReservation.ID))
 					}
 				}
 				Expect(reservedCount).To(Equal(1))
@@ -973,34 +956,19 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 		})
 
 		Context("Interruptible Capacity Resverations", func() {
-			var sourceReservationID, interruptibleReservationID, xlargeReservationID string
+			var sourceReservation, xlargeReservation environmentaws.CapacityReservation
+			var interruptibleReservationID string
 			BeforeAll(func() {
-				sourceReservationID, interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Large,
-					Env.ZoneInfo[0].Zone,
-					2,
-					1,
-					nil,
-				)
-				xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Xlarge,
-					Env.ZoneInfo[0].Zone,
-					1,
-					nil,
-					nil,
-				)
+				sourceReservation, xlargeReservation = Env.ExpectCapacityReservationPairCreated(2, 1)
+				interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityAllocationCreated(Env.Context, Env.EC2API, sourceReservation.ID, 1)
 			})
 			AfterAll(func() {
-				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservationID, interruptibleReservationID)
-				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservationID)
+				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservation.ID, interruptibleReservationID)
+				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservation.ID)
 			})
 			BeforeEach(func() {
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
-					{ID: sourceReservationID}, {ID: interruptibleReservationID},
+					{ID: sourceReservation.ID}, {ID: interruptibleReservationID},
 				}
 				NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
@@ -1036,7 +1004,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					return req.Key == v1.LabelCapacityReservationInterruptible
 				})
 				Expect(ok).To(BeTrue())
-				Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
+				Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservation.ID)))
 				Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
@@ -1051,7 +1019,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large)},
+						Values:   []string{sourceReservation.InstanceType},
 					}},
 				})
 				Env.ExpectCreated(NodePool, NodeClass, pod)
@@ -1062,17 +1030,17 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				})
 				Expect(ok).To(BeTrue())
 				// NodeClaim should have both reservations (but launch with ODCR)
-				Expect(req.Values).To(ConsistOf(sourceReservationID, interruptibleReservationID))
+				Expect(req.Values).To(ConsistOf(sourceReservation.ID, interruptibleReservationID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservation.ID))
 			})
 			It("should prioritize reservation with lower price", func() {
 				Env.ExpectCreated(NodeClass)
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
-					{ID: xlargeReservationID}, {ID: interruptibleReservationID},
+					{ID: xlargeReservation.ID}, {ID: interruptibleReservationID},
 				}
 				Env.ExpectUpdated(NodeClass)
 
@@ -1080,7 +1048,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large), string(ec2types.InstanceTypeM5Xlarge)},
+						Values:   []string{sourceReservation.InstanceType, xlargeReservation.InstanceType},
 					}},
 				})
 				Env.ExpectCreated(NodePool, pod)
@@ -1091,11 +1059,11 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				})
 				Expect(ok).To(BeTrue())
 				// NodeClaim should have both reservations (but launch in IODCR as its cheaper)
-				Expect(req.Values).To(ConsistOf(xlargeReservationID, interruptibleReservationID))
+				Expect(req.Values).To(ConsistOf(xlargeReservation.ID, interruptibleReservationID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
-				Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+				Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, sourceReservation.InstanceType))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
 			})
 		})
