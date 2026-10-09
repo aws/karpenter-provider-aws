@@ -11,6 +11,9 @@ metadata:
   {{- end }}
 spec:
   maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- if and .Values.podDisruptionBudget.unhealthyPodEvictionPolicy (semverCompare ">= 1.27-0" .Capabilities.KubeVersion.Version) }}
+  unhealthyPodEvictionPolicy: {{ .Values.podDisruptionBudget.unhealthyPodEvictionPolicy }}
+  {{- end }}
   selector:
     matchLabels:
     {{- include "karpenter.selectorLabels" . | nindent 6 }}
