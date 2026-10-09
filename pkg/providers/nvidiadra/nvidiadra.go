@@ -29,9 +29,14 @@ import (
 // DriverName is the NVIDIA GPU DRA driver name, matching the ResourceSlices it publishes.
 const DriverName = "gpu.nvidia.com"
 
-// PoolName names the simulated device pool. The driver pools per node at runtime, but a template is
-// inherently per-instance-type, so a stable name is all the allocator needs.
-const PoolName = "gpus"
+// PoolName names the simulated device pool for an instance type. The driver pools per node at runtime, so the
+// name never reaches a real ResourceSlice, but it must be unique per instance type: the allocator identifies a
+// template device by driver, pool, and device name alone, and caches selector results under that identity across
+// every instance type it evaluates for a NodeClaim. A shared pool name would let one instance type's result answer
+// for another's.
+func PoolName(instanceType string) string {
+	return "gpus-" + instanceType
+}
 
 // Attributes the driver only resolves at runtime, so they're declared as AttributeBindings rather
 // than given a value. Note the allocator ignores bindings covering fewer than two devices, so these
@@ -66,7 +71,7 @@ func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 	resources := make(map[string]cloudprovider.DynamicResources, len(drametadata.GPUMetadataByInstanceType))
 	for instanceType, metadata := range drametadata.GPUMetadataByInstanceType {
 		driver := unique.Make(DriverName)
-		pool := cloudprovider.ResourcePool{Name: unique.Make(PoolName)}
+		pool := cloudprovider.ResourcePool{Name: unique.Make(PoolName(instanceType))}
 
 		devices := lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
 			return cloudprovider.Device{

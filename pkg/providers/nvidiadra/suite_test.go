@@ -103,7 +103,7 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		deviceID := func(name string) dynamicresources.DeviceID {
 			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{
 				Driver: unique.Make(nvidiadra.DriverName),
-				Pool:   unique.Make(nvidiadra.PoolName),
+				Pool:   unique.Make(nvidiadra.PoolName(it.Name)),
 				Device: unique.Make(name),
 			}}
 		}

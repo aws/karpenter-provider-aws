@@ -29,9 +29,14 @@ import (
 
 const DriverName = "dra.net"
 
-// PoolName names the simulated device pool. The driver pools per node at runtime, but a template is
-// inherently per-instance-type, so a stable name is all the allocator needs.
-const PoolName = "network"
+// PoolName names the simulated device pool for an instance type. The driver pools per node at runtime, so the
+// name never reaches a real ResourceSlice, but it must be unique per instance type: the allocator identifies a
+// template device by driver, pool, and device name alone, and caches selector results under that identity across
+// every instance type it evaluates for a NodeClaim. A shared pool name would let one instance type's result answer
+// for another's.
+func PoolName(instanceType string) string {
+	return "network-" + instanceType
+}
 
 // dynamicResources holds the network device DRA metadata keyed by instance type name, built once at
 // package init and immutable afterwards, making it safe to share by pointer.
@@ -50,7 +55,7 @@ func buildDynamicResources() map[string]cloudprovider.DynamicResources {
 		resources[instanceType] = cloudprovider.DynamicResources{
 			ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
 				Driver: unique.Make(DriverName),
-				Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName)},
+				Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName(instanceType))},
 				Devices: lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
 					return cloudprovider.Device{
 						Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
