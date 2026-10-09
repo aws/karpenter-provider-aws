@@ -1,0 +1,267 @@
+# RFC: Capacity Reservation Resource Group Targeting in Karpenter
+
+**Status:** Draft for discussion  
+**Last researched:** 2026-10-09
+
+> This is an unimplemented proposal. API names are illustrative. AWS behavior must be validated through Karpenter's exact EC2 Fleet path.
+
+## Summary
+
+Karpenter currently targets individual Capacity Reservations with available capacity. It cannot launch an instance with a stable Capacity Reservation Resource Group target and let AWS manage association over that instance's lifetime.
+
+Group targeting would be an alternative ODCR consumption model. Instead of Karpenter selecting and accounting for a specific reservation ID at launch, Karpenter would delegate reservation selection and later reassociation to AWS within an operator-defined group. This provides AWS-managed matching without the account-wide scope of open matching.
+
+This RFC proposes an operator-managed group ARN on `EC2NodeClass`. Karpenter would:
+
+- place the group target in the launch template;
+- allow AWS's documented On-Demand fallback when the group has no compatible available reservation;
+- periodically observe the reservation, if any, currently covering the instance; and
+- use that observation for status without treating it as durable capacity.
+
+Karpenter would not create groups, manage group membership, or create and resize reservations.
+
+## Motivation
+
+### Cover an existing running fleet
+
+A group-targeted instance can launch on ordinary On-Demand capacity and later become covered when compatible capacity is added to the group. This allows operators to establish reservation coverage around an already-running fleet without replacing that fleet solely to change reservation association.
+
+For example:
+
+| Stage | Running | Reserved | Unused reserved |
+|---|---:|---:|---:|
+| Group-targeted instances on ordinary capacity | 100 | 0 | 0 |
+| Compatible reservations added and matched | 100 | 100 | 0 |
+| Additional compatible capacity added | 100 | 120 | 20 |
+
+The group itself reserves no capacity. Adding only 20 slots while 100 compatible group-targeted instances are uncovered may cause those instances to consume all 20 slots.
+
+### Reacquire coverage after replacement overlap
+
+Suppose ten instances occupy ten reserved slots. A replacement launches before an old instance terminates, while the reservation is full. With a persistent group target, the replacement can launch on On-Demand capacity and later become covered when the old instance releases its slot. It does not need another replacement solely to regain coverage.
+
+Issue [#9518](https://github.com/aws/karpenter-provider-aws/issues/9518) contains independent reports of both problems. The issue requests open matching, not groups; it is evidence for the use cases, not agreement on this proposal.
+
+## Current behavior
+
+### AWS
+
+AWS documents that:
+
+- `CapacityReservationTarget.CapacityReservationResourceGroupArn` targets a Capacity Reservation Resource Group.
+- EC2 can launch on ordinary On-Demand capacity when the group has no compatible available reservation.
+- A running group-targeted instance can later match compatible capacity added to the group.
+- Recipient accounts can add active reservations shared with them to their own groups.
+
+Sources: [group launch](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-launch.html), [group lifecycle](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-lifecycle.html), [group membership](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-add.html), and [sharing](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-sharing.html).
+
+AWS also announced group-targeting support for launch templates and EC2 Fleet: [AWS announcement](https://aws.amazon.com/about-aws/whats-new/2020/07/amazon-ec2-on-demand-capacity-reservations-now-support-group-targeting/).
+
+`DescribeInstances` reports both the current `CapacityReservationId` and the configured `CapacityReservationSpecification`, including a group target: [DescribeInstances API](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html).
+
+### Karpenter
+
+Current reserved-capacity support resolves `capacityReservationSelectorTerms` to individual reservations. Karpenter advertises available reservation slots as `reserved` offerings and launches with:
+
+- `CapacityReservationPreference: capacity-reservations-only`; and
+- a specific `CapacityReservationId`.
+
+Ordinary On-Demand and Spot launches use reservation preference `none`. Selecting an open reservation through `capacityReservationSelectorTerms` therefore does not enable EC2 open matching: Karpenter still targets a specific available reservation ID. Conversely, enabling account-wide open matching would not preserve the NodeClass selector boundary during later AWS-managed association.
+
+Group targeting provides a third model: Karpenter selects the group, while AWS selects and updates the reservation association within that bounded set.
+
+The AWS SDK contains `CapacityReservationResourceGroupArn`, but no Karpenter implementation of group targeting was found during this review.
+
+## Goals
+
+- Provide group targeting as an alternative to Karpenter-managed, reservation-ID-specific ODCR consumption.
+- Delegate reservation selection and later reassociation to AWS within an operator-defined group.
+- Allow an `EC2NodeClass` to target one operator-managed Capacity Reservation Resource Group.
+- Preserve the group target when a launch uses ordinary On-Demand capacity.
+- Reflect later reservation association and disassociation accurately.
+- Keep ordinary provisioning available when the group is empty or full.
+- Support groups containing owned or shared reservations.
+- Preserve current explicit reservation-ID behavior.
+
+## Non-goals
+
+- Creating groups or managing membership.
+- Creating, sharing, resizing, or retaining reservations.
+- Defining launch-order policy across instance types, Availability Zones, or capacity sources.
+- Defining quotas, entitlements, or fairness among group consumers.
+- Retrofitting a group target onto a running instance configured with `none`. AWS documents modifying this configuration for stopped instances.
+- Guaranteeing reservation availability.
+
+## Proposed API
+
+Add an optional group ARN to `EC2NodeClass`:
+
+```yaml
+spec:
+  capacityReservationGroupARN: arn:aws:resource-groups:us-west-2:123456789012:group/workload-a
+```
+
+The field name is illustrative.
+
+Initial contract:
+
+- The ARN references an operator-managed Resource Group.
+- Karpenter places the ARN in `CapacityReservationTarget.CapacityReservationResourceGroupArn` for On-Demand launches.
+- The launch uses AWS's normal group behavior: use compatible group capacity when available; otherwise use ordinary On-Demand capacity.
+- Spot launches are unchanged.
+- The field is mutually exclusive with `capacityReservationSelectorTerms`.
+- Group membership is authoritative. Existing reservation selectors do not further restrict AWS's later matching.
+
+An explicit ARN is the smallest useful contract and does not require Karpenter to discover or manage groups.
+
+Mutual exclusion makes group targeting a distinct ODCR mode. Existing selectors keep selection, availability, and per-ID accounting in Karpenter; a group deliberately gives reservation selection and lifetime reassociation to AWS.
+
+A future API could represent individual selectors, groups, and open matching as variants of one reservation-target field. That API shape is not required for the initial behavior.
+
+## Launch, observation, and accounting
+
+Karpenter creates a launch template containing the group ARN and submits it through the existing `CreateFleet` path.
+
+Expected outcomes:
+
+- EC2 covers the instance with a compatible group reservation when available.
+- Otherwise, EC2 launches the instance as ordinary On-Demand while retaining the group target.
+- EC2 may later associate or disassociate the running instance as group capacity changes.
+
+### Association reconciliation
+
+Because association can change while the node remains running, the AWS provider must not observe it only at launch or termination. A provider controller should periodically refresh group-targeted instances with `DescribeInstances` and reconcile current reservation metadata.
+
+The refresh interval should balance API cost against status freshness. Reconciliation should also occur before any provider operation whose correctness depends on current association. `DescribeInstances` is the authoritative source.
+
+### Scheduling and consolidation accounting
+
+Group-targeted launches should remain `karpenter.sh/capacity-type=on-demand` for scheduling purposes. Reserved capacity is not required for launch success, and current association can change without replacing the node.
+
+The initial implementation should therefore:
+
+- use the On-Demand price for provisioning and consolidation;
+- not advertise group capacity as `reserved` offerings; and
+- not reserve group slots in per-scheduling-run reservation accounting.
+
+This conservative model keeps consolidation correct even if observed association is briefly stale. A free group slot is not necessarily available to a new NodeClaim: AWS may assign it to an already-running group-targeted instance.
+
+A future optimization could consider current reservation association during consolidation. That would require a fresh group-level view before evaluation and revalidation before disruption. Refreshing only the candidate node is insufficient: deleting a covered node may cause AWS to assign its slot to another uncovered group target.
+
+Current individual-ID targeting remains unchanged for launches that require a specific available reservation and reserved-capacity accounting.
+
+## Provider-owned instance state
+
+The implementation should not require a new Karpenter core `NodeClaim` status field. The AWS provider can represent:
+
+- the configured group target in provider-owned NodeClaim metadata; and
+- the current reservation ID, if any, using provider-owned metadata and metrics.
+
+The full ARN should be an annotation or stored indirectly rather than a Kubernetes label. Current reservation association is mutable and must be documented as observation, not a scheduling guarantee.
+
+When EC2 association changes, the provider must add, update, or remove observed reservation metadata. Updating a NodeClass must not make existing instances appear retargeted; their EC2 configuration changes only through an AWS-supported instance workflow or replacement.
+
+## Implementation scope
+
+The minimal design is confined to `aws/karpenter-provider-aws`:
+
+1. Add and validate the `EC2NodeClass` group field.
+2. Include the group ARN in provider-generated launch templates.
+3. Reconcile current association through the provider's EC2 instance controller.
+4. Expose provider-owned metadata, conditions, metrics, and events.
+5. Continue presenting group-targeted offerings to core as ordinary On-Demand offerings.
+
+Karpenter core does not need to understand groups because the proposal adds no new core capacity type, offering type, scheduling rule, or reservation accounting model.
+
+Core changes would be needed only for a future design in which mutable group association affects core scheduling, reservation allocation, or consolidation economics. That is outside the initial proposal.
+
+## Lifecycle
+
+| Event | AWS provider behavior |
+|---|---|
+| Group empty or full | Launch On-Demand and retain the group target |
+| Compatible capacity added or freed | Detect through reconciliation and update observed association |
+| Reservation removed, shrunk, canceled, expired, or unshared | Keep the node if EC2 does; clear stale association metadata |
+| Group deleted or inaccessible | Surface validation or launch errors; do not misreport existing targets |
+| NodeClass group changes | Drift affected NodeClaims; existing instances retain their old target until replaced |
+| Group member is incompatible | It does not cover the instance; ordinary fallback remains available |
+
+AWS, not Karpenter, chooses among compatible reservations and instances within the group. A group is a matching boundary, not a quota or fairness mechanism.
+
+## Ownership and cross-account behavior
+
+The first version supports operator-managed groups only. Operators are responsible for:
+
+- group creation and membership;
+- reservation creation, sharing, and lifecycle;
+- recipient-account grouping of shared reservations; and
+- region and Availability Zone compatibility.
+
+A shared reservation referenced by multiple groups remains one finite capacity pool. Groups do not create independent allocations.
+
+The AWS provider should require only the permissions needed to launch and observe instances. Whether it should validate the group before launch—and therefore require Resource Groups read permissions—is an open question.
+
+## Migration and rollback
+
+Adding a group ARN to a NodeClass affects new launches. Existing instances configured with reservation preference `none` are not live-retargeted.
+
+Operators can migrate by creating a canary NodeClass, validating launch behavior, and gradually replacing existing nodes. Normal drift semantics should apply when the configured group ARN changes.
+
+Rollback removes the group ARN from new launch configuration and gradually replaces affected nodes. Existing instances may retain their old group target until stopped or terminated.
+
+## Alternatives
+
+### Open matching
+
+Open matching also delegates lifetime association to AWS and is requested in #9518. It is broader: AWS does not use Karpenter NodePool identity or selector terms to partition open reservations among opted-in instances. Group targeting provides the same class of AWS-managed association within an explicit reservation set.
+
+### Specific reservation IDs
+
+Current behavior keeps reservation selection and slot accounting in Karpenter. It provides deterministic eligibility but cannot target a full or future reservation while preserving later eligibility.
+
+### Replace nodes after capacity becomes available
+
+This requires no new API but disrupts healthy workloads and can be impractical for long-running jobs.
+
+### Karpenter-managed groups
+
+This would expand Karpenter into Resource Group membership and reservation lifecycle management. It is unnecessary for the launch-targeting primitive.
+
+## Validation
+
+Live tests must establish that:
+
+1. Karpenter's exact launch-template and Fleet request preserves the group target.
+2. Empty and full groups permit On-Demand fallback.
+3. Existing uncovered instances match compatible reservations added later.
+4. A replacement can acquire a slot released by an old instance.
+5. Compatible reservations outside the group are not consumed.
+6. Periodic reconciliation detects association and disassociation within the documented freshness objective.
+7. Observed association remains accurate through membership change, resize, cancellation, expiration, and unsharing.
+8. Shared reservations work through recipient-account groups.
+9. Migration does not claim to retarget existing running instances.
+10. Provisioning and consolidation remain correct while association observations are stale or change during evaluation.
+
+No live test is currently reported as passed.
+
+## Open questions
+
+1. Should the API be a standalone ARN or one variant of a general reservation-target field?
+2. Which provider-owned metadata should expose persistent group target and current association?
+3. What reconciliation interval and batching strategy provide acceptable freshness without excessive `DescribeInstances` calls?
+4. Should the AWS provider validate the group before launch, and what permissions would that require?
+5. What errors result from deleted, inaccessible, malformed, or wrong-region groups?
+6. How quickly do association changes become visible through EC2 APIs?
+7. Should open matching be implemented independently of group support?
+
+## Public references
+
+- [Karpenter issue #9518](https://github.com/aws/karpenter-provider-aws/issues/9518)
+- [Related issue #8176](https://github.com/aws/karpenter-provider-aws/issues/8176)
+- [Karpenter ODCR design](https://github.com/aws/karpenter-provider-aws/blob/main/designs/odcr.md)
+- [AWS group launch](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-launch.html)
+- [AWS group lifecycle](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-lifecycle.html)
+- [AWS group membership](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/cr-groups-add.html)
+- [AWS DescribeInstances API](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html)
+- [AWS instance modification](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservations-modify-instance.html)
+- [AWS reservation sharing](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-sharing.html)
