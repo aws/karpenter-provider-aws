@@ -1269,7 +1269,7 @@ spec:
     # Root device
     - deviceName: /dev/xvda
       ebs:
-        volumeSize: 4Gi
+        volumeSize: 6Gi
         volumeType: gp3
         encrypted: true
     # Data device: Container resources such as images and logs
