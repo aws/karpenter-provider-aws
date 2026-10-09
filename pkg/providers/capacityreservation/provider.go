@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -36,7 +37,8 @@ type Provider interface {
 	GetAvailableInstanceCount(string) int
 	SetAvailableInstanceCount(string, int)
 	MarkLaunched(string)
-	MarkTerminated(string)
+	// MarkTerminated returns instanceID's slot to the reservation. Repeat calls for the same instance are no-ops.
+	MarkTerminated(reservationID, instanceID string)
 }
 
 type DefaultProvider struct {
@@ -56,8 +58,9 @@ func NewProvider(
 ) *DefaultProvider {
 	return &DefaultProvider{
 		availabilityCache: availabilityCache{
-			cache: reservationAvailabilityCache,
-			clk:   clk,
+			cache:      reservationAvailabilityCache,
+			terminated: cache.New(terminatedInstanceTTL, time.Minute),
+			clk:        clk,
 		},
 		ec2api:           ec2api,
 		clk:              clk,

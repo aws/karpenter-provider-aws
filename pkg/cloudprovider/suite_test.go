@@ -1691,6 +1691,21 @@ var _ = Describe("CloudProvider", func() {
 			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(10))
 		})
+		It("should not double-count a terminated instance when Delete is called again after NotFound", func() {
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ncs := ExpectNodeClaims(ctx, env.Client)
+			Expect(ncs).To(HaveLen(1))
+			id := ncs[0].Labels[corecloudprovider.ReservationIDLabel]
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(id)).To(Equal(9))
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{})
+			// Core calls Delete from node termination (until NotFound) and again from the NodeClaim lifecycle finalizer.
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(ctx, ncs[0]))).To(BeTrue())
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(ctx, ncs[0]))).To(BeTrue())
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(id)).To(Equal(10))
+		})
 		DescribeTable(
 			"should include capacity reservation labels",
 			func(crt v1.CapacityReservationType, interruptible bool) {
