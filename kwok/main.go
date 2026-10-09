@@ -18,6 +18,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
+	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -46,7 +47,8 @@ func main() {
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(kwokAWSCloudProvider)
 	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)
-	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider)
+	repairPolicyMatcher := lo.Must(health.NewRepairPolicyMatcher(ctx, cloudProvider))
+	clusterState := state.NewCluster(op.Clock, op.GetClient(), cloudProvider, state.WithRepairPolicyMatcher(repairPolicyMatcher))
 
 	if karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
 		v1.CapacityReservationsEnabled = true
