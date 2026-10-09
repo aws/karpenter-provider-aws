@@ -1,0 +1,105 @@
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package efadra
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"unique"
+
+	"github.com/samber/lo"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
+)
+
+const DriverName = "dra.net"
+
+// PoolName names the simulated device pool for an instance type. The driver pools per node at runtime, so the
+// name never reaches a real ResourceSlice, but it must be unique per instance type: the allocator identifies a
+// template device by driver, pool, and device name alone, and caches selector results under that identity across
+// every instance type it evaluates for a NodeClaim. A shared pool name would let one instance type's result answer
+// for another's.
+func PoolName(instanceType string) string {
+	return "network-" + instanceType
+}
+
+// dynamicResources holds the network device DRA metadata keyed by instance type name, built once at
+// package init and immutable afterwards, making it safe to share by pointer.
+var dynamicResources = buildDynamicResources()
+
+// buildDynamicResources converts the scraped network metadata into one template per instance type,
+// with one device per PCI device.
+//
+// Device names are synthetic. The driver derives its names from each device's PCI address, which the
+// scraped metadata does not carry, and a template name only has to be unique: the template decides
+// whether an instance type can satisfy a claim, and the node makes the real allocation under its own
+// names.
+func buildDynamicResources() map[string]cloudprovider.DynamicResources {
+	resources := make(map[string]cloudprovider.DynamicResources, len(drametadata.EFAMetadataByInstanceType))
+	for instanceType, metadata := range drametadata.EFAMetadataByInstanceType {
+		resources[instanceType] = cloudprovider.DynamicResources{
+			ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
+				Driver: unique.Make(DriverName),
+				Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName(instanceType))},
+				Devices: lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
+					return cloudprovider.Device{
+						Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
+						Attributes: device.Attributes,
+					}
+				}),
+			}},
+		}
+	}
+	return resources
+}
+
+// Requested returns whether the scheduler allocated dra.net devices to pods bound for the NodeClaim, per the
+// driver list core records on it at creation. Karpenter only attaches EFA interfaces on request, so a claim for
+// dra.net devices has to count as one: without the interfaces the driver publishes no EFA devices, and the claim
+// can never be satisfied on the node launched for it.
+//
+// dranet also publishes ordinary network interfaces, but the templates above model only EFA devices, so any
+// dra.net allocation the scheduler made was against an EFA device. Revisit this if non-EFA devices are modeled.
+func Requested(nodeClaim *karpv1.NodeClaim) bool {
+	return lo.ContainsBy(strings.Split(nodeClaim.Annotations[karpv1.DRADriversAnnotationKey], ","), func(driver string) bool {
+		return strings.TrimSpace(driver) == DriverName
+	})
+}
+
+// Provider resolves the dranet DRA metadata for a set of instance types.
+type Provider interface {
+	// ResolveDynamicResources returns the dra.net templates keyed by instance type name. Instance
+	// types with no network device metadata are omitted.
+	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources
+}
+
+type DefaultProvider struct{}
+
+func NewDefaultProvider() *DefaultProvider {
+	return &DefaultProvider{}
+}
+
+func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources {
+	resources := map[string]cloudprovider.DynamicResources{}
+	for _, it := range instanceTypes {
+		if r, ok := dynamicResources[it.Name]; ok {
+			resources[it.Name] = r
+		}
+	}
+	return resources
+}

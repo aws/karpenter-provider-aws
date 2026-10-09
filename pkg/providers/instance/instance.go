@@ -50,6 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -763,7 +764,9 @@ func (p *DefaultProvider) getEFACountForInstance(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found && nodeClass.NetworkInterfaces() == nil {
+	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
+	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
+	if !requested && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {

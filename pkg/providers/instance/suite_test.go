@@ -46,6 +46,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -964,6 +965,24 @@ var _ = Describe("InstanceProvider", func() {
 			},
 			}, 0),
 		)
+		It("should set EFACount based on instance type capacity when NodeClaim was allocated dra.net devices", func() {
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: efadra.DriverName,
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+				return i.Name == "g4dn.8xlarge"
+			})
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(1))
+		})
 		It("should set EFACount based on instance type capacity when NodeClaim requests EFA", func() {
 			// NodeClaim requests EFA resource
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{

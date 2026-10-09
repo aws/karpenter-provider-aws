@@ -145,7 +145,20 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+			Expect(opts.FeatureGates.DRANVIDIAGPU).To(BeFalse())
+			Expect(opts.FeatureGates.DRAEFA).To(BeFalse())
 		})
+		DescribeTable("should set the DRA driver gates independently",
+			func(gates string, nvidia, efa bool) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", gates)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(opts.FeatureGates.DRANVIDIAGPU).To(Equal(nvidia))
+				Expect(opts.FeatureGates.DRAEFA).To(Equal(efa))
+			},
+			Entry("NVIDIA only", "DRANVIDIAGPU=true", true, false),
+			Entry("EFA only", "DRAEFA=true", false, true),
+			Entry("both", "DRANVIDIAGPU=true,DRAEFA=true", true, true),
+		)
 		It("should set gates from the CLI flag", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NodeClassCEL=true")
 			Expect(err).ToNot(HaveOccurred())
