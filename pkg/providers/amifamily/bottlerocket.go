@@ -183,10 +183,8 @@ func (b Bottlerocket) extractVersionFromName(name string) string {
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	xvdaEBS := DefaultEBS
-	// The root volume must be at least as large as the AMI's root snapshot. The Bottlerocket aws-k8s-1.37-nvidia
-	// variants (Bottlerocket v1.66.0+) ship a 6 GiB OS image, so a smaller default fails CreateFleet with
-	// InvalidBlockDeviceMapping. Default nodeclass BlockDeviceMappings are not part of the EC2NodeClass hash,
-	// so changing this value does not drift existing nodes.
+	// The root volume must be at least as large as the AMI's root snapshot.
+	// https://github.com/bottlerocket-os/bottlerocket/commit/a02834b6ac
 	xvdaEBS.VolumeSize = lo.ToPtr(resource.MustParse("6Gi"))
 	return []*v1.BlockDeviceMapping{
 		{
