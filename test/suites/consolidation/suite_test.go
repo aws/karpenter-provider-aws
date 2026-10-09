@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -833,30 +832,13 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 		env.ExpectDeleted(smallDep)
 	})
 	Context("Capacity Reservations", func() {
-		var largeCapacityReservationID, xlargeCapacityReservationID string
+		var largeCapacityReservation, xlargeCapacityReservation environmentaws.CapacityReservation
 		var nodePool *karpv1.NodePool
 		BeforeAll(func() {
-			largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Large,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
-			xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-				env.Context,
-				env.EC2API,
-				ec2types.InstanceTypeM5Xlarge,
-				env.ZoneInfo[0].Zone,
-				1,
-				nil,
-				nil,
-			)
+			largeCapacityReservation, xlargeCapacityReservation = env.ExpectCapacityReservationPairCreated(1, 1)
 		})
 		AfterAll(func() {
-			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+			environmentaws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, largeCapacityReservation.ID, xlargeCapacityReservation.ID)
 		})
 		BeforeEach(func() {
 			nodePool = coretest.NodePool(karpv1.NodePool{
@@ -892,9 +874,9 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 						Operator: corev1.NodeSelectorOpIn,
 						Values: []string{
 							// Should result in an m5.large initially
-							string(ec2types.InstanceTypeM5Large),
+							largeCapacityReservation.InstanceType,
 							// Should consolidate to the m5.xlarge when we add the reservation to the nodeclass
-							string(ec2types.InstanceTypeM5Xlarge),
+							xlargeCapacityReservation.InstanceType,
 						},
 					}},
 				},
@@ -903,10 +885,10 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 			env.ExpectCreated(nodePool, nodeClass, dep)
 			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectLaunchedNodeClaimCount("==", 1)...)
 			n := env.EventuallyExpectNodeCount("==", int(1))[0]
-			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, largeCapacityReservation.InstanceType))
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservation.ID}}
 			env.ExpectUpdated(nodeClass)
 
 			// Eventually expect the m5.large on-demand node to be replaced with an m5.xlarge reserved node. We should prioritize
@@ -922,9 +904,9 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 				})
 				g.Expect(filtered).To(HaveLen(1))
 
-				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Xlarge)))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, xlargeCapacityReservation.InstanceType))
 				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 			}, time.Minute*10).Should(Succeed())
 		})
 		It("should consolidate between reserved offerings", func() {
@@ -934,8 +916,8 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
 						Values: []string{
-							string(ec2types.InstanceTypeM5Large),
-							string(ec2types.InstanceTypeM5Xlarge),
+							largeCapacityReservation.InstanceType,
+							xlargeCapacityReservation.InstanceType,
 						},
 					}},
 				},
@@ -943,17 +925,17 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 			})
 
 			// Start by only enabling the m5.xlarge capacity reservation, ensuring it's provisioned
-			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservationID}}
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: xlargeCapacityReservation.ID}}
 			env.ExpectCreated(nodePool, nodeClass, dep)
 			env.EventuallyExpectNodeClaimsReady(env.EventuallyExpectLaunchedNodeClaimCount("==", 1)...)
 			n := env.EventuallyExpectNodeCount("==", int(1))[0]
-			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Xlarge)))
+			Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, xlargeCapacityReservation.InstanceType))
 			Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+			Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 
 			// Add the m5.large capacity reservation to the nodeclass. We should consolidate from the xlarge instance to the large.
 			nodeClass.Spec.CapacityReservationSelectorTerms = append(nodeClass.Spec.CapacityReservationSelectorTerms, v1.CapacityReservationSelectorTerm{
-				ID: largeCapacityReservationID,
+				ID: largeCapacityReservation.ID,
 			})
 			env.ExpectUpdated(nodeClass)
 			Eventually(func(g Gomega) {
@@ -966,9 +948,9 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 					return true
 				})
 				g.Expect(filtered).To(HaveLen(1))
-				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, largeCapacityReservation.InstanceType))
 				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
-				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, largeCapacityReservationID))
+				g.Expect(filtered[0].Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, largeCapacityReservation.ID))
 			}, time.Minute*10).Should(Succeed())
 		})
 	})
