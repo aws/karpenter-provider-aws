@@ -355,7 +355,7 @@ var _ = Describe("CloudProvider", func() {
 		It("should return the default repair policies without WithLegacyRepairPolicies", func() {
 			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(false)).RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
 			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
-			Expect(cloudProvider.RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
+			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
 		})
 	})
 	Context("RepairPolicies", func() {
@@ -454,7 +454,16 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
 			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
 			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
-			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(corecloudprovider.IsNodeRebootFailedError(err)).To(BeFalse())
+		})
+		It("should fail the reboot for good when the controller isn't allowed to reboot", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(&smithy.GenericAPIError{Code: "UnauthorizedOperation"})
+			Expect(corecloudprovider.IsNodeRebootFailedError(cloudProvider.Reboot(ctx, nodeClaim, "op-1"))).To(BeTrue())
 		})
 		It("should return NodeClaimNotFound without rebooting when the instance is gone", func() {
 			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())

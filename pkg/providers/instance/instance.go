@@ -315,6 +315,10 @@ func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID str
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("rebooting instance, %w", err))
 		}
+		// A missing ec2:RebootInstances permission won't fix itself, so fail the reboot instead of retrying it.
+		if awserrors.IsUnauthorizedOperationError(err) {
+			return cloudprovider.NewNodeRebootFailedError(fmt.Errorf("rebooting instance, %w", err))
+		}
 		return fmt.Errorf("rebooting instance, %w", err)
 	}
 	return nil
