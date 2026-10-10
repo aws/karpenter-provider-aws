@@ -584,6 +584,8 @@ metadata:
 To block Karpenter from repairing a node, set the `karpenter.sh/do-not-repair: "true"` annotation on the node.
 This is useful when you want to keep an unhealthy node around to debug it.
 The `karpenter.sh/do-not-repair` annotation only affects Node Auto Repair; the node can still be disrupted by other methods.
+When `karpenter.sh/do-not-repair` blocks Node Auto Repair on a node, Karpenter emits a `DisruptionBlocked` event on the node and its NodeClaim.
+Karpenter emits this event only after a [monitored condition](#monitored-node-conditions) has persisted on the node for longer than its toleration duration.
 
 ```yaml
 apiVersion: v1
