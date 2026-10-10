@@ -705,6 +705,21 @@ The number of a condition for a given object, type and status. e.g. Alarm := Ava
 
 ## Voluntary Disruption Metrics
 
+### `karpenter_voluntary_disruption_terminate_first_decisions_total`
+Number of terminate-first disruption decisions performed. Labeled by nodepool name, reason, and why the replacement couldn't be staged first.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+  - `reason` — The voluntary-disruption reason.
+    - `underutilized` — The node was underutilized.
+    - `empty` — The node had no workload pods.
+    - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
+  - `terminate_first_reason` — Why the terminate-first command couldn't stage its replacement before terminating the node.
+    - `no-reserved-capacity` — The replacement has no reserved capacity to launch into except the slot the node holds in a full capacity reservation.
+    - `static-at-limit` — The node's static NodePool is at its node limit, so the replacement can't launch alongside it.
+
 ### `karpenter_voluntary_disruption_queue_failures_total`
 The number of times that an enqueued disruption decision failed. Labeled by disruption method.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)

@@ -29,6 +29,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +40,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
 var env *aws.Environment
@@ -633,6 +635,49 @@ var _ = Describe("Drift", Ordered, func() {
 			env.ExpectUpdated(pod)
 			env.EventuallyExpectNotFound(pod, nodeClaim, node)
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
+		})
+		// limits.nodes above replicas leaves headroom, but a reserved-only static pool can't launch a replacement while
+		// its reservation is full, so static drift must terminate first rather than retry a replacement that never launches
+		It("should terminate the drifted static nodeclaim before launching its replacement when the reservation is full", func() {
+			capacityReservationID := env.ExpectCapacityReservationCreated(1).ID
+			DeferCleanup(func() {
+				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
+			})
+
+			nodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: capacityReservationID}}
+			nodePool.Spec.Replicas = lo.ToPtr(int64(1))
+			nodePool.Spec.Limits = karpv1.Limits{resources.Node: resource.MustParse("2")}
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{{Nodes: "100%"}}
+			env.ExpectCreated(nodeClass, nodePool)
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
+
+			// Hold the node so the window between the drifted nodeclaim's deletion and its refill stays observable
+			node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+			env.ExpectUpdated(node)
+			nodeClass.Spec.Tags = lo.Assign(nodeClass.Spec.Tags, map[string]string{"test-key": "test-value"})
+			env.ExpectUpdated(nodeClass)
+
+			listNodeClaimNames := func(g Gomega) []string {
+				nodeClaims := &karpv1.NodeClaimList{}
+				g.Expect(env.Client.List(env, nodeClaims, client.MatchingLabels{karpv1.NodePoolLabelKey: nodePool.Name})).To(Succeed())
+				return lo.Map(nodeClaims.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })
+			}
+			// Replace-first would create a second nodeclaim that fails to launch into the full reservation
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+				g.Expect(nodeClaim.DeletionTimestamp.IsZero()).To(BeFalse())
+				g.Expect(listNodeClaimNames(g)).To(ConsistOf(nodeClaim.Name))
+			}).Should(Succeed())
+			Consistently(func(g Gomega) {
+				g.Expect(listNodeClaimNames(g)).To(ConsistOf(nodeClaim.Name))
+			}, 30*time.Second, 5*time.Second).Should(Succeed())
+
+			Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			env.EventuallyExpectNotFound(nodeClaim, node)
+			replacement := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+			Expect(replacement.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 		})
 	})
 })
