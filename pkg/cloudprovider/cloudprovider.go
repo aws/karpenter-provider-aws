@@ -49,8 +49,10 @@ import (
 	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 
@@ -70,6 +72,9 @@ type CloudProvider struct {
 	capacityReservationProvider capacityreservation.Provider
 	placementGroupProvider      placementgroup.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
+	nvidiaDRAProvider           nvidiadra.Provider
+	efaDRAProvider              efadra.Provider
+	legacyRepairPolicies        bool
 	caBundle                    *string
 }
 
@@ -84,8 +89,9 @@ func New(
 	placementGroupProvider placementgroup.Provider,
 	store *nodeoverlay.InstanceTypeStore,
 	caBundle *string,
+	opts ...Option,
 ) *CloudProvider {
-	return &CloudProvider{
+	c := &CloudProvider{
 		instanceTypeProvider:        instanceTypeProvider,
 		instanceProvider:            instanceProvider,
 		kubeClient:                  kubeClient,
@@ -95,8 +101,24 @@ func New(
 		placementGroupProvider:      placementGroupProvider,
 		recorder:                    recorder,
 		instanceTypeStore:           store,
+		nvidiaDRAProvider:           nvidiadra.NewDefaultProvider(),
+		efaDRAProvider:              efadra.NewDefaultProvider(),
 		caBundle:                    caBundle,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+// Option configures a CloudProvider.
+type Option func(*CloudProvider)
+
+// WithLegacyRepairPolicies makes RepairPolicies return the policies the legacy node repair controller used before node
+// repair became a disruption method. Set it with --legacy-node-repair so the legacy controller repairs on the same
+// conditions and timing as before.
+func WithLegacyRepairPolicies(enabled bool) Option {
+	return func(c *CloudProvider) { c.legacyRepairPolicies = enabled }
 }
 
 // Create a NodeClaim given the constraints.
@@ -219,6 +241,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 	if err != nil {
 		return nil, err
 	}
+	// Populate DRA DynamicResources for the instance types, based on the DRA drivers we support.
+	c.populateDynamicResources(ctx, nodeClass, instanceTypes)
 	return instanceTypes, nil
 }
 
@@ -254,8 +278,8 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	err = c.instanceProvider.Delete(ctx, id)
-	if id := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; id != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
-		c.capacityReservationProvider.MarkTerminated(id)
+	if reservationID := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; reservationID != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
+		c.capacityReservationProvider.MarkTerminated(reservationID, id)
 	}
 	return err
 }
@@ -312,6 +336,9 @@ func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
 }
 
 func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
+	if c.legacyRepairPolicies {
+		return legacyRepairPolicies
+	}
 	return []cloudprovider.RepairPolicy{
 		// Supported Kubelet Node Conditions
 		//
@@ -567,4 +594,54 @@ func newTerminatingNodeClassError(name string) *errors.StatusError {
 	err := errors.NewNotFound(qualifiedResource, name)
 	err.ErrStatus.Message = fmt.Sprintf("%s %q is terminating, treating as not found", qualifiedResource.String(), name)
 	return err
+}
+
+// legacyRepairPolicies are the repair policies from before node repair became a disruption method (1.14), for the
+// legacy node repair controller. They replace on every reason of each condition, and leave the drain to the legacy
+// controller, which terminates forcefully.
+var legacyRepairPolicies = []cloudprovider.RepairPolicy{
+	// Supported Kubelet Node Conditions
+	{
+		ConditionType:      corev1.NodeReady,
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	{
+		ConditionType:      corev1.NodeReady,
+		ConditionStatus:    corev1.ConditionUnknown,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	// Support Node Monitoring Agent Conditions
+	{
+		ConditionType:      "AcceleratedHardwareReady",
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 10 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	{
+		ConditionType:      "StorageReady",
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	{
+		ConditionType:      "NetworkingReady",
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	{
+		ConditionType:      "KernelReady",
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
+	{
+		ConditionType:      "ContainerRuntimeReady",
+		ConditionStatus:    corev1.ConditionFalse,
+		TolerationDuration: 30 * time.Minute,
+		Action:             cloudprovider.ReplaceNode,
+	},
 }

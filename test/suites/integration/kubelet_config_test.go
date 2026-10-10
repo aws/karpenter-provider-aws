@@ -134,6 +134,14 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{string(corev1.Windows)},
 					},
+					// Windows nodes on 1 vCPU instances (e.g. c7a.medium) can take 12+ minutes to register on newer
+					// EKS Windows AMIs, which is close to the 15 minute registration timeout. Use larger instances
+					// to keep registration well within that bound.
+					karpv1.NodeSelectorRequirementWithMinValues{
+						Key:      v1.LabelInstanceCPU,
+						Operator: corev1.NodeSelectorOpGt,
+						Values:   []string{"1"},
+					},
 				)
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
@@ -143,7 +151,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					},
 				})
 				env.ExpectCreated(nodeClass, nodePool, pod)
-				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
+				// Registration alone can take up to the 15 minute registration timeout, so allow additional time
+				// for initialization and pulling the Windows image
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*20, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			// Windows tests are can flake due to the instance types that are used in testing.

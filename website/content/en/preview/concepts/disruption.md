@@ -270,6 +270,36 @@ The toleration duration is how long a node must report the condition before Karp
 
 [comment]: <> (end docs generated content from hack/docs/repairpolicies_gen/main.go)
 
+#### Legacy Node Repair
+
+{{% alert title="Warning" color="warning" %}}
+We plan to deprecate the legacy node repair controller. If you use it because the new one does not work for you, please [open an issue](https://github.com/kubernetes-sigs/karpenter/issues) with your use case/problem.
+{{% /alert %}}
+
+To use the legacy node repair controller (pre-1.15) before node repair became a graceful disruption method, enable the `NodeRepair` feature gate and also set `--legacy-node-repair` (`LEGACY_NODE_REPAIR=true`).
+
+The legacy controller only replaces nodes, and uses the repair policies from before 1.15 instead of the [Monitored Node Conditions](#monitored-node-conditions) above. They match every reason of a condition:
+
+| Condition | Status | Toleration Duration |
+|---|---|---|
+| Ready | False | 30 minutes |
+| Ready | Unknown | 30 minutes |
+| AcceleratedHardwareReady | False | 10 minutes |
+| StorageReady | False | 30 minutes |
+| NetworkingReady | False | 30 minutes |
+| KernelReady | False | 30 minutes |
+| ContainerRuntimeReady | False | 30 minutes |
+
+When a node reports one of these conditions for longer than its toleration duration, Karpenter deletes the node's NodeClaim and forcefully terminates it, without pre-spinning a replacement. It sets the NodeClaim's termination timestamp to the current time, so the drain bypasses PDBs. It ignores NodePool Disruption Budgets and the `karpenter.sh/do-not-disrupt` annotation. It has its own 20% breaker: if more than 20% of the nodes in a NodePool (or in the cluster, for NodeClaims without a NodePool) report one of these conditions, it stops repairing them and retries every 5 minutes. It emits `karpenter_nodeclaims_unhealthy_disrupted_total` and `karpenter_nodeclaims_disrupted_total` with the `unhealthy` reason.
+
+The legacy controller does not support:
+* [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
+* The `RebootNode` action, or reason granularity for policies. For example, an `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes regardless of the reason, including reasons the default policies would reboot.
+* Repair policy priority
+* Per-condition termination grace periods
+* NodePool Disruption Budgets
+* The `karpenter.sh/do-not-repair` annotation
+
 ## Automated Forceful Methods
 
 Automated forceful methods will begin draining nodes as soon as the condition is met.

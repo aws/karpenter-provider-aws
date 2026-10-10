@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,15 +113,8 @@ var _ = Describe("Interruption", func() {
 	})
 	It("should terminate the interruptible reserved capacity instance and spin-up a new node on reserved capacity interruption warning", func() {
 		By("Creating an IODCR and configuring the nodeclass to select on it")
-		sourceReservationID, interruptibleReservationID := aws.ExpectInterruptibleCapacityReservationCreated(
-			env.Context,
-			env.EC2API,
-			ec2types.InstanceTypeM5Large,
-			env.ZoneInfo[0].Zone,
-			1,
-			1,
-			nil,
-		)
+		sourceReservationID := env.ExpectCapacityReservationCreated(1).ID
+		interruptibleReservationID := aws.ExpectInterruptibleCapacityAllocationCreated(env.Context, env.EC2API, sourceReservationID, 1)
 		DeferCleanup(func() {
 			aws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
 		})

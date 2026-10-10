@@ -10,6 +10,9 @@ baseURL: /
 disableKinds:
   - taxonomy
   - term
+# Agent guidance files (e.g. content/en/preview/upgrading/AGENTS.md) are not docs pages.
+ignoreFiles:
+  - AGENTS\.md$
 enableRobotsTXT: true
 contentDir: content/en
 defaultContentLanguage: en

@@ -40,6 +40,7 @@ import (
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
@@ -258,8 +259,9 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					"instance-type", it.Name)
 			}
 			return launchTemplateParams{
+				// Must agree with the instance provider's getEFACountForInstance, which records the count on the instance.
 				efaCount: lo.Ternary(
-					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
+					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim),
 					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),
 					0,
 				),
