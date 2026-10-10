@@ -360,12 +360,18 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("RepairPolicies", func() {
 		var matcher *health.RepairPolicyMatcher
-		BeforeEach(func() {
-			var err error
+		newMatcher := func(rebootForRepair bool) *health.RepairPolicyMatcher {
+			provider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"), cloudprovider.WithRebootForRepair(rebootForRepair))
 			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
-			matcher, err = health.NewRepairPolicyMatcher(repairCtx, cloudProvider)
+			m, err := health.NewRepairPolicyMatcher(repairCtx, provider)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(matcher).ToNot(BeNil())
+			Expect(m).ToNot(BeNil())
+			return m
+		}
+		BeforeEach(func() {
+			matcher = newMatcher(true)
 		})
 		// evaluate returns the repair result for a Node that has carried the condition for the elapsed duration.
 		evaluate := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, reason string, elapsed time.Duration) health.RepairResult {
@@ -401,6 +407,19 @@ var _ = Describe("CloudProvider", func() {
 			Entry("well-known XID without a family", "NvidiaXID142Error", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
 			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
 		)
+		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
+			matcher = newMatcher(false)
+			Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 9*time.Minute).Action).To(BeEmpty())
+			result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 10*time.Minute)
+			Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+			Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
+			Expect(result.Fallback).To(BeFalse())
+		})
+		It("should not select reboot for any policy without RebootForRepair", func() {
+			for _, policy := range cloudProvider.RepairPolicies() {
+				Expect(policy.Action).To(Equal(corecloudprovider.ReplaceNode), "%s=%s %s", policy.ConditionType, policy.ConditionStatus, policy.ReasonRegex)
+			}
+		})
 		DescribeTable("should replace other supported conditions after 30m",
 			func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus) {
 				Expect(evaluate(conditionType, status, "AnyReason", 29*time.Minute).Action).To(BeEmpty())

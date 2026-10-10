@@ -147,6 +147,12 @@ var _ = Describe("Options", func() {
 			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
 			Expect(opts.FeatureGates.DRANVIDIAGPU).To(BeFalse())
 			Expect(opts.FeatureGates.DRAEFA).To(BeFalse())
+			Expect(opts.FeatureGates.RebootForRepair).To(BeFalse())
+		})
+		It("should enable RebootForRepair from the CLI flag", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "RebootForRepair=true")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.RebootForRepair).To(BeTrue())
 		})
 		DescribeTable("should set the DRA driver gates independently",
 			func(gates string, nvidia, efa bool) {

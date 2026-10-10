@@ -22,6 +22,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
@@ -47,6 +48,7 @@ func main() {
 		op.InstanceTypeStore,
 		op.CABundle,
 		cloudprovider.WithLegacyRepairPolicies(karpoptions.FromContext(ctx).LegacyNodeRepair),
+		cloudprovider.WithRebootForRepair(options.FromContext(ctx).FeatureGates.RebootForRepair),
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
 	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)

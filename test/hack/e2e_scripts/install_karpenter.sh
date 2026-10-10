@@ -28,6 +28,7 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.awsFeatureGates.nodeClassCEL=true \
   --set settings.awsFeatureGates.draNVIDIAGPU=true \
   --set settings.awsFeatureGates.draEFA=true \
+  --set settings.awsFeatureGates.rebootForRepair=true \
   --set settings.ignoreDRARequests=false \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
