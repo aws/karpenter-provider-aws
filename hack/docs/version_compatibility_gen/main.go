@@ -48,6 +48,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Idempotency: this runs on every release, including re-tags and patch releases of a
+	// minor whose row already exists. Skip the append if this version is already present,
+	// otherwise the matrix accumulates duplicate rows.
+	if strings.Contains(string(yamlFile), fmt.Sprintf("appVersion: %s.x", v)) {
+		log.Printf("appVersion %s.x already present in %s; skipping append", v, os.Args[1])
+		os.Exit(0)
+	}
+
 	log.Println("writing output to", os.Args[1])
 	f, err := os.Create(os.Args[1])
 	if err != nil {

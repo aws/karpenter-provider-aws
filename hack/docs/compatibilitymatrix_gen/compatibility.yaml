@@ -94,13 +94,7 @@ compatibility:
   - appVersion: 1.12.x
     minK8sVersion: 1.26
     maxK8sVersion: 1.35
-  - appVersion: 1.12.x
-    minK8sVersion: 1.26
-    maxK8sVersion: 1.35
   - appVersion: 1.13.x
-    minK8sVersion: 1.26
-    maxK8sVersion: 1.36
-  - appVersion: 1.14.x
     minK8sVersion: 1.26
     maxK8sVersion: 1.36
   - appVersion: 1.14.x
