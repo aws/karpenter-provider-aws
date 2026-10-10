@@ -253,6 +253,8 @@ To opt a node out of repair, annotate it with `karpenter.sh/do-not-repair: "true
 
 Each [monitored condition](#monitored-node-conditions) has a repair action, and can match on the condition's reason. For example, a transient GPU error is rebooted while a fatal one is replaced. When a node matches several conditions, Karpenter takes the most disruptive action.
 
+Rebooting for repair is opt-in through the `RebootForRepair` [AWS feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}) (alpha, disabled by default), which needs the `ec2:RebootInstances` permission. Without it, policies with the `RebootNode` action replace the node instead, on the same toleration duration and termination grace period.
+
 * **Replace:** Karpenter replaces the node, as described above.
 * **Reboot:** Karpenter reboots the node's instance in place, keeping the instance, its capacity, and its local storage. This suits faults that a reboot clears, on instances that are scarce or slow to replace.
 
@@ -269,7 +271,7 @@ Pods that stay on the node restart in place when it comes back, unless the kubel
 
 While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
 
-Karpenter replaces the node if the reboot fails: if the cloud provider keeps rejecting the reboot for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
+Karpenter replaces the node if the reboot fails: if the cloud provider rejects the reboot with an error that retrying can't fix, such as a missing `ec2:RebootInstances` permission (immediately), if it keeps rejecting the reboot with other errors for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
 If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.
 
 To follow a reboot, check the NodeClaim's `Rebooting` status condition. Its reason moves from `RebootRequested` (draining) to `RebootIssued` (rebooting), and then to `RebootSucceeded` or `RebootFailed`.
@@ -278,7 +280,7 @@ Karpenter records reboot outcomes in the `karpenter_nodes_reboots_total` [metric
 #### Monitored Node Conditions
 
 Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
-A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above.
+A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above. Policies with the `RebootNode` action reboot the node only with the `RebootForRepair` AWS feature gate enabled; otherwise they replace it on the same toleration duration and termination grace period.
 
 [comment]: <> (the content below is generated from hack/docs/repairpolicies_gen/main.go)
 
