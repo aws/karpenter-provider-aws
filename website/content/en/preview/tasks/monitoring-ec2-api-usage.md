@@ -110,6 +110,8 @@ on an interval. These intervals are configurable (see the
 
 * `SUBNET_REFRESH_INTERVAL` — how often subnet data is refreshed (bounds `DescribeSubnets`). Defaults
   to `1m`.
+* `SECURITY_GROUP_REFRESH_INTERVAL` — how often security group data is refreshed (bounds
+  `DescribeSecurityGroups`). Defaults to `1m`.
 * `AMI_REFRESH_INTERVAL` — how often AMI data is refreshed (bounds `DescribeImages`). Defaults to `1m`.
 
 Increasing an interval reduces that call's steady-state rate proportionally — for example, changing an
