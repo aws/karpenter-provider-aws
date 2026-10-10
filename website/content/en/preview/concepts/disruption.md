@@ -278,11 +278,23 @@ We plan to deprecate the legacy node repair controller. If you use it because th
 
 To use the legacy node repair controller (pre-1.15) before node repair became a graceful disruption method, enable the `NodeRepair` feature gate and also set `--legacy-node-repair` (`LEGACY_NODE_REPAIR=true`).
 
-The legacy controller only replaces nodes. When a node reports a [monitored condition](#monitored-node-conditions) with the `ReplaceNode` action for longer than its toleration duration, Karpenter deletes the node's NodeClaim and forcefully terminates it, without pre-spinning a replacement. It sets the NodeClaim's termination timestamp to the current time, so the drain bypasses PDBs. It ignores NodePool Disruption Budgets and the `karpenter.sh/do-not-disrupt` annotation. It has its own 20% breaker: if more than 20% of the nodes in a NodePool (or in the cluster, for NodeClaims without a NodePool) report a monitored condition, it stops repairing them and retries every 5 minutes. It emits `karpenter_nodeclaims_unhealthy_disrupted_total` and `karpenter_nodeclaims_disrupted_total` with the `unhealthy` reason.
+The legacy controller only replaces nodes, and uses the repair policies from before 1.15 instead of the [Monitored Node Conditions](#monitored-node-conditions) above. They match every reason of a condition:
+
+| Condition | Status | Toleration Duration |
+|---|---|---|
+| Ready | False | 30 minutes |
+| Ready | Unknown | 30 minutes |
+| AcceleratedHardwareReady | False | 10 minutes |
+| StorageReady | False | 30 minutes |
+| NetworkingReady | False | 30 minutes |
+| KernelReady | False | 30 minutes |
+| ContainerRuntimeReady | False | 30 minutes |
+
+When a node reports one of these conditions for longer than its toleration duration, Karpenter deletes the node's NodeClaim and forcefully terminates it, without pre-spinning a replacement. It sets the NodeClaim's termination timestamp to the current time, so the drain bypasses PDBs. It ignores NodePool Disruption Budgets and the `karpenter.sh/do-not-disrupt` annotation. It has its own 20% breaker: if more than 20% of the nodes in a NodePool (or in the cluster, for NodeClaims without a NodePool) report one of these conditions, it stops repairing them and retries every 5 minutes. It emits `karpenter_nodeclaims_unhealthy_disrupted_total` and `karpenter_nodeclaims_disrupted_total` with the `unhealthy` reason.
 
 The legacy controller does not support:
 * [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
-* The `RebootNode` action. Karpenter ignores those policies, so the condition falls through to the `ReplaceNode` policy that matches its reason. For example, a reboot-family GPU XID on `AcceleratedHardwareReady` matches the fallback policy and the node is replaced after 30 minutes.
+* The `RebootNode` action, or reason-specific policies. For example, every `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes, including ones the default policies would reboot.
 * Repair policy priority
 * Per-condition termination grace periods
 * NodePool Disruption Budgets

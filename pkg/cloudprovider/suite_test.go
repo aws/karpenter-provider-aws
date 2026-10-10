@@ -332,6 +332,32 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
+	Context("Legacy RepairPolicies", func() {
+		newCloudProvider := func(opts ...cloudprovider.Option) *cloudprovider.CloudProvider {
+			return cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"), opts...)
+		}
+		It("should return the 1.14 repair policies with WithLegacyRepairPolicies", func() {
+			replace := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, toleration time.Duration) corecloudprovider.RepairPolicy {
+				return corecloudprovider.RepairPolicy{ConditionType: conditionType, ConditionStatus: status, TolerationDuration: toleration, Action: corecloudprovider.ReplaceNode}
+			}
+			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(true)).RepairPolicies()).To(Equal([]corecloudprovider.RepairPolicy{
+				replace(corev1.NodeReady, corev1.ConditionFalse, 30*time.Minute),
+				replace(corev1.NodeReady, corev1.ConditionUnknown, 30*time.Minute),
+				replace("AcceleratedHardwareReady", corev1.ConditionFalse, 10*time.Minute),
+				replace("StorageReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("NetworkingReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("KernelReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("ContainerRuntimeReady", corev1.ConditionFalse, 30*time.Minute),
+			}))
+		})
+		It("should return the default repair policies without WithLegacyRepairPolicies", func() {
+			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(false)).RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
+			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
+			Expect(cloudProvider.RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
+		})
+	})
 	Context("RepairPolicies", func() {
 		var matcher *health.RepairPolicyMatcher
 		BeforeEach(func() {
