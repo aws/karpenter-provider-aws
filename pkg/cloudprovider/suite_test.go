@@ -355,17 +355,23 @@ var _ = Describe("CloudProvider", func() {
 		It("should return the default repair policies without WithLegacyRepairPolicies", func() {
 			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(false)).RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
 			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
-			Expect(cloudProvider.RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
+			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
 		})
 	})
 	Context("RepairPolicies", func() {
 		var matcher *health.RepairPolicyMatcher
-		BeforeEach(func() {
-			var err error
+		newMatcher := func(rebootForRepair bool) *health.RepairPolicyMatcher {
+			provider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"), cloudprovider.WithRebootForRepair(rebootForRepair))
 			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
-			matcher, err = health.NewRepairPolicyMatcher(repairCtx, cloudProvider)
+			m, err := health.NewRepairPolicyMatcher(repairCtx, provider)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(matcher).ToNot(BeNil())
+			Expect(m).ToNot(BeNil())
+			return m
+		}
+		BeforeEach(func() {
+			matcher = newMatcher(true)
 		})
 		// evaluate returns the repair result for a Node that has carried the condition for the elapsed duration.
 		evaluate := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, reason string, elapsed time.Duration) health.RepairResult {
@@ -401,6 +407,19 @@ var _ = Describe("CloudProvider", func() {
 			Entry("well-known XID without a family", "NvidiaXID142Error", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
 			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
 		)
+		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
+			matcher = newMatcher(false)
+			Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 9*time.Minute).Action).To(BeEmpty())
+			result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 10*time.Minute)
+			Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+			Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
+			Expect(result.Fallback).To(BeFalse())
+		})
+		It("should not select reboot for any policy without RebootForRepair", func() {
+			for _, policy := range cloudProvider.RepairPolicies() {
+				Expect(policy.Action).To(Equal(corecloudprovider.ReplaceNode), "%s=%s %s", policy.ConditionType, policy.ConditionStatus, policy.ReasonRegex)
+			}
+		})
 		DescribeTable("should replace other supported conditions after 30m",
 			func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus) {
 				Expect(evaluate(conditionType, status, "AnyReason", 29*time.Minute).Action).To(BeEmpty())
@@ -435,7 +454,16 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
 			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
 			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
-			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(corecloudprovider.IsNodeRebootFailedError(err)).To(BeFalse())
+		})
+		It("should fail the reboot for good when the controller isn't allowed to reboot", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(&smithy.GenericAPIError{Code: "UnauthorizedOperation"})
+			Expect(corecloudprovider.IsNodeRebootFailedError(cloudProvider.Reboot(ctx, nodeClaim, "op-1"))).To(BeTrue())
 		})
 		It("should return NodeClaimNotFound without rebooting when the instance is gone", func() {
 			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())

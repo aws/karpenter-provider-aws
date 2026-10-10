@@ -284,3 +284,7 @@ settings:
     # EFA interfaces, so it can account for dra.net claims when it sizes new nodes. Can't be combined with settings.enableDRA.
     # @default -- `false`
     draEFA: null
+    # -- rebootForRepair is ALPHA and is disabled by default. It has no effect without the nodeRepair feature gate.
+    # Setting this to true will make node repair reboot a node in place for reboot-clearable GPU faults instead of
+    # replacing it. Requires the ec2:RebootInstances permission.
+    rebootForRepair: false

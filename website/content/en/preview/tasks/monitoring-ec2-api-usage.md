@@ -26,6 +26,7 @@ practices.
 | `RunInstances` | Launch (hot path) | Launching nodes |
 | `CreateTags` | Launch (hot path) | Tagging instances, fleets, and launch templates as they are created |
 | `TerminateInstances` | Terminate | Removing nodes during consolidation, drift, or expiration |
+| `RebootInstances` | Reboot | Rebooting unhealthy nodes in place during [Node Auto Repair]({{<ref "../concepts/disruption#repair-actions" >}}) with the `RebootForRepair` AWS feature gate |
 | `DeleteLaunchTemplate` | Cleanup | Removing launch templates Karpenter manages |
 | `DescribeSubnets` | Discovery / refresh | Resolving `subnetSelectorTerms` for each `EC2NodeClass` |
 | `DescribeSecurityGroups` | Discovery / refresh | Resolving `securityGroupSelectorTerms` for each `EC2NodeClass` |

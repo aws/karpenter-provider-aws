@@ -75,6 +75,7 @@ type CloudProvider struct {
 	nvidiaDRAProvider           nvidiadra.Provider
 	efaDRAProvider              efadra.Provider
 	legacyRepairPolicies        bool
+	rebootForRepair             bool
 	caBundle                    *string
 }
 
@@ -119,6 +120,11 @@ type Option func(*CloudProvider)
 // conditions and timing as before.
 func WithLegacyRepairPolicies(enabled bool) Option {
 	return func(c *CloudProvider) { c.legacyRepairPolicies = enabled }
+}
+
+// WithRebootForRepair makes the reboot-clearable repair policies reboot the node in place instead of replacing it.
+func WithRebootForRepair(enabled bool) Option {
+	return func(c *CloudProvider) { c.rebootForRepair = enabled }
 }
 
 // Create a NodeClaim given the constraints.
@@ -369,14 +375,14 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 		// ReasonRegex is a Go regex over each reason; the wrapping ".*" lets it match an XID code embedded anywhere in
 		// the reason token.
 		{
-			// Reboot-clearable GPU faults (transient XIDs). These are the RebootNode family in the design: rebooting
-			// preserves the scarce GPU instance.
+			// Reboot-clearable GPU faults (transient XIDs). Rebooting preserves the scarce GPU instance; without the
+			// RebootForRepair feature gate the node is replaced instead, on the same timing.
 			ConditionType:          "AcceleratedHardwareReady",
 			ConditionStatus:        corev1.ConditionFalse,
 			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|136|140|143|155|156|158).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 cloudprovider.RebootNode,
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
 		},
 		{
 			// Fatal / uncorrectable GPU errors — replace fast, a reboot would only waste time on dead hardware.

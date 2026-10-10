@@ -51,8 +51,8 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	// RepairPolicies doesn't read any CloudProvider state, so a zero-value CloudProvider is enough.
-	policies := (&cloudprovider.CloudProvider{}).RepairPolicies()
+	// Document the policies with reboot for repair enabled; the docs explain the replacement used without it.
+	policies := cloudprovider.New(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, cloudprovider.WithRebootForRepair(true)).RepairPolicies()
 	// Priority only affects ordering, so the column is only worth showing once policies disagree on it.
 	showPriority := len(lo.UniqBy(policies, func(p corecloudprovider.RepairPolicy) int { return p.Priority })) > 1
 
