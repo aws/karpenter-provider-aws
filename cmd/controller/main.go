@@ -46,6 +46,7 @@ func main() {
 		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
 		op.CABundle,
+		cloudprovider.WithLegacyRepairPolicies(karpoptions.FromContext(ctx).LegacyNodeRepair),
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
 	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)
