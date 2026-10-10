@@ -294,7 +294,7 @@ When a node reports one of these conditions for longer than its toleration durat
 
 The legacy controller does not support:
 * [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
-* The `RebootNode` action, or reason-specific policies. For example, every `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes, including ones the default policies would reboot.
+* The `RebootNode` action, or reason granularity for policies. For example, an `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes regardless of the reason, including reasons the default policies would reboot.
 * Repair policy priority
 * Per-condition termination grace periods
 * NodePool Disruption Budgets
