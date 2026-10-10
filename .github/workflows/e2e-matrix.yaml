@@ -102,6 +102,9 @@ jobs:
           - name: Repair
             region: ${{ inputs.region }}
             source: all
+          - name: LegacyRepair
+            region: ${{ inputs.region }}
+            source: aws
           - name: Reboot
             region: ${{ inputs.region }}
             source: upstream

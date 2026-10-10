@@ -339,6 +339,7 @@ var _ = Describe("CloudProvider", func() {
 			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
 			matcher, err = health.NewRepairPolicyMatcher(repairCtx, cloudProvider)
 			Expect(err).ToNot(HaveOccurred())
+			Expect(matcher).ToNot(BeNil())
 		})
 		// evaluate returns the repair result for a Node that has carried the condition for the elapsed duration.
 		evaluate := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, reason string, elapsed time.Duration) health.RepairResult {
