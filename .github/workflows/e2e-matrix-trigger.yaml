@@ -14,6 +14,13 @@ on:
       - completed
   workflow_dispatch:
     inputs:
+      runs_on:
+        description: "Runner label. Use karpenter_ubuntu-latest_4-core (dedicated larger-runner group, billed per minute) for release validation when the shared pool is saturated"
+        type: choice
+        options:
+          - "ubuntu-latest"
+          - "karpenter_ubuntu-latest_4-core"
+        default: "ubuntu-latest"
       region:
         required: true
         default: 'us-east-2'
@@ -31,6 +38,7 @@ jobs:
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "snapshot"
+      runs_on: ${{ inputs.runs_on || 'ubuntu-latest' }}
   e2e-matrix:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
@@ -44,6 +52,7 @@ jobs:
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: ${{ inputs.region || 'us-east-2' }}
       workflow_trigger: "matrix"
+      runs_on: ${{ inputs.runs_on || 'ubuntu-latest' }}
       # Default to true unless using a workflow_dispatch
       cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
     secrets:
