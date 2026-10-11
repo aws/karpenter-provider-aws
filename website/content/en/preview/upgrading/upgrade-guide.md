@@ -63,6 +63,24 @@ Here are few recommended CI/CD Pipeline Options:
 Each pipeline tool can be configured to handle the Karpenter upgrade workflow, but choose based on your existing infrastructure, team expertise, and specific requirements for automation and integration.
 
 
+### Upgrading Karpenter
+
+To upgrade Karpenter to a new version, update the Helm release with the desired version:
+
+```bash
+KARPENTER_NAMESPACE=kube-system
+export KARPENTER_VERSION="x.y.z"  # Replace with the desired version
+
+helm upgrade karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --version "${KARPENTER_VERSION}" \
+  --namespace "${KARPENTER_NAMESPACE}" \
+  --reuse-values
+```
+
+{{% alert title="Important" color="warning" %}}
+Before upgrading, review the [release-specific notes below](#released-upgrade-notes) for any breaking changes or required migration steps. Some versions require upgrading through intermediate versions or performing manual steps before the upgrade.
+{{% /alert %}}
+
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
