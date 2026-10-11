@@ -58,8 +58,7 @@ func main() {
 
 	envVarsBlock := "{{% alert title=\"Note\" color=\"primary\" %}}\n"
 	envVarsBlock += "Karpenter settings are configured through environment variables, typically set via Helm values (e.g. `settings.clusterName`). "
-	envVarsBlock += "Equivalent CLI flags exist but are not intended for direct use since the Karpenter binary is not distributed independently. "
-	envVarsBlock += "If both an environment variable and its CLI flag are set, the CLI flag takes precedence.\n"
+	envVarsBlock += "Equivalent CLI flags also exist for each setting. If both an environment variable and its CLI flag are set, the CLI flag takes precedence.\n"
 	envVarsBlock += "{{% /alert %}}\n\n"
 	envVarsBlock += "| Environment Variable | Description |\n"
 	envVarsBlock += "|--|--|\n"
