@@ -58,6 +58,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -101,7 +102,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -1039,6 +1040,39 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(results[i]).To(HaveLen(len(results[0])))
 			}
 			Expect(resolver.calls.Load()).To(Equal(resolvesPerBuild))
+		})
+	})
+	Context("Additional On-Demand Class Capacity Types", func() {
+		const onDemandAlt = "on-demand-alt"
+		BeforeEach(func() {
+			Expect(corecloudprovider.SetCapacityTypeClassResolver(corecloudprovider.DefaultCapacityTypeClasses.With(corecloudprovider.CapacityTypeClasses{
+				onDemandAlt: corecloudprovider.CapacityTypeClassOnDemand,
+			}))).To(Succeed())
+			DeferCleanup(coretest.ResetCapacityTypeClasses)
+		})
+		It("should allow the capacity type on instance types that support on-demand", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
+			for _, it := range instanceTypes {
+				ct := it.Requirements.Get(karpv1.CapacityTypeLabelKey)
+				Expect(ct.Has(onDemandAlt)).To(Equal(ct.Has(karpv1.CapacityTypeOnDemand)), it.Name)
+			}
+		})
+		It("should leave the capacity type's offerings to additional resolvers", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			for _, it := range instanceTypes {
+				Expect(lo.Filter(it.Offerings, func(o *corecloudprovider.Offering, _ int) bool { return o.CapacityType() == onDemandAlt })).To(BeEmpty(), it.Name)
+			}
+		})
+		It("should not allow the capacity type unless it's registered", func() {
+			coretest.ResetCapacityTypeClasses()
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			for _, it := range instanceTypes {
+				Expect(it.Requirements.Get(karpv1.CapacityTypeLabelKey).Has(onDemandAlt)).To(BeFalse(), it.Name)
+			}
 		})
 	})
 	Context("Metrics", func() {

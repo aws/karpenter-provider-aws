@@ -407,7 +407,7 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 	if f.requirements.HasMinValues() {
 		return instanceTypes, nil
 	}
-	if req := f.requirements.Get(karpv1.CapacityTypeLabelKey); !req.Has(karpv1.CapacityTypeOnDemand) || !req.Has(karpv1.CapacityTypeSpot) {
+	if req := f.requirements.Get(karpv1.CapacityTypeLabelKey); !cloudprovider.HasCapacityTypeClass(req, cloudprovider.CapacityTypeClassOnDemand) || !req.Has(karpv1.CapacityTypeSpot) {
 		return instanceTypes, nil
 	}
 
@@ -416,7 +416,7 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 	hasODOfferings := false
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Compatible(f.requirements).Available() {
-			if ct := o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(); ct == karpv1.CapacityTypeOnDemand {
+			if ct := o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(); isOnDemandClass(ct) {
 				hasODOfferings = true
 				if o.Price < cheapestOnDemand {
 					cheapestOnDemand = o.Price
@@ -453,4 +453,9 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 
 func (spotOfferingFilter) Name() string {
 	return "spot-offering-filter"
+}
+
+func isOnDemandClass(capacityType string) bool {
+	class, ok := cloudprovider.CapacityTypeClassOf(capacityType)
+	return ok && class == cloudprovider.CapacityTypeClassOnDemand
 }
