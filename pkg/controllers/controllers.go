@@ -22,6 +22,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
 	arczonalshiftcontroller "github.com/aws/karpenter-provider-aws/pkg/controllers/arczonalshift"
 
@@ -32,6 +33,7 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	crcapacitytype "github.com/aws/karpenter-provider-aws/pkg/controllers/capacityreservation/capacitytype"
 	crexpiration "github.com/aws/karpenter-provider-aws/pkg/controllers/capacityreservation/expiration"
+	instancestatuscontroller "github.com/aws/karpenter-provider-aws/pkg/controllers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/metrics"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
@@ -120,6 +122,10 @@ func NewControllers(
 	// in isolated VPC mode to avoid initiating calls to public AWS endpoints that won’t be reachable.
 	if !options.FromContext(ctx).IsolatedVPC {
 		controllers = append(controllers, nodeclassgarbagecollection.NewController(kubeClient, cloudProvider, instanceProfileProvider, cfg.Region))
+	}
+	// The legacy node repair controller has no EC2StatusReady policy, so status check failures stay on interruption.
+	if coreoptions.FromContext(ctx).FeatureGates.NodeRepair && !coreoptions.FromContext(ctx).LegacyNodeRepair {
+		controllers = append(controllers, instancestatuscontroller.NewController(kubeClient, clk, cloudProvider, instanceStatusProvider))
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsAPI := servicesqs.NewFromConfig(cfg)
