@@ -97,4 +97,16 @@ var _ = Describe("updateUnavailableOfferingsCache (reserved launch failures)", f
 		// ...and the mark is keyed by reservation ID, not the bare capacity-type/zone key.
 		Expect(p.unavailableOfferings.IsUnavailable(instanceType, zone, nil, karpv1.CapacityTypeReserved)).To(BeFalse())
 	})
+
+	It("marks a reclaiming interruptible reservation unavailable, scoped to its reservation ID", func() {
+		updateCache(reservedError("InvalidCapacityReservationState.Unavailable"))
+		Expect(p.unavailableOfferings.IsUnavailable(instanceType, zone, nil, karpv1.CapacityTypeReserved, awscache.WithReservationID(reservation))).To(BeTrue())
+		Expect(p.unavailableOfferings.IsUnavailable(instanceType, zone, nil, karpv1.CapacityTypeReserved, awscache.WithReservationID(sibling))).To(BeFalse())
+		Expect(p.unavailableOfferings.IsUnavailable(instanceType, zone, nil, karpv1.CapacityTypeReserved)).To(BeFalse())
+	})
+
+	It("returns an insufficient capacity error for a launch rejected by a reclaiming interruptible reservation", func() {
+		err := combineFleetErrors([]ec2types.CreateFleetError{reservedError("InvalidCapacityReservationState.Unavailable")})
+		Expect(cloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+	})
 })

@@ -119,7 +119,8 @@ upstream-e2etests: tidy download
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
-		--repair-condition="KernelReady=False"
+		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
+		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
@@ -205,6 +206,9 @@ snapshot: ## Builds and publishes snapshot release
 
 release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
+
+latest-release: ## Mark the highest stable release as GitHub's Latest release
+	./hack/release/latest.sh
 
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh

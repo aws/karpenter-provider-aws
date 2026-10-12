@@ -129,6 +129,7 @@ spec:
 
     # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
+    # Optional, defaults to '0s'
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
     # Budgets control the speed Karpenter can scale down nodes.

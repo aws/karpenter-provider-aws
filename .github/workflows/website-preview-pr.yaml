@@ -1,0 +1,260 @@
+name: WebsitePreviewPR
+on:
+  workflow_run:
+    # PreviewComment only fires for /karpenter preview, so no other command can reach this deploy
+    workflows: [ PreviewComment ]
+    types: [ completed ]
+# Keyed on the request, not on a commit: workflow_run.head_sha is the default branch for a
+# pull_request_review-originated run, so keying on it would put every request in the repo into one
+# group and silently cancel queued ones. The deploy job carries the guard that matters - see its
+# own concurrency block, keyed on the PR whose preview is being overwritten.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+jobs:
+  resolve:
+    # A failed PreviewComment means the commenter was not an org member, so there is nothing to run
+    if: github.repository == 'aws/karpenter-provider-aws' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    outputs:
+      PR_NUMBER: ${{ steps.verify.outputs.PR_NUMBER }}
+      PR_COMMIT: ${{ steps.verify.outputs.PR_COMMIT }}
+      REVIEW_SUBMITTED_AT: ${{ steps.verify.outputs.REVIEW_SUBMITTED_AT }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/download-artifact
+      # PreviewComment already restricts this to /karpenter preview, so a body that does not match
+      # means the metadata is not what this workflow expects - fail rather than quietly skip. The PR
+      # number and commit are read from the end of the file because the review body ahead of them may
+      # span several lines
+      - id: metadata
+        run: |
+          set -euo pipefail
+          if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" != "/karpenter preview"* ]]; then
+            echo "::error::metadata.txt does not start with '/karpenter preview'; refusing to continue."
+            exit 1
+          fi
+          echo PR_NUMBER="$(tail -n 2 /tmp/artifacts/metadata.txt | head -n 1)" >> "$GITHUB_OUTPUT"
+          echo PR_COMMIT="$(tail -n 1 /tmp/artifacts/metadata.txt)" >> "$GITHUB_OUTPUT"
+      # ApprovalMetadata already checked that the commenter is an org member, but this is what decides
+      # which commit gets published, so confirm against the API that a member actually asked for a
+      # preview of this exact commit, and that the PR owns it
+      - id: verify
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
+          PR_COMMIT: ${{ steps.metadata.outputs.PR_COMMIT }}
+        with:
+          script: |
+            const prNumber = process.env.PR_NUMBER;
+            const prCommit = process.env.PR_COMMIT;
+            if (!/^[0-9]+$/.test(prNumber)) {
+              core.setFailed(`malformed PR number in artifact: ${JSON.stringify(prNumber)}`);
+              return;
+            }
+            if (!/^[0-9a-f]{40}$/.test(prCommit)) {
+              core.setFailed(`malformed commit in artifact: ${JSON.stringify(prCommit)}`);
+              return;
+            }
+            // A preview for a closed PR would be torn down by Cleanup Website PR Preview and then
+            // recreated here, leaving an Amplify branch and S3 prefix nothing ever deletes
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: Number(prNumber),
+            });
+            if (pr.state !== 'open') {
+              core.setFailed(`PR #${prNumber} is ${pr.state}; refusing to deploy a preview for it.`);
+              return;
+            }
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews,
+              { owner: context.repo.owner, repo: context.repo.repo, pull_number: Number(prNumber) }
+            );
+            const validReview = reviews.find(r =>
+              r.author_association === 'MEMBER' &&
+              r.commit_id === prCommit &&
+              (r.body || '').startsWith('/karpenter preview')
+            );
+            if (!validReview) {
+              core.setFailed(
+                `No MEMBER '/karpenter preview' review found for commit ${prCommit} on PR #${prNumber}. ` +
+                `The preview commit must match a commit reviewed by a repository member.`
+              );
+              return;
+            }
+            core.info(`Verified: ${validReview.user.login} requested a preview of commit ${prCommit}`);
+            core.setOutput('PR_NUMBER', prNumber);
+            core.setOutput('PR_COMMIT', prCommit);
+            core.setOutput('REVIEW_SUBMITTED_AT', validReview.submitted_at);
+
+  # Holds the Amplify role and a write token, so it only ever runs base repository code. The site it
+  # ships was rendered by WebsitePreviewTrigger, which runs the pull request's code on `pull_request`
+  # where a fork is confined to its own token and cache scope. Nothing from the pull request is
+  # checked out or executed here. https://gh.io/securely-using-pull_request_target
+  deploy:
+    needs: [ resolve ]
+    # The S3 prefix and Amplify branch are keyed by PR number, and the upload is an `s3 sync --delete`,
+    # so two deploys for one PR must not interleave. Queue them instead of cancelling, so a deploy that
+    # has started uploading finishes rather than leaving the preview half-synced.
+    concurrency:
+      group: website-preview-pr-${{ needs.resolve.outputs.PR_NUMBER }}
+      cancel-in-progress: false
+    # Gate the credentialed deploy behind an Environment protection rule. See .github/security-notice.md.
+    environment: website-preview
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      statuses: write
+      # Needed to find and download the rendered site from the WebsitePreviewTrigger run
+      actions: read
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ needs.resolve.outputs.PR_NUMBER }}
+      PR_COMMIT: ${{ needs.resolve.outputs.PR_COMMIT }}
+      REVIEW_SUBMITTED_AT: ${{ needs.resolve.outputs.REVIEW_SUBMITTED_AT }}
+      PREVIEW_URL: https://pr-${{ needs.resolve.outputs.PR_NUMBER }}.${{ vars.AMPLIFY_APP_ID_PREVIEW }}.amplifyapp.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Do not persist GITHUB_TOKEN into .git/config: this privileged job unpacks an artifact
+          # rendered from the PR's content, and a symlink to .git/config would otherwise leak the
+          # token. API calls here use the actions' github-token input (octokit), not the git CLI.
+          persist-credentials: false
+      # Report before anything that can fail, so the maintainer who asked for the preview sees the
+      # outcome on the PR rather than only in this run's logs
+      - uses: ./.github/actions/commit-status/start
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}
+      # Ship the build of the commit the member reviewed, and only a build that already existed when
+      # they reviewed it. A PR author can produce a fresh run at the same SHA at will (reopening the
+      # PR is enough), so without the timestamp bound a rebuild could swap the published bytes after
+      # the review while the comment still claims the reviewed commit.
+      - id: build-run
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const sha = process.env.PR_COMMIT;
+            const reviewedAt = new Date(process.env.REVIEW_SUBMITTED_AT);
+            const all = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'website-preview-trigger.yaml',
+              head_sha: sha,
+            });
+            if (all.length === 0) {
+              core.setFailed(
+                `No WebsitePreviewTrigger run exists for commit ${sha}, so there is no rendered site ` +
+                `to publish. That build only runs for pushes that change website/**, so a PR whose ` +
+                `latest commit touches nothing under website/ has no build to preview - ask the author ` +
+                `to push a change under website/** and request the preview against that commit.`
+              );
+              return;
+            }
+            const candidates = all
+              .filter(r => r.conclusion === 'success')
+              .filter(r => new Date(r.created_at) <= reviewedAt);
+            if (candidates.length === 0) {
+              const states = [...new Set(all.map(r => r.conclusion ?? r.status))].join(', ');
+              // A fork's first contribution sits unrun until a maintainer approves the workflow, which
+              // is the most common reason a build is missing - it needs approving, not re-pushing
+              const awaitingApproval = all.some(r =>
+                r.status === 'action_required' || r.status === 'waiting' || r.conclusion === 'action_required'
+              );
+              const rebuilt = all.some(r => r.conclusion === 'success');
+              if (awaitingApproval) {
+                core.setFailed(
+                  `The WebsitePreviewTrigger build for ${sha} has not run yet because it is waiting for ` +
+                  `maintainer approval (first-time contributors need their workflows approved). Approve ` +
+                  `that run, let it finish, then request the preview again.`
+                );
+                return;
+              }
+              core.setFailed(
+                rebuilt
+                  ? `The only successful builds of ${sha} were created after the preview was requested, ` +
+                    `so they are not what was reviewed. Request the preview again.`
+                  : `No successful WebsitePreviewTrigger run for commit ${sha} (saw: ${states}). ` +
+                    `A cancelled build means a newer push superseded it; a failed build needs fixing first.`
+              );
+              return;
+            }
+            // Newest build that predates the review
+            const run = candidates.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+            core.info(`Using WebsitePreviewTrigger run ${run.id} (created ${run.created_at})`);
+            core.setOutput('run_id', String(run.id));
+      # Uses the repo's composite rather than actions/download-artifact: this artifact is rendered from
+      # PR content, and the composite extracts with `unzip`, which strips `../` entries, and fails
+      # closed on non-regular files. See .github/actions/download-artifact/action.yaml
+      - uses: ./.github/actions/download-artifact
+        with:
+          name: website-preview-site
+          run-id: ${{ steps.build-run.outputs.run_id }}
+          path: /tmp/site
+      - name: Deploy website
+        uses: ./.github/actions/deploy-website
+        with:
+          role: arn:aws:iam::${{ vars.RELEASE_PREVIEW_ACCOUNT_ID }}:role/${{ vars.WEBSITE_ROLE_NAME }}
+          region: ${{ vars.AMPLIFY_REGION }}
+          amplify-app-id: ${{ vars.AMPLIFY_APP_ID_PREVIEW }}
+          amplify-branch-name: pr-${{ env.PR_NUMBER }}
+          s3-bucket: ${{ vars.AMPLIFY_S3_BUCKET_BETA }}
+          s3-prefix: pr-${{ env.PR_NUMBER }}/
+          site-path: /tmp/site
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const commentBody = [
+              '**Preview deployment ready!**',
+              '',
+              `**Preview URL:** ${process.env.PREVIEW_URL}`,
+              '',
+              `Built from commit \`${process.env.PR_COMMIT}\``,
+            ].join('\n');
+
+            const existingComment = (await github.paginate(github.rest.issues.listComments, {
+              issue_number: Number(process.env.PR_NUMBER),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            })).find(comment =>
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('**Preview deployment ready!**')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                comment_id: existingComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: Number(process.env.PR_NUMBER),
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: commentBody
+              });
+            }
+      # The commands above write to the log, which the person who asked for the preview will not look
+      # at. Tell them on the PR that it failed and where to look.
+      - if: failure()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              issue_number: Number(process.env.PR_NUMBER),
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Preview deployment for \`${process.env.PR_COMMIT}\` failed. See [the run log](${url}).`,
+            });
+      - if: always()
+        uses: ./.github/actions/commit-status/end
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}

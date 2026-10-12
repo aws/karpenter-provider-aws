@@ -27,7 +27,9 @@ import (
 	"github.com/aws/karpenter-provider-aws/kwok/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/kwok/operator"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awscloudprovider "github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
 func main() {
@@ -43,6 +45,8 @@ func main() {
 		op.CapacityReservationProvider,
 		op.PlacementGroupProvider,
 		op.InstanceTypeStore,
+		awscloudprovider.WithLegacyRepairPolicies(karpoptions.FromContext(ctx).LegacyNodeRepair),
+		awscloudprovider.WithRebootForRepair(options.FromContext(ctx).FeatureGates.RebootForRepair),
 	)
 	overlayUndecoratedCloudProvider := metrics.Decorate(kwokAWSCloudProvider)
 	cloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, op.GetClient(), op.InstanceTypeStore)

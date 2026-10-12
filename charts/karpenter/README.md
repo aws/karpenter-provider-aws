@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 1.14.1](https://img.shields.io/badge/Version-1.14.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.14.1](https://img.shields.io/badge/AppVersion-1.14.1-informational?style=flat-square)
+![Version: 1.15.0](https://img.shields.io/badge/Version-1.15.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.15.0](https://img.shields.io/badge/AppVersion-1.15.0-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 1.14.1 \
+  --version 1.15.0 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -27,13 +27,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```shell
-cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.15.0 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.14.1 \
-  --annotations version=1.14.1
+  --certificate-github-workflow-ref=refs/tags/v1.15.0 \
+  --annotations version=1.15.0
 ```
 
 ## Values
@@ -49,9 +49,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:723130949e4cab989461ff07d1be4cd781d63515432494641b33c235f300ae23"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:ab0f953e1460c61566d48209b517734ba79fe2105f335af1ff85faa8b6baf157"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"1.14.1"` | Tag of the controller image. |
+| controller.image.tag | string | `"1.15.0"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
@@ -91,10 +91,13 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
 | serviceMonitor.metricRelabelings | list | `[]` | Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs |
 | serviceMonitor.relabelings | list | `[]` | Relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config |
 | serviceMonitor.sampleLimit | string | `nil` | Specifies the sampleLimit for prometheus scrapes. Per-scrape limit on the number of scraped samples that will be accepted. If more than this number of samples are present after metric relabeling the entire scrape will be treated as failed. 0 means no limit. |
-| settings | object | `{"amiRefreshInterval":"1m","awsFeatureGates":{"nodeClassCEL":false},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableZonalShift":false,"featureGates":{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false},"ignoreDRARequests":true,"interruptionQueue":"","isolatedVPC":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","securityGroupRefreshInterval":"1m","subnetRefreshInterval":"1m","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"amiRefreshInterval":"1m","awsFeatureGates":{"draEFA":null,"draNVIDIAGPU":null,"nodeClassCEL":false,"rebootForRepair":false},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableDRA":false,"enableZonalShift":false,"featureGates":{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"podDeletionCostManagement":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false},"ignoreDRARequests":null,"interruptionQueue":"","isolatedVPC":false,"legacyNodeRepair":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","securityGroupRefreshInterval":"1m","subnetRefreshInterval":"1m","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.amiRefreshInterval | string | `"1m"` | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. |
-| settings.awsFeatureGates | object | `{"nodeClassCEL":false}` | AWS-specific Feature Gate configuration values. |
+| settings.awsFeatureGates | object | `{"draEFA":null,"draNVIDIAGPU":null,"nodeClassCEL":false,"rebootForRepair":false}` | AWS-specific Feature Gate configuration values. |
+| settings.awsFeatureGates.draEFA | bool | `false` | draEFA is ALPHA and is disabled by default. Setting this to true will make Karpenter calculate the DRA devices the dranet driver publishes for EFA interfaces, so it can account for dra.net claims when it sizes new nodes. Can't be combined with settings.enableDRA. |
+| settings.awsFeatureGates.draNVIDIAGPU | bool | `false` | draNVIDIAGPU is ALPHA and is disabled by default. Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU driver publishes, so it can account for gpu.nvidia.com claims when it sizes new nodes. Can't be combined with settings.enableDRA. |
 | settings.awsFeatureGates.nodeClassCEL | bool | `false` | nodeClassCEL is ALPHA and is disabled by default. Setting this to true will enable CEL validation on EC2NodeClass resources. |
+| settings.awsFeatureGates.rebootForRepair | bool | `false` | rebootForRepair is ALPHA and is disabled by default. It has no effect without the nodeRepair feature gate. Setting this to true will make node repair reboot a node in place for reboot-clearable GPU faults instead of replacing it. Requires the ec2:RebootInstances permission. |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
@@ -103,19 +106,22 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
 | settings.disableClusterStateObservability | bool | `false` | Disable cluster state metrics and events. |
 | settings.disableDryRun | bool | `false` | Disable dry run validation for EC2NodeClasses. |
 | settings.eksControlPlane | bool | `false` | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API. |
+| settings.enableDRA | bool | `false` | enableDRA is ALPHA and is disabled by default. Setting this to true will enable every AWS DRA driver feature gate (awsFeatureGates.draNVIDIAGPU and awsFeatureGates.draEFA) and set ignoreDRARequests to false. It can't be combined with any of those values. |
 | settings.enableZonalShift | bool | `false` | Marking this true signals Karpenter to respect zonal shifts when making node claims. More information about Zonal Shift here: https://docs.aws.amazon.com/eks/latest/userguide/zone-shift-enable.html#zone-shift-enable-steps |
-| settings.featureGates | object | `{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features. |
+| settings.featureGates | object | `{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"podDeletionCostManagement":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features. |
 | settings.featureGates.capacityBuffer | bool | `false` | capacityBuffer is ALPHA and is disabled by default. Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity. |
 | settings.featureGates.nodeOverlay | bool | `false` | nodeOverlay is ALPHA and is disabled by default. Setting this will allow the use of node overlay to impact scheduling decisions |
 | settings.featureGates.nodeRepair | bool | `false` | nodeRepair is ALPHA and is disabled by default. Setting this to true will enable node repair. |
+| settings.featureGates.podDeletionCostManagement | bool | `false` | podDeletionCostManagement is ALPHA and is disabled by default. Setting this to true will enable Karpenter to manage pod-deletion-cost annotations on ReplicaSet pods on its nodes, so that ReplicaSet scale-down prefers to remove pods from nodes Karpenter wants to consolidate. |
 | settings.featureGates.reservedCapacity | bool | `true` | reservedCapacity is BETA and is enabled by default. Setting this will enable native on-demand capacity reservation support. |
 | settings.featureGates.spotToSpotConsolidation | bool | `false` | spotToSpotConsolidation is ALPHA and is disabled by default. Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation. |
 | settings.featureGates.staticCapacity | bool | `false` | staticCapacity is ALPHA and is disabled by default. Setting this to true will enable static capacity provisioning. |
 | settings.featureGates.terminateFirstDrift | bool | `false` | terminateFirstDrift is ALPHA and is disabled by default. Setting this to true lets drift terminate a node before launching its replacement on a capacity-constrained NodePool. |
 | settings.featureGates.terminateFirstRepair | bool | `false` | terminateFirstRepair is ALPHA and is disabled by default. Setting this to true lets repair terminate an unhealthy node before launching its replacement on a capacity-constrained NodePool. |
-| settings.ignoreDRARequests | bool | `true` | Ignore pods' DRA requests during scheduling simulations. |
+| settings.ignoreDRARequests | bool | `true` | Ignore pods' DRA requests during scheduling simulations. Enabling either AWS DRA feature gate (awsFeatureGates.draNVIDIAGPU or awsFeatureGates.draEFA) overrides this to false. Can't be combined with enableDRA. |
 | settings.interruptionQueue | string | `""` | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint. |
+| settings.legacyNodeRepair | bool | `false` | Run the legacy node repair controller instead of node repair as a disruption method. Only takes effect with featureGates.nodeRepair, and can't be combined with featureGates.terminateFirstRepair, which the legacy controller doesn't support. The legacy node repair controller is planned for deprecation. |
 | settings.minValuesPolicy | string | `"Strict"` | How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). |
 | settings.preferencePolicy | string | `"Respect"` | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. |

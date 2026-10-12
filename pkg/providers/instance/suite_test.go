@@ -46,6 +46,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -964,6 +965,24 @@ var _ = Describe("InstanceProvider", func() {
 			},
 			}, 0),
 		)
+		It("should set EFACount based on instance type capacity when NodeClaim was allocated dra.net devices", func() {
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: efadra.DriverName,
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+				return i.Name == "g4dn.8xlarge"
+			})
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(1))
+		})
 		It("should set EFACount based on instance type capacity when NodeClaim requests EFA", func() {
 			// NodeClaim requests EFA resource
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
@@ -1048,6 +1067,13 @@ var _ = Describe("InstanceProvider", func() {
 			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
 			Expect(after - before).To(Equal(float64(0)))
 		})
+		It("should not call RebootInstances for instances in a zonally shifted AZ", func() {
+			err := awsEnv.InstanceProvider.Reboot(ctx, instanceID, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
 		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
 			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
 			Expect(err).To(HaveOccurred())
@@ -1112,6 +1138,13 @@ var _ = Describe("InstanceProvider", func() {
 				// DescribeInstances is called by Get() inside Delete() to fetch instance data
 				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
 				Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			})
+			It("should not call RebootInstances even with a cold cache since Reboot calls Get first", func() {
+				err := awsEnv.InstanceProvider.Reboot(ctx, uncachedInstanceID, "op-1")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 			})
 			It("should proceed with CreateTags when instance is not in the cache", func() {
 				err := awsEnv.InstanceProvider.CreateTags(ctx, uncachedInstanceID, map[string]string{"test-key": "test-value"})
