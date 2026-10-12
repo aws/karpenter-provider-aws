@@ -72,14 +72,12 @@ Info on whether there has been a change to the CRD between versions of Karpenter
 
 ### Unable to schedule pod due to insufficient node group instances
 
-`0.16.0` changed the default replicas from 1 to 2.
-
-Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/nodepool DoesNotExist requirement`)
+Karpenter defaults to 2 replicas but won't launch capacity to run itself (log related to the `karpenter.sh/nodepool DoesNotExist requirement`)
 so it can't provision for the second Karpenter pod.
 
 To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter to run both pods.
 
-To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
+To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at least 2 instances.
 
 ### Helm Error When Pulling the Chart
 
@@ -87,14 +85,14 @@ If Helm is showing an error when trying to install Karpenter Helm charts:
 
 - Ensure you are using a newer Helm version, Helm started supporting OCI images since `3.8.0`.
 - Helm does not have an `helm repo add` concept in OCI, so to install Karpenter you no longer need this.
-- If you get an error like `Error: public.ecr.aws/karpenter/karpenter:0.34.0: not found` make sure you're adding a `v` prefix for Karpenter versions between `0.17.0` & `0.34.x`.
+- If you get a "not found" error, make sure you're using the correct version format (e.g., `v1.0.0` with the `v` prefix).
 - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
 - Sometimes Helm generates a generic error, you can add the --debug switch to any of the Helm commands in this doc for more verbose error messages
 - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html).
 
 ### Helm Error when installing the `karpenter-crd` chart
 
-Karpenter `0.26.1` introduced the `karpenter-crd` Helm chart. When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
+When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
 
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 
@@ -138,16 +136,6 @@ Some instance types (c1.medium and m1.small) are given limited amount of memory 
 
 ##### Solutions
 Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the NodePool requirements to use larger instance types.
-
-### DaemonSets can result in deployment failures
-
-For Karpenter versions `0.5.3` and earlier, DaemonSets were not properly considered when provisioning nodes.
-This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
-This issue no longer occurs after Karpenter version `0.5.3` (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
-
-If you are using a pre `0.5.3` version of Karpenter, one workaround is to set your NodePool to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
-For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
-Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
 
 ### Unspecified resource requests cause scheduling/bin-pack failures
 
@@ -371,7 +359,7 @@ However, pod's do not inherit the requirements of compatible NodePools.
 For example, consider the following NodePool and Deployment specs:
 
 ```yaml
-appVersion: karpenter.sh/v1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -382,7 +370,7 @@ spec:
       - key: topology.kubernetes.io/zone
         operator: Exists
 ---
-appVersion: karpenter.sh/v1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: np-zonal-constraint
@@ -721,7 +709,7 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
 ]
 ```
 
-### Node is not deleted, even though `ttlSecondsUntilExpired` is set or the node is empty
+### Node is not deleted, even though `expireAfter` is set or the node is empty
 
 This typically occurs when the node has not been considered fully initialized for some reason.  If you look at the logs, you may see something related to an `Inflight check failed for node...` that gives more information about why the node is not considered initialized.
 
