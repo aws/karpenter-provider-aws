@@ -444,6 +444,7 @@ nodeAffinity:
 
 This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a NodePool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
 
+Combining `karpenter.k8s.aws/instance-family` with `karpenter.k8s.aws/instance-size` can also collapse the NodePool to a single instance type (for example family `g6` and size `xlarge` is only `g6.xlarge`). When EC2 returns `InsufficientInstanceCapacity` for that type in every configured AZ, Karpenter marks the offering unavailable and then logs `skipping, nodepool requirements filtered out all instance types` / emits `NoCompatibleInstanceTypes`. Include at least two sizes (or a second family that draws from a different capacity pool) so CreateFleet can fail over. `minValues` is not a substitute: under Strict it fails scheduling on a one-SKU pool.
 
 The phrase `had a required offering` pertains to the availability of an instance type in a specific location, such as an availability zone. This error can occur if a pod is restricted to a particular availability zone. For instance, consider a pod in a stateful set that previously had an EBS volume attached. If the subnet where the pod is scheduled changes, the pod might end up in a different availability zone than the EBS volume it needs to attach to. This mismatch in availability zones can lead to an error related to the required offering.
 
@@ -452,6 +453,7 @@ The phrase `had a required offering` pertains to the availability of an instance
 EC2's `g6f` instance family provides fractional NVIDIA L4 GPUs. However, the EC2 `DescribeInstanceTypes` API reports `Count=0` for g6f GPUs, which causes Karpenter to believe these instances have no GPU capacity. Pods requesting `nvidia.com/gpu: 1` will never be matched to g6f instances and remain Pending.
 
 To work around this, use a [NodeOverlay]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) to inject `nvidia.com/gpu: 1` into Karpenter's scheduling simulation for g6f instances. See the [Fractional GPU Instances (g6f)]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) section for a complete walkthrough with YAML examples.
+
 
 
 ## Deprovisioning

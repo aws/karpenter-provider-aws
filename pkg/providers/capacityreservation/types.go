@@ -104,10 +104,14 @@ func (q *Query) DescribeCapacityReservationsInput() *ec2.DescribeCapacityReserva
 	}
 }
 
+// terminatedInstanceTTL is how long an instance is remembered after its slot is returned.
+const terminatedInstanceTTL = 15 * time.Minute
+
 type availabilityCache struct {
-	mu    sync.RWMutex
-	cache *cache.Cache
-	clk   clock.Clock
+	mu                sync.RWMutex
+	availabilityCache *cache.Cache
+	terminationCache  *cache.Cache // instance IDs whose slot was already returned
+	clk               clock.Clock
 }
 
 type availabilityCacheEntry struct {
@@ -120,7 +124,7 @@ func (c *availabilityCache) syncAvailability(availability map[string]int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for id, count := range availability {
-		c.cache.SetDefault(id, &availabilityCacheEntry{
+		c.availabilityCache.SetDefault(id, &availabilityCacheEntry{
 			count:    count,
 			syncTime: now,
 		})
@@ -131,7 +135,7 @@ func (c *availabilityCache) MarkLaunched(reservationID string) {
 	now := c.clk.Now()
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry, ok := c.cache.Get(reservationID)
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return
 	}
@@ -147,14 +151,19 @@ func (c *availabilityCache) MarkLaunched(reservationID string) {
 	}
 }
 
-func (c *availabilityCache) MarkTerminated(reservationID string) {
+func (c *availabilityCache) MarkTerminated(reservationID, instanceID string) {
 	// We don't do a time based comparison for CountTerminated because the reservation becomes available some time between
 	// the termination call and the instance state transitioning to terminated. This can be a pretty big gap, so a time
 	// based comparison would have limited value. In the worst case, this can result in us overestimating the available
 	// capacity, but we'd rather overestimate than underestimate.
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	entry, ok := c.cache.Get(reservationID)
+	// Delete keeps returning NotFound after the instance is gone, so only return its slot once.
+	if _, ok := c.terminationCache.Get(instanceID); ok {
+		return
+	}
+	c.terminationCache.SetDefault(instanceID, struct{}{})
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return
 	}
@@ -164,7 +173,7 @@ func (c *availabilityCache) MarkTerminated(reservationID string) {
 func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	entry, ok := c.cache.Get(reservationID)
+	entry, ok := c.availabilityCache.Get(reservationID)
 	if !ok {
 		return 0
 	}
@@ -177,7 +186,7 @@ func (c *availabilityCache) GetAvailableInstanceCount(reservationID string) int 
 func (c *availabilityCache) SetAvailableInstanceCount(reservationID string, count int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.cache.SetDefault(reservationID, &availabilityCacheEntry{
+	c.availabilityCache.SetDefault(reservationID, &availabilityCacheEntry{
 		count:    count,
 		syncTime: c.clk.Now(),
 	})

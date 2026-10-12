@@ -52,6 +52,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
@@ -70,6 +71,8 @@ const (
 	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
 	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
 	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
+	ConditionReasonConsumableCapacityInvalid       = "NVIDIAConsumableCapacityInvalid"
+	ConditionReasonDRADisabled                     = "DRADisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -125,7 +128,7 @@ func NewValidationReconciler(
 	}
 }
 
-// nolint:gocyclo
+// nolint:gocyclo,staticcheck
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
@@ -207,6 +210,31 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(err)
+	}
+
+	// The consumable capacity annotation is free-form, so this is the only check it gets. Karpenter can't
+	// read what the NVIDIA DRA driver is actually configured with, so a value it can't parse is taken as
+	// a configuration mistake rather than guessed at: blocking launch beats sizing every GPU node wrong.
+	if value, ok := nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity]; ok {
+		mode, err := nvidiadra.ParseConsumableCapacity(value)
+		if err != nil {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonConsumableCapacityInvalid,
+				fmt.Sprintf("annotation %s, %s", v1.AnnotationNVIDIAConsumableCapacity, err),
+			)
+			return reconcile.Result{}, nil
+		}
+		// Only a sharing mode depends on the gate. An empty or "disabled" value asks for nothing Karpenter would
+		// ignore, so it shouldn't block launches just because the gate is off.
+		if mode != nil && !options.FromContext(ctx).FeatureGates.DRANVIDIAGPU {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonDRADisabled,
+				fmt.Sprintf("annotation %s enables GPU sharing, but the DRANVIDIAGPU feature gate is disabled", v1.AnnotationNVIDIAConsumableCapacity),
+			)
+			return reconcile.Result{}, nil
+		}
 	}
 
 	if _, ok := lo.Find(v.requiredConditions(), func(cond string) bool {
@@ -318,6 +346,7 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[s
 	)
 }
 
+//nolint:staticcheck
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -362,6 +391,7 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	return launchTemplates[0], reconcile.Result{}, nil
 }
 
+//nolint:staticcheck
 func (v *Validation) validateCreateFleetAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -391,6 +421,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 	return reconcile.Result{}, nil
 }
 
+//nolint:staticcheck
 func (v *Validation) validateRunInstancesAuthorization(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
