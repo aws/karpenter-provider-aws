@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -80,6 +81,11 @@ func (c *Controller) Reconcile(ctx context.Context, node *corev1.Node) (reconcil
 	nodeClass, err := c.GetEC2NodeClass(ctx, nodeClaim)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get ec2nodeclass, %w", err)
+	}
+	// Skip instance type refresh when EC2NodeClass is deleting to avoid spurious API errors
+	if !nodeClass.GetDeletionTimestamp().IsZero() {
+		log.FromContext(ctx).V(1).Info("skipping instance type refresh; EC2NodeClass is deleting")
+		return reconcile.Result{}, nil
 	}
 	if err := c.instancetypeProvider.UpdateInstanceTypeCapacityFromNode(ctx, node, nodeClaim, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("updating discovered capacity cache, %w", err)
