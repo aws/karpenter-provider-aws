@@ -48,6 +48,24 @@ var _ = Describe("CompatibilityTest", func() {
 			Entry("a1.medium w/ AL2023 AMI", "a1.medium", v1.AMIFamilyAL2023, false),
 			Entry("t3.medium w/ AL2023 AMI", "t3.medium", v1.AMIFamilyAL2023, true),
 			Entry("a1.large w/ Bottlerocket", "a1.large", v1.AMIFamilyBottlerocket, true),
+			// Windows-incompatible accelerated instance families
+			Entry("dl1.24xlarge w/ Windows2019", "dl1.24xlarge", v1.AMIFamilyWindows2019, false),
+			Entry("f1.4xlarge w/ Windows2022", "f1.4xlarge", v1.AMIFamilyWindows2022, false),
+			Entry("f2.12xlarge w/ Windows2025", "f2.12xlarge", v1.AMIFamilyWindows2025, false),
+			Entry("inf2.xlarge w/ Windows2019", "inf2.xlarge", v1.AMIFamilyWindows2019, false),
+			Entry("p4d.24xlarge w/ Windows2022", "p4d.24xlarge", v1.AMIFamilyWindows2022, false),
+			Entry("p5.48xlarge w/ Windows2019", "p5.48xlarge", v1.AMIFamilyWindows2019, false),
+			Entry("trn1.2xlarge w/ Windows2025", "trn1.2xlarge", v1.AMIFamilyWindows2025, false),
+			Entry("trn1n.32xlarge w/ Windows2019", "trn1n.32xlarge", v1.AMIFamilyWindows2019, false),
+			Entry("vt1.3xlarge w/ Windows2022", "vt1.3xlarge", v1.AMIFamilyWindows2022, false),
+			// Standard instance types remain compatible with Windows
+			Entry("m5.large w/ Windows2019", "m5.large", v1.AMIFamilyWindows2019, true),
+			Entry("c5.xlarge w/ Windows2022", "c5.xlarge", v1.AMIFamilyWindows2022, true),
+			Entry("r6i.large w/ Windows2025", "r6i.large", v1.AMIFamilyWindows2025, true),
+			// Incompatible families remain compatible with Linux AMIs
+			Entry("p5.48xlarge w/ AL2023", "p5.48xlarge", v1.AMIFamilyAL2023, true),
+			Entry("trn1.2xlarge w/ Bottlerocket", "trn1.2xlarge", v1.AMIFamilyBottlerocket, true),
+			Entry("inf2.xlarge w/ Custom AMI", "inf2.xlarge", v1.AMIFamilyCustom, true),
 		)
 	})
 	Context("NetworkInterfaceCompatibility", func() {
