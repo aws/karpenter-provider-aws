@@ -28,11 +28,13 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -259,7 +261,7 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node when receiving an instance status failure", func() {
-		By("Disabling the SQS interruption queue so only the instance status controller handles interruptions")
+		By("Disabling the SQS interruption queue so only DescribeInstanceStatus detects the failure")
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
 		DeferCleanup(func() {
 			env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: env.InterruptionQueue})
@@ -312,7 +314,15 @@ var _ = Describe("Interruption", func() {
 
 		node := env.Monitor.CreatedNodes()[0]
 
-		By("Waiting for the instance status controller to detect the failure and terminate the node")
+		By("Waiting for the instance status controller to report the failure on the node")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			condition := nodeutils.GetCondition(node, instancestatus.ConditionTypeEC2StatusReady)
+			g.Expect(condition.Status).To(Equal(corev1.ConditionFalse))
+			g.Expect(condition.Reason).To(Equal(instancestatus.ReasonInstanceReachabilityFailed))
+		}).WithTimeout(30 * time.Minute).WithPolling(30 * time.Second).Should(Succeed())
+
+		By("Waiting for node repair to terminate the node")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())

@@ -279,13 +279,14 @@ Karpenter records reboot outcomes in the `karpenter_nodes_reboots_total` [metric
 
 #### Monitored Node Conditions
 
-Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
+Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. `EC2StatusReady` is reported by Karpenter from [EC2 DescribeInstanceStatus](#interruption). The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
 A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above. Policies with the `RebootNode` action reboot the node only with the `RebootForRepair` AWS feature gate enabled; otherwise they replace it on the same toleration duration and termination grace period.
 
 [comment]: <> (the content below is generated from hack/docs/repairpolicies_gen/main.go)
 
 | Condition Type | Status | Reason | Toleration Duration | Termination Grace Period | Action |
 |---|---|---|---|---|---|
+| `EC2StatusReady` | `False` | Any | 2 minutes | 5 minutes | `ReplaceNode` |
 | `Ready` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 | `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
@@ -386,6 +387,8 @@ Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.a
 * Scheduled Maintenance Events - surfaces upcoming maintenance events that may affect the instance
 
 These status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
+
+When `NodeRepair=true` and `--legacy-node-repair` is not set, Karpenter does not terminate nodes for System Status or Instance Status failures directly. It instead sets the `EC2StatusReady` node condition to `False` with reason `SystemReachabilityFailed` when the System Status check fails, or `InstanceReachabilityFailed` when only the Instance Status check fails, using the time EC2 first reported the failure as the transition time, and [Node Auto Repair](#node-auto-repair) replaces the node. Healthy nodes report `EC2StatusReady=True` with reason `NoImpairmentReported`. In this mode, `karpenter_interruption_instance_status_unhealthy_total` only counts Scheduled Maintenance Events, and replacements for reachability failures are counted with `reason="unhealthy"` in `karpenter_nodeclaims_disrupted_total` and `condition="ec2_status_ready"` in `karpenter_nodeclaims_unhealthy_disrupted_total`. Scheduled Maintenance Events are handled as interruptions regardless of `NodeRepair`.
 
 ## Controls
 

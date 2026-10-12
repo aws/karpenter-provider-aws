@@ -51,6 +51,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -346,6 +347,15 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 		return legacyRepairPolicies
 	}
 	return []cloudprovider.RepairPolicy{
+		// EC2 DescribeInstanceStatus reachability failures, published by the instancestatus controller
+		{
+			ConditionType:          instancestatus.ConditionTypeEC2StatusReady,
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     instancestatus.UnhealthyThreshold,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
 		// Supported Kubelet Node Conditions
 		//
 		// The AcceleratedHardwareReady catch-all below is the global fallback (empty ReasonRegex); every other policy sets a ReasonRegex.

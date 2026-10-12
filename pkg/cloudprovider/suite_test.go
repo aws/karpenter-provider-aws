@@ -49,6 +49,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -435,6 +436,20 @@ var _ = Describe("CloudProvider", func() {
 			Entry("KernelReady=False", corev1.NodeConditionType("KernelReady"), corev1.ConditionFalse),
 			Entry("ContainerRuntimeReady=False", corev1.NodeConditionType("ContainerRuntimeReady"), corev1.ConditionFalse),
 		)
+		DescribeTable("should replace nodes that fail EC2 reachability checks after 2m",
+			func(reason string) {
+				Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute-time.Second).Action).To(BeEmpty())
+				result := evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute)
+				Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
+				Expect(result.Fallback).To(BeFalse())
+			},
+			Entry("instance status", instancestatus.ReasonInstanceReachabilityFailed),
+			Entry("system status", instancestatus.ReasonSystemReachabilityFailed),
+		)
+		It("should not repair nodes that pass EC2 reachability checks", func() {
+			Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionTrue, instancestatus.ReasonNoImpairmentReported, time.Hour).Action).To(BeEmpty())
+		})
 		It("should ignore unsupported conditions", func() {
 			Expect(evaluate(corev1.NodeDiskPressure, corev1.ConditionTrue, "", time.Hour).Action).To(BeEmpty())
 		})
