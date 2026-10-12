@@ -19,10 +19,24 @@ import (
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+)
+
+// windowsIncompatibleInstanceFamilies is the set of instance families that do not support
+// Windows. RunInstances calls with these families and a Windows AMI fail with
+// UnsupportedOperation. The list is derived from the EC2 pricing API by comparing
+// instances with Windows pricing to those with Linux pricing.
+var windowsIncompatibleInstanceFamilies = sets.New(
+	"dl1", "dl2q",
+	"f1", "f2",
+	"inf1", "inf2",
+	"p4d", "p4de", "p5", "p5e", "p5en",
+	"trn1", "trn1n", "trn2", "trn2u",
+	"vt1",
 )
 
 type NodeClass interface {
@@ -69,7 +83,32 @@ func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
 	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
 		return false
 	}
+	// Many accelerated instance families do not support Windows. RunInstances calls with these
+	// families and a Windows AMI fail with UnsupportedOperation.
+	if isWindowsFamily(c.amiFamily) {
+		if family := instanceFamily(info); windowsIncompatibleInstanceFamilies.Has(family) {
+			return false
+		}
+	}
 	return true
+}
+
+// isWindowsFamily reports whether the given AMI family name is a Windows variant.
+func isWindowsFamily(amiFamily string) bool {
+	switch amiFamily {
+	case v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2025:
+		return true
+	}
+	return false
+}
+
+// instanceFamily extracts the family prefix from an instance type name (e.g. "p5" from "p5.48xlarge").
+func instanceFamily(info ec2types.InstanceTypeInfo) string {
+	parts := strings.SplitN(string(info.InstanceType), ".", 2)
+	if len(parts) == 2 {
+		return parts[0]
+	}
+	return ""
 }
 
 type networkInterfaceCheck struct {
