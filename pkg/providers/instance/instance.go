@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/awslabs/operatorpkg/aws/middleware"
 	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -144,11 +146,17 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
+	if err := p.validateCapacityReservationGroup(ctx, nodeClass); err != nil {
+		return nil, err
+	}
 	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClaim)
 	if err != nil {
 		return nil, err
 	}
 	capacityType := getCapacityType(nodeClaim, instanceTypes)
+	if nodeClass.Spec.CapacityReservationGroupARN != nil && capacityType == karpv1.CapacityTypeReserved {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("capacity reservation group launches require on-demand fallback"), "InvalidCapacityReservationGroupRequirements", "Capacity reservation group launches require on-demand fallback")
+	}
 	tenancyType := getTenancyType(nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags, tenancyType)
 	if awserrors.IsLaunchTemplateNotFound(err) {
@@ -174,13 +182,34 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		opts = append(opts, WithEFACount(efaCount))
 	}
 
-	return NewInstanceFromFleet(
+	inst := NewInstanceFromFleet(
 		fleetInstance,
 		capacityType,
 		tags,
 		tenancyType,
 		opts...,
-	), nil
+	)
+	if capacityType == karpv1.CapacityTypeOnDemand {
+		// Fleet reports the requested market, not the actual reservation association. Persist target intent without
+		// performing a fallible read after launching; the registration hook will resolve initial coverage.
+		inst.CapacityReservationGroupARN = lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN)
+	}
+	return inst, nil
+}
+
+func (p *DefaultProvider) validateCapacityReservationGroup(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	groupARN := lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN)
+	if groupARN == "" {
+		return nil
+	}
+	if !coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+		return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("capacityReservationGroupARN requires ReservedCapacity"))
+	}
+	group, err := arn.Parse(groupARN)
+	if err != nil || group.Region != p.region {
+		return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("capacityReservationGroupARN must reference a group in region %s", p.region))
+	}
+	return nil
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
@@ -403,6 +432,9 @@ func (p *DefaultProvider) launchInstance(
 	}
 
 	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	if capacityType == karpv1.CapacityTypeOnDemand && nodeClass.Spec.CapacityReservationGroupARN != nil {
+		cfiBuilder.WithCapacityReservationGroup(*nodeClass.Spec.CapacityReservationGroupARN)
+	}
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}

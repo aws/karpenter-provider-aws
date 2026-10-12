@@ -206,7 +206,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	launchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
-		"",
+		fake.DefaultRegion,
 		eventRecorder,
 		ec2api,
 		unavailableOfferingsCache,

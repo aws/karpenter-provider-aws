@@ -194,6 +194,9 @@ func (in *EC2NodeClass) AMIs() []AMI {
 }
 
 func (in *EC2NodeClass) CapacityReservations() []CapacityReservation {
+	if in.Spec.CapacityReservationGroupARN != nil {
+		return nil
+	}
 	return in.Status.CapacityReservations
 }
 

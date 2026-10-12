@@ -76,6 +76,16 @@ var _ = Describe("Hash", func() {
 			},
 		}
 	})
+	It("should hash capacity reservation group launch intent", func() {
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(staticHash))
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-a")
+		groupHash := nodeClass.Hash(testCABundle)
+		Expect(groupHash).ToNot(Equal(staticHash))
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-b")
+		Expect(nodeClass.Hash(testCABundle)).ToNot(Equal(groupHash))
+		nodeClass.Spec.CapacityReservationGroupARN = nil
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(staticHash))
+	})
 	DescribeTable(
 		"should match static hash on field value change",
 		func(hash string, changes v1.EC2NodeClass) {

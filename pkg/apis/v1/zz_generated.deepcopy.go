@@ -344,6 +344,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.CapacityReservationGroupARN != nil {
+		in, out := &in.CapacityReservationGroupARN, &out.CapacityReservationGroupARN
+		*out = new(string)
+		**out = **in
+	}
 	if in.PlacementGroupSelector != nil {
 		in, out := &in.PlacementGroupSelector, &out.PlacementGroupSelector
 		*out = new(PlacementGroupSelector)

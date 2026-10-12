@@ -1287,6 +1287,35 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
+		It("should drift group launch intent without drifting reservation reassociation", func() {
+			groupARN := "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"
+			nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+			nodeClaim.Annotations = nil // Isolate dynamic group-target drift from static hash drift.
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+			for _, id := range []string{"cr-12345678", "cr-87654321", ""} {
+				out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+				i := &out.Reservations[0].Instances[0]
+				i.SpotInstanceRequestId = nil
+				i.CapacityReservationId = nil
+				if id != "" {
+					i.CapacityReservationId = lo.ToPtr(id)
+				}
+				i.CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+					CapacityReservationTarget: &ec2types.CapacityReservationTargetResponse{CapacityReservationResourceGroupArn: lo.ToPtr(groupARN)},
+				}
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+				awsEnv.InstanceCache.Flush()
+				drifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(drifted).To(BeEmpty())
+			}
+			nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-b")
+			ExpectApplied(ctx, env.Client, nodeClass)
+			drifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(drifted).To(Equal(cloudprovider.CapacityReservationDrift))
+		})
 		It("should dynamically drift nodeclaims for capacity reservations", func() {
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
 				{
@@ -2009,6 +2038,20 @@ var _ = Describe("CloudProvider", func() {
 			err = cloudProvider.Delete(ctx, ncs[0])
 			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(10))
+		})
+		It("should not credit a released capacity reservation group slot", func() {
+			id := "cr-m5.large-1a-1"
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(id, 5)
+			nc := coretest.NodeClaim(karpv1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{corecloudprovider.ReservationIDLabel: id},
+					Annotations: map[string]string{v1.AnnotationCapacityReservationGroupARN: "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"},
+				},
+				Status: karpv1.NodeClaimStatus{ProviderID: "aws:///test-zone-1a/i-12345678"},
+			})
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{})
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(ctx, nc))).To(BeTrue())
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(id)).To(Equal(5))
 		})
 		It("should not double-count a terminated instance when Delete is called again after NotFound", func() {
 			pod := coretest.UnschedulablePod()

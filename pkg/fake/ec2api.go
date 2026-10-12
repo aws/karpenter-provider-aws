@@ -71,9 +71,10 @@ type EC2Behavior struct {
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
 
-	Subnets                               sync.Map
-	LaunchTemplates                       sync.Map
-	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
+	Subnets                                    sync.Map
+	LaunchTemplates                            sync.Map
+	launchTemplatesToCapacityReservations      sync.Map // map[lt-name]cr-id
+	launchTemplatesToCapacityReservationGroups sync.Map // map[lt-name]group-arn
 }
 
 type EC2API struct {
@@ -123,6 +124,10 @@ func (e *EC2API) Reset() {
 
 	e.launchTemplatesToCapacityReservations.Range(func(k, _ any) bool {
 		e.launchTemplatesToCapacityReservations.Delete(k)
+		return true
+	})
+	e.launchTemplatesToCapacityReservationGroups.Range(func(k, _ any) bool {
+		e.launchTemplatesToCapacityReservationGroups.Delete(k)
 		return true
 	})
 	e.RunInstancesBehavior.Reset()
@@ -203,6 +208,13 @@ func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ .
 						State: &ec2types.InstanceState{
 							Name: instanceState,
 						},
+					}
+					if group, ok := e.launchTemplatesToCapacityReservationGroups.Load(*ltc.LaunchTemplateSpecification.LaunchTemplateName); ok {
+						instance.CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+							CapacityReservationTarget: &ec2types.CapacityReservationTargetResponse{
+								CapacityReservationResourceGroupArn: lo.ToPtr(group.(string)),
+							},
+						}
 					}
 					e.Instances.Store(*instance.InstanceId, instance)
 					instanceIds = append(instanceIds, *instance.InstanceId)
@@ -297,6 +309,9 @@ func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaun
 		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
 		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
 			e.launchTemplatesToCapacityReservations.Store(*input.LaunchTemplateName, *crs.CapacityReservationTarget.CapacityReservationId)
+		}
+		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationTarget != nil && crs.CapacityReservationTarget.CapacityReservationResourceGroupArn != nil {
+			e.launchTemplatesToCapacityReservationGroups.Store(*input.LaunchTemplateName, *crs.CapacityReservationTarget.CapacityReservationResourceGroupArn)
 		}
 		return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lo.ToPtr(launchTemplate)}, nil
 	})

@@ -106,6 +106,7 @@ type LaunchTemplate struct {
 	NetworkInterfaces                []*ResolvedNetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
+	CapacityReservationGroupARN      string
 	CapacityReservationType          v1.CapacityReservationType
 	CapacityReservationInterruptible bool
 	Tenancy                          string
@@ -458,6 +459,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			NetworkInterfaces:                ResolveNetworkInterfaces(nodeClass.Spec.NetworkInterfaces),
 			CapacityType:                     capacityType,
 			CapacityReservationID:            id,
+			CapacityReservationGroupARN:      lo.Ternary(capacityType == karpv1.CapacityTypeOnDemand, lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN), ""),
 			CapacityReservationType:          capacityReservationType,
 			CapacityReservationInterruptible: capacityReservationInterruptible,
 			Tenancy:                          tenancyType,
