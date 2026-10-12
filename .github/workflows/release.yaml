@@ -24,6 +24,11 @@ jobs:
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           prerelease: false
+      # A backport to an older minor is published after the newest version, so it takes GitHub's "Latest" badge
+      - run: make latest-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
