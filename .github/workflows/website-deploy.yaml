@@ -3,6 +3,9 @@ on:
   push:
     branches: [ main ]
     paths: [ website/** ]
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   deploy:
     runs-on: ubuntu-latest
