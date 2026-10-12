@@ -39,7 +39,6 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -47,12 +46,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// gpuDeviceClass is the DeviceClass the NVIDIA DRA driver chart ships, so this is the name a real
-// workload references. efaDeviceClass has no such counterpart: dranet's install manifest ships no
-// DeviceClass, so the suite creates one.
+// gpuDeviceClass and efaDeviceClass are the DeviceClasses the NVIDIA DRA driver and aws-dranet charts
+// ship, so these are the names a real workload references.
 const (
 	gpuDeviceClass = "gpu.nvidia.com"
-	efaDeviceClass = "dra.net"
+	efaDeviceClass = "efa.networking.k8s.aws"
 )
 
 // attributePCIeRoot is the standardized attribute both drivers publish, and the one a topology
@@ -90,11 +88,11 @@ var _ = BeforeEach(func() {
 	if env.K8sMinorVersion() < 34 {
 		Skip("DRA requires the resource.k8s.io/v1 API, which is only served on EKS 1.34+")
 	}
-	// Both switches are needed: the AWS gate for Karpenter to contribute DRA templates at all, and the
-	// core option to stop ignoring DRA requests. aws.Environment.AfterEach restores the chart's
-	// settings, so there is nothing to undo here.
+	// This is what the chart's settings.enableDRA renders: the per-driver AWS gates for Karpenter to
+	// contribute each driver's templates at all, and the core option to stop ignoring DRA requests.
+	// aws.Environment.AfterEach restores the chart's settings, so there is nothing to undo here.
 	env.ExpectSettingsOverridden(
-		corev1.EnvVar{Name: "AWS_FEATURE_GATES", Value: "NodeClassCEL=false,DRA=true"},
+		corev1.EnvVar{Name: "AWS_FEATURE_GATES", Value: "NodeClassCEL=false,DRANVIDIAGPU=true,DRAEFA=true,RebootForRepair=false"},
 		corev1.EnvVar{Name: "IGNORE_DRA_REQUESTS", Value: "false"},
 	)
 
@@ -164,6 +162,8 @@ var _ = Describe("DRA", func() {
 		)
 
 		env.ExpectCreated(nodeClass, nodePool, constrained)
+		// env.Client reads from a cache, so wait for the pod to land in it before Consistently's first Get.
+		env.ExpectExists(constrained)
 		env.ConsistentlyExpectPendingPods(time.Minute, constrained)
 		Expect(env.Monitor.CreatedNodeCount()).To(BeZero())
 
@@ -175,16 +175,13 @@ var _ = Describe("DRA", func() {
 		installNVIDIADRADriver("")
 		installDRANet()
 		pinInstanceTypes(gpuTypes(hasEFA)...)
-		// Karpenter attaches EFA interfaces only when the NodeClaim requests vpc.amazonaws.com/efa or the
-		// EC2NodeClass pins spec.networkInterfaces (pkg/providers/instance/instance.go). A dra.net claim
-		// does neither, so without this extended resource the instance launches with a plain ENI, dranet
-		// publishes no EFA device, and the claim can never be satisfied.
+		// No vpc.amazonaws.com/efa request and no spec.networkInterfaces: Karpenter has to attach the EFA
+		// interfaces off the dra.net allocation alone (efadra.Requested). If it didn't, the instance would
+		// launch with a plain ENI, dranet would publish no EFA device, and the pod would never start.
 		pod := podClaiming(nil,
 			coretest.ExactDeviceRequest("gpu", gpuDeviceClass, 1),
 			coretest.ExactDeviceRequest("efa", efaDeviceClass, 1),
 		)
-		pod.Spec.Containers[0].Resources.Limits = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
-		pod.Spec.Containers[0].Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
 
 		env.ExpectCreated(nodeClass, nodePool, pod)
 		env.EventuallyExpectHealthy(pod)
@@ -195,6 +192,9 @@ var _ = Describe("DRA", func() {
 		// tells Karpenter to size nodes the same way. Restricting to single-GPU types is what makes this
 		// unambiguous -- with one GPU per node there is no second device for the four claims to spread
 		// across, so they only fit on one node if the shared capacity is being modeled.
+		if env.K8sMinorVersion() < 36 {
+			Skip("GPU sharing needs DRA consumable capacity, which is only enabled by default on EKS 1.36+")
+		}
 		installNVIDIADRADriver("4")
 		nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
 			v1.AnnotationNVIDIAConsumableCapacity: "4",
@@ -360,12 +360,12 @@ func enableConsumableShares(shares string) {
 	env.ExpectUpdated(daemonSet)
 }
 
-// installDRANet installs dranet, which publishes the dra.net ResourceSlices for EFA interfaces, plus
-// the DeviceClass it ships no manifest for.
+// installDRANet installs aws-dranet, the EKS build of dranet, which publishes the dra.net ResourceSlices
+// for EFA interfaces and the DeviceClass the specs claim against. Upstream dranet can't prepare an EFA:
+// the EFA PCI function has no netdev, and upstream only knows how to move a netdev into the pod.
 func installDRANet() {
 	GinkgoHelper()
-	applyManifest("testdata/dranet.yaml")
-	env.ExpectCreatedOrUpdated(coretest.DeviceClassWithSelector(efaDeviceClass, efadra.DriverName))
+	applyManifest("testdata/aws-dranet.yaml")
 }
 
 // applyManifest creates every object in a multi-document YAML file. Created-or-updated rather than
