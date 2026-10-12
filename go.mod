@@ -11,13 +11,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.33.6
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.1
 	github.com/aws/aws-sdk-go-v2/service/arczonalshift v1.32.0
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.336.1
-	github.com/aws/aws-sdk-go-v2/service/eks v1.101.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.338.1
+	github.com/aws/aws-sdk-go-v2/service/eks v1.102.0
 	github.com/aws/aws-sdk-go-v2/service/fis v1.46.1
 	github.com/aws/aws-sdk-go-v2/service/iam v1.64.1
 	github.com/aws/aws-sdk-go-v2/service/pricing v1.49.1
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.1
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.78.1
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.79.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.1
 	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.43.1
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20260430210630-2cd163d6f0d3
