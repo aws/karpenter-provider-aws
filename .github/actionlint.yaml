@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # Dedicated larger-runner group scoped to this repository
+  labels:
+    - karpenter_ubuntu-latest_4-core
