@@ -30,6 +30,7 @@ import (
 	arczonalshiftProvider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -42,6 +43,7 @@ import (
 type ReservedCapacityResolver struct {
 	PricingProvider             pricing.Provider
 	CapacityReservationProvider capacityreservation.Provider
+	UnavailableOfferings        *awscache.UnavailableOfferings
 	ZonalshiftProvider          arczonalshiftProvider.Provider
 }
 
@@ -94,8 +96,13 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 				scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpIn, string(reservation.ReservationType)),
 				scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpIn, fmt.Sprintf("%t", reservation.Interruptible)),
 			),
-			Price:               price,
-			Available:           isCompatibleWithNodeClass && reservationCapacity != 0 && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted,
+			Price: price,
+			// Available is pure health (compat, zone, expiry, zonal shift, ICE) and is intentionally decoupled from
+			// ReservationCapacity: a full-but-healthy reservation stays Available=true with ReservationCapacity=0, so
+			// terminate-first disruption (RFC kubernetes-sigs/karpenter#3203) sees a no-headroom reservation instead of
+			// stalling. Genuine unavailability (ICE'd, expiring, incompatible) still sets Available=false.
+			Available: isCompatibleWithNodeClass && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted &&
+				!r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), reservation.AvailabilityZone, nil, karpv1.CapacityTypeReserved, awscache.WithReservationID(reservation.ID)),
 			ReservationCapacity: reservationCapacity,
 		}
 		if zoneFound {

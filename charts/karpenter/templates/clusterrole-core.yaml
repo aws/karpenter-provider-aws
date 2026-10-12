@@ -47,6 +47,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling.k8s.io"]
+    resources: ["verticalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
     verbs: ["get", "list", "watch"]
@@ -81,7 +84,11 @@ rules:
     verbs: ["create"]
   - apiGroups: [""]
     resources: ["pods"]
+    {{- if .Values.settings.featureGates.podDeletionCostManagement }}
+    verbs: ["delete", "patch"]
+    {{- else }}
     verbs: ["delete"]
+    {{- end }}
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
   {{- end -}}

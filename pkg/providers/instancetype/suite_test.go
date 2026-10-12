@@ -65,6 +65,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -277,8 +278,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Placement group labels are only present when a placement group is configured on the NodeClass
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		var pods []*corev1.Pod
@@ -332,7 +331,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the accelerator, capacity reservation, and placement group labels
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(
 			append(
 				karpv1.WellKnownLabels.Difference(sets.New(
@@ -345,8 +344,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelPlacementGroupID,
 					v1.LabelPlacementGroupPartition,
 					corev1.LabelWindowsBuild,
-					// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-					v1.LabelInstanceNitroEnclavesSupported,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
@@ -393,7 +390,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
-		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, placement group, and NitroEnclavesSupported labels
+		// Ensure that we're exercising all well known labels except for the gpu, nvme, capacity reservation, and placement group labels
 		expectedLabels := append(karpv1.WellKnownLabels.Difference(sets.New(
 			v1.LabelCapacityReservationID,
 			v1.LabelCapacityReservationType,
@@ -406,8 +403,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
 			corev1.LabelWindowsBuild,
-			// NitroEnclavesSupported is tested separately in Context("NitroEnclavesSupported")
-			v1.LabelInstanceNitroEnclavesSupported,
 		)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)
 		Expect(lo.Keys(nodeSelector)).To(ContainElements(expectedLabels))
 
@@ -913,39 +908,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodes.Insert(node.Name)
 		}
 		Expect(nodes.Len()).To(Equal(1))
-	})
-	It("should launch instances for amd.com/gpu resource requests", func() {
-		nodeNames := sets.NewString()
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pods := []*corev1.Pod{
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("1")},
-				},
-			}),
-			// Should pack onto same instance
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("2")},
-				},
-			}),
-			// Should pack onto a separate instance
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("4")},
-				},
-			}),
-		}
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for _, pod := range pods {
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g4ad.16xlarge"))
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -3054,6 +3016,60 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
 			Entry("when the capacity block is expiring", v1.CapacityReservationStateExpiring),
 		)
+		// resolveReservedOffering resolves the instance type list and returns the reserved offering for the given
+		// reservation ID (nil if not present).
+		resolveReservedOffering := func(reservationID string) *corecloudprovider.Offering {
+			GinkgoHelper()
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == crInstanceType })
+			Expect(ok).To(BeTrue())
+			offering, _ := lo.Find(it.Offerings, func(o *corecloudprovider.Offering) bool {
+				return o.CapacityType() == karpv1.CapacityTypeReserved && o.Requirements.Get(v1.LabelCapacityReservationID).Any() == reservationID
+			})
+			return offering
+		}
+		It("should decouple Available (health) from ReservationCapacity (slots) when the reservation is ICE'd", func() {
+			// Baseline: a healthy reservation resolves to Available with its configured capacity.
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeTrue())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+
+			// Mark the reservation ICE'd via the shared unavailable-offerings cache (scoped by reservation ID, the same
+			// channel the launch path uses).
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// Re-resolve: Available flips to false (ICE'd) while ReservationCapacity is untouched (>0), proving the two
+			// axes are independent.
+			offering = resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			Expect(offering.ReservationCapacity).To(BeNumerically(">", 0))
+		})
+		It("should scope reservation ICE by reservation ID so one reservation's unavailability doesn't poison another sharing its instance type and zone", func() {
+			const otherID = "cr-other"
+			// A second reservation sharing crInstanceType + crZone but with a distinct ID.
+			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(otherID, 1)
+			nodeClass.Status.CapacityReservations = append(nodeClass.Status.CapacityReservations, v1.CapacityReservation{
+				AvailabilityZone: crZone,
+				ID:               otherID,
+				InstanceType:     crInstanceType,
+				ReservationType:  v1.CapacityReservationTypeDefault,
+			})
+
+			// Mark ONLY crID unavailable.
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceType(crInstanceType), crZone, karpv1.CapacityTypeReserved, map[string]string{"reason": "test"}, awscache.WithReservationID(crID))
+
+			// The ICE'd reservation is Available=false while the other, sharing its instance type + zone, stays Available.
+			icedOffering := resolveReservedOffering(crID)
+			Expect(icedOffering).ToNot(BeNil())
+			Expect(icedOffering.Available).To(BeFalse())
+			otherOffering := resolveReservedOffering(otherID)
+			Expect(otherOffering).ToNot(BeNil())
+			Expect(otherOffering.Available).To(BeTrue())
+		})
 	})
 	It("should mark offerings as unavailable for zones shifted away from", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -3442,9 +3458,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
 		})
 	})
-	Context("NitroEnclavesSupported", func() {
+	Context("Nitro Enclaves", func() {
 		// makeNitroEnclaveInstanceType returns a minimal ec2types.InstanceTypeInfo for testing
-		// the LabelInstanceNitroEnclavesSupported requirement, parameterized by NitroEnclavesSupport.
+		// Nitro Enclaves compatibility, parameterized by NitroEnclavesSupport.
 		makeNitroEnclaveInstanceType := func(support ec2types.NitroEnclavesSupport) ec2types.InstanceTypeInfo {
 			return ec2types.InstanceTypeInfo{
 				InstanceType:                  "m5.large",
@@ -3498,40 +3514,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			})
 		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"true\" when NitroEnclavesSupport is supported", func() {
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportSupported)},
-			})
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("true"))
-		})
-		It("should set LabelInstanceNitroEnclavesSupported to \"false\" when NitroEnclavesSupport is unsupported", func() {
-			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
-			})
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
-			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-
-			ExpectApplied(ctx, env.Client, nodeClass)
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-
-			m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
-				return it.Name == "m5.large"
-			})
-			Expect(ok).To(BeTrue())
-			Expect(m5large.Requirements.Get(v1.LabelInstanceNitroEnclavesSupported).Values()).To(ConsistOf("false"))
-		})
 		It("should isolate cached offering availability by enclave configuration", func() {
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
 				InstanceTypes: []ec2types.InstanceTypeInfo{makeNitroEnclaveInstanceType(ec2types.NitroEnclavesSupportUnsupported)},
@@ -3557,6 +3539,31 @@ var _ = Describe("InstanceTypeProvider", func() {
 			awsEnv.OfferingCache.Flush()
 			Expect(availableOfferings()).To(BeEmpty())
 			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
+		})
+	})
+	Context("Nested Virtualization", func() {
+		It("should isolate cached offering availability by nested virtualization configuration", func() {
+			// None of the fake instance types advertise the nested virtualization processor feature, so every
+			// offering should be unavailable when nested virtualization is enabled on the NodeClass.
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
+
+			nodeClass.Spec.CPUOptions = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("disabled")}
 			Expect(availableOfferings()).ToNot(BeEmpty())
 		})
 	})

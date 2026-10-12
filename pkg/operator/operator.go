@@ -157,7 +157,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
-	validationCache := cache.New(awscache.ValidationTTL, awscache.DefaultCleanupInterval)
+	validationCache := awscache.NewJitteredCache(awscache.ValidationTTL, 5*time.Minute, awscache.DefaultCleanupInterval)
 	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
 	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval

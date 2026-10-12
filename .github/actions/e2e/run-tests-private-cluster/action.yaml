@@ -33,7 +33,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.36"
+    default: "1.37"
   private_cluster:
     description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
     default: 'false'
@@ -76,7 +76,7 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       INTERRUPTION_QUEUE: ${{ inputs.cluster_name }}
       REGION: ${{ inputs.region }}
-      HELM_VERSION: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
+      HELM_VERSION: v3.18.6
       PROMETHEUS_REGION: ${{ inputs.prometheus_region }}
       WORKSPACE_ID: ${{ inputs.prometheus_workspace_id }}
       ACCOUNT_ID: ${{ inputs.account_id }}
@@ -103,8 +103,8 @@ runs:
             commands:
               # Make sure goenv is up to date
               - cd $HOME/.goenv && git pull --ff-only && cd -
-              # Install Go 1.22
-              - goenv install 1.22 && goenv global 1.22
+              # Install the Go version from go.mod; -s skips the install if the image already has it
+              - GO_VERSION="$(sed -n 's/^go //p' go.mod)" && goenv install -s "$GO_VERSION" && goenv global "$GO_VERSION"
           build:
             commands:
               - aws eks update-kubeconfig --name $CLUSTER_NAME

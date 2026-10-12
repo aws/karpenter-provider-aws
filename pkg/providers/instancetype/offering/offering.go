@@ -119,6 +119,7 @@ func NewDefaultProvider(
 		&ReservedCapacityResolver{
 			PricingProvider:             pricingProvider,
 			CapacityReservationProvider: capacityReservationProvider,
+			UnavailableOfferings:        unavailableOfferingsCache,
 			ZonalshiftProvider:          zonalshiftProvider,
 		},
 		&PlacementGroupResolver{},
