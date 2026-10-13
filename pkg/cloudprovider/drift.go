@@ -83,9 +83,6 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	// Only the NodeClaim's own instance type is needed to map it to an AMI, so look up that one instance type rather
-	// than listing (and injecting offerings into) every instance type for the NodeClass. Get returns an error if the
-	// instance type is unknown or isn't offered for this NodeClass.
 	instanceTypeName := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 	nodeInstanceType, err := c.instanceTypeProvider.Get(ctx, nodeClass, ec2types.InstanceType(instanceTypeName))
 	if err != nil {
