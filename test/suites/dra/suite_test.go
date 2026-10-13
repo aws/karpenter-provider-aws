@@ -29,12 +29,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/events"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -123,7 +126,7 @@ var _ = Describe("DRA", func() {
 		pod := podClaiming(nil, coretest.ExactDeviceRequest("gpu", gpuDeviceClass, 2))
 
 		env.ExpectCreated(nodeClass, nodePool, pod)
-		env.EventuallyExpectHealthy(pod)
+		skipOnICE(func() { env.EventuallyExpectHealthy(pod) }, pod)
 		nodes := env.ExpectCreatedNodeCount("==", 1)
 		Expect(multiGPU).To(ContainElement(instanceTypeOf(nodes[0])))
 	})
@@ -140,7 +143,7 @@ var _ = Describe("DRA", func() {
 		)
 
 		env.ExpectCreated(nodeClass, nodePool, pod)
-		env.EventuallyExpectHealthy(pod)
+		skipOnICE(func() { env.EventuallyExpectHealthy(pod) }, pod)
 		nodes := env.ExpectCreatedNodeCount("==", 1)
 		Expect(colocatable).To(ContainElement(instanceTypeOf(nodes[0])))
 	})
@@ -169,7 +172,7 @@ var _ = Describe("DRA", func() {
 
 		unconstrained := podClaiming(nil, coretest.ExactDeviceRequest("gpu", gpuDeviceClass, 2))
 		env.ExpectCreated(unconstrained)
-		env.EventuallyExpectCreatedNodeCount("==", 1)
+		skipOnICE(func() { env.EventuallyExpectCreatedNodeCount("==", 1) }, unconstrained)
 	})
 	It("should run a pod claiming both a GPU and an EFA device", func() {
 		installNVIDIADRADriver("")
@@ -184,7 +187,7 @@ var _ = Describe("DRA", func() {
 		)
 
 		env.ExpectCreated(nodeClass, nodePool, pod)
-		env.EventuallyExpectHealthy(pod)
+		skipOnICE(func() { env.EventuallyExpectHealthy(pod) }, pod)
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should time-slice one GPU across four claims and launch a second node for the fifth", func() {
@@ -208,7 +211,7 @@ var _ = Describe("DRA", func() {
 
 		env.ExpectCreated(lo.Map(pods, func(p *corev1.Pod, _ int) client.Object { return p })...)
 		env.ExpectCreated(nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pods...)
+		skipOnICE(func() { env.EventuallyExpectHealthy(pods...) }, pods...)
 		nodes := env.ExpectCreatedNodeCount("==", 1)
 		Expect(singleGPUTypes).To(ContainElement(instanceTypeOf(nodes[0])))
 
@@ -216,7 +219,7 @@ var _ = Describe("DRA", func() {
 		// to cost a second node. Without this, a template that advertised unlimited sharing would pass.
 		fifth := podClaiming(nil, oneShare)
 		env.ExpectCreated(fifth)
-		env.EventuallyExpectHealthy(fifth)
+		skipOnICE(func() { env.EventuallyExpectHealthy(fifth) }, fifth)
 		env.EventuallyExpectCreatedNodeCount("==", 2)
 	})
 })
@@ -266,6 +269,33 @@ func maxGPUsPerRoot(m *drametadata.DeviceMetadata) int {
 		}
 	}
 	return lo.Max(append(lo.Values(perRoot), 0))
+}
+
+// skipOnICE runs wait, and if it fails because EC2 had no capacity, skips the spec rather than failing it.
+// GPU capacity is patchy and outside the suite's control, and an ICE means Karpenter did pick a type for
+// the pods -- the part under test. It only counts as an ICE if no node came up during the wait and EC2
+// rejected a launch for one of pods: once a node exists, a failure is the node's or the driver's, and is
+// still reported.
+func skipOnICE(wait func(), pods ...*corev1.Pod) {
+	GinkgoHelper()
+	before := env.Monitor.CreatedNodeCount()
+	err := InterceptGomegaFailure(wait)
+	if err == nil {
+		return
+	}
+	if env.Monitor.CreatedNodeCount() == before && lo.SomeBy(pods, insufficientCapacity) {
+		Skip("EC2 had no capacity for any instance type Karpenter picked: " + err.Error())
+	}
+	Fail(err.Error())
+}
+
+func insufficientCapacity(pod *corev1.Pod) bool {
+	GinkgoHelper()
+	list, err := env.KubeClient.CoreV1().Events(pod.Namespace).List(env.Context, metav1.ListOptions{
+		FieldSelector: fields.Set{"involvedObject.name": pod.Name, "reason": events.InsufficientCapacityError}.String(),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	return len(list.Items) > 0
 }
 
 func instanceTypeOf(node *corev1.Node) string {
