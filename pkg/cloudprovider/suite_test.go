@@ -1369,6 +1369,35 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
+		It("should error if the NodeClaim's instance type is unknown", func() {
+			nodeClaim.Labels[corev1.LabelInstanceTypeStable] = "unknown.large"
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).To(HaveOccurred())
+			Expect(isDrifted).To(BeEmpty())
+		})
+		It("should map the AMI using the NodeClaim's own instance type", func() {
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			armInstanceType, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool {
+				return i.Requirements.Compatible(scheduling.NewLabelRequirements(map[string]string{
+					corev1.LabelArchStable: karpv1.ArchitectureArm64,
+				})) == nil
+			})
+			Expect(ok).To(BeTrue())
+			nodeClaim.Labels[corev1.LabelInstanceTypeStable] = armInstanceType.Name
+
+			// An arm64 instance type running the arm64 AMI is not drifted
+			nodeClaim.Status.ImageID = armAMIID
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeEmpty())
+
+			// An arm64 instance type running the amd64 AMI is drifted
+			nodeClaim.Status.ImageID = amdAMIID
+			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+		})
 		It("should error if the NodeClaim doesn't have ImageID", func() {
 			nodeClaim.Status.ImageID = ""
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)

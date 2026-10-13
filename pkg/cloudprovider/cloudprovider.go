@@ -325,7 +325,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 		}
 		return "", fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
+	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
 		return "", err
 	}
