@@ -57,6 +57,7 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeclaim/lifecycle"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -65,6 +66,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test/schedulingproperties"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -2013,6 +2015,42 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
 			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			ExpectLaunchTemplateNetworkInterfaces(ltInput, false, nodeClass.Spec.NetworkInterfaces)
+		})
+	})
+	Context("Scheduling Properties", func() {
+		var cfg schedulingproperties.Config
+		BeforeEach(func() {
+			// Let generated pods select any capacity type the instance types offer.
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			cfg = schedulingproperties.Config{
+				CloudProvider: cloudProvider,
+				InstanceTypes: instanceTypes,
+				NodePool:      nodePool,
+				// Mirrors the launch controller, which merges the NodeClaim's labels over the ones Create resolves.
+				Launch: func(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
+					created, err := cloudProvider.Create(ctx, nodeClaim)
+					if err != nil {
+						return nil, err
+					}
+					return lifecycle.PopulateNodeClaimDetails(nodeClaim.DeepCopy(), created), nil
+				},
+				// Karpenter rejects pods selecting the NodeClass label because its domain is restricted, even though it
+				// stamps that label on every node. See kubernetes-sigs/karpenter#3422.
+				KnownDeviations: sets.New(v1.LabelNodeClass),
+				Checks:          20,
+			}
+		})
+		It("should place pods that a launchable node satisfies", func() {
+			schedulingproperties.ExpectSatisfiablePodsArePlaced(ctx, GinkgoT(), cfg)
+		})
+		It("should only place pods on nodes that fit them", func() {
+			schedulingproperties.ExpectPlacementsFitNodes(ctx, GinkgoT(), cfg)
+		})
+		It("should schedule equivalent pods alike", func() {
+			schedulingproperties.ExpectEquivalentPodsScheduleAlike(ctx, GinkgoT(), cfg)
 		})
 	})
 	Context("Capacity Reservations", func() {

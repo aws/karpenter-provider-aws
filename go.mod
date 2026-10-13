@@ -51,7 +51,7 @@ require (
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
-	sigs.k8s.io/karpenter v1.15.1-0.20261021165533-fff8e4dbef9d
+	sigs.k8s.io/karpenter v1.15.1-0.20261027221333-d6edb11db95d
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -101,6 +101,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/leanovate/gopter v0.2.12-0.20260420070124-967a5004fb70 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mattn/go-runewidth v0.0.17 // indirect
