@@ -147,6 +147,10 @@ Karpenter records each scoring decision so you can see why an action was or wasn
 
 When a Deployment scales in, the ReplicaSet controller doesn't know which nodes Karpenter wants to consolidate. The alpha `PodDeletionCostManagement` feature gate lets Karpenter steer ReplicaSet scale-down toward those nodes. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
 
+#### VPA predictions
+
+When Karpenter moves pods that a Vertical Pod Autoscaler manages, VPA sets the recreated pods' requests to its recommendation. The alpha `PredictionEnabled` feature gate lets Karpenter use those recommendations, instead of the pods' current requests, when it decides whether the pods fit on other nodes and how large a replacement node should be. See [VPA Predictions]({{<ref "vpa-predictions.md" >}}).
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 

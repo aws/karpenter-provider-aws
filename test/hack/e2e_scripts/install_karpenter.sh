@@ -25,6 +25,7 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.featureGates.capacityBuffer=true \
   --set settings.featureGates.terminateFirstDrift=true \
   --set settings.featureGates.terminateFirstRepair=true \
+  --set settings.featureGates.predictionEnabled=true \
   --set settings.awsFeatureGates.nodeClassCEL=true \
   --set settings.awsFeatureGates.draNVIDIAGPU=true \
   --set settings.awsFeatureGates.draEFA=true \

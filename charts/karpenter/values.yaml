@@ -259,6 +259,9 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
+    # -- predictionEnabled is ALPHA and is disabled by default.
+    # Setting this to true will enable Karpenter to size nodes using VPA predictions during provisioning and disruption.
+    predictionEnabled: false
     # -- terminateFirstDrift is ALPHA and is disabled by default.
     # Setting this to true lets drift terminate a node before launching its replacement on a capacity-constrained NodePool.
     terminateFirstDrift: false
