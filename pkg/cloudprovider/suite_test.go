@@ -412,6 +412,8 @@ var _ = Describe("CloudProvider", func() {
 			Entry("well-known XID without a family", "NvidiaXID13Error", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
 			Entry("non-XID GPU fault within toleration", "NvidiaDoubleBitError", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
 			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", 24*365*time.Hour, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("DCGM fault naming a fatal XID", "DCGMXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
 		)
 		DescribeTable("should resolve AcceleratedHardwareReady=Unknown by reason",
 			func(reason string, action corecloudprovider.RepairAction, fallback bool) {
@@ -423,6 +425,7 @@ var _ = Describe("CloudProvider", func() {
 			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.RebootNode, false),
 			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.ReplaceNode, false),
 			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.ReplaceNode, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.RepairAction(""), false),
 		)
 		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
 			matcher = newMatcher(false)

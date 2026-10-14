@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -417,6 +418,26 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `.*XID(64|74|79|142|151).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			// DCGM health check failures are not repaired, matching managed node groups. The repair policy schema has no
+			// no-op action, and any reason no policy matches goes to the default fallback, which replaces. So this
+			// policy matches DCGM reasons with a toleration that never elapses, keeping them out of the fallback; its
+			// action never applies. A DCGM reason that names a listed XID is still repaired by the XID policies above.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            `^DCGM`,
+			TolerationDuration:     time.Duration(math.MaxInt64),
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `^DCGM`,
+			TolerationDuration:     time.Duration(math.MaxInt64),
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
 			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
