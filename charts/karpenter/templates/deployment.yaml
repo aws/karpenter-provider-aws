@@ -122,7 +122,7 @@ spec:
                   resource: requests.cpu
           {{- if .Values.controller.memoryLimit }}
             - name: MEMORY_LIMIT
-              value: {{ .Values.controller.memoryLimit | quote }}
+              value: {{ .Values.controller.memoryLimit | int64 | quote }}
           {{- else }}
             - name: MEMORY_LIMIT
               valueFrom:
