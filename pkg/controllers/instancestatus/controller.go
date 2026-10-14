@@ -20,7 +20,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/awslabs/operatorpkg/reasonable"
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/awslabs/operatorpkg/status"
@@ -28,6 +27,7 @@ import (
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -86,14 +87,19 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		return reconciler.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
 	}
 	// Node labels can be written before the NodeClaim's Registered condition and can outlive the NodeClaim, so only
-	// publish health for Nodes that belong to a registered NodeClaim. ObservedOnly avoids initializing missing
-	// conditions on objects shared with the informer cache.
+	// publish health for Nodes that belong to a registered NodeClaim. Status checks can fail while an instance reboots,
+	// so rebooting NodeClaims are skipped. ObservedOnly avoids initializing missing conditions on objects shared with
+	// the informer cache.
 	nodeClaims = lo.Filter(nodeClaims, func(nodeClaim *karpv1.NodeClaim, _ int) bool {
-		return nodeClaim.StatusConditions(status.WithObservedOnly()).IsTrue(karpv1.ConditionTypeRegistered)
+		conditions := nodeClaim.StatusConditions(status.WithObservedOnly())
+		return conditions.IsTrue(karpv1.ConditionTypeRegistered) && !conditions.IsTrue(karpv1.ConditionTypeRebooting)
 	})
 
+	// Stop dispatching patches once one is forbidden, since every remaining patch would fail the same way.
+	patchCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	errs := make([]error, len(nodeClaims))
-	workqueue.ParallelizeUntil(ctx, 10, len(nodeClaims), func(i int) {
+	workqueue.ParallelizeUntil(patchCtx, 10, len(nodeClaims), func(i int) {
 		node, err := nodeclaimutils.NodeForNodeClaim(ctx, c.kubeClient, nodeClaims[i])
 		if err != nil {
 			errs[i] = nodeclaimutils.IgnoreNodeNotFoundError(err)
@@ -120,8 +126,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			condition.Message = fmt.Sprintf("EC2 reports failing reachability checks: %s", strings.Join(lo.Uniq(lo.Map(hs.Details, func(d instancestatus.Details, _ int) string { return string(d.Category) })), ", "))
 			// Toleration is measured from when EC2 first reported the impairment, not from when Karpenter observed it.
 			// EC2 may omit ImpairedSince, in which case the observation time is used.
-			impairedSince := lo.Filter(lo.Map(hs.Details, func(d instancestatus.Details, _ int) time.Time { return d.ImpairedSince }), func(t time.Time, _ int) bool { return !t.IsZero() })
-			condition.LastTransitionTime = metav1.NewTime(lo.Ternary(len(impairedSince) == 0, c.clock.Now(), lo.MinBy(impairedSince, func(a, b time.Time) bool { return a.Before(b) })))
+			condition.LastTransitionTime = metav1.NewTime(lo.Ternary(hs.ImpairedSince.IsZero(), c.clock.Now(), hs.ImpairedSince))
 		}
 		current := nodeutils.GetCondition(node, condition.Type)
 		if current.Status == condition.Status {
@@ -131,13 +136,16 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			return
 		}
 		stored := node.DeepCopy()
-		if _, idx, ok := lo.FindIndexOf(node.Status.Conditions, func(c corev1.NodeCondition) bool { return c.Type == condition.Type }); ok {
+		if _, idx, ok := lo.FindIndexOf(node.Status.Conditions, func(nodeCondition corev1.NodeCondition) bool { return nodeCondition.Type == condition.Type }); ok {
 			node.Status.Conditions[idx] = condition
 		} else {
 			node.Status.Conditions = append(node.Status.Conditions, condition)
 		}
 		if err := c.kubeClient.Status().Patch(ctx, node, client.StrategicMergeFrom(stored)); client.IgnoreNotFound(err) != nil {
 			errs[i] = fmt.Errorf("patching node %q status, %w", node.Name, err)
+			if apierrors.IsForbidden(err) {
+				cancel()
+			}
 		}
 	})
 	if err := multierr.Combine(errs...); err != nil {
@@ -150,7 +158,8 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("node.instancestatus").
 		WatchesRawSource(singleton.Source()).
-		// Cap retries so a throttled or unauthorized account recovers soon after the error clears.
-		WithOptions(controller.Options{RateLimiter: reasonable.RateLimiter()}).
+		// Retry failures at the poll interval. Faster retries add EC2 and API server load, and slower ones could leave a
+		// stale EC2StatusReady=False past the repair toleration.
+		WithOptions(controller.Options{RateLimiter: workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](pollInterval, pollInterval)}).
 		Complete(singleton.AsReconciler(c))
 }

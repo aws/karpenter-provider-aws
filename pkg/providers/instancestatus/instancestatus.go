@@ -17,7 +17,6 @@ package instancestatus
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -137,12 +136,16 @@ func (p DefaultProvider) List(ctx context.Context, categories ...Category) ([]He
 		if len(healthStatus.Details) == 0 {
 			continue
 		}
-		healthStatus.ImpairedSince = slices.MinFunc(healthStatus.Details, func(a, b Details) int {
-			return a.ImpairedSince.Compare(b.ImpairedSince)
-		}).ImpairedSince
+		healthStatus.ImpairedSince = EarliestImpairedSince(healthStatus.Details)
 		healthStatuses = append(healthStatuses, healthStatus)
 	}
 	return healthStatuses, nil
+}
+
+// EarliestImpairedSince returns the earliest ImpairedSince reported for the details, or the zero time when EC2 reported none.
+func EarliestImpairedSince(details []Details) time.Time {
+	impairedSince := lo.FilterMap(details, func(d Details, _ int) (time.Time, bool) { return d.ImpairedSince, !d.ImpairedSince.IsZero() })
+	return lo.MinBy(impairedSince, func(a, b time.Time) bool { return a.Before(b) })
 }
 
 // newHealthStatus constructs a more consumable version of Health Status Details from the different status checks
