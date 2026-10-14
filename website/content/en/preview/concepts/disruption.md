@@ -292,6 +292,8 @@ A policy matches the condition's reason with a [Go regular expression](https://p
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | Any reason not matched by another policy for the condition | 10 minutes | 10 minutes | `ReplaceNode` |
 | `StorageReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 | `StorageReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
