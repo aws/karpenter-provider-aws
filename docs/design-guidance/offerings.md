@@ -265,6 +265,12 @@ func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInf
 }
 ```
 
+A compatibility check's inputs are offering inputs. Base offerings are cached and shared by every
+NodeClass whose cache key matches, so each NodeClass value a check reads must also be part of the
+offering cache key (§2.4). If it isn't, whichever NodeClass populates an entry first decides
+availability for the rest: a NodeClass with the option enabled can be offered instance types that
+don't support it, and one without it can lose instance types it could use.
+
 A capability label can sit alongside NodeClass configuration. For example,
 `karpenter.k8s.aws/instance-hypervisor` lets workloads select nitro instance types, while
 `connectionTracking`, which requires a nitro hypervisor, is configured on the NodeClass. Keep the
@@ -437,8 +443,14 @@ the rule.
 
 #### Lifecycle and cost
 
-- **L1: Cache key completeness.** Any NodeClass field that affects offerings is part of the offering
-  cache key.
+- **L1: Cache key completeness.** Every input to offering computation is part of the offering cache
+  key. That includes NodeClass values read by a resolver *or by a compatibility check*, and resolved
+  state such as subnets or the placement group. A key component may be coarser than the raw field
+  (for example, whether nested virtualization is enabled rather than the whole `cpuOptions`), but
+  never coarser than what the computation distinguishes. *Failure mode: the cache is shared across
+  NodeClasses, so NodeClasses that differ only in that input share an entry, and availability
+  depends on which one populated it first. The result is either launch failures or instance types
+  that are wrongly unavailable.*
 - **L2: Drift decided.** The design states whether changing the option drifts existing nodes, and
   the NodeClass hash reflects that decision.
 - **L3: Offering growth bounded.** If the change multiplies offering count, it applies only when
@@ -458,7 +470,9 @@ the rule.
 - **T1: Discoverability.** New NodeClass fields have godoc/CRD descriptions. New labels are added to
   the website's label reference and, if the value set is closed, to `WellKnownValuesForRequirements`.
 - **T2: Negative coverage.** Tests cover the unavailable/incompatible path and the unconstrained
-  launch-time default, not just the happy path.
+  launch-time default, not just the happy path. If the option affects offerings, tests resolve
+  offerings for NodeClasses that differ only in that option against a shared cache, in both orders,
+  and check that each gets its own result.
 
 ### 2.4 Wiring checklist
 
@@ -470,8 +484,8 @@ The touchpoints a new option typically hits. Not every option needs all of them.
 | 2. Label registration | `pkg/apis/v1/labels.go` | Add to `WellKnownLabels`. For a closed value set, also add to `karpv1.WellKnownValuesForRequirements` so NodePool/NodeClaim CEL validation rejects typos. |
 | 3. Instance type requirements | `computeRequirements` in `pkg/providers/instancetype/types.go` | Advertise the union of all offering values, or `DoesNotExist`. |
 | 4. Offerings | new `OfferingResolver` in `pkg/providers/instancetype/offering/`, registered on the provider | **Only needed for dependent options, which apply to a subset of offerings.** An independent option like instance tenancy never appears in offerings. Set `Requirements`, `Price`, `Available`, and any capacity/overhead override. Resolvers must be deterministic and cheap. |
-| 5. Offering cache key | `newCacheKeyBuilder` in `base_resolver.go` | **Any NodeClass field that affects offerings must be in the cache key**, or stale offerings will be served across NodeClasses. |
-| 6. Instance type compatibility | `pkg/providers/instancetype/compatibility/` | For NodeClass configuration that makes some instance types unusable. |
+| 5. Offering cache key | `newCacheKeyBuilder` in `base_resolver.go` | **Every input a resolver or compatibility check reads must be in the cache key**, or offerings computed for one NodeClass will be served to another. |
+| 6. Instance type compatibility | `pkg/providers/instancetype/compatibility/` | For NodeClass configuration that makes some instance types unusable. Every NodeClass value the check reads must also be added to the cache key (step 5). |
 | 7. Launch resolution | `pkg/providers/instance/`, `pkg/providers/launchtemplate/` | The deterministic decision rule for unconstrained/multi-valued requirements, plus the EC2 API plumbing. |
 | 8. Label round-trip | `pkg/cloudprovider/cloudprovider.go` | Set the resolved value on the NodeClaim so `List`/`Get`/registration agree with `Create`. |
 | 9. Drift | NodeClass hash and/or `IsDrifted` | Decide explicitly whether changing this option should replace existing nodes. |
@@ -483,5 +497,7 @@ Every design should address two cost considerations:
   type, zone, and capacity type. An expansion that multiplies the offering count (like partition
   placement groups) should apply only when the feature is configured, and should be feature-gated
   while it's new.
-- **Cache correctness beats cache hit rate.** A missing cache key component is a correctness bug; an
-  extra one only costs recomputation.
+- **Cache correctness beats cache hit rate.** The offering cache is shared across NodeClasses, so a
+  missing key component is a correctness bug that shows up only for some orderings, while an extra
+  one only costs recomputation. Key on the value the computation actually reads, not on the field it
+  came from.
