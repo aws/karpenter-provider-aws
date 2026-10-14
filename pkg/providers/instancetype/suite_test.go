@@ -39,6 +39,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -2540,6 +2541,40 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
+	})
+	Context("Volume Attachment Limits", func() {
+		DescribeTable("should only launch nodes that can attach every EBS volume a pod uses",
+			func(volumes int, schedulable bool) {
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"t3.large"},
+				})
+				storageClass := coretest.StorageClass(coretest.StorageClassOptions{
+					Provisioner:       lo.ToPtr("ebs.csi.aws.com"),
+					VolumeBindingMode: lo.ToPtr(storagev1.VolumeBindingWaitForFirstConsumer),
+				})
+				pvcs := lo.Times(volumes, func(_ int) *corev1.PersistentVolumeClaim {
+					return coretest.PersistentVolumeClaim(coretest.PersistentVolumeClaimOptions{StorageClassName: lo.ToPtr(storageClass.Name)})
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass, storageClass)
+				for _, pvc := range pvcs {
+					ExpectApplied(ctx, env.Client, pvc)
+				}
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					PersistentVolumeClaims: lo.Map(pvcs, func(pvc *corev1.PersistentVolumeClaim, _ int) string { return pvc.Name }),
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				if schedulable {
+					ExpectScheduled(ctx, env.Client, pod)
+				} else {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+			},
+			// t3.large allows 27 EBS attachments, one of which is the root volume
+			Entry("26 volumes", 26, true),
+			Entry("27 volumes", 27, false),
+		)
 	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
