@@ -17,7 +17,6 @@ package interruption
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -123,9 +122,7 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		if len(hs.Details) == 0 {
 			return hs, false
 		}
-		hs.ImpairedSince = slices.MinFunc(hs.Details, func(a, b instancestatus.Details) int {
-			return a.ImpairedSince.Compare(b.ImpairedSince)
-		}).ImpairedSince
+		hs.ImpairedSince = instancestatus.EarliestImpairedSince(hs.Details)
 		return hs, true
 	})
 

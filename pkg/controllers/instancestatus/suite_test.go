@@ -17,6 +17,7 @@ package instancestatus_test
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +25,10 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -47,10 +51,31 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
+// forbiddenStatusClient rejects every status patch as if Karpenter lacked the nodes/status permission.
+type forbiddenStatusClient struct {
+	client.Client
+	patches *atomic.Int32
+}
+
+func (f forbiddenStatusClient) Status() client.SubResourceWriter {
+	return forbiddenStatusWriter{SubResourceWriter: f.Client.Status(), patches: f.patches}
+}
+
+type forbiddenStatusWriter struct {
+	client.SubResourceWriter
+	patches *atomic.Int32
+}
+
+func (f forbiddenStatusWriter) Patch(_ context.Context, obj client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
+	f.patches.Add(1)
+	return apierrors.NewForbidden(schema.GroupResource{Resource: "nodes/status"}, obj.GetName(), fmt.Errorf("forbidden"))
+}
+
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var controller *instancestatus.Controller
+var cloudProvider *cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -62,7 +87,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...), coretest.WithFieldIndexers(coretest.NodeProviderIDFieldIndexer(ctx)))
 	awsEnv = test.NewEnvironment(ctx, env)
-	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	controller = instancestatus.NewController(env.Client, awsEnv.Clock, cloudProvider, awsEnv.InstanceStatusProvider)
 })
@@ -198,6 +223,27 @@ var _ = Describe("InstanceStatus", func() {
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("throttled"))
 		_ = ExpectSingletonReconcileFailed(ctx, controller)
 		expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonInstanceReachabilityFailed, impairedSince)
+	})
+	It("should not publish health for a Node whose NodeClaim is rebooting", func() {
+		impair(lo.ToPtr(awsEnv.Clock.Now().Add(-5*time.Minute)), nil)
+		nodeClaim.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeRebooting, karpv1.RebootReasonIssued, "")
+		ExpectApplied(ctx, env.Client, nodeClaim, node)
+		ExpectSingletonReconciled(ctx, controller)
+		Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), instancestatusprovider.ConditionTypeEC2StatusReady).Type).To(BeEmpty())
+	})
+	It("should stop patching Nodes once a status patch is forbidden", func() {
+		for range 11 {
+			nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				Spec:   karpv1.NodeClaimSpec{NodeClassRef: nodeClaim.Spec.NodeClassRef},
+				Status: karpv1.NodeClaimStatus{ProviderID: fake.RandomProviderID()},
+			})
+			nc.StatusConditions().SetTrue(karpv1.ConditionTypeRegistered)
+			ExpectApplied(ctx, env.Client, nc, n)
+		}
+		patches := &atomic.Int32{}
+		forbidden := instancestatus.NewController(forbiddenStatusClient{Client: env.Client, patches: patches}, awsEnv.Clock, cloudProvider, awsEnv.InstanceStatusProvider)
+		Expect(ExpectSingletonReconcileFailed(ctx, forbidden)).To(MatchError(ContainSubstring("forbidden")))
+		Expect(patches.Load()).To(BeNumerically("<=", 10))
 	})
 	It("should not publish health for a Node without a registered NodeClaim", func() {
 		nodeClaim.StatusConditions().SetUnknown(karpv1.ConditionTypeRegistered)
