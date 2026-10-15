@@ -35,6 +35,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/metrics"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
+	controllersinstance "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instance"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
 	controllersinstancetypecapacity "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype/capacity"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
@@ -102,6 +103,7 @@ func NewControllers(
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient, caBundle),
 		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, placementGroupProvider, ec2api, validationCache, recreationCache, amiResolver, celEnv, options.FromContext(ctx).DisableDryRun),
+		controllersinstance.NewController(instanceProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
