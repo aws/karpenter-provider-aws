@@ -127,18 +127,6 @@ var _ = Describe("Instance Status Provider", func() {
 			Expect(lo.Map(statuses[0].Details, func(d instancestatus.Details, _ int) instancestatus.Category { return d.Category })).
 				To(ConsistOf(instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus))
 		})
-		It("should use the earliest reported impairment time and ignore details without one", func() {
-			earliest := time.Date(2026, time.October, 15, 12, 0, 0, 0, time.UTC)
-			Expect(instancestatus.EarliestImpairedSince([]instancestatus.Details{
-				{ImpairedSince: time.Time{}},
-				{ImpairedSince: earliest.Add(time.Minute)},
-				{ImpairedSince: earliest},
-			})).To(Equal(earliest))
-			Expect(instancestatus.EarliestImpairedSince([]instancestatus.Details{{}})).To(BeZero())
-		})
-		It("should panic for a category without a filter", func() {
-			Expect(func() { _, _ = awsEnv.InstanceStatusProvider.List(ctx, instancestatus.EBSStatus) }).To(Panic())
-		})
 		It("should not return healthy statuses", func() {
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{

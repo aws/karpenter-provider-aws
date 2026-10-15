@@ -180,12 +180,6 @@ var _ = Describe("InstanceStatus", func() {
 		ExpectSingletonReconciled(ctx, controller)
 		expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonInstanceReachabilityFailed, awsEnv.Clock.Now())
 	})
-	It("should set EC2StatusReady=True when EC2 reports no impairment", func() {
-		ExpectApplied(ctx, env.Client, nodeClaim, node)
-		ExpectSingletonReconciled(ctx, controller)
-		expectCondition(corev1.ConditionTrue, instancestatusprovider.ReasonNoImpairmentReported, awsEnv.Clock.Now())
-		Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), corev1.NodeReady).Status).To(Equal(corev1.ConditionTrue))
-	})
 	It("should keep the transition time when the failing check changes and set EC2StatusReady=True when the impairment clears", func() {
 		impairedSince := awsEnv.Clock.Now().Add(-time.Minute)
 		impair(&impairedSince, nil)
@@ -205,9 +199,11 @@ var _ = Describe("InstanceStatus", func() {
 		expectCondition(corev1.ConditionTrue, instancestatusprovider.ReasonNoImpairmentReported, awsEnv.Clock.Now())
 		Expect(ExpectExists(ctx, env.Client, node).ResourceVersion).ToNot(Equal(resourceVersion))
 	})
-	It("should not patch the Node when the condition is unchanged", func() {
+	It("should set EC2StatusReady=True when EC2 reports no impairment and not patch the Node again while unchanged", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, node)
 		ExpectSingletonReconciled(ctx, controller)
+		expectCondition(corev1.ConditionTrue, instancestatusprovider.ReasonNoImpairmentReported, awsEnv.Clock.Now())
+		Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), corev1.NodeReady).Status).To(Equal(corev1.ConditionTrue))
 		resourceVersion := ExpectExists(ctx, env.Client, node).ResourceVersion
 		awsEnv.Clock.Step(time.Minute)
 		ExpectSingletonReconciled(ctx, controller)
