@@ -37,8 +37,6 @@ const (
 	// in the Interruption controller when an SQS queue is configured. The handling of maintenance events is
 	// currently primitive where we treat all events as instance degradation with an involuntary replacement.
 	EventStatus = Category("EventStatus")
-	// EBSStatus check failures are currently ignored until we can differentiate which volumes affect the node vs pods w/ PVCs
-	EBSStatus = Category("EBSStatus")
 )
 
 const (
@@ -80,7 +78,6 @@ type DefaultProvider struct {
 
 type HealthStatus struct {
 	InstanceID    string
-	Overall       ec2types.SummaryStatus
 	ImpairedSince time.Time
 	Details       []Details
 }
@@ -152,7 +149,6 @@ func EarliestImpairedSince(details []Details) time.Time {
 func (p DefaultProvider) newHealthStatus(statusChecks ec2types.InstanceStatus) HealthStatus {
 	healthStatus := HealthStatus{
 		InstanceID: *statusChecks.InstanceId,
-		Overall:    ec2types.SummaryStatusImpaired,
 	}
 	if statusChecks.InstanceStatus != nil {
 		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.InstanceStatus.Details, func(details ec2types.InstanceStatusDetails, _ int) Details {
@@ -162,11 +158,6 @@ func (p DefaultProvider) newHealthStatus(statusChecks ec2types.InstanceStatus) H
 	if statusChecks.SystemStatus != nil {
 		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.SystemStatus.Details, func(details ec2types.InstanceStatusDetails, _ int) Details {
 			return p.newDetails(details, SystemStatus)
-		})...)
-	}
-	if statusChecks.AttachedEbsStatus != nil {
-		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.AttachedEbsStatus.Details, func(details ec2types.EbsStatusDetails, _ int) Details {
-			return p.newDetails(details, EBSStatus)
 		})...)
 	}
 	healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.Events, func(details ec2types.InstanceStatusEvent, _ int) Details {
@@ -184,20 +175,12 @@ func (p DefaultProvider) newDetails(details any, category Category) Details {
 			ImpairedSince: lo.FromPtr(ec2Details.ImpairedSince),
 		}
 	}
-	if ec2Events, ok := details.(ec2types.InstanceStatusEvent); ok {
-		return Details{
-			Category: category,
-			Name:     string(ec2Events.Code),
-			// treat all scheduled maintenance events as failures
-			Status:        ec2types.StatusTypeFailed,
-			ImpairedSince: p.clk.Now(),
-		}
-	}
-	ebsDetails := details.(ec2types.EbsStatusDetails)
+	ec2Events := details.(ec2types.InstanceStatusEvent)
 	return Details{
-		Category:      category,
-		Name:          string(ebsDetails.Name),
-		Status:        ebsDetails.Status,
-		ImpairedSince: lo.FromPtr(ebsDetails.ImpairedSince),
+		Category: category,
+		Name:     string(ec2Events.Code),
+		// treat all scheduled maintenance events as failures
+		Status:        ec2types.StatusTypeFailed,
+		ImpairedSince: p.clk.Now(),
 	}
 }
