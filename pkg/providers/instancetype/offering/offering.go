@@ -181,11 +181,12 @@ func (p *DefaultProvider) InjectOfferings(
 			}
 		}
 		its = append(its, &cloudprovider.InstanceType{
-			Name:         it.Name,
-			Requirements: reqs,
-			Offerings:    offerings,
-			Capacity:     it.Capacity,
-			Overhead:     it.Overhead,
+			Name:                   it.Name,
+			Requirements:           reqs,
+			Offerings:              offerings,
+			Capacity:               it.Capacity,
+			Overhead:               it.Overhead,
+			VolumeAttachmentLimits: it.VolumeAttachmentLimits,
 		})
 	}
 	return its
