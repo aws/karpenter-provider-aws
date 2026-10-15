@@ -25,6 +25,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -64,8 +65,10 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 			IsMutable: amiVersion == v1.AliasVersionLatest,
 		})
 		if err != nil {
+			log.FromContext(ctx).WithValues("ssmParameter", path).V(1).Error(err, "failed to resolve AMI id from SSM parameter")
 			continue
 		}
+		log.FromContext(ctx).WithValues("ssmParameter", path, "id", imageID).V(1).Info("resolved AMI id from SSM parameter")
 		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
