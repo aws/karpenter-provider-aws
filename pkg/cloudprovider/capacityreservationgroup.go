@@ -17,6 +17,7 @@ package cloudprovider
 import (
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -25,10 +26,29 @@ import (
 func validateCapacityReservationGroupRequirements(requirements []karpv1.NodeSelectorRequirementWithMinValues, labels map[string]string) error {
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(requirements...)
 	reqs.Add(scheduling.NewLabelRequirements(labels).Values()...)
+	return validateCapacityReservationGroupConstraints(reqs)
+}
+
+func validateCapacityReservationGroupNodeClaimRequirements(requirements []karpv1.NodeSelectorRequirementWithMinValues, labels map[string]string) error {
+	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(requirements...)
+	reqs.Add(scheduling.NewLabelRequirements(labels).Values()...)
+	capacityType := reqs.Get(karpv1.CapacityTypeLabelKey)
+	// Spot-only claims never target the group or change capacity type after launch.
+	if capacityType.Operator() == corev1.NodeSelectorOpIn && capacityType.Len() == 1 && capacityType.Has(karpv1.CapacityTypeSpot) {
+		return validateCapacityReservationGroupReservationRequirements(reqs)
+	}
+	return validateCapacityReservationGroupConstraints(reqs)
+}
+
+func validateCapacityReservationGroupConstraints(reqs scheduling.Requirements) error {
 	capacityType := reqs.Get(karpv1.CapacityTypeLabelKey)
 	if !capacityType.Has(karpv1.CapacityTypeOnDemand) || !capacityType.Has(karpv1.CapacityTypeReserved) {
 		return fmt.Errorf("capacityReservationGroupARN requires both on-demand and reserved capacity types to be allowed")
 	}
+	return validateCapacityReservationGroupReservationRequirements(reqs)
+}
+
+func validateCapacityReservationGroupReservationRequirements(reqs scheduling.Requirements) error {
 	for label := range cloudprovider.ReservedCapacityLabels {
 		if reqs.Has(label) {
 			return fmt.Errorf("capacityReservationGroupARN is incompatible with requirements on %s", label)

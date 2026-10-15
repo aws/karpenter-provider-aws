@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
@@ -81,12 +82,58 @@ var _ = Describe("Capacity reservation group requirements", func() {
 		Entry("On-Demand only", []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}}, map[string]string{}, "requires both on-demand and reserved"),
 		Entry("fixed reservation label", []karpv1.NodeSelectorRequirementWithMinValues{}, map[string]string{corecloudprovider.ReservationIDLabel: "cr-12345678"}, "incompatible with requirements"),
 	)
-	It("should preserve group intent after creating a scheduler-narrowed On-Demand NodeClaim", func() {
+	DescribeTable("should reject incompatible NodeClaims even when their NodePool allows group coverage", func(requirements []karpv1.NodeSelectorRequirementWithMinValues, labels map[string]string, message string) {
+		np.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+		ExpectApplied(ctx, env.Client, nc, np)
+		labels[karpv1.NodePoolLabelKey] = np.Name
+		claim := coretest.NodeClaim(karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{Labels: labels},
+			Spec:       karpv1.NodeClaimSpec{NodeClassRef: np.Spec.Template.Spec.NodeClassRef, Requirements: requirements},
+		})
+		_, err := cloudProvider.Create(ctx, claim)
+		Expect(err).To(MatchError(ContainSubstring(message)))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
+	},
+		Entry("On-Demand only, including ambiguous scheduler narrowing", []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}}, map[string]string{}, "requires both on-demand and reserved"),
+		Entry("reserved only", []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeReserved}}}, map[string]string{}, "requires both on-demand and reserved"),
+		Entry("fixed capacity-type label", []karpv1.NodeSelectorRequirementWithMinValues{}, map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand}, "requires both on-demand and reserved"),
+		Entry("fixed reservation label", []karpv1.NodeSelectorRequirementWithMinValues{}, map[string]string{corecloudprovider.ReservationIDLabel: "cr-12345678"}, "incompatible with requirements"),
+		Entry("reservation-ID requirement", []karpv1.NodeSelectorRequirementWithMinValues{{Key: corecloudprovider.ReservationIDLabel, Operator: corev1.NodeSelectorOpIn, Values: []string{"cr-12345678"}}}, map[string]string{}, "incompatible with requirements"),
+	)
+	DescribeTable("should schedule only workloads that tolerate group coverage with the updated core", func(selector map[string]string, compatible bool) {
+		np.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+		np.StatusConditions().SetTrue(status.ConditionReady)
+		ExpectApplied(ctx, env.Client, nc, np)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: selector})
+		scheduler, err := prov.NewScheduler(ctx, []*corev1.Pod{pod}, nil, nil)
+		Expect(err).ToNot(HaveOccurred())
+		results, err := scheduler.Solve(ctx, []*corev1.Pod{pod})
+		Expect(err).ToNot(HaveOccurred())
+		if !compatible {
+			Expect(results.NewNodeClaims).To(BeEmpty())
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
+			return
+		}
+		Expect(results.NewNodeClaims).To(HaveLen(1))
+		claim := results.NewNodeClaims[0].ToNodeClaim()
+		capacityType := scheduling.NewNodeSelectorRequirementsWithMinValues(claim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey)
+		Expect(capacityType.Values()).To(ConsistOf(karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved))
+		launched, err := cloudProvider.Create(ctx, claim)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(launched.Annotations).To(HaveKeyWithValue(karpv1.CapacityTypeTransitionsAnnotationKey, "on-demand,reserved"))
+		Expect(launched.Annotations).To(HaveKeyWithValue(v1.AnnotationCapacityReservationGroupARN, *nc.Spec.CapacityReservationGroupARN))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+	},
+		Entry("unconstrained pod", map[string]string{}, true),
+		Entry("On-Demand-only pod", map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand}, false),
+		Entry("reserved-only pod", map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeReserved}, false),
+	)
+	It("should preserve group intent when the NodeClaim permits both coverage states", func() {
 		np.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
 		ExpectApplied(ctx, env.Client, nc, np)
 		claim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{karpv1.NodePoolLabelKey: np.Name}},
-			Spec:       karpv1.NodeClaimSpec{NodeClassRef: np.Spec.Template.Spec.NodeClassRef, Requirements: []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}}},
+			Spec:       karpv1.NodeClaimSpec{NodeClassRef: np.Spec.Template.Spec.NodeClassRef, Requirements: np.Spec.Template.Spec.Requirements},
 		})
 		launched, err := cloudProvider.Create(ctx, claim)
 		Expect(err).ToNot(HaveOccurred())
@@ -94,6 +141,18 @@ var _ = Describe("Capacity reservation group requirements", func() {
 		Expect(launched.Annotations).To(HaveKeyWithValue(v1.AnnotationCapacityReservationGroupARN, *nc.Spec.CapacityReservationGroupARN))
 		Expect(launched.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(launched.Labels).ToNot(HaveKey(corecloudprovider.ReservationIDLabel))
+	})
+	It("should allow Spot-only NodeClaims without targeting the group", func() {
+		np.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+		ExpectApplied(ctx, env.Client, nc, np)
+		claim := coretest.NodeClaim(karpv1.NodeClaim{
+			ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{karpv1.NodePoolLabelKey: np.Name}},
+			Spec:       karpv1.NodeClaimSpec{NodeClassRef: np.Spec.Template.Spec.NodeClassRef, Requirements: []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}}},
+		})
+		launched, err := cloudProvider.Create(ctx, claim)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(launched.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeSpot))
+		Expect(launched.Annotations).ToNot(HaveKey(v1.AnnotationCapacityReservationGroupARN))
 	})
 	It("should not advertise stale individual reservations for a group NodeClass", func() {
 		nc.Status.CapacityReservations = []v1.CapacityReservation{{ID: "cr-12345678", InstanceType: "m5.large", AvailabilityZone: "test-zone-1a", State: v1.CapacityReservationStateActive, OwnerID: "123456789012", InstanceMatchCriteria: "targeted", ReservationType: v1.CapacityReservationTypeDefault}}

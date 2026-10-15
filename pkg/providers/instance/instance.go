@@ -579,7 +579,11 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		ofs := it.Offerings.Compatible(reqs).Launchable()
+		// Workload compatibility was checked before selecting the Fleet market. These requirements include the
+		// selected market, which must not be interpreted as a restriction on post-launch capacity-type transitions.
+		ofs := lo.Filter(it.Offerings.Launchable(), func(offering *cloudprovider.Offering, _ int) bool {
+			return reqs.IsCompatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels)
+		})
 		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
 		// for that capacity reservation when generating overrides.
 		if capacityReservationID != "" {

@@ -61,6 +61,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -102,7 +103,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -1286,6 +1287,20 @@ var _ = Describe("CloudProvider", func() {
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
+		})
+		It("should not drift Spot instances when the capacity reservation group target changes", func() {
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+			nodeClaim.Annotations = nil // Isolate dynamic group-target drift from static hash drift.
+			for _, groupARN := range []string{"arn:aws:resource-groups:us-west-2:123456789012:group/workload-a", "arn:aws:resource-groups:us-west-2:123456789012:group/workload-b", ""} {
+				nodeClass.Spec.CapacityReservationGroupARN = nil
+				if groupARN != "" {
+					nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
+				}
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				drifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(drifted).To(BeEmpty())
+			}
 		})
 		It("should drift group launch intent without drifting reservation reassociation", func() {
 			groupARN := "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"

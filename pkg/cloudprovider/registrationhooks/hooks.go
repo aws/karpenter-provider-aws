@@ -26,6 +26,7 @@ import (
 
 // AWSRegistrationHook serializes AWS label updates because core evaluates registration hooks in parallel.
 // Placement and reservation hooks both mutate the NodeClaim's label map, so they must share a single core hook.
+// The first pending hook determines the retry interval; later hooks run after it completes.
 type AWSRegistrationHook struct {
 	hooks []cloudprovider.NodeLifecycleHook
 }

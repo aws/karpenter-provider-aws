@@ -138,7 +138,7 @@ var _ = Describe("InstanceProvider", func() {
 	It("should launch an empty capacity reservation group with On-Demand fallback and persistent intent", func() {
 		groupARN := "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"
 		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
-		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}}
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
