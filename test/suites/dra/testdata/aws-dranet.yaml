@@ -1,0 +1,502 @@
+# Generated -- do not hand-edit. Regenerate with:
+#
+#   helm template aws-dranet aws-dranet --repo https://aws.github.io/eks-charts \
+#     --version 1.0.0 --namespace kube-system
+#
+# Chart defaults, no deviations: the chart's node affinity already limits the DaemonSet to EFA-capable
+# instance types, so it stays off the shared cluster's system nodes, and it ships the
+# efa.networking.k8s.aws DeviceClass the suite claims against.
+---
+# Source: aws-dranet/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aws-dranet
+  namespace: kube-system
+  labels:
+    helm.sh/chart: aws-dranet-1.0.0
+    app: aws-dranet
+    app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+    app.kubernetes.io/managed-by: Helm
+
+---
+# Source: aws-dranet/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: aws-dranet
+  labels:
+    helm.sh/chart: aws-dranet-1.0.0
+    app: aws-dranet
+    app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - "resource.k8s.io"
+    resources:
+      - resourceslices
+    verbs:
+      - list
+      - watch
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - "resource.k8s.io"
+    resources:
+      - resourceclaims
+      - deviceclasses
+    verbs:
+      - get
+  - apiGroups:
+      - "resource.k8s.io"
+    resources:
+      - resourceclaims/status
+    verbs:
+      - patch
+      - update
+  - apiGroups:
+      - "resource.k8s.io"
+    resources:
+      - resourceclaims/driver
+    verbs:
+      - associated-node:patch
+      - associated-node:update
+    resourceNames:
+      - dra.net
+
+---
+# Source: aws-dranet/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: aws-dranet
+  labels:
+    helm.sh/chart: aws-dranet-1.0.0
+    app: aws-dranet
+    app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aws-dranet
+subjects:
+- kind: ServiceAccount
+  name: aws-dranet
+  namespace: kube-system
+
+---
+# Source: aws-dranet/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aws-dranet
+  namespace: kube-system
+  labels:
+    helm.sh/chart: aws-dranet-1.0.0
+    app: aws-dranet
+    app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+    app.kubernetes.io/managed-by: Helm
+    tier: node
+    app: aws-dranet
+    k8s-app: aws-dranet
+spec:
+  selector:
+    matchLabels:
+      app: aws-dranet
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: aws-dranet-1.0.0
+        app: aws-dranet
+        app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+        app.kubernetes.io/managed-by: Helm
+        app: aws-dranet
+        tier: node
+        k8s-app: aws-dranet
+    spec:
+      priorityClassName: "system-node-critical"
+      hostNetwork: true
+      hostPID: false
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+      serviceAccountName: aws-dranet
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: node.kubernetes.io/instance-type
+                  operator: In
+                  values:
+                    - c5n.18xlarge
+                    - c5n.9xlarge
+                    - c5n.metal
+                    - c6a.48xlarge
+                    - c6a.metal
+                    - c6gn.16xlarge
+                    - c6i.32xlarge
+                    - c6i.metal
+                    - c6id.32xlarge
+                    - c6id.metal
+                    - c6in.32xlarge
+                    - c6in.metal
+                    - c7a.48xlarge
+                    - c7a.metal-48xl
+                    - c7g.16xlarge
+                    - c7g.metal
+                    - c7gd.16xlarge
+                    - c7gd.metal
+                    - c7gn.16xlarge
+                    - c7gn.metal
+                    - c7i.48xlarge
+                    - c7i.metal-48xl
+                    - c8a.48xlarge
+                    - c8a.metal-48xl
+                    - c8g.24xlarge
+                    - c8g.48xlarge
+                    - c8g.metal-24xl
+                    - c8g.metal-48xl
+                    - c8gb.16xlarge
+                    - c8gb.24xlarge
+                    - c8gb.48xlarge
+                    - c8gb.metal-24xl
+                    - c8gb.metal-48xl
+                    - c8gd.24xlarge
+                    - c8gd.48xlarge
+                    - c8gd.metal-24xl
+                    - c8gd.metal-48xl
+                    - c8gn.16xlarge
+                    - c8gn.24xlarge
+                    - c8gn.48xlarge
+                    - c8gn.metal-24xl
+                    - c8gn.metal-48xl
+                    - c8i.48xlarge
+                    - c8i.96xlarge
+                    - c8i.metal-48xl
+                    - c8i.metal-96xl
+                    - c8id.48xlarge
+                    - c8id.96xlarge
+                    - c8id.metal-48xl
+                    - c8id.metal-96xl
+                    - dl1.24xlarge
+                    - dl2q.24xlarge
+                    - f2.48xlarge
+                    - g4dn.12xlarge
+                    - g4dn.16xlarge
+                    - g4dn.8xlarge
+                    - g4dn.metal
+                    - g5.12xlarge
+                    - g5.16xlarge
+                    - g5.24xlarge
+                    - g5.48xlarge
+                    - g5.8xlarge
+                    - g6.12xlarge
+                    - g6.16xlarge
+                    - g6.24xlarge
+                    - g6.48xlarge
+                    - g6.8xlarge
+                    - g6e.12xlarge
+                    - g6e.16xlarge
+                    - g6e.24xlarge
+                    - g6e.48xlarge
+                    - g6e.8xlarge
+                    - g7e.12xlarge
+                    - g7e.24xlarge
+                    - g7e.48xlarge
+                    - g7e.8xlarge
+                    - gr6.8xlarge
+                    - hpc6a.48xlarge
+                    - hpc6id.32xlarge
+                    - hpc7a.12xlarge
+                    - hpc7a.24xlarge
+                    - hpc7a.48xlarge
+                    - hpc7a.96xlarge
+                    - hpc7g.16xlarge
+                    - hpc7g.4xlarge
+                    - hpc7g.8xlarge
+                    - hpc8a.96xlarge
+                    - i3en.12xlarge
+                    - i3en.24xlarge
+                    - i3en.metal
+                    - i4g.16xlarge
+                    - i4i.32xlarge
+                    - i4i.metal
+                    - i7i.24xlarge
+                    - i7i.48xlarge
+                    - i7i.metal-48xl
+                    - i7ie.48xlarge
+                    - i7ie.metal-48xl
+                    - i8g.48xlarge
+                    - i8g.metal-48xl
+                    - i8ge.48xlarge
+                    - i8ge.metal-48xl
+                    - im4gn.16xlarge
+                    - inf1.24xlarge
+                    - m5dn.24xlarge
+                    - m5dn.metal
+                    - m5n.24xlarge
+                    - m5n.metal
+                    - m5zn.12xlarge
+                    - m5zn.metal
+                    - m6a.48xlarge
+                    - m6a.metal
+                    - m6i.32xlarge
+                    - m6i.metal
+                    - m6id.32xlarge
+                    - m6id.metal
+                    - m6idn.32xlarge
+                    - m6idn.metal
+                    - m6in.32xlarge
+                    - m6in.metal
+                    - m7a.48xlarge
+                    - m7a.metal-48xl
+                    - m7g.16xlarge
+                    - m7g.metal
+                    - m7gd.16xlarge
+                    - m7gd.metal
+                    - m7i.48xlarge
+                    - m7i.metal-48xl
+                    - m8a.48xlarge
+                    - m8a.metal-48xl
+                    - m8azn.24xlarge
+                    - m8azn.metal-24xl
+                    - m8g.24xlarge
+                    - m8g.48xlarge
+                    - m8g.metal-24xl
+                    - m8g.metal-48xl
+                    - m8gb.16xlarge
+                    - m8gb.24xlarge
+                    - m8gb.48xlarge
+                    - m8gb.metal-24xl
+                    - m8gb.metal-48xl
+                    - m8gd.24xlarge
+                    - m8gd.48xlarge
+                    - m8gd.metal-24xl
+                    - m8gd.metal-48xl
+                    - m8gn.16xlarge
+                    - m8gn.24xlarge
+                    - m8gn.48xlarge
+                    - m8gn.metal-24xl
+                    - m8gn.metal-48xl
+                    - m8i.48xlarge
+                    - m8i.96xlarge
+                    - m8i.metal-48xl
+                    - m8i.metal-96xl
+                    - m8id.48xlarge
+                    - m8id.96xlarge
+                    - m8id.metal-48xl
+                    - m8id.metal-96xl
+                    - p3dn.24xlarge
+                    - p4d.24xlarge
+                    - p4de.24xlarge
+                    - p5.48xlarge
+                    - p5.4xlarge
+                    - p5e.48xlarge
+                    - p5en.48xlarge
+                    - p6-b200.48xlarge
+                    - p6-b300.48xlarge
+                    - p6e-gb200.36xlarge
+                    - p6e-gb300.36xlarge
+                    - r5dn.24xlarge
+                    - r5dn.metal
+                    - r5n.24xlarge
+                    - r5n.metal
+                    - r6a.48xlarge
+                    - r6a.metal
+                    - r6i.32xlarge
+                    - r6i.metal
+                    - r6id.32xlarge
+                    - r6id.metal
+                    - r6idn.32xlarge
+                    - r6idn.metal
+                    - r6in.32xlarge
+                    - r6in.metal
+                    - r7a.48xlarge
+                    - r7a.metal-48xl
+                    - r7g.16xlarge
+                    - r7g.metal
+                    - r7gd.16xlarge
+                    - r7gd.metal
+                    - r7i.48xlarge
+                    - r7i.metal-48xl
+                    - r7iz.32xlarge
+                    - r7iz.metal-32xl
+                    - r8a.48xlarge
+                    - r8a.metal-48xl
+                    - r8g.24xlarge
+                    - r8g.48xlarge
+                    - r8g.metal-24xl
+                    - r8g.metal-48xl
+                    - r8gb.16xlarge
+                    - r8gb.24xlarge
+                    - r8gb.48xlarge
+                    - r8gb.metal-24xl
+                    - r8gb.metal-48xl
+                    - r8gd.24xlarge
+                    - r8gd.48xlarge
+                    - r8gd.metal-24xl
+                    - r8gd.metal-48xl
+                    - r8gn.16xlarge
+                    - r8gn.24xlarge
+                    - r8gn.48xlarge
+                    - r8gn.metal-24xl
+                    - r8gn.metal-48xl
+                    - r8i.48xlarge
+                    - r8i.96xlarge
+                    - r8i.metal-48xl
+                    - r8i.metal-96xl
+                    - r8id.48xlarge
+                    - r8id.96xlarge
+                    - r8id.metal-48xl
+                    - r8id.metal-96xl
+                    - trn1.32xlarge
+                    - trn1n.32xlarge
+                    - trn2-ac.24xlarge
+                    - trn2.3xlarge
+                    - trn2.48xlarge
+                    - trn2u-ac.24xlarge
+                    - trn2u.48xlarge
+                    - trn3.48xlarge
+                    - trn3-dev0.48xlarge
+                    - trn3-dev1.48xlarge
+                    - trn3p.48xlarge
+                    - trn3pd98.48xlarge
+                    - trn3s.48xlarge
+                    - u7i-12tb.224xlarge
+                    - u7i-6tb.112xlarge
+                    - u7i-8tb.112xlarge
+                    - u7in-16tb.224xlarge
+                    - u7in-24tb.224xlarge
+                    - u7in-32tb.224xlarge
+                    - vt1.24xlarge
+                    - x2idn.32xlarge
+                    - x2idn.metal
+                    - x2iedn.32xlarge
+                    - x2iedn.metal
+                    - x2iezn.12xlarge
+                    - x2iezn.metal
+                    - x8aedz.24xlarge
+                    - x8aedz.metal-24xl
+                    - x8g.24xlarge
+                    - x8g.48xlarge
+                    - x8g.metal-24xl
+                    - x8g.metal-48xl
+                    - x8i.48xlarge
+                    - x8i.64xlarge
+                    - x8i.96xlarge
+                    - x8i.metal-48xl
+                    - x8i.metal-96xl
+                - key: eks.amazonaws.com/compute-type
+                  operator: NotIn
+                  values:
+                  - auto
+      containers:
+      - name: dranet
+        args:
+        - /dranet
+        - --v=4
+        - --hostname-override=$(NODE_NAME)
+        - "--bind-address=:9177"
+        - --cloud-provider-hint=AWS
+        - --filter="dra.net/pciDevice" in attributes && attributes["dra.net/pciDevice"].StringValue == "Elastic Fabric Adapter (EFA)"
+        image: 602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/dranet:v1.2.0-eksbuild.2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+          runAsGroup: 0
+          runAsUser: 0
+          seccompProfile:
+            type: RuntimeDefault
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9177
+        volumeMounts:
+        - name: device-plugin
+          mountPath: /var/lib/kubelet/plugins
+        - name: plugin-registry
+          mountPath: /var/lib/kubelet/plugins_registry
+        - name: nri-plugin
+          mountPath: /var/run/nri
+        - name: netns
+          mountPath: /var/run/netns
+          mountPropagation: HostToContainer
+        - name: infiniband
+          mountPath: /dev/infiniband
+          mountPropagation: HostToContainer
+        - name: tmp
+          mountPath: /tmp
+        - name: dranet-run
+          mountPath: /var/run/dranet
+      volumes:
+      - name: device-plugin
+        hostPath:
+          path: /var/lib/kubelet/plugins
+          type: DirectoryOrCreate
+      - name: plugin-registry
+        hostPath:
+          path: /var/lib/kubelet/plugins_registry
+          type: DirectoryOrCreate
+      - name: nri-plugin
+        hostPath:
+          path: /var/run/nri
+          type: DirectoryOrCreate
+      - name: netns
+        hostPath:
+          path: /var/run/netns
+          type: DirectoryOrCreate
+      - name: infiniband
+        hostPath:
+          path: /dev/infiniband
+          type: DirectoryOrCreate
+      - name: tmp
+        emptyDir:
+          medium: Memory
+          sizeLimit: 10Mi
+      - name: dranet-run
+        hostPath:
+          path: /var/run/dranet
+          type: DirectoryOrCreate
+
+---
+# Source: aws-dranet/templates/deviceclass.yaml
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: efa.networking.k8s.aws
+  labels:
+    helm.sh/chart: aws-dranet-1.0.0
+    app: aws-dranet
+    app.kubernetes.io/version: "v1.2.0-eksbuild.2"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selectors:
+  - cel:
+      expression: |
+        device.driver == "dra.net" &&
+        device.attributes["dra.net"].pciDevice == 'Elastic Fabric Adapter (EFA)'
