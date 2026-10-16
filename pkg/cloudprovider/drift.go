@@ -141,6 +141,16 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 // a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
 // would cancel it out.
 func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, providerID string, i *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	// Spot launch templates never target capacity reservations, including groups.
+	if i.CapacityType == karpv1.CapacityTypeSpot {
+		return "", nil
+	}
+	if i.CapacityReservationGroupARN != "" || nodeClass.Spec.CapacityReservationGroupARN != nil {
+		if i.CapacityReservationGroupARN != lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN) {
+			return CapacityReservationDrift, nil
+		}
+		return "", nil
+	}
 	if i.CapacityReservationDetails == nil {
 		return "", nil
 	}

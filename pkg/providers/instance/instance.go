@@ -19,12 +19,15 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/awslabs/operatorpkg/aws/middleware"
 	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -92,7 +95,8 @@ type Provider interface {
 }
 
 type options struct {
-	SkipCache bool
+	SkipCache    bool
+	RequireFresh bool
 }
 
 type Options = option.Function[options]
@@ -100,6 +104,10 @@ type Options = option.Function[options]
 var SkipCache = func(opts *options) {
 	opts.SkipCache = true
 }
+
+// RequireFresh bypasses the instance cache and rejects zonal-shift fallbacks.
+// Use this for registration coverage and cost-based disruption decisions.
+var RequireFresh = func(opts *options) { opts.SkipCache = true; opts.RequireFresh = true }
 
 type DefaultProvider struct {
 	region                      string
@@ -144,11 +152,17 @@ func NewDefaultProvider(
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
+	if err := p.validateCapacityReservationGroup(ctx, nodeClass); err != nil {
+		return nil, err
+	}
 	instanceTypes, err := p.filterInstanceTypes(ctx, instanceTypes, nodeClaim)
 	if err != nil {
 		return nil, err
 	}
 	capacityType := getCapacityType(nodeClaim, instanceTypes)
+	if nodeClass.Spec.CapacityReservationGroupARN != nil && capacityType == karpv1.CapacityTypeReserved {
+		return nil, cloudprovider.NewCreateError(fmt.Errorf("capacity reservation group launches require on-demand fallback"), "InvalidCapacityReservationGroupRequirements", "Capacity reservation group launches require on-demand fallback")
+	}
 	tenancyType := getTenancyType(nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, capacityType, instanceTypes, tags, tenancyType)
 	if awserrors.IsLaunchTemplateNotFound(err) {
@@ -174,28 +188,54 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		opts = append(opts, WithEFACount(efaCount))
 	}
 
-	return NewInstanceFromFleet(
+	inst := NewInstanceFromFleet(
 		fleetInstance,
 		capacityType,
 		tags,
 		tenancyType,
 		opts...,
-	), nil
+	)
+	if capacityType == karpv1.CapacityTypeOnDemand {
+		// Fleet reports the requested market, not the actual reservation association. Persist target intent without
+		// performing a fallible read after launching; the registration hook will resolve initial coverage.
+		inst.CapacityReservationGroupARN = lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN)
+	}
+	return inst, nil
+}
+
+func (p *DefaultProvider) validateCapacityReservationGroup(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
+	groupARN := lo.FromPtr(nodeClass.Spec.CapacityReservationGroupARN)
+	if groupARN == "" {
+		return nil
+	}
+	if !coreoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+		return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("capacityReservationGroupARN requires ReservedCapacity"))
+	}
+	group, err := arn.Parse(groupARN)
+	if err != nil || group.Region != p.region {
+		return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("capacityReservationGroupARN must reference a group in region %s", p.region))
+	}
+	return nil
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
-	skipCache := option.Resolve(opts...).SkipCache
+	resolved := option.Resolve(opts...)
+	skipCache := resolved.SkipCache
 	if i, ok := p.instanceCache.Get(id); ok {
 		inst := i.(*Instance)
 		// During a zonal shift, return cached data for instances in the shifted zone to avoid
 		// DescribeInstances calls that could cause retry storms against the impaired AZ
 		if inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			if resolved.RequireFresh {
+				return nil, serrors.Wrap(fmt.Errorf("fresh observation unavailable during zonal shift"), "id", id)
+			}
 			return inst, nil
 		}
 		if !skipCache {
 			return inst, nil
 		}
 	}
+	observedAt := time.Now()
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{id},
 		Filters:     []ec2types.Filter{instanceStateFilter},
@@ -214,11 +254,13 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 	if len(instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
+	instances[id].ObservedAt = observedAt
 	p.instanceCache.SetDefault(id, instances[id])
 	return instances[id], nil
 }
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
+	observedAt := time.Now()
 	var out = &ec2.DescribeInstancesOutput{}
 
 	paginator := ec2.NewDescribeInstancesPaginator(p.ec2api, &ec2.DescribeInstancesInput{
@@ -250,6 +292,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	}
 	instances, err := instancesFromOutput(ctx, out)
 	for id, it := range instances {
+		it.ObservedAt = observedAt
 		p.instanceCache.SetDefault(id, it)
 	}
 	// Evict cached entries for instances no longer returned by EC2, unless they are in a
@@ -403,6 +446,9 @@ func (p *DefaultProvider) launchInstance(
 	}
 
 	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	if capacityType == karpv1.CapacityTypeOnDemand && nodeClass.Spec.CapacityReservationGroupARN != nil {
+		cfiBuilder.WithCapacityReservationGroup(*nodeClass.Spec.CapacityReservationGroupARN)
+	}
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}
@@ -547,7 +593,11 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		ofs := it.Offerings.Compatible(reqs).Launchable()
+		// Workload compatibility was checked before selecting the Fleet market. These requirements include the
+		// selected market, which must not be interpreted as a restriction on post-launch capacity-type transitions.
+		ofs := lo.Filter(it.Offerings.Launchable(), func(offering *cloudprovider.Offering, _ int) bool {
+			return reqs.IsCompatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels)
+		})
 		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
 		// for that capacity reservation when generating overrides.
 		if capacityReservationID != "" {

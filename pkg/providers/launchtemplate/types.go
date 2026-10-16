@@ -178,6 +178,15 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 				},
 			).Else(nil)
 	}
+	if b.options.CapacityType == karpv1.CapacityTypeOnDemand && b.options.CapacityReservationGroupARN != "" {
+		// Omit the preference to allow On-Demand fallback while retaining the group target. Neither "none" nor
+		// "capacity-reservations-only" permits AWS-managed matching with fallback.
+		lt.LaunchTemplateData.CapacityReservationSpecification = &ec2types.LaunchTemplateCapacityReservationSpecificationRequest{
+			CapacityReservationTarget: &ec2types.CapacityReservationTarget{
+				CapacityReservationResourceGroupArn: lo.ToPtr(b.options.CapacityReservationGroupARN),
+			},
+		}
+	}
 	return lt
 }
 

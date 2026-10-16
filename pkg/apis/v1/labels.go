@@ -179,6 +179,7 @@ var (
 	AnnotationEC2NodeClassHashVersion        = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                 = apis.Group + "/tagged"
 	AnnotationInstanceProfile                = apis.Group + "/instance-profile-name"
+	AnnotationCapacityReservationGroupARN    = apis.Group + "/capacity-reservation-group-arn"
 	AnnotationNVIDIAConsumableCapacity       = apis.Group + "/nvidia-consumable-capacity"
 
 	NodeClaimTagKey          = coreapis.Group + "/nodeclaim"

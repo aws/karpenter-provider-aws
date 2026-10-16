@@ -78,6 +78,7 @@ type NodeClass interface {
 }
 
 type Provider interface {
+	OnDemandPrice(ec2types.InstanceType) (float64, bool)
 	Get(context.Context, NodeClass, ec2types.InstanceType) (*cloudprovider.InstanceType, error)
 	List(context.Context, NodeClass) ([]*cloudprovider.InstanceType, error)
 	FilterForNodeClass(context.Context, []*cloudprovider.InstanceType, NodeClass) []*cloudprovider.InstanceType
@@ -88,6 +89,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
+	pricingProvider       pricing.Provider
 	ec2api                sdk.EC2API
 	subnetProvider        subnet.Provider
 	instanceTypesResolver Resolver
@@ -130,6 +132,7 @@ func NewDefaultProvider(
 	additionalResolvers ...offering.OfferingResolver,
 ) *DefaultProvider {
 	p := &DefaultProvider{
+		pricingProvider:         pricingProvider,
 		ec2api:                  ec2api,
 		subnetProvider:          subnetProvider,
 		instanceTypesInfo:       map[ec2types.InstanceType]ec2types.InstanceTypeInfo{},
@@ -544,4 +547,9 @@ func (p *DefaultProvider) Reset() {
 func discoveredCapacityCacheKey(instanceType string, nodeClass NodeClass) string {
 	amiHash, _ := hashstructure.Hash(nodeClass.AMIs(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	return fmt.Sprintf("%s-%016x", instanceType, amiHash)
+}
+
+// OnDemandPrice prices running instances independently of NodeClass launch availability.
+func (p *DefaultProvider) OnDemandPrice(name ec2types.InstanceType) (float64, bool) {
+	return p.pricingProvider.OnDemandPrice(name)
 }

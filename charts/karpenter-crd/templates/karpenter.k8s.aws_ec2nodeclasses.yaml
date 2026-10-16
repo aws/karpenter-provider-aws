@@ -256,6 +256,13 @@ spec:
                   x-kubernetes-validations:
                     - message: must have only one blockDeviceMappings with rootVolume
                       rule: self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1
+                capacityReservationGroupARN:
+                  description: |-
+                    CapacityReservationGroupARN targets an operator-managed Capacity Reservation Resource Group for On-Demand
+                    launches. EC2 selects a compatible reservation from the group, or falls back to On-Demand capacity, and may
+                    change the instance's reservation association during its lifetime.
+                  pattern: ^arn:aws(-[a-z0-9-]+)?:resource-groups:[a-z0-9-]+:[0-9]{12}:group/[a-zA-Z0-9_.-]{1,128}$
+                  type: string
                 capacityReservationSelectorTerms:
                   description: |-
                     CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
@@ -294,7 +301,7 @@ spec:
                     - message: expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
                     - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                      rule: '!self.exists(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 connectionTracking:
                   description: |-
                     ConnectionTracking configures idle connection tracking timeouts for
@@ -646,6 +653,8 @@ spec:
               x-kubernetes-validations:
                 - message: must specify exactly one of ['role', 'instanceProfile']
                   rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))
+                - message: capacityReservationGroupARN and capacityReservationSelectorTerms are mutually exclusive
+                  rule: '!has(self.capacityReservationGroupARN) || !has(self.capacityReservationSelectorTerms) || self.capacityReservationSelectorTerms.size() == 0'
                 - message: if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias
                   rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2'') : true)'
                 - message: if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias

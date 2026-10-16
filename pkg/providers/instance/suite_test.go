@@ -135,6 +135,49 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
+	It("should launch an empty capacity reservation group with On-Demand fallback and persistent intent", func() {
+		groupARN := "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeReserved}}}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		inst, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(inst.CapacityType).To(Equal(karpv1.CapacityTypeOnDemand))
+		Expect(inst.CapacityReservationDetails).To(BeNil())
+		Expect(inst.CapacityReservationGroupARN).To(Equal(groupARN))
+		Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(BeZero())
+		awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+			Expect(input.LaunchTemplateData.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationResourceGroupArn).To(Equal(lo.ToPtr(groupARN)))
+		})
+		fleet := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(fleet.OnDemandOptions.CapacityReservationOptions.UsageStrategy).To(Equal(ec2types.FleetCapacityReservationUsageStrategyUseCapacityReservationsFirst))
+		observed, err := awsEnv.InstanceProvider.Get(ctx, inst.ID, instance.SkipCache)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(observed.CapacityReservationGroupARN).To(Equal(groupARN))
+		Expect(observed.CapacityType).To(Equal(karpv1.CapacityTypeOnDemand))
+		for _, it := range instanceTypes {
+			for _, offering := range it.Offerings {
+				Expect(offering.CapacityType()).ToNot(Equal(karpv1.CapacityTypeReserved))
+			}
+		}
+	})
+	It("should reject a capacity reservation group in another region before launching", func() {
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-east-1:123456789012:group/workload-a")
+		_, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, nil)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("region us-west-2"))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
+	})
+	It("should reject a capacity reservation group when ReservedCapacity is disabled", func() {
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-a")
+		disabled := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(false)}}))
+		_, err := awsEnv.InstanceProvider.Create(disabled, nodeClass, nodeClaim, nil, nil)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("requires ReservedCapacity"))
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
+	})
 	It("should return an ICE error when instance type truncation fails minValues validation", func() {
 		// Set minValues on topology zone higher than available zones (3) so Truncate fails
 		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -1044,6 +1087,11 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			})
 			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+		})
+		It("should reject cached zonal-shift data when a fresh observation is required", func() {
+			_, err := awsEnv.InstanceProvider.Get(ctx, instanceID, instance.RequireFresh)
+			Expect(err).To(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(BeZero())
 		})
 		It("should not call DescribeInstances for instances in a zonally shifted AZ", func() {
 			inst, err := awsEnv.InstanceProvider.Get(ctx, instanceID, instance.SkipCache)

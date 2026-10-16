@@ -28,6 +28,7 @@ import (
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	karpoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -51,6 +52,16 @@ func NewCapacityReservationReconciler(clk clock.Clock, provider capacityreservat
 }
 
 func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass) (reconcile.Result, error) {
+	if nc.Spec.CapacityReservationGroupARN != nil {
+		// Group capacity is shared with already-running instances, not exclusively available to new NodeClaims.
+		nc.Status.CapacityReservations = nil
+		if !karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+			nc.StatusConditions(status.WithClock(c.clk)).SetFalse(v1.ConditionTypeCapacityReservationsReady, "ReservedCapacityDisabled", "capacityReservationGroupARN requires ReservedCapacity")
+		} else {
+			nc.StatusConditions(status.WithClock(c.clk)).SetTrue(v1.ConditionTypeCapacityReservationsReady)
+		}
+		return reconcile.Result{}, nil
+	}
 	reservations, err := c.provider.List(ctx, nc.Spec.CapacityReservationSelectorTerms...)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting capacity reservations, %w", err)

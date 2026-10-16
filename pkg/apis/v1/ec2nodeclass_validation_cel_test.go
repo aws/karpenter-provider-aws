@@ -456,7 +456,47 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
+	Context("CapacityReservationGroupARN", func() {
+		DescribeTable("should accept valid group ARNs",
+			func(groupARN string) {
+				nc.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			},
+			Entry("commercial", "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"),
+			Entry("GovCloud", "arn:aws-us-gov:resource-groups:us-gov-west-1:123456789012:group/workload_a"),
+			Entry("China", "arn:aws-cn:resource-groups:cn-north-1:123456789012:group/workload.a"),
+		)
+		DescribeTable("should reject invalid group ARNs",
+			func(groupARN string) {
+				nc.Spec.CapacityReservationGroupARN = lo.ToPtr(groupARN)
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			},
+			Entry("empty", ""),
+			Entry("wrong service", "arn:aws:ec2:us-west-2:123456789012:group/workload-a"),
+			Entry("missing region", "arn:aws:resource-groups::123456789012:group/workload-a"),
+			Entry("invalid account", "arn:aws:resource-groups:us-west-2:123:group/workload-a"),
+			Entry("missing group", "arn:aws:resource-groups:us-west-2:123456789012:group/"),
+		)
+		It("should reject group targeting with reservation selectors", func() {
+			nc.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-a")
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{ID: "cr-12345678"}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should allow group targeting with an empty selector list", func() {
+			nc.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-a")
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+	})
 	Context("CapacityReservationSelectorTerms", func() {
+		It("should reject a conflicting selector even when another term is valid", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{ID: "cr-12345678", Tags: map[string]string{"workload": "a"}},
+				{ID: "cr-87654321"},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+
 		It("should succeed with a valid capacity reservation selector on tags", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 				Tags: map[string]string{

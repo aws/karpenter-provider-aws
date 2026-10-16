@@ -24,7 +24,9 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -35,6 +37,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Controller struct {
@@ -64,7 +68,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 	cpNodeClaims, err := c.cp.List(ctx)
 	if err != nil {
-		return reconciler.Result{}, fmt.Errorf("listing instance types, %w", err)
+		return reconciler.Result{}, fmt.Errorf("listing instances, %w", err)
 	}
 	providerIDsToCPNodeClaims := lo.SliceToMap(cpNodeClaims, func(nc *karpv1.NodeClaim) (string, *karpv1.NodeClaim) {
 		return nc.Status.ProviderID, nc
@@ -80,7 +84,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		if !ok {
 			continue
 		}
-		updated, err := c.syncCapacityType(ctx, cpNC.Labels[karpv1.CapacityTypeLabelKey], &ncs.Items[i])
+		updated, err := c.syncCapacityType(ctx, cpNC, &ncs.Items[i])
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -102,29 +106,32 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
-// syncCapacityType will update the capacity type for the given NodeClaim. This accounts for the fact that capacity
-// reservations will expire, demoting NodeClaims with capacity type "reserved" to "on-demand".
+// syncCapacityType reconciles group association changes and preserves existing reservation-expiration demotion.
 //
 //nolint:gocyclo
-func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, nc *karpv1.NodeClaim) (bool, error) {
+func (c *Controller) syncCapacityType(ctx context.Context, observed *karpv1.NodeClaim, nc *karpv1.NodeClaim) (bool, error) {
 	// We won't be able to sync deleting NodeClaims, and there's no real need to either as they're already draining.
 	if !nc.DeletionTimestamp.IsZero() {
 		return false, nil
 	}
 
-	// For now we only account for the case where a reserved NodeClaim becomes an on-demand NodeClaim. This does not
-	// account for on-demand NodeClaims being promoted to reserved since that is not natively supported by Karpenter.
-	if capacityType != karpv1.CapacityTypeOnDemand {
+	capacityType := observed.Labels[karpv1.CapacityTypeLabelKey]
+	groupARN := observed.Annotations[v1.AnnotationCapacityReservationGroupARN]
+	if capacityType != karpv1.CapacityTypeOnDemand && capacityType != karpv1.CapacityTypeReserved {
+		return false, nil
+	}
+	// Missing target information is not a confirmed disassociation for an instance launched into a group.
+	if nc.Annotations[v1.AnnotationCapacityReservationGroupARN] != "" && groupARN == "" {
+		return false, nil
+	}
+	if groupARN == "" && capacityType != karpv1.CapacityTypeOnDemand {
 		return false, nil
 	}
 	updated := false
-	if nc.Labels[karpv1.CapacityTypeLabelKey] == karpv1.CapacityTypeReserved {
-		stored := nc.DeepCopy()
-		nc.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
-		for label := range cloudprovider.ReservedCapacityLabels {
-			delete(nc.Labels, label)
-		}
-		if err := c.kubeClient.Patch(ctx, nc, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
+	stored := nc.DeepCopy()
+	syncMetadata(&nc.ObjectMeta, observed)
+	if !equality.Semantic.DeepEqual(stored, nc) {
+		if err := c.kubeClient.Patch(ctx, nc, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{})); client.IgnoreNotFound(err) != nil {
 			return false, serrors.Wrap(fmt.Errorf("patching nodeclaim, %w", err), "NodeClaim", klog.KObj(nc))
 		}
 		updated = true
@@ -146,18 +153,35 @@ func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, 
 		if n.Labels[karpv1.NodeRegisteredLabelKey] != "true" {
 			continue
 		}
-		if n.Labels[karpv1.CapacityTypeLabelKey] != karpv1.CapacityTypeReserved {
+		storedNode := n.DeepCopy()
+		syncMetadata(&n.ObjectMeta, observed)
+		if equality.Semantic.DeepEqual(storedNode, n) {
 			continue
 		}
-		stored := n.DeepCopy()
-		n.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeOnDemand
-		for label := range cloudprovider.ReservedCapacityLabels {
-			delete(n.Labels, label)
-		}
-		if err := c.kubeClient.Patch(ctx, n, client.MergeFrom(stored)); client.IgnoreNotFound(err) != nil {
+		if err := c.kubeClient.Patch(ctx, n, client.MergeFromWithOptions(storedNode, client.MergeFromWithOptimisticLock{})); client.IgnoreNotFound(err) != nil {
 			return false, serrors.Wrap(fmt.Errorf("patching node, %w", err), "Node", klog.KObj(n))
 		}
 		updated = true
 	}
 	return updated, nil
+}
+
+func syncMetadata(metadata *metav1.ObjectMeta, observed *karpv1.NodeClaim) {
+	groupARN := observed.Annotations[v1.AnnotationCapacityReservationGroupARN]
+	if groupARN == "" && metadata.Labels[karpv1.CapacityTypeLabelKey] != karpv1.CapacityTypeReserved {
+		return
+	}
+	if metadata.Labels == nil {
+		metadata.Labels = map[string]string{}
+	}
+	metadata.Labels[karpv1.CapacityTypeLabelKey] = observed.Labels[karpv1.CapacityTypeLabelKey]
+	for label := range cloudprovider.ReservedCapacityLabels {
+		delete(metadata.Labels, label)
+		if value, ok := observed.Labels[label]; ok && groupARN != "" {
+			metadata.Labels[label] = value
+		}
+	}
+	if groupARN != "" {
+		metadata.Annotations = lo.Assign(metadata.Annotations, map[string]string{v1.AnnotationCapacityReservationGroupARN: groupARN})
+	}
 }

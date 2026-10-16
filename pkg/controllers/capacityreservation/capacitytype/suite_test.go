@@ -119,6 +119,89 @@ var _ = Describe("Capacity Reservation Capacity Type Controller", func() {
 		})
 		node = coretest.NodeClaimLinkedNode(nodeClaim)
 	})
+	Context("capacity reservation groups", func() {
+		const groupARN = "arn:aws:resource-groups:us-west-2:123456789012:group/workload-a"
+		BeforeEach(func() {
+			nodeClaim.Annotations = map[string]string{v1.AnnotationCapacityReservationGroupARN: groupARN, "example.com/user": "keep"}
+			nodeClaim.Labels = map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand, karpv1.NodeRegisteredLabelKey: "true", "example.com/user": "keep"}
+			node = coretest.NodeClaimLinkedNode(nodeClaim)
+			out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].CapacityReservationId = nil
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = &ec2types.CapacityReservationSpecificationResponse{
+				CapacityReservationTarget: &ec2types.CapacityReservationTargetResponse{CapacityReservationResourceGroupArn: lo.ToPtr(groupARN)},
+			}
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+		})
+		AfterEach(func() { ExpectCleanedUp(ctx, env.Client) })
+		It("should promote, reassign, and demote both resources without losing group intent", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			for _, id := range []string{"cr-12345678", "cr-87654321", ""} {
+				out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+				out.Reservations[0].Instances[0].CapacityReservationId = nil
+				if id != "" {
+					out.Reservations[0].Instances[0].CapacityReservationId = lo.ToPtr(id)
+				}
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+				ExpectSingletonReconciled(ctx, controller)
+				nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+				node = ExpectExists(ctx, env.Client, node)
+				for _, metadata := range []metav1.ObjectMeta{nodeClaim.ObjectMeta, node.ObjectMeta} {
+					Expect(metadata.Annotations).To(HaveKeyWithValue(v1.AnnotationCapacityReservationGroupARN, groupARN))
+					Expect(metadata.Labels).To(HaveKeyWithValue("example.com/user", "keep"))
+					if id == "" {
+						Expect(metadata.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
+						for label := range corecloudprovider.ReservedCapacityLabels {
+							Expect(metadata.Labels).ToNot(HaveKey(label))
+						}
+					} else {
+						Expect(metadata.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+						Expect(metadata.Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, id))
+						Expect(metadata.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
+						Expect(metadata.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
+					}
+				}
+			}
+		})
+		It("should repair a Node after the NodeClaim has already been promoted", func() {
+			out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].CapacityReservationId = lo.ToPtr("cr-12345678")
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+			ExpectApplied(ctx, env.Client, nodeClaim)
+			ExpectSingletonReconciled(ctx, controller)
+			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+			Expect(nodeClaim.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
+			ExpectApplied(ctx, env.Client, node)
+			ExpectSingletonReconciled(ctx, controller)
+			node = ExpectExists(ctx, env.Client, node)
+			Expect(node.Labels).To(HaveKeyWithValue(corecloudprovider.ReservationIDLabel, "cr-12345678"))
+			resourceVersion := node.ResourceVersion
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(ExpectExists(ctx, env.Client, node).ResourceVersion).To(Equal(resourceVersion))
+		})
+		It("should preserve state when observing instances fails", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			awsEnv.EC2API.DescribeInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
+			_, err := controller.Reconcile(ctx)
+			Expect(err).To(HaveOccurred())
+			awsEnv.EC2API.DescribeInstancesBehavior.Error.Reset()
+			Expect(ExpectExists(ctx, env.Client, nodeClaim).Labels).To(Equal(nodeClaim.Labels))
+			Expect(ExpectExists(ctx, env.Client, node).Labels).To(Equal(node.Labels))
+		})
+		It("should preserve coverage when a group observation is missing the target", func() {
+			nodeClaim.Labels[karpv1.CapacityTypeLabelKey] = karpv1.CapacityTypeReserved
+			nodeClaim.Labels[corecloudprovider.ReservationIDLabel] = "cr-12345678"
+			nodeClaim.Labels[v1.LabelCapacityReservationType] = string(v1.CapacityReservationTypeDefault)
+			nodeClaim.Labels[v1.LabelCapacityReservationInterruptible] = "false"
+			node = coretest.NodeClaimLinkedNode(nodeClaim)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			out := awsEnv.EC2API.DescribeInstancesBehavior.Output.Clone()
+			out.Reservations[0].Instances[0].CapacityReservationSpecification = nil
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(ExpectExists(ctx, env.Client, nodeClaim).Labels).To(Equal(nodeClaim.Labels))
+			Expect(ExpectExists(ctx, env.Client, node).Labels).To(Equal(node.Labels))
+		})
+	})
 	It("should demote nodeclaims and nodes from reserved to on-demand", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, node)
 		ExpectSingletonReconciled(ctx, controller)
