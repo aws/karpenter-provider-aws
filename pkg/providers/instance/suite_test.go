@@ -1088,6 +1088,11 @@ var _ = Describe("InstanceProvider", func() {
 			})
 			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
 		})
+		It("should reject cached zonal-shift data when a fresh observation is required", func() {
+			_, err := awsEnv.InstanceProvider.Get(ctx, instanceID, instance.RequireFresh)
+			Expect(err).To(HaveOccurred())
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(BeZero())
+		})
 		It("should not call DescribeInstances for instances in a zonally shifted AZ", func() {
 			inst, err := awsEnv.InstanceProvider.Get(ctx, instanceID, instance.SkipCache)
 			Expect(err).ToNot(HaveOccurred())

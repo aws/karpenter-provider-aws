@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
@@ -94,7 +95,8 @@ type Provider interface {
 }
 
 type options struct {
-	SkipCache bool
+	SkipCache    bool
+	RequireFresh bool
 }
 
 type Options = option.Function[options]
@@ -102,6 +104,10 @@ type Options = option.Function[options]
 var SkipCache = func(opts *options) {
 	opts.SkipCache = true
 }
+
+// RequireFresh bypasses the instance cache and rejects zonal-shift fallbacks.
+// Use this for registration coverage and cost-based disruption decisions.
+var RequireFresh = func(opts *options) { opts.SkipCache = true; opts.RequireFresh = true }
 
 type DefaultProvider struct {
 	region                      string
@@ -213,18 +219,23 @@ func (p *DefaultProvider) validateCapacityReservationGroup(ctx context.Context, 
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (*Instance, error) {
-	skipCache := option.Resolve(opts...).SkipCache
+	resolved := option.Resolve(opts...)
+	skipCache := resolved.SkipCache
 	if i, ok := p.instanceCache.Get(id); ok {
 		inst := i.(*Instance)
 		// During a zonal shift, return cached data for instances in the shifted zone to avoid
 		// DescribeInstances calls that could cause retry storms against the impaired AZ
 		if inst.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, inst.ZoneID) {
+			if resolved.RequireFresh {
+				return nil, serrors.Wrap(fmt.Errorf("fresh observation unavailable during zonal shift"), "id", id)
+			}
 			return inst, nil
 		}
 		if !skipCache {
 			return inst, nil
 		}
 	}
+	observedAt := time.Now()
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: []string{id},
 		Filters:     []ec2types.Filter{instanceStateFilter},
@@ -243,11 +254,13 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 	if len(instances) != 1 {
 		return nil, fmt.Errorf("expected a single instance, %w", err)
 	}
+	instances[id].ObservedAt = observedAt
 	p.instanceCache.SetDefault(id, instances[id])
 	return instances[id], nil
 }
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
+	observedAt := time.Now()
 	var out = &ec2.DescribeInstancesOutput{}
 
 	paginator := ec2.NewDescribeInstancesPaginator(p.ec2api, &ec2.DescribeInstancesInput{
@@ -279,6 +292,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	}
 	instances, err := instancesFromOutput(ctx, out)
 	for id, it := range instances {
+		it.ObservedAt = observedAt
 		p.instanceCache.SetDefault(id, it)
 	}
 	// Evict cached entries for instances no longer returned by EC2, unless they are in a

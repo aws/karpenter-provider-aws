@@ -53,11 +53,11 @@ func (h *CapacityReservationGroupRegistrationHook) Registered(ctx context.Contex
 	if err != nil {
 		return cloudprovider.NodeLifecycleHookResult{}, fmt.Errorf("parsing instance ID, %w", err)
 	}
-	i, err := h.instanceProvider.Get(ctx, id, instance.SkipCache)
+	i, err := h.instanceProvider.Get(ctx, id, instance.RequireFresh)
 	if err != nil {
 		return cloudprovider.NodeLifecycleHookResult{}, fmt.Errorf("observing capacity reservation group association, %w", err)
 	}
-	if i.CapacityReservationGroupARN != groupARN {
+	if !i.HasFreshCapacityReservationGroupObservation(groupARN) {
 		return cloudprovider.NodeLifecycleHookResult{Requeue: true}, nil
 	}
 	for label := range cloudprovider.ReservedCapacityLabels {

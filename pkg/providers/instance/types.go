@@ -36,6 +36,9 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
+	// ObservedAt is the start of the DescribeInstances request that produced this
+	// instance. Fleet responses and cache fallbacks never advance it.
+	ObservedAt                  time.Time
 	LaunchTime                  time.Time
 	State                       ec2types.InstanceStateName
 	ID                          string
