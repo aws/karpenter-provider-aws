@@ -32,6 +32,10 @@ sequenceDiagram
 ### 1. DriftRemediation
 Core only sees "AMIDrift". It can't know whether an in-place swap is safe for this node: hidden SG drift, a family or version change, a RAID0 layout, or an unreadable snapshot can all make it unsafe. It has to decide before committing, because committing drains the node. So the provider answers that question up front, and anything unsafe falls back to today's replace.
 
+It returns `RebootNode` or `ReplaceNode`. `RebootNode` means "safe to do in place": core commits the node to the reboot lifecycle with `DisruptionReason=Drifted`, and skips scheduling simulation and the replacement. `ReplaceNode` means "not safe, or not opted in": core takes today's drift path, which simulates, pre-spins a replacement and terminates the node. Every "no" also emits an event naming the gate that failed. That way operators can see why a node was replaced instead of upgraded in place.
+
+One of the gates is the **CRRVT dry run**: `CreateReplaceRootVolumeTask` called with `DryRun=true` and the target AMI's root `SnapshotId`. EC2 validates the request without creating a task. That catches two things that would otherwise fail only after the node is drained: a missing IAM permission, and a snapshot this account can't read. A launch-only shared AMI is the common case; RunInstances works with it, but RVR doesn't. It has to be `SnapshotId`, because a dry run with `ImageId` passes even when the snapshot is unreadable. The result is cached per AMI, so it's one call per image, not one per node.
+
 ### 2. Reboot
 `Reboot()` carries no "which action" field, so the provider works it out from the NodeClaim it's handed. `DisruptionReason` says who committed the reboot: `Drifted` (drift) or `Unhealthy` (repair). The `Drifted` condition and the NodeClass say whether this node is AMI-drifted and opted in. The provider then re-runs the same gates `DriftRemediation` used:
 - `Drifted` and the gates pass: `CreateReplaceRootVolumeTask`.
