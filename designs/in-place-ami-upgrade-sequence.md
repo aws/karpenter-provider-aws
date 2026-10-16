@@ -6,14 +6,10 @@ sequenceDiagram
     participant Core as Core (drift method + reboot controller)
     participant CP as Provider (AWS)
     participant EC2
-    Note over CP,EC2: EC2NodeClass validation, when status.amis changes or on the 30m TTL
-    CP->>EC2: per target AMI, check EBS root, single volume, Marketplace codes
-    CP->>EC2: CreateVolume DryRun with SnapshotId (snapshot readable)
-    CP->>CP: write status.amis[].inPlaceUpgrade + InPlaceAMIUpgradeReady (not in Ready)
     Core->>CP: IsDrifted(nc)
     CP-->>Core: AMIDrift
     Core->>CP: DriftRemediation(nc, AMIDrift)
-    CP->>CP: target AMI supported in status.amis? then node-scoped gates
+    CP->>CP: provider checks if AMI supports in place (initial thinking is NodeClass validation + status conditions)
     CP-->>Core: RebootNode or ReplaceNode
     Core->>Core: commitReboot (Rebooting=Requested, DisruptionReason=Drifted)
     Core->>Core: fence + drain
@@ -38,14 +34,7 @@ Core only sees "AMIDrift". It can't know whether an in-place swap is safe for th
 
 It returns `RebootNode` or `ReplaceNode`. `RebootNode` means "safe to do in place": core commits the node to the reboot lifecycle with `DisruptionReason=Drifted`, and skips scheduling simulation and the replacement. `ReplaceNode` means "not safe, or not opted in": core takes today's drift path, which simulates, pre-spins a replacement and terminates the node. Every "no" also emits an event naming the gate that failed. That way operators can see why a node was replaced instead of upgraded in place.
 
-The image-scoped checks don't depend on the node, so EC2NodeClass validation precomputes them once per AMI and writes the verdict into `status.amis[].inPlaceUpgrade`:
-- EBS root, no Marketplace codes, single volume;
-- no AL2023 + RAID0;
-- snapshot readable and IAM allowed.
-
-It also sets an `InPlaceAMIUpgradeReady` condition. That condition is kept out of `Ready`, so an RVR problem never blocks provisioning, and operators see it as soon as a new AMI resolves. The snapshot check is a `CreateVolume` dry run with the target's root `SnapshotId`, which needs no instance. It has to use the snapshot, not the image, because an image-based dry run passes even when the snapshot is unreadable. A launch-only shared AMI is the common case: it launches fine but can't be used for RVR.
-
-At drift time, `DriftRemediation` only looks up the node's target AMI in that status. It then checks what is specific to this node: the AMI is the only drift, the family, variant and K8s minor version are unchanged, the instance is running, and a TGP is set.
+Some checks depend only on the AMI, not the node. Examples: single volume, no Marketplace codes, no AL2023 + RAID0, and whether the snapshot is readable from this account. The provider checks whether the target AMI supports in-place. Our initial thinking is to precompute this in NodeClass validation and expose it as status conditions. The rest is specific to this node: the AMI is the only drift, the family, variant and K8s minor version are unchanged, the instance is running, and a TGP is set.
 
 ### 2. Reboot
 `Reboot()` carries no "which action" field, so the provider works it out from the NodeClaim it's handed. `DisruptionReason` says who committed the reboot: `Drifted` (drift) or `Unhealthy` (repair). The `Drifted` condition and the NodeClass say whether this node is AMI-drifted and opted in. The provider then re-runs the same gates `DriftRemediation` used:
