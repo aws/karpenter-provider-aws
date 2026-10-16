@@ -21,13 +21,14 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
-// ResolveBlockDeviceMappings returns blockDeviceMappings with every volumeSizeExpression replaced by the
+// ResolveBlockDeviceMappings returns blockDeviceMappings with every volumeSize CEL expression replaced by the
 // volumeSize it evaluates to for one instance type. It is the single resolution path shared by the scheduler
 // (ephemeral-storage capacity) and the launch template resolver (the volume that's created), so the two
 // can't diverge. The input is never mutated; it's returned as-is when there's nothing to evaluate.
@@ -55,14 +56,16 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 			continue
 		}
 		bdm = bdm.DeepCopy()
-		expression := lo.FromPtr(bdm.EBS.VolumeSizeExpression)
-		bdm.EBS.VolumeSizeExpression = nil
+		expression := lo.FromPtr(bdm.EBS.VolumeSize)
 		if gateEnabled {
 			size, err := celEnv.ResolveVolumeSize(expression, vars)
 			if err != nil {
-				return nil, fmt.Errorf("resolving volumeSizeExpression for device %q, %w", lo.FromPtr(bdm.DeviceName), err)
+				return nil, fmt.Errorf("resolving volumeSize CEL expression for device %q, %w", lo.FromPtr(bdm.DeviceName), err)
 			}
-			bdm.EBS.VolumeSize = &size
+			resolvedSize := size.String()
+			bdm.EBS.VolumeSize = &resolvedSize
+		} else {
+			bdm.EBS.VolumeSize = nil
 		}
 		resolved = append(resolved, bdm)
 	}
@@ -70,7 +73,11 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 }
 
 func hasVolumeSizeExpression(bdm *v1.BlockDeviceMapping) bool {
-	return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSizeExpression != nil
+	if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
+		return false
+	}
+	_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
+	return err != nil
 }
 
 // serializeVolumeSizes encodes the volume size of each mapping as a comparable string, for use in the
@@ -81,7 +88,7 @@ func serializeVolumeSizes(blockDeviceMappings []*v1.BlockDeviceMapping) string {
 		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
 			return "", false
 		}
-		return lo.FromPtr(bdm.DeviceName) + "=" + bdm.EBS.VolumeSize.String(), true
+		return lo.FromPtr(bdm.DeviceName) + "=" + *bdm.EBS.VolumeSize, true
 	})
 	sort.Strings(parts)
 	return strings.Join(parts, ",")

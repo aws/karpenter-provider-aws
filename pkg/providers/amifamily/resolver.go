@@ -47,7 +47,7 @@ import (
 var DefaultEBS = v1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(string(ec2types.VolumeTypeGp3)),
-	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+	VolumeSize: aws.String("20Gi"),
 }
 
 type Resolver interface {
@@ -204,7 +204,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 			resolvedKubeReserved   string
 			resolvedSystemReserved string
 			// volumeSizes holds the resolved volume size of each blockDeviceMapping (serialized for comparability)
-			// so instance types whose volumeSizeExpressions resolve differently get different launch templates.
+			// so instance types whose volumeSize CEL expressions resolve differently get different launch templates.
 			volumeSizes string
 			// reservationIDs is encoded as a string rather than a slice to ensure this type is comparable for use by `lo.GroupBy`.
 			reservationIDs           string
@@ -262,7 +262,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					fmt.Errorf("resolving systemReserved, %w", err),
 					"instance-type", it.Name)
 			}
-			// volumeSizeExpressions are resolved through the same shared path as the scheduler's ephemeral-storage
+			// volumeSize CEL expressions are resolved through the same shared path as the scheduler's ephemeral-storage
 			// capacity (ResolveBlockDeviceMappings), so the volume created matches the capacity that was reserved.
 			resolvedBlockDeviceMappings, err := ResolveBlockDeviceMappings(ctx, r.celEnv, nodeClass.Spec.BlockDeviceMappings, func() (kubeletcel.InstanceTypeVars, error) { return celVarsFromInstanceType(it, r.eniLookup) })
 			if err != nil {

@@ -87,7 +87,7 @@ type Provider interface {
 	// type and returns an error describing the first per-instance-type evaluation failure. A compile-only check
 	// cannot catch these because the instance-type variables aren't known until an instance type is in hand.
 	ValidateKubeletExpressions(context.Context, NodeClass) error
-	// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' volumeSizeExpressions against every known
+	// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' CEL volumeSize values against every known
 	// instance type, returning the first evaluation failure.
 	ValidateBlockDeviceMappingExpressions(context.Context, NodeClass) error
 }
@@ -353,14 +353,18 @@ func (p *DefaultProvider) ValidateKubeletExpressions(ctx context.Context, nodeCl
 	return nil
 }
 
-// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' volumeSizeExpressions against every known
+// ValidateBlockDeviceMappingExpressions evaluates the NodeClass' volumeSize CEL expressions against every known
 // instance type. It returns the first evaluation failure so the caller can surface it on the NodeClass status,
 // catching what a compile-only check can't: a result below 1 GiB, or an error that only some instance types hit.
 func (p *DefaultProvider) ValidateBlockDeviceMappingExpressions(ctx context.Context, nodeClass NodeClass) error {
 	// Without expressions there is nothing to evaluate. The same applies when expressions are gated off -- the
 	// validation controller has already rejected the NodeClass by this point.
 	if !lo.ContainsBy(nodeClass.BlockDeviceMappings(), func(bdm *v1.BlockDeviceMapping) bool {
-		return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSizeExpression != nil
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
+			return false
+		}
+		_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
+		return err != nil
 	}) || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}

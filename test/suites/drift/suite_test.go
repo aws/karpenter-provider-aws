@@ -297,7 +297,7 @@ var _ = Describe("Drift", Ordered, func() {
 			{
 				DeviceName: awssdk.String("/dev/xvda"),
 				EBS: &v1.BlockDevice{
-					VolumeSize: resources.Quantity("20Gi"),
+					VolumeSize: awssdk.String("20Gi"),
 					VolumeType: awssdk.String("gp3"),
 					Encrypted:  awssdk.Bool(true),
 				},
@@ -456,7 +456,7 @@ var _ = Describe("Drift", Ordered, func() {
 			{
 				DeviceName: awssdk.String("/dev/xvda"),
 				EBS: &v1.BlockDevice{
-					VolumeSize: resources.Quantity("20Gi"),
+					VolumeSize: awssdk.String("20Gi"),
 					VolumeType: awssdk.String("gp3"),
 					Encrypted:  awssdk.Bool(true),
 				},
@@ -467,7 +467,7 @@ var _ = Describe("Drift", Ordered, func() {
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
-		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resources.Quantity("100Gi")
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = awssdk.String("100Gi")
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		By("validating the drifted status condition has propagated")

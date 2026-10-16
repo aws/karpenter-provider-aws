@@ -184,7 +184,7 @@ var _ = Describe("Validation", func() {
 				env.ExpectSettingsOverridden(corev1.EnvVar{Name: "AWS_FEATURE_GATES", Value: "NodeClassCEL=false"})
 				nodeClass.Spec.Kubelet = kc
 				Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
-				ExpectKubeletValidationFailed(nodeClass, "KubeletExpressionsDisabled")
+				ExpectKubeletValidationFailed(nodeClass, "NodeClassCELDisabled")
 			},
 			Entry("maxPods", awstest.MustMakeKubeletConfiguration(map[string]interface{}{
 				"maxPods": "min(110, vcpus * 20)",

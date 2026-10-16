@@ -21,7 +21,6 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -906,7 +905,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("BlockDeviceMappings", func() {
-		It("should succeed with only a volumeSizeExpression", func() {
+		It("should accept a volumeSize quantity", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -915,13 +914,45 @@ var _ = Describe("CEL/Validation", func() {
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSizeExpression: aws.String("vcpus * 10")}},
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: aws.String("20Gi")}},
 					},
 				},
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
-		It("should fail with both volumeSize and volumeSizeExpression", func() {
+		It("should accept a volumeSize CEL expression", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{{
+						DeviceName: aws.String("/dev/xvda"),
+						EBS:        &v1.BlockDevice{VolumeSize: aws.String("vcpus * 10")},
+					}},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should defer loosely matched volumeSize expressions to controller validation", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{{
+						DeviceName: aws.String("/dev/xvda"),
+						EBS:        &v1.BlockDevice{VolumeSize: aws.String("foo vcpus")},
+					}},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should fail for an invalid volumeSize CEL expression", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -930,13 +961,13 @@ var _ = Describe("CEL/Validation", func() {
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(50, resource.Giga), VolumeSizeExpression: aws.String("vcpus * 10")}},
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: aws.String("not valid (")}},
 					},
 				},
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).ToNot(Succeed())
 		})
-		It("should fail with a volumeSizeExpression over 512 characters", func() {
+		It("should fail with a volumeSize over 512 characters", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -945,7 +976,7 @@ var _ = Describe("CEL/Validation", func() {
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
-						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSizeExpression: aws.String(strings.Repeat("1", 513))}},
+						{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: aws.String(strings.Repeat("1", 513))}},
 					},
 				},
 			}
@@ -963,7 +994,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(500, resource.Giga),
+								VolumeSize: aws.String("500G"),
 							},
 
 							RootVolume: true,
@@ -971,7 +1002,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-2"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(50, resource.Tera),
+								VolumeSize: aws.String("50T"),
 							},
 
 							RootVolume: false,
@@ -993,7 +1024,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(58, resource.Giga),
+								VolumeSize: aws.String("58G"),
 							},
 							RootVolume: false,
 						},
@@ -1014,7 +1045,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(45, resource.Tera),
+								VolumeSize: aws.String("45T"),
 							},
 							RootVolume: false,
 						},
@@ -1035,14 +1066,14 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+								VolumeSize: aws.String("50G"),
 							},
 							RootVolume: true,
 						},
 						{
 							DeviceName: aws.String("map-device-2"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+								VolumeSize: aws.String("50G"),
 							},
 							RootVolume: true,
 						},
@@ -1063,7 +1094,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(1, resource.Milli),
+								VolumeSize: aws.String("1m"),
 							},
 							RootVolume: false,
 						},
@@ -1084,7 +1115,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: resource.NewScaledQuantity(100, resource.Tera),
+								VolumeSize: aws.String("100T"),
 							},
 							RootVolume: false,
 						},
@@ -1105,7 +1136,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize: &resource.Quantity{},
+								VolumeSize: aws.String("invalid"),
 							},
 							RootVolume: false,
 						},
@@ -1126,7 +1157,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize:               &resource.Quantity{},
+								VolumeSize:               aws.String("invalid"),
 								VolumeInitializationRate: aws.Int32(100),
 							},
 							RootVolume: false,
@@ -1148,7 +1179,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize:               &resource.Quantity{},
+								VolumeSize:               aws.String("invalid"),
 								SnapshotID:               aws.String("snap-1"),
 								VolumeInitializationRate: aws.Int32(99),
 							},
@@ -1171,7 +1202,7 @@ var _ = Describe("CEL/Validation", func() {
 						{
 							DeviceName: aws.String("map-device-1"),
 							EBS: &v1.BlockDevice{
-								VolumeSize:               &resource.Quantity{},
+								VolumeSize:               aws.String("invalid"),
 								SnapshotID:               aws.String("snap-1"),
 								VolumeInitializationRate: aws.Int32(888),
 							},

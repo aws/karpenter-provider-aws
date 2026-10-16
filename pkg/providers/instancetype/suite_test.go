@@ -25,8 +25,6 @@ import (
 	"testing"
 	"time"
 
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	arczonalshifttypes "github.com/aws/aws-sdk-go-v2/service/arczonalshift/types"
@@ -46,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
@@ -2706,7 +2705,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: lo.ToPtr("/dev/xvda"),
-					EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
+					EBS:        &v1.BlockDevice{VolumeSize: aws.String("20G")},
 					RootVolume: false,
 				},
 			}
@@ -2718,12 +2717,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 						BlockDeviceMappings: []*v1.BlockDeviceMapping{
 							{
 								DeviceName: lo.ToPtr("/dev/xvda"),
-								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(20, resource.Giga)},
+								EBS:        &v1.BlockDevice{VolumeSize: aws.String("20G")},
 								RootVolume: false,
 							},
 							{
 								DeviceName: lo.ToPtr("/dev/sda1"),
-								EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)},
+								EBS:        &v1.BlockDevice{VolumeSize: aws.String("10G")},
 								RootVolume: true,
 							},
 						},
@@ -2733,7 +2732,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: v1.EC2NodeClassSpec{
 						BlockDeviceMappings: []*v1.BlockDeviceMapping{{
 							DeviceName: lo.ToPtr("/dev/xvda"),
-							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(15, resource.Giga)},
+							EBS:        &v1.BlockDevice{VolumeSize: aws.String("15G")},
 							RootVolume: false,
 						}},
 					},
@@ -2742,7 +2741,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					Spec: v1.EC2NodeClassSpec{
 						BlockDeviceMappings: []*v1.BlockDeviceMapping{{
 							DeviceName: lo.ToPtr("/dev/yvda"),
-							EBS:        &v1.BlockDevice{VolumeSize: resource.NewScaledQuantity(25, resource.Giga)},
+							EBS:        &v1.BlockDevice{VolumeSize: aws.String("25G")},
 							RootVolume: true,
 						}},
 					},
@@ -3829,13 +3828,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// m5.large has 2 vCPUs, so min(110, 16) resolves to 16 rather than the AMI family default.
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 16))
 		})
-		It("should size ephemeral-storage per instance type from a volumeSizeExpression", func() {
+		It("should size ephemeral-storage per instance type from a volumeSize CEL expression", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
 				DeviceName: lo.ToPtr("/dev/xvda"),
-				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus * 50")},
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 50")},
 			}}
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -3848,13 +3847,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(it.Capacity.StorageEphemeral().Cmp(resource.MustParse(expected))).To(Equal(0), name)
 			}
 		})
-		It("should fail resolution when the volumeSizeExpression evaluates below 1 GiB", func() {
+		It("should fail resolution when the volumeSize CEL expression evaluates below 1 GiB", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
 				DeviceName: lo.ToPtr("/dev/xvda"),
-				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus - vcpus")},
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus - vcpus")},
 			}}
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
@@ -3862,13 +3861,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(MatchError(ContainSubstring("resolving blockDeviceMappings")))
 		})
-		It("should fall back to the default ephemeral-storage when a volumeSizeExpression is set but the gate is disabled", func() {
+		It("should fall back to the default ephemeral-storage when a volumeSize CEL expression is set but the gate is disabled", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
 			}))
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
 				DeviceName: lo.ToPtr("/dev/xvda"),
-				EBS:        &v1.BlockDevice{VolumeSizeExpression: lo.ToPtr("vcpus * 50")},
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 50")},
 			}}
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())

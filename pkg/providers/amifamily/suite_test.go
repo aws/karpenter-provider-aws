@@ -1247,14 +1247,14 @@ var _ = Describe("AMIResolver", func() {
 		Expect(err.Error()).To(ContainSubstring("parsing kubelet configuration"))
 		Expect(launchTemplates).To(BeEmpty())
 	})
-	Context("VolumeSizeExpression", func() {
+	Context("volumeSize CEL expression", func() {
 		BeforeEach(func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
 				DeviceName: aws.String("/dev/xvda"),
-				EBS:        &v1.BlockDevice{VolumeSizeExpression: aws.String("vcpus * 50")},
+				EBS:        &v1.BlockDevice{VolumeSize: aws.String("vcpus * 50")},
 			}}
 		})
 		It("should give instance types that resolve to different volume sizes distinct launch templates", func() {
@@ -1274,8 +1274,7 @@ var _ = Describe("AMIResolver", func() {
 			for _, lt := range launchTemplates {
 				Expect(lt.InstanceTypes).To(HaveLen(1))
 				Expect(lt.BlockDeviceMappings).To(HaveLen(1))
-				Expect(lt.BlockDeviceMappings[0].EBS.VolumeSizeExpression).To(BeNil())
-				Expect(lt.BlockDeviceMappings[0].EBS.VolumeSize.Cmp(*lt.InstanceTypes[0].Capacity.StorageEphemeral())).To(Equal(0))
+				Expect(*lt.BlockDeviceMappings[0].EBS.VolumeSize).To(Equal(lt.InstanceTypes[0].Capacity.StorageEphemeral().String()))
 			}
 		})
 	})

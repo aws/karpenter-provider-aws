@@ -134,7 +134,7 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			fmt.Errorf("resolving systemReserved, %w", err),
 			"instance-type", info.InstanceType)
 	}
-	// volumeSizeExpressions are resolved through the same shared path the launch template resolver uses, so the
+	// volumeSize CEL expressions are resolved through the same shared path the launch template resolver uses, so the
 	// ephemeral-storage capacity computed below matches the volume that's actually created.
 	blockDeviceMappings, err := amifamily.ResolveBlockDeviceMappings(ctx, d.celEnv, nodeClass.BlockDeviceMappings(), func() (kubeletcel.InstanceTypeVars, error) {
 		return buildCELVars(ctx, info, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces()), nil
@@ -549,19 +549,23 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-			return blockDeviceMapping.EBS.VolumeSize
+			return quantityFromVolumeSize(blockDeviceMapping.EBS.VolumeSize)
 		}
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
-			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
+			for i := len(blockDeviceMappings) - 1; i >= 0; i-- {
+				if bdm := blockDeviceMappings[i]; bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSize != nil {
+					return quantityFromVolumeSize(bdm.EBS.VolumeSize)
+				}
+			}
+			return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
 			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
-			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-				return blockDeviceMapping.EBS.VolumeSize
+			}); ok && blockDeviceMapping.EBS != nil && blockDeviceMapping.EBS.VolumeSize != nil {
+				return quantityFromVolumeSize(blockDeviceMapping.EBS.VolumeSize)
 			}
 		}
 	}
@@ -569,9 +573,17 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
 		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
 	}); ok {
-		return ephemeralBlockDevice.EBS.VolumeSize
+		return quantityFromVolumeSize(ephemeralBlockDevice.EBS.VolumeSize)
 	}
-	return amifamily.DefaultEBS.VolumeSize
+	return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
+}
+
+func quantityFromVolumeSize(volumeSize *string) *resource.Quantity {
+	if volumeSize == nil {
+		return nil
+	}
+	quantity := resource.MustParse(*volumeSize)
+	return &quantity
 }
 
 // volumeAttachmentLimits returns EC2's maximum EBS attachments for the instance type, less one for the root volume.

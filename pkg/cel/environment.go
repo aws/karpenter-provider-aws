@@ -282,11 +282,11 @@ func (c *CELEnvironment) ValidateExpression(expression string) error {
 	return err
 }
 
-// MaxVolumeSizeGiB is the largest volume size volumeSizeExpression may resolve to. It matches the upper bound
+// MaxVolumeSizeGiB is the largest volume size a volumeSize CEL expression may resolve to. It matches the upper bound
 // of the static volumeSize pattern on BlockDevice (59000Gi).
 const MaxVolumeSizeGiB = 59000
 
-// ResolveVolumeSize evaluates a volumeSizeExpression against the given instance type variables, returning the
+// ResolveVolumeSize evaluates a volumeSize CEL expression against the given instance type variables, returning the
 // volume size in whole GiB. The expression's number is GiB, the unit EBS volume sizes are expressed in, so
 // "vcpus * 10" on a 16 vCPU instance is 160Gi. Results below 1 are rejected since EBS can't create an empty
 // volume, and results above MaxVolumeSizeGiB are rejected to match the static volumeSize schema limit. This is the single evaluation path shared by the scheduler (ephemeral-storage capacity) and the

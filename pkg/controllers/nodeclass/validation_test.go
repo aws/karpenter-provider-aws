@@ -496,6 +496,16 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				SystemReserved: map[string]string{"memory": "bogus_var * 1048576"},
 			})),
 		)
+		It("should reject a loosely matched but invalid volumeSize CEL expression", func() {
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				EBS: &v1.BlockDevice{VolumeSize: aws.String("foo vcpus")},
+			}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			Expect(err).To(HaveOccurred())
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonBlockDeviceMappingExpressionInvalid))
+		})
 		DescribeTable("should set KubeletExpressionEvaluationFailed when an expression compiles but fails evaluation",
 			func(kc v1.KubeletConfiguration) {
 				nodeClass.Spec.Kubelet = kc
@@ -553,15 +563,15 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).ToNot(Equal(nodeclass.ConditionReasonKubeletExpressionEvalFailed))
 		})
 	})
-	Context("Kubelet Expression Feature Gate", func() {
+	Context("NodeClass CEL Feature Gate", func() {
 		BeforeEach(func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
 			}))
 		})
-		DescribeTable("should reject a NodeClass carrying an expression while the gate is disabled",
-			func(kc v1.KubeletConfiguration) {
-				nodeClass.Spec.Kubelet = kc
+		DescribeTable("should reject a NodeClass carrying a CEL expression while the gate is disabled",
+			func(setExpression func()) {
+				setExpression()
 				ExpectApplied(ctx, env.Client, nodeClass)
 				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
 				Expect(err).To(HaveOccurred())
@@ -569,18 +579,27 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
-				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonKubeletExpressionsDisabled))
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonNodeClassCELDisabled))
 				Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 			},
-			Entry("maxPods", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
-				MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
-			})),
-			Entry("kubeReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
-				KubeReserved: map[string]string{"cpu": "max(60, vcpus * 30)"},
-			})),
-			Entry("systemReserved", test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
-				SystemReserved: map[string]string{"memory": "max_pods * 11"},
-			})),
+			Entry("maxPods", func() {
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+					MaxPods: lo.ToPtr(intstr.FromString("min(110, default_enis * (ips_per_eni - 1))")),
+				})
+			}),
+			Entry("kubeReserved", func() {
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+					KubeReserved: map[string]string{"cpu": "max(60, vcpus * 30)"},
+				})
+			}),
+			Entry("systemReserved", func() {
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{
+					SystemReserved: map[string]string{"memory": "max_pods * 11"},
+				})
+			}),
+			Entry("volumeSize", func() {
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeSize: aws.String("vcpus * 10")}}}
+			}),
 		)
 		It("should not reject static kubelet values while the gate is disabled", func() {
 			// The gate only guards expressions -- integer maxPods and quantity-literal reservations must keep
@@ -595,7 +614,7 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
-		It("should accept an expression once the gate is enabled", func() {
+		It("should accept expressions once the gate is enabled", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))

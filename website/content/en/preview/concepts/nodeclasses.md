@@ -389,12 +389,12 @@ You should be aware of the CPU and memory default calculation when using Custom 
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#aws-specific-feature-gates" >}})
 
-`maxPods`, `kubeReserved`, and `systemReserved` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity or `kubeReserved` scale with vCPU count without fracturing into a separate NodeClass per instance size.
+`maxPods`, `kubeReserved`, `systemReserved`, and EBS `volumeSize` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity, `kubeReserved` scale with vCPU count, or EBS volumes scale with instance size without fracturing into a separate NodeClass per instance size.
 
 {{% alert title="Feature Gate Required" color="warning" %}}
 Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}), which is disabled by default. Enable it with `--aws-feature-gates NodeClassCEL=true` (Helm: `settings.awsFeatureGates.nodeClassCEL: true`).
 
-While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
+While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `NodeClassCELDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields and volume sizes are all static values is unaffected.
 {{% /alert %}}
 
 Each field independently accepts either its usual static value or an expression string, there is no separate expression field.
@@ -1295,9 +1295,9 @@ spec:
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
 
-### Sizing volumes per instance type with `volumeSizeExpression`
+### Sizing volumes per instance type with CEL
 
-Instead of a fixed `volumeSize`, an EBS device may set `volumeSizeExpression`, a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. It is mutually exclusive with `volumeSize` and requires the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000 (the same upper bound as `volumeSize`); fractional results are truncated.
+An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000; fractional results are truncated.
 
 The same resolved size is used for the node's `ephemeral-storage` capacity and the launch template, so instance types resolving to different sizes get different launch templates.
 
@@ -1307,7 +1307,7 @@ spec:
     - deviceName: /dev/xvda
       rootVolume: true
       ebs:
-        volumeSizeExpression: "min(max(vcpus * 20, 50), 500)"
+        volumeSize: "min(max(vcpus * 20, 50), 500)"
         volumeType: gp3
 ```
 

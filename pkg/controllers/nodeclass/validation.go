@@ -67,8 +67,7 @@ const (
 	ConditionReasonInvalidKubeletConfiguration            = "InvalidKubeletConfiguration"
 	ConditionReasonKubeletExpressionInvalid               = "KubeletExpressionInvalid"
 	ConditionReasonKubeletExpressionEvalFailed            = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled             = "KubeletExpressionsDisabled"
-	ConditionReasonBlockDeviceMappingExpressionsDisabled  = "BlockDeviceMappingExpressionsDisabled"
+	ConditionReasonNodeClassCELDisabled                   = "NodeClassCELDisabled"
 	ConditionReasonBlockDeviceMappingExpressionInvalid    = "BlockDeviceMappingExpressionInvalid"
 	ConditionReasonBlockDeviceMappingExpressionEvalFailed = "BlockDeviceMappingExpressionEvaluationFailed"
 	ConditionReasonUnsupportedKubeletConfiguration        = "UnsupportedKubeletConfiguration"
@@ -186,13 +185,13 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.
-	if parsedKubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+	if (parsedKubelet.HasExpressions() || nodeClass.HasVolumeSizeExpressions()) && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonKubeletExpressionsDisabled,
-			"spec.kubelet contains a CEL expression, but the NodeClassCEL feature gate is disabled",
+			ConditionReasonNodeClassCELDisabled,
+			"spec.kubelet or spec.blockDeviceMappings contains a CEL expression, but the NodeClassCEL feature gate is disabled",
 		)
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("NodeClassCEL expressions are disabled"))
 	}
 
 	if err := validateKubeletExpressions(v.celEnv, parsedKubelet); err != nil {
@@ -204,25 +203,20 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
 	}
 
-	if nodeClass.HasVolumeSizeExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
-		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
-			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonBlockDeviceMappingExpressionsDisabled,
-			"spec.blockDeviceMappings contains a volumeSizeExpression, but the NodeClassCEL feature gate is disabled",
-		)
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("blockDeviceMapping expressions are disabled"))
-	}
 	for _, bdm := range nodeClass.Spec.BlockDeviceMappings {
-		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSizeExpression == nil {
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
 			continue
 		}
-		if err := v.celEnv.ValidateExpression(*bdm.EBS.VolumeSizeExpression); err != nil {
+		if _, err := resource.ParseQuantity(*bdm.EBS.VolumeSize); err == nil {
+			continue
+		}
+		if err := v.celEnv.ValidateExpression(*bdm.EBS.VolumeSize); err != nil {
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
 				ConditionReasonBlockDeviceMappingExpressionInvalid,
 				err.Error(),
 			)
-			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating volumeSizeExpression for device %q, %w", lo.FromPtr(bdm.DeviceName), err))
+			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating volumeSize CEL expression for device %q, %w", lo.FromPtr(bdm.DeviceName), err))
 		}
 	}
 
@@ -313,7 +307,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			ConditionReasonBlockDeviceMappingExpressionEvalFailed,
 			err.Error(),
 		)
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating volumeSizeExpressions, %w", err))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating CEL volumeSize expressions, %w", err))
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
