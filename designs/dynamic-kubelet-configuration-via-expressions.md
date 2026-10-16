@@ -134,17 +134,16 @@ spec:
 
 Below lists the non-goals for this RFC design. Each of these items represents potential follow-ups for the initial implementation and are features we will consider based on feature requests.
 
-* Expression-based blockDeviceMappings (e.g., volume size scaling with instance size) — while this is a natural extension, it involves different subsystems and warrants a separate design
 * Supporting arbitrary kubelet flags as expressions — only maxPods, kubeReserved, and systemReserved are in scope
 * User-defined variables or custom functions in expressions — only built-in instance type properties are available
 
 ## Feature Gate
 
-Expression support is alpha and gated off by default behind an AWS-specific feature gate, `NodeClassCEL`. AWS-specific gates are configured separately from the core Karpenter gates, via the `AWS_FEATURE_GATES` environment variable / `--aws-feature-gates` flag (Helm: `settings.awsFeatureGates.nodeClassCEL`), defaulting to `NodeClassCEL=false`.
+Expression support for kubelet fields and EBS volume sizes is alpha and gated off by default behind an AWS-specific feature gate, `NodeClassCEL`. AWS-specific gates are configured separately from the core Karpenter gates, via the `AWS_FEATURE_GATES` environment variable / `--aws-feature-gates` flag (Helm: `settings.awsFeatureGates.nodeClassCEL`), defaulting to `NodeClassCEL=false`.
 
-The CRD schema cannot gate expressions itself, since it has no view of operator flags — a string-typed `maxPods` is schema-valid whether or not the gate is on. Instead, the nodeclass validation controller rejects a NodeClass carrying an expression while the gate is disabled, setting `ValidationSucceeded=False` with reason `KubeletExpressionsDisabled`. Failing loudly here matters: silently ignoring the expression would launch nodes with the AMI family defaults the user didn't ask for.
+The CRD schema cannot gate expressions itself, since it has no view of operator flags. Instead, the nodeclass validation controller rejects a NodeClass carrying an expression while the gate is disabled, setting `ValidationSucceeded=False` with reason `NodeClassCELDisabled`. Failing loudly here matters: silently ignoring the expression would launch nodes with the AMI family defaults the user didn't ask for.
 
-A NodeClass whose kubelet fields are all static literals is unaffected by the gate.
+A NodeClass whose kubelet fields and volume sizes are all static values is unaffected by the gate.
 
 ## Expression-Based Kubelet Configuration
 
@@ -398,4 +397,4 @@ Note that these expressions reproduce the defaults only up to rounding — the C
 
 `max` and `min` are custom two-argument overloads registered on the environment (int/int, double/double, and the mixed int/double pairs, which return a double). They are not CEL's variadic list-based macros — `max(a, b, c)` is not supported.
 
-Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.  
+Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.

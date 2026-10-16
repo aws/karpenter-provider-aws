@@ -693,7 +693,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          lo.ToPtr(resource.MustParse("200G")),
+						VolumeSize:          aws.String("200G"),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -704,7 +704,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          lo.ToPtr(resource.MustParse("200Gi")),
+						VolumeSize:          aws.String("200Gi"),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -742,7 +742,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          lo.ToPtr(resource.MustParse("4G")),
+						VolumeSize:          aws.String("4G"),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -753,7 +753,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          lo.ToPtr(resource.MustParse("2G")),
+						VolumeSize:          aws.String("2G"),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -811,7 +811,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
-						VolumeSize:          lo.ToPtr(resource.MustParse("40Gi")),
+						VolumeSize:          aws.String("40Gi"),
 						IOPS:                aws.Int64(10_000),
 						KMSKeyID:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 					},
@@ -946,13 +946,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+						VolumeSize: aws.String("50G"),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+						VolumeSize: aws.String("20G"),
 					},
 				},
 			}
@@ -975,13 +975,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+						VolumeSize: aws.String("20G"),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
+						VolumeSize: aws.String("40G"),
 					},
 				},
 			}
@@ -1005,20 +1005,20 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+						VolumeSize: aws.String("20G"),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
+						VolumeSize: aws.String("40G"),
 					},
 					RootVolume: true,
 				},
 				{
 					DeviceName: aws.String("/dev/xvdc"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+						VolumeSize: aws.String("20G"),
 					},
 				},
 			}

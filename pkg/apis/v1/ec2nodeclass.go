@@ -451,8 +451,11 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Maximum:=300
 	// +optional
 	VolumeInitializationRate *int32 `json:"volumeInitializationRate,omitempty"`
-	// VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
-	// a volume size. The following are the supported volumes sizes for each volume
+	// VolumeSize is a quantity in `Gi`, `G`, `Ti`, or `T`, or a CEL expression evaluated per instance type
+	// to compute the volume size. Expressions may reference instance_type, vcpus, memory_mib, default_enis,
+	// ips_per_eni, and max_pods, and require the NodeClassCEL feature gate. Numeric expression results are
+	// interpreted as GiB, truncated to a whole number, and must be between 1 and 59000. You must specify
+	// either a snapshot ID or a volume size. The following are the supported volume sizes for each volume
 	// type:
 	//
 	//    * gp2 and gp3: 1-16,384
@@ -464,11 +467,10 @@ type BlockDevice struct {
 	//    * standard: 1-1,024
 	// + TODO: Add the CEL resources.quantity type after k8s 1.29
 	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
-	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
-	// +kubebuilder:validation:Schemaless
-	// +kubebuilder:validation:Type:=string
+	// +kubebuilder:validation:XValidation:message="volumeSize must be a quantity in Gi, G, Ti, or T, or a CEL expression referencing an instance type variable",rule="self.matches('^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|5[0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-3][0-9]{3}|64000)G|([1-9]|[1-4][0-9]|5[0-8])Ti|([1-9]|[1-5][0-9]|6[0-4])T)$') || self.matches('instance_type|vcpus|memory_mib|default_enis|ips_per_eni|max_pods')"
+	// +kubebuilder:validation:MaxLength:=512
 	// +optional
-	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
+	VolumeSize *string `json:"volumeSize,omitempty"`
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.
@@ -548,7 +550,7 @@ type EC2NodeClass struct {
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
 // 4. An already-hashed field changes its type, since that changes the hash of an unchanged value
-const EC2NodeClassHashVersion = "v6"
+const EC2NodeClassHashVersion = "v7"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
@@ -584,6 +586,17 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) m
 		EKSClusterNameTagKey:   clusterName,
 		LabelNodeClass:         in.Name,
 		v1.LabelTopologyRegion: region,
+	})
+}
+
+// HasVolumeSizeExpressions returns true if any blockDeviceMappings entry sizes its volume with a CEL expression.
+func (in *EC2NodeClass) HasVolumeSizeExpressions() bool {
+	return lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool {
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
+			return false
+		}
+		_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
+		return err != nil
 	})
 }
 
