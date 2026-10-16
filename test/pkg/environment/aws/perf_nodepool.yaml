@@ -1,0 +1,44 @@
+# The default NodePool for core's performance suite (make upstream-perftests): default_nodepool.yaml plus a cap of
+# fewer than 32 vCPUs per instance type. Core caps instance size the same way, but only for its KWOKNodeClass.
+# Without a cap, the instance types a NodePool admits grow with every new EC2 instance type, so scheduling cost and
+# node counts would drift from run to run. The cap keeps the set bounded (436 types when this was added) and
+# results comparable across runs and with core's KWOK numbers.
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+ name: default
+spec:
+ disruption:
+   consolidationPolicy: WhenEmptyOrUnderutilized
+   consolidateAfter: Never
+   budgets:
+     - nodes: 100%
+ limits:
+   cpu: 1000
+   memory: 1000Gi
+ template:
+   spec:
+     expireAfter: Never
+     requirements:
+       - key: kubernetes.io/os
+         operator: In
+         values: ["linux"]
+       - key: karpenter.sh/capacity-type
+         operator: In
+         values: ["on-demand"]
+       - key: karpenter.k8s.aws/instance-category
+         operator: In
+         values: ["c", "m", "r"]
+       - key: karpenter.k8s.aws/instance-generation
+         operator: Gt
+         values: ["4"]
+       - key: karpenter.k8s.aws/instance-family
+         operator: NotIn
+         values: ["a1"]
+       - key: karpenter.k8s.aws/instance-cpu
+         operator: Lt
+         values: ["32"]
+     nodeClassRef:
+      group: karpenter.k8s.aws
+      kind: EC2NodeClass
+      name: default

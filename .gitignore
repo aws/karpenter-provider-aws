@@ -17,3 +17,5 @@ go.work.sum
 
 # Binary output
 karpenter-provider-aws-*
+# Performance suite reports (make upstream-perftests)
+test/perf-output

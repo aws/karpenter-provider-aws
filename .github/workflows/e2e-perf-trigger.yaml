@@ -1,0 +1,103 @@
+name: E2EPerfTrigger
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Space-separated spec ids (empty = all)"
+        type: string
+        default: ""
+      parallel:
+        description: "Max clusters in use at once (1-10)"
+        type: string
+        default: "10"
+      thresholds:
+        description: "aws-kwok-4c = test/pkg/environment/aws/perf_thresholds_kwok_4c.json (calibrated for a 4 CPU / 8Gi controller); core = the suite's own thresholds"
+        type: choice
+        options:
+          - "aws-kwok-4c"
+          - "core"
+        default: "aws-kwok-4c"
+      helm_opts:
+        description: "Extra helm flags for the KWOK controller. The default (4 CPU / 8Gi, request = limit) matches the aws-kwok-4c thresholds"
+        type: string
+        default: "--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false"
+      enforce:
+        description: "Fail the run when a threshold is breached (otherwise report only, with a core that supports PERF_SOFT_THRESHOLDS)"
+        type: boolean
+        default: true
+      control_plane_tier:
+        description: "EKS Provisioned Control Plane tier for the per-spec clusters"
+        type: choice
+        options:
+          - "standard"
+          - "tier-xl"
+          - "tier-2xl"
+          - "tier-4xl"
+        default: "standard"
+      cleanup:
+        description: "Delete each cluster when its spec finishes"
+        type: boolean
+        default: true
+permissions: {}
+jobs:
+  args:
+    if: github.repository == 'aws/karpenter-provider-aws' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      MATRIX: ${{ steps.parse.outputs.MATRIX }}
+      PARALLEL: ${{ steps.parse.outputs.PARALLEL }}
+    steps:
+      - id: parse
+        env:
+          DISPATCH_SPECS: ${{ inputs.specs }}
+          DISPATCH_PARALLEL: ${{ inputs.parallel }}
+        run: |
+          set -euo pipefail
+          declare -A FOCUS=(
+            [basic]="Basic Deployment"
+            [drift]="Drift Performance"
+            [hostname]="Host Name Spreading Deployment Reg"
+            [hostname-xl]="Host Name Spreading Deployment XL"
+            [wide]="Wide Deployments"
+            [do-not-disrupt]="Do Not Disrupt Performance Test"
+            [interference]="Self Anti-Affinity Deployment Interference"
+          )
+          # Longest specs first so they start before parallel=N runs out of slots
+          ORDER="hostname-xl drift wide do-not-disrupt interference hostname basic"
+          PARALLEL="${DISPATCH_PARALLEL:-10}"
+          [[ "$PARALLEL" =~ ^[0-9]+$ ]] && (( PARALLEL >= 1 && PARALLEL <= 10 )) || { echo "::error::parallel must be 1-10"; exit 1; }
+          specs=()
+          for tok in $DISPATCH_SPECS; do
+            [[ -n "${FOCUS[$tok]+x}" ]] || { echo "::error::unknown spec id '$tok'; valid: $ORDER"; exit 1; }
+            specs+=("$tok")
+          done
+          [[ ${#specs[@]} -gt 0 ]] || read -r -a specs <<< "$ORDER"
+          MATRIX="$(for id in $ORDER; do
+            for s in "${specs[@]}"; do
+              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" '{id: $id, focus: $focus}'; fi
+            done
+          done | jq -cs '{include: .}')"
+          echo "matrix: $MATRIX, parallel: $PARALLEL"
+          { echo "MATRIX=$MATRIX"; echo "PARALLEL=$PARALLEL"; } >> "$GITHUB_OUTPUT"
+  perf:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials
+      statuses: write # ./.github/actions/commit-status/start
+    needs: [args]
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.args.outputs.PARALLEL) }}
+      matrix: ${{ fromJSON(needs.args.outputs.MATRIX) }}
+    uses: ./.github/workflows/e2e-perf.yaml
+    with:
+      spec_id: ${{ matrix.id }}
+      focus: ${{ matrix.focus }}
+      region: ${{ vars.PERF_REGION || 'us-west-2' }}
+      thresholds: ${{ inputs.thresholds || 'aws-kwok-4c' }}
+      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false' }}
+      enforce: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce }}
+      control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'standard' }}
+      # Always delete scheduled clusters; a manual run can keep them for debugging
+      cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}

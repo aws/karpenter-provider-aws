@@ -1,0 +1,63 @@
+{
+  "basic/consolidation": {
+    "cpu_cores": 0.8,
+    "heap_mb": 330,
+    "total_time_minutes": 26
+  },
+  "basic/scaleOut": {
+    "cpu_cores": 0.85,
+    "heap_mb": 380
+  },
+  "doNotDisrupt/consolidation": {
+    "cpu_cores": 1.45,
+    "heap_mb": 530
+  },
+  "doNotDisrupt/scaleOut": {
+    "cpu_cores": 1.95,
+    "heap_mb": 710
+  },
+  "drift/drift": {
+    "cpu_cores": 2.2,
+    "heap_mb": 620
+  },
+  "drift/initial": {
+    "cpu_cores": 1.3,
+    "heap_mb": 290
+  },
+  "hostNameSpreading/consolidation": {
+    "cpu_cores": 1.6,
+    "heap_mb": 610
+  },
+  "hostNameSpreading/scaleOut": {
+    "cpu_cores": 1.85,
+    "heap_mb": 540
+  },
+  "hostNameSpreadingXL/consolidation": {
+    "cpu_cores": 2.55,
+    "heap_mb": 1080
+  },
+  "hostNameSpreadingXL/scaleOut": {
+    "cpu_cores": 2.75,
+    "heap_mb": 1210
+  },
+  "interference/consolidation": {
+    "cpu_cores": 1.7,
+    "heap_mb": 910
+  },
+  "interference/interference": {
+    "cpu_cores": 2.8,
+    "heap_mb": 910
+  },
+  "interference/scaleOut": {
+    "cpu_cores": 2.0,
+    "heap_mb": 620
+  },
+  "wideDeployments/consolidation": {
+    "cpu_cores": 0.85,
+    "heap_mb": 340
+  },
+  "wideDeployments/scaleOut": {
+    "cpu_cores": 0.75,
+    "heap_mb": 370
+  }
+}

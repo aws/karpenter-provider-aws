@@ -1,0 +1,77 @@
+name: InstallKarpenterKWOK
+description: 'Builds the KWOK-mode Karpenter controller (./kwok) from the checked-out ref and installs it together with kwok-controller'
+# The KWOK controller is the AWS provider with a fake EC2 (kwok/ec2). Instance types, pricing, subnets, AMIs etc. come
+# from the real AWS APIs, but launches are simulated and nodes are KWOK nodes. Use it for scheduling/disruption
+# performance, not for node bootstrap.
+#
+# settings.featureGates.nodeRepair=true needs kwok/main.go to build cluster state with a repair policy matcher, as
+# cmd/controller does; without it the KWOK controller panics at startup, so helm_opts keeps it false by default.
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  cluster_name:
+    description: 'Name of the cluster'
+    required: true
+  git_ref:
+    description: "The git commit to build the KWOK controller from"
+  image_repository:
+    description: "ECR repository (registry/name, no tag) to push the KWOK controller image to. Must already exist."
+    required: true
+  kwok_cpu:
+    description: "kwok-controller CPU limit"
+    default: "4"
+  kwok_memory:
+    description: "kwok-controller memory limit"
+    default: "8Gi"
+  helm_opts:
+    description: "Extra helm flags for the controller (resources, feature gates, ...), passed to kwok/Makefile as EXTRA_HELM_OPTS"
+    default: "--set settings.featureGates.nodeRepair=false"
+runs:
+  using: "composite"
+  steps:
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    with:
+      ref: ${{ inputs.git_ref }}
+  - uses: ./.github/actions/e2e/install-helm
+    with:
+      version: v3.18.6
+  - name: install kwok-controller
+    shell: bash
+    env:
+      CPU_RESOURCES: ${{ inputs.kwok_cpu }}
+      MEMORY_RESOURCES: ${{ inputs.kwok_memory }}
+    run: |
+      set -euo pipefail
+      CORE_DIR="$(go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)"
+      # EKS rejects kwok's FlowSchema (it references the reserved "exempt" PriorityLevelConfiguration), so
+      # install-kwok.sh fails before applying the stage CRDs and stages; apply those explicitly. /openapi/v2 can
+      # return 503 on busy control planes, so skip client-side validation.
+      if ! UNINSTALL=false bash "$CORE_DIR/hack/install-kwok.sh"; then
+        echo "::warning::install-kwok.sh failed (expected on EKS: exempt FlowSchema rejected); applying the stages it skipped"
+        kubectl apply --validate=false -f https://github.com/kubernetes-sigs/kwok/releases/download/v0.8.0/stage-fast.yaml
+        kubectl apply --validate=false -f "$CORE_DIR/hack/kwok/stages"
+      fi
+      kubectl -n kube-system rollout status deploy/kwok-controller-a --timeout=5m
+  - name: install karpenter (KWOK)
+    shell: bash
+    env:
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      REGION: ${{ inputs.region }}
+      IMAGE_REPOSITORY: ${{ inputs.image_repository }}
+      # Not HELM_OPTS: make would take it from the environment in place of kwok/Makefile's own HELM_OPTS
+      CONTROLLER_HELM_OPTS: ${{ inputs.helm_opts }}
+    run: |
+      set -euo pipefail
+      kubectl label ns kube-system scrape=enabled --overwrite=true
+      aws ecr get-login-password --region "$REGION" | ko login "${IMAGE_REPOSITORY%%/*}" --username AWS --password-stdin
+      # The release (and so its service account) is "karpenter", which the setup-cluster pod identity association targets
+      make -C kwok apply KO_DOCKER_REPO="$IMAGE_REPOSITORY" KO_PLATFORM=linux/amd64 HELM_RELEASE=karpenter \
+        AWS_ACCOUNT_ID="$ACCOUNT_ID" CLUSTER_NAME="$CLUSTER_NAME" \
+        KARPENTER_IAM_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
+        EXTRA_HELM_OPTS="--set logLevel=info --set replicas=1 $CONTROLLER_HELM_OPTS --wait --timeout 10m"
+      kubectl -n kube-system get pods -l app.kubernetes.io/name=karpenter -o wide

@@ -47,6 +47,9 @@ inputs:
   cleanup:
     description: "Whether to cleanup resources on failure"
     default: 'false'
+  install_karpenter:
+    description: "Whether to install the Karpenter snapshot chart. Valid values are 'true' or 'false'"
+    default: 'true'
   codebuild_role:
     description: "Codebuild Role that must be given an access entry in case of private cluster"
 runs:
@@ -276,7 +279,7 @@ runs:
       workspace_id: ${{ inputs.prometheus_workspace_id }}
       git_ref: ${{ inputs.git_ref }}
   - name: install karpenter
-    if: ${{ inputs.private_cluster == 'false' }}
+    if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
     uses: ./.github/actions/e2e/install-karpenter
     with:
       account_id: ${{ inputs.account_id  }}

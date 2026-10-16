@@ -1,0 +1,177 @@
+name: E2EPerf
+on:
+  workflow_call:
+    inputs:
+      git_ref:
+        type: string
+      spec_id:
+        type: string
+        required: true
+      focus:
+        description: "Ginkgo focus regex for the spec"
+        type: string
+        required: true
+      region:
+        type: string
+        default: "us-west-2"
+      k8s_version:
+        type: string
+        default: "1.37"
+      control_plane_tier:
+        type: string
+        default: "standard"
+      thresholds:
+        description: "aws-kwok-4c = test/pkg/environment/aws/perf_thresholds_kwok_4c.json; core = the suite's own thresholds"
+        type: string
+        default: "core"
+      helm_opts:
+        description: "Extra helm flags for the KWOK controller (see install-karpenter-kwok)"
+        type: string
+        default: "--set settings.featureGates.nodeRepair=false"
+      enforce:
+        type: boolean
+        default: false
+      cleanup:
+        type: boolean
+        required: true
+jobs:
+  run-perf:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials
+      statuses: write # ./.github/actions/commit-status/start
+    name: perf-${{ inputs.spec_id }}
+    runs-on: ubuntu-latest
+    # Cluster setup and cleanup, plus upstream-perftests' 3h go test timeout
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.git_ref }}
+      - if: always() && github.event_name == 'workflow_run'
+        uses: ./.github/actions/commit-status/start
+        with:
+          name: ${{ github.workflow }} / perf (${{ inputs.spec_id }})
+          git_ref: ${{ inputs.git_ref }}
+      - uses: ./.github/actions/install-deps
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
+          aws-region: ${{ inputs.region }}
+          role-duration-seconds: 21600
+      - name: add jitter on cluster setup
+        run: |
+          # Stagger cluster creation across the parallel spec jobs to avoid API throttling
+          sleep $(( RANDOM % 120 + 1 ))
+      - id: generate-cluster-name
+        name: generate cluster name
+        env:
+          SPEC_ID: ${{ inputs.spec_id }}
+        run: |
+          CLUSTER_NAME=$(echo "perf-$SPEC_ID-${{ github.run_id }}-${{ github.run_attempt }}" | awk '{print tolower($0)}' | tr / -)
+          echo "Using cluster name \"$CLUSTER_NAME\""
+          echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
+      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+        uses: ./.github/actions/e2e/setup-cluster
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: v0.217.0
+          ip_family: IPv4
+          private_cluster: 'false'
+          git_ref: ${{ inputs.git_ref }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
+          prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
+          prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          enable_local_zones: false
+          cleanup: ${{ inputs.cleanup }}
+          # The KWOK controller is built from git_ref below, so no snapshot chart is needed
+          install_karpenter: 'false'
+      - name: set control plane tier ${{ inputs.control_plane_tier }}
+        if: inputs.control_plane_tier != 'standard'
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          TIER: ${{ inputs.control_plane_tier }}
+        run: |
+          set -euo pipefail
+          update_id=$(aws eks update-cluster-config --name "$CLUSTER_NAME" --control-plane-scaling-config "tier=$TIER" --query update.id --output text)
+          while status=$(aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id" --query update.status --output text); [[ "$status" == InProgress ]]; do
+            sleep 30
+          done
+          [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
+          aws eks wait cluster-active --name "$CLUSTER_NAME"
+      - name: install karpenter (KWOK)
+        uses: ./.github/actions/e2e/install-karpenter-kwok
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          git_ref: ${{ inputs.git_ref }}
+          image_repository: ${{ vars.CI_ACCOUNT_ID }}.dkr.ecr.${{ inputs.region }}.amazonaws.com/${{ vars.PERF_KWOK_ECR_REPOSITORY || 'karpenter/kwok' }}
+          helm_opts: ${{ inputs.helm_opts }}
+      - name: run the performance spec '${{ inputs.focus }}'
+        id: run
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          FOCUS: ${{ inputs.focus }}
+          THRESHOLDS: ${{ inputs.thresholds }}
+          ENFORCE: ${{ inputs.enforce }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$CLUSTER_NAME"
+          OUTPUT_DIR="$RUNNER_TEMP/perf"
+          mkdir -p "$OUTPUT_DIR"
+          case "$THRESHOLDS" in
+            aws-kwok-4c) PERF_THRESHOLDS_FILE=test/pkg/environment/aws/perf_thresholds_kwok_4c.json ;;
+            core) PERF_THRESHOLDS_FILE="" ;;
+            *) echo "::error::unknown thresholds '$THRESHOLDS'; valid: aws-kwok-4c core"; exit 1 ;;
+          esac
+          # Without enforce, a core that supports PERF_SOFT_THRESHOLDS records breaches instead of failing on them; an
+          # older core ignores it, so the job result is the go test result either way.
+          if [[ "$ENFORCE" == "true" ]]; then export PERF_SOFT_THRESHOLDS=false; else export PERF_SOFT_THRESHOLDS=true; fi
+          # Runs core's test/suites/performance from the sigs.k8s.io/karpenter module, like upstream-e2etests
+          make upstream-perftests CLUSTER_NAME="$CLUSTER_NAME" FOCUS="$FOCUS" OUTPUT_DIR="$OUTPUT_DIR" \
+            PERF_THRESHOLDS_FILE="$PERF_THRESHOLDS_FILE" 2>&1 | tee "$OUTPUT_DIR/test.log"
+      - name: upload results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-results-${{ inputs.spec_id }}
+          path: ${{ runner.temp }}/perf
+          if-no-files-found: warn
+      - name: summary
+        if: always()
+        env:
+          SPEC_ID: ${{ inputs.spec_id }}
+        run: |
+          # perf_summary.md is written by core's performance suite in versions that have it
+          f="$RUNNER_TEMP/perf/perf_summary.md"
+          if [[ -f "$f" ]]; then { echo "### perf $SPEC_ID"; cat "$f"; } >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: dump logs on failure
+        uses: ./.github/actions/e2e/dump-logs
+        if: failure() || cancelled()
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+      - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
+        uses: ./.github/actions/e2e/cleanup
+        if: always() && inputs.cleanup
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          git_ref: ${{ inputs.git_ref }}
+          eksctl_version: v0.217.0
+          private_cluster: false
+      - if: always() && github.event_name == 'workflow_run'
+        uses: ./.github/actions/commit-status/end
+        with:
+          name: ${{ github.workflow }} / perf (${{ inputs.spec_id }})
+          git_ref: ${{ inputs.git_ref }}
