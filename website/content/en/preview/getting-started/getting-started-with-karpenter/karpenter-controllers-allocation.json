@@ -300,7 +300,7 @@
         "datasource": {
           "uid": "${datasource}"
         },
-        "definition": "label_values(karpenter_allocation_controller_scheduling_duration_seconds_bucket, provisioner)",
+        "definition": "label_values(karpenter_allocation_controller_scheduling_duration_seconds_bucket{job=\"karpenter\"}, provisioner)",
         "description": "Karpenter provisioner",
         "error": null,
         "hide": 0,
@@ -310,7 +310,7 @@
         "name": "provisioner",
         "options": [],
         "query": {
-          "query": "label_values(karpenter_allocation_controller_scheduling_duration_seconds_bucket, provisioner)",
+          "query": "label_values(karpenter_allocation_controller_scheduling_duration_seconds_bucket{job=\"karpenter\"}, provisioner)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
