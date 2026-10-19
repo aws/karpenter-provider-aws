@@ -32,6 +32,12 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Patch releases share the compatibility entry of their minor version
+	if parts := strings.Split(strings.TrimPrefix(os.Args[2], "v"), "."); len(parts) == 3 && parts[2] != "0" {
+		log.Printf("Patch version %s, skipping", os.Args[2])
+		os.Exit(0)
+	}
+
 	v := strings.TrimSuffix(strings.TrimPrefix(os.Args[2], "v"), ".0")
 	appendVersion := fmt.Sprintf(
 		`
