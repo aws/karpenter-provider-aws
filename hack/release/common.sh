@@ -227,3 +227,39 @@ editWebsiteVersionsMenu() {
     yq -i ".params.versions += \"${version}\"" website/hugo.yaml
   done
 }
+
+# isPatchRelease returns success when the version (e.g. 1.14.2) is a stable patch release rather than a new minor
+isPatchRelease() {
+  local version="${1}"
+
+  [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ "${version##*.}" != "0" ]]
+}
+
+# isLatestMinor returns success when the version belongs to the minor of the highest stable release tag
+isLatestMinor() {
+  local version="${1}" latest
+
+  latest="$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)"
+  latest="${latest#v}"
+  [[ "${version%.*}" == "${latest%.*}" ]]
+}
+
+# bumpPatchVersion replaces the previous patch version of a minor with the new patch version in a website content directory.
+# The previous version is read from KARPENTER_VERSION in the getting started guide. The upgrade guide and compatibility
+# matrix reference historical versions and are skipped, as are feature state annotations.
+bumpPatchVersion() {
+  local version dir previous previous_regex
+
+  version="${1}"
+  dir="${2}"
+
+  previous="$(sed -n -E 's/^export KARPENTER_VERSION="([0-9.]+)"$/\1/p' "${dir}/getting-started/getting-started-with-karpenter/_index.md")"
+  if [[ -z "${previous}" ]] || [[ "${previous}" == "${version}" ]]; then
+    return
+  fi
+  echo "Updating ${dir} from ${previous} to ${version}"
+
+  previous_regex="${previous//./\\.}"
+  # shellcheck disable=SC2038
+  find "${dir}" -type f ! -name "upgrade-guide.md" ! -name "compatibility.md" | xargs perl -i -p -e "s/(?<![0-9.])${previous_regex}(?![0-9])/${version}/g unless /Feature State/;"
+}
