@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -984,6 +986,60 @@ var _ = Describe("InstanceTypeProvider", func() {
 			)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
+	})
+	Context("Cache", func() {
+		newCountingProvider := func() (*instancetype.DefaultProvider, *countingResolver) {
+			resolver := &countingResolver{Resolver: instancetype.NewDefaultResolver(fake.DefaultRegion, awsEnv.CELEnvironment)}
+			provider := instancetype.NewDefaultProvider(
+				cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
+				awsEnv.OfferingCache,
+				awsEnv.DiscoveredCapacityCache,
+				awsEnv.EC2API,
+				awsEnv.SubnetProvider,
+				awsEnv.PricingProvider,
+				awsEnv.CapacityReservationProvider,
+				awsEnv.PlacementGroupProvider,
+				awsEnv.UnavailableOfferingsCache,
+				resolver,
+				awsEnv.ZonalShiftProvider,
+				env.Client,
+				awsEnv.CELEnvironment,
+			)
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			return provider, resolver
+		}
+		It("should build instance types once when concurrent callers miss the cache", func() {
+			// Baseline: the number of Resolve calls for a single build
+			baseline, baselineResolver := newCountingProvider()
+			_, err := baseline.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			resolvesPerBuild := baselineResolver.calls.Load()
+			Expect(resolvesPerBuild).To(BeNumerically(">", 0))
+
+			provider, resolver := newCountingProvider()
+			const callers = 50
+			results := make([][]*corecloudprovider.InstanceType, callers)
+			errs := make([]error, callers)
+			start := make(chan struct{})
+			wg := sync.WaitGroup{}
+			for i := range callers {
+				wg.Add(1)
+				go func() {
+					defer GinkgoRecover()
+					defer wg.Done()
+					<-start
+					results[i], errs[i] = provider.List(ctx, nodeClass)
+				}()
+			}
+			close(start)
+			wg.Wait()
+			for i := range callers {
+				Expect(errs[i]).ToNot(HaveOccurred())
+				Expect(results[i]).To(HaveLen(len(results[0])))
+			}
+			Expect(resolver.calls.Load()).To(Equal(resolvesPerBuild))
+		})
 	})
 	Context("Metrics", func() {
 		It("should expose vcpu metrics for instance types", func() {
@@ -4127,4 +4183,15 @@ func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		return nil, fmt.Errorf("%s", r.failureText)
 	}
 	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
+}
+
+// countingResolver counts Resolve calls so tests can assert how many times instance types are built
+type countingResolver struct {
+	instancetype.Resolver
+	calls atomic.Int64
+}
+
+func (r *countingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
+	r.calls.Add(1)
+	return r.Resolver.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }
