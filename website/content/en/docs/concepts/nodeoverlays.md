@@ -145,6 +145,46 @@ NodeOverlay modifications are automatically integrated into Karpenter's consolid
 
 When NodeOverlay configurations change, Karpenter incorporates these changes into its next consolidation evaluation, potentially triggering node replacements if the new configurations significantly change the optimal instance selection for existing workloads.
 
+## NodeOverlays and Preview Instance Types
+
+NodeOverlays can be used to enable scheduling on preview (pre-GA) instance types that are available in your AWS account but don't yet have pricing data in the AWS Pricing API. Without a price, Karpenter marks offerings as unavailable and won't provision these instance types. By creating a NodeOverlay that assigns an explicit price, you can make these instance types available for scheduling.
+
+### Requirements
+
+To use this feature:
+
+1. The `NodeOverlay` [feature gate]({{<ref "../reference/settings#feature-gates" >}}) must be enabled
+2. Your AWS account must be allowlisted for the preview instance type (so it appears in `DescribeInstanceTypes`)
+3. You must create a NodeOverlay with **exactly** the following shape:
+
+```yaml
+apiVersion: karpenter.sh/v1alpha1
+kind: NodeOverlay
+metadata:
+  name: preview-instance-pricing
+spec:
+  requirements:
+    - key: node.kubernetes.io/instance-type
+      operator: In
+      values: # Insert your preview instance type(s)
+  price: # Insert your price
+```
+
+The overlay must have:
+
+* Exactly one requirement with key `node.kubernetes.io/instance-type` and operator `In`
+* An absolute `price` field (not `priceAdjustment`)
+* No other requirements (capacity-type, zone, CPU, etc.)
+
+Overlays that don't match this exact structure are ignored for preview instance pricing.
+
+### Caveats
+
+* **Applies to all NodePools**: Preview instance type pricing is set globally. Any NodePool whose requirements match the preview instance type will be able to schedule onto it — there is no way to scope preview pricing to a single NodePool.
+* **Price is an estimate**: Since official pricing isn't available yet, you must provide your own estimate. This affects Karpenter's cost-based scheduling decisions (e.g., consolidation, spot vs. on-demand selection).
+* **Pricing cache**: Overlay prices are cached for 5 minutes. Changes to NodeOverlay pricing take effect after the cache expires.
+* **Validation required**: The NodeOverlay must pass validation (have `ValidationSucceeded=True` status) before it will be used for preview pricing.
+
 ## Status and Observability
 
 NodeOverlays include status conditions to help you understand their current state and troubleshoot configuration issues.
