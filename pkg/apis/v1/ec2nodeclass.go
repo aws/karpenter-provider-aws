@@ -479,6 +479,14 @@ type BlockDevice struct {
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
+func (in *BlockDevice) HasVolumeSizeExpression() bool {
+	if in == nil || in.VolumeSize == nil {
+		return false
+	}
+	_, err := resource.ParseQuantity(*in.VolumeSize)
+	return err != nil
+}
+
 type EnclaveOptions struct {
 	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
 	// +required
@@ -592,11 +600,7 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) m
 // HasVolumeSizeExpressions returns true if any blockDeviceMappings entry sizes its volume with a CEL expression.
 func (in *EC2NodeClass) HasVolumeSizeExpressions() bool {
 	return lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool {
-		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
-			return false
-		}
-		_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
-		return err != nil
+		return bdm != nil && bdm.EBS.HasVolumeSizeExpression()
 	})
 }
 

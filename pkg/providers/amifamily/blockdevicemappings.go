@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
@@ -73,11 +72,7 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 }
 
 func hasVolumeSizeExpression(bdm *v1.BlockDeviceMapping) bool {
-	if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
-		return false
-	}
-	_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
-	return err != nil
+	return bdm != nil && bdm.EBS.HasVolumeSizeExpression()
 }
 
 // serializeVolumeSizes encodes the volume size of each mapping as a comparable string, for use in the

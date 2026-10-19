@@ -204,10 +204,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 
 	for _, bdm := range nodeClass.Spec.BlockDeviceMappings {
-		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
-			continue
-		}
-		if _, err := resource.ParseQuantity(*bdm.EBS.VolumeSize); err == nil {
+		if bdm == nil || !bdm.EBS.HasVolumeSizeExpression() {
 			continue
 		}
 		if err := v.celEnv.ValidateExpression(*bdm.EBS.VolumeSize); err != nil {

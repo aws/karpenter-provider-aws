@@ -360,11 +360,7 @@ func (p *DefaultProvider) ValidateBlockDeviceMappingExpressions(ctx context.Cont
 	// Without expressions there is nothing to evaluate. The same applies when expressions are gated off -- the
 	// validation controller has already rejected the NodeClass by this point.
 	if !lo.ContainsBy(nodeClass.BlockDeviceMappings(), func(bdm *v1.BlockDeviceMapping) bool {
-		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
-			return false
-		}
-		_, err := resource.ParseQuantity(*bdm.EBS.VolumeSize)
-		return err != nil
+		return bdm != nil && bdm.EBS.HasVolumeSizeExpression()
 	}) || !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		return nil
 	}
