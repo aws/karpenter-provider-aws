@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/operatorpkg/option"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -35,21 +36,25 @@ import (
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
 // It contains all the common data that is needed to inject into the Machine from either of these responses
 type Instance struct {
-	LaunchTime                 time.Time
-	State                      ec2types.InstanceStateName
-	ID                         string
-	ImageID                    string
-	Type                       ec2types.InstanceType
-	Zone                       string
-	ZoneID                     string
-	CapacityType               string
-	SecurityGroupIDs           []string
-	SubnetID                   string
-	Tags                       map[string]string
-	EFACount                   int
-	CapacityReservationDetails *CapacityReservationDetails
-	Tenancy                    string
-	PartitionNumber            *int32
+	// ObservedAt is the start of the DescribeInstances request that produced this
+	// instance. Fleet responses and cache fallbacks never advance it.
+	ObservedAt                  time.Time
+	LaunchTime                  time.Time
+	State                       ec2types.InstanceStateName
+	ID                          string
+	ImageID                     string
+	Type                        ec2types.InstanceType
+	Zone                        string
+	ZoneID                      string
+	CapacityType                string
+	SecurityGroupIDs            []string
+	SubnetID                    string
+	Tags                        map[string]string
+	EFACount                    int
+	CapacityReservationDetails  *CapacityReservationDetails
+	CapacityReservationGroupARN string
+	Tenancy                     string
+	PartitionNumber             *int32
 }
 
 type CapacityReservationDetails struct {
@@ -91,9 +96,10 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 			return item.InterfaceType != nil && (*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfa) ||
 				*item.InterfaceType == string(ec2types.NetworkInterfaceTypeEfaOnly))
 		}),
-		CapacityReservationDetails: capacityReservationDetails,
-		Tenancy:                    tenancyFromInstance(instance),
-		PartitionNumber:            partitionNumberFromInstance(instance),
+		CapacityReservationDetails:  capacityReservationDetails,
+		CapacityReservationGroupARN: capacityReservationGroupARN(instance),
+		Tenancy:                     tenancyFromInstance(instance),
+		PartitionNumber:             partitionNumberFromInstance(instance),
 	}
 }
 
@@ -114,11 +120,31 @@ func capacityTypeFromInstance(ctx context.Context, instance ec2types.Instance) s
 		return karpv1.CapacityTypeSpot
 	}
 	if karpopts.FromContext(ctx).FeatureGates.ReservedCapacity &&
-		instance.CapacityReservationId != nil &&
-		instance.CapacityReservationSpecification.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
+		lo.FromPtr(instance.CapacityReservationId) != "" &&
+		instance.CapacityReservationSpecification != nil &&
+		(instance.CapacityReservationSpecification.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly ||
+			capacityReservationGroupARN(instance) != "") {
 		return karpv1.CapacityTypeReserved
 	}
 	return karpv1.CapacityTypeOnDemand
+}
+
+func capacityReservationGroupARN(instance ec2types.Instance) string {
+	if instance.CapacityReservationSpecification == nil || instance.CapacityReservationSpecification.CapacityReservationTarget == nil {
+		return ""
+	}
+	return lo.FromPtr(instance.CapacityReservationSpecification.CapacityReservationTarget.CapacityReservationResourceGroupArn)
+}
+
+// CapacityReservationLabels reports current observed coverage, independently of the persistent group target.
+func (i *Instance) CapacityReservationLabels() map[string]string {
+	labels := map[string]string{karpv1.CapacityTypeLabelKey: i.CapacityType}
+	if i.CapacityType == karpv1.CapacityTypeReserved && i.CapacityReservationDetails != nil {
+		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
+		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
+		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
+	}
+	return labels
 }
 
 type NewInstanceFromFleetOpts = option.Function[Instance]
@@ -164,6 +190,7 @@ type CreateFleetInputBuilder struct {
 	contextID                        *string
 	capacityReservationType          v1.CapacityReservationType
 	capacityReservationInterruptible bool
+	capacityReservationGroupARN      string
 	overlay                          bool
 }
 
@@ -190,6 +217,14 @@ func (b *CreateFleetInputBuilder) WithContextID(contextID string) *CreateFleetIn
 
 func (b *CreateFleetInputBuilder) WithOverlay() *CreateFleetInputBuilder {
 	b.overlay = true
+	return b
+}
+
+func (b *CreateFleetInputBuilder) WithCapacityReservationGroup(arn string) *CreateFleetInputBuilder {
+	if b.capacityType != karpv1.CapacityTypeOnDemand {
+		panic("capacity reservation groups require an on-demand fleet")
+	}
+	b.capacityReservationGroupARN = arn
 	return b
 }
 
@@ -242,6 +277,11 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
 			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
+		}
+		if b.capacityReservationGroupARN != "" {
+			input.OnDemandOptions.CapacityReservationOptions = &ec2types.CapacityReservationOptionsRequest{
+				UsageStrategy: ec2types.FleetCapacityReservationUsageStrategyUseCapacityReservationsFirst,
+			}
 		}
 	}
 	return input

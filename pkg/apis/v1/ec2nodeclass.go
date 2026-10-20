@@ -50,10 +50,16 @@ type EC2NodeClassSpec struct {
 	// CapacityReservationSelectorTerms is a list of capacity reservation selector terms. Each term is ORed together to
 	// determine the set of eligible capacity reservations.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term",rule="!self.exists(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	CapacityReservationSelectorTerms []CapacityReservationSelectorTerm `json:"capacityReservationSelectorTerms" hash:"ignore"`
+	// CapacityReservationGroupARN targets an operator-managed Capacity Reservation Resource Group for On-Demand
+	// launches. EC2 selects a compatible reservation from the group, or falls back to On-Demand capacity, and may
+	// change the instance's reservation association during its lifetime.
+	// +kubebuilder:validation:Pattern=`^arn:aws(-[a-z0-9-]+)?:resource-groups:[a-z0-9-]+:[0-9]{12}:group/[a-zA-Z0-9_.-]{1,128}$`
+	// +optional
+	CapacityReservationGroupARN *string `json:"capacityReservationGroupARN,omitempty"`
 	// PlacementGroupSelector defines the name or the id of the placement to resolve with the nodeclass.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['name', 'id']",rule="has(self.name) || has(self.id)"
 	// +kubebuilder:validation:XValidation:message="'name' and 'id' are mutually exclusive",rule="!(has(self.name) && has(self.id))"
@@ -532,6 +538,7 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="capacityReservationGroupARN and capacityReservationSelectorTerms are mutually exclusive",rule="!has(self.capacityReservationGroupARN) || !has(self.capacityReservationSelectorTerms) || self.capacityReservationSelectorTerms.size() == 0"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2023') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2023') : true)"
 	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'bottlerocket') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Bottlerocket') : true)"

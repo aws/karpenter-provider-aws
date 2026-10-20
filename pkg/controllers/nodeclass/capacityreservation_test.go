@@ -46,6 +46,15 @@ var interruptibleTags = map[string]string{
 }
 
 var _ = Describe("NodeClass Capacity Reservation Reconciler", func() {
+	It("should keep a capacity reservation group ready without advertising reservation slots", func() {
+		nodeClass.Spec.CapacityReservationGroupARN = lo.ToPtr("arn:aws:resource-groups:us-west-2:123456789012:group/workload-a")
+		nodeClass.Spec.CapacityReservationSelectorTerms = nil
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeCapacityReservationsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.Status.CapacityReservations).To(BeEmpty())
+	})
 	BeforeEach(func() {
 		awsEnv.EC2API.DescribeCapacityReservationsOutput.Set(&ec2.DescribeCapacityReservationsOutput{
 			CapacityReservations: []ec2types.CapacityReservation{

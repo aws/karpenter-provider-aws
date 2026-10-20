@@ -149,7 +149,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	var results []reconcile.Result
 	var errs error
 	for _, reconciler := range c.reconcilers {
-		if _, ok := reconciler.(*CapacityReservation); ok && !karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity {
+		if _, ok := reconciler.(*CapacityReservation); ok && !karpoptions.FromContext(ctx).FeatureGates.ReservedCapacity && nodeClass.Spec.CapacityReservationGroupARN == nil {
 			continue
 		}
 		res, err := reconciler.Reconcile(ctx, nodeClass)

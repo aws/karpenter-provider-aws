@@ -154,6 +154,22 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if nodeClassReady != nil && nodeClassReady.ObservedGeneration != nodeClass.Generation {
 		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("nodeclass status has not been reconciled against the latest spec"))
 	}
+	if nodeClass.Spec.CapacityReservationGroupARN != nil {
+		if name := nodeClaim.Labels[karpv1.NodePoolLabelKey]; name != "" {
+			nodePool := &karpv1.NodePool{}
+			if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: name}, nodePool); err != nil {
+				return nil, fmt.Errorf("resolving nodepool for capacity reservation group, %w", err)
+			}
+			if err := validateCapacityReservationGroupRequirements(nodePool.Spec.Template.Spec.Requirements, nodePool.Spec.Template.Labels); err != nil {
+				return nil, cloudprovider.NewCreateError(err, "InvalidCapacityReservationGroupRequirements", err.Error())
+			}
+		}
+		// NodePool constraints cannot establish pod compatibility. Group NodeClaims must retain both possible
+		// coverage states so that launches also satisfy the scheduler's workload constraints.
+		if err := validateCapacityReservationGroupNodeClaimRequirements(nodeClaim.Spec.Requirements, nodeClaim.Labels); err != nil {
+			return nil, cloudprovider.NewCreateError(err, "InvalidCapacityReservationGroupRequirements", err.Error())
+		}
+	}
 	tags, err := utils.GetTags(nodeClass, nodeClaim, options.FromContext(ctx).ClusterName)
 	if err != nil {
 		return nil, cloudprovider.NewNodeClassNotReadyError(err)
@@ -177,7 +193,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err != nil {
 		return nil, fmt.Errorf("creating instance, %w", err)
 	}
-	if instance.CapacityType == karpv1.CapacityTypeReserved {
+	if instance.CapacityType == karpv1.CapacityTypeReserved && instance.CapacityReservationGroupARN == "" {
 		c.capacityReservationProvider.MarkLaunched(instance.CapacityReservationDetails.ID)
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
@@ -245,9 +261,26 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		return nil, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	// TODO, break this coupling
+	if nodeClass.Spec.CapacityReservationGroupARN != nil {
+		if err := validateCapacityReservationGroupRequirements(nodePool.Spec.Template.Spec.Requirements, nodePool.Spec.Template.Labels); err != nil {
+			return nil, err
+		}
+	}
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
+	}
+	if nodeClass.Spec.CapacityReservationGroupARN != nil {
+		for index, it := range instanceTypes {
+			// Offerings may be cached; attach NodeClass-specific transition metadata to a private copy.
+			updated := it.DeepCopy()
+			for _, offering := range updated.Offerings {
+				if offering.CapacityType() == karpv1.CapacityTypeOnDemand {
+					offering.CapacityTypeTransitions = []string{karpv1.CapacityTypeReserved}
+				}
+			}
+			instanceTypes[index] = updated
+		}
 	}
 	// Populate DRA DynamicResources for the instance types, based on the DRA drivers we support.
 	c.populateDynamicResources(ctx, nodeClass, instanceTypes)
@@ -286,7 +319,7 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	err = c.instanceProvider.Delete(ctx, id)
-	if reservationID := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; reservationID != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
+	if reservationID := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; reservationID != "" && nodeClaim.Annotations[v1.AnnotationCapacityReservationGroupARN] == "" && cloudprovider.IsNodeClaimNotFoundError(err) {
 		c.capacityReservationProvider.MarkTerminated(reservationID, id)
 	}
 	return err
@@ -632,12 +665,14 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 			labels[v1.LabelTopologyZoneID] = subnet.ZoneID
 		}
 	}
-	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
+	labels = lo.Assign(labels, i.CapacityReservationLabels())
 	labels[v1.LabelInstanceTenancy] = i.Tenancy
-	if i.CapacityType == karpv1.CapacityTypeReserved {
-		labels[cloudprovider.ReservationIDLabel] = i.CapacityReservationDetails.ID
-		labels[v1.LabelCapacityReservationType] = string(i.CapacityReservationDetails.Type)
-		labels[v1.LabelCapacityReservationInterruptible] = fmt.Sprintf("%t", i.CapacityReservationDetails.Interruptible)
+	if i.CapacityReservationGroupARN != "" {
+		annotations[v1.AnnotationCapacityReservationGroupARN] = i.CapacityReservationGroupARN
+		annotations[karpv1.CapacityTypeTransitionsAnnotationKey] = "on-demand,reserved"
+	} else if originalNodeClaim != nil && originalNodeClaim.Annotations[karpv1.CapacityTypeTransitionsAnnotationKey] != "" {
+		// The scheduler conservatively described every possible offering; persist the actual launch's behavior.
+		annotations[karpv1.CapacityTypeTransitionsAnnotationKey] = ""
 	}
 	// Placement group labels
 	if nodeClass != nil {

@@ -71,7 +71,7 @@ func main() {
 			clusterState,
 			op.InstanceTypeStore,
 			op.PredictionStore,
-			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.InstanceProvider)),
+			corecontrollers.WithRegistrationHook(registrationhooks.NewAWSRegistrationHook(op.InstanceProvider)),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
