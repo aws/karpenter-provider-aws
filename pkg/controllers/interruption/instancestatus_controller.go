@@ -22,6 +22,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/reconciler"
 	"github.com/awslabs/operatorpkg/singleton"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	instancestatusmsg "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatus"
@@ -63,6 +65,10 @@ var (
 
 // InstanceStatusController polls EC2 DescribeInstanceStatus to detect unhealthy instances
 // and scheduled maintenance events, then cordons and drains affected nodes.
+// When NodeRepair is enabled without legacy node repair, instance and system status check failures are published
+// as the EC2StatusReady Node condition instead, so this controller only handles scheduled maintenance events.
+// TODO(NodeRepair GA): drop instance and system status handling here and move DescribeInstanceStatus
+// polling out of the interruption controller.
 type InstanceStatusController struct {
 	InterruptionHandler
 	instanceStatusProvider instancestatus.Provider
@@ -92,7 +98,11 @@ func NewInstanceStatusController(
 func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "interruption.instancestatus")
 
-	instanceStatuses, err := c.instanceStatusProvider.List(ctx)
+	categories := []instancestatus.Category{instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus}
+	if coreoptions.FromContext(ctx).FeatureGates.NodeRepair && !coreoptions.FromContext(ctx).LegacyNodeRepair {
+		categories = []instancestatus.Category{instancestatus.EventStatus}
+	}
+	instanceStatuses, err := c.instanceStatusProvider.List(ctx, categories...)
 	if err != nil {
 		if awserrors.IsUnauthorizedOperationError(err) {
 			log.FromContext(ctx).Error(err, "ec2:DescribeInstanceStatus permission is not allowed, update the IAM policy and restart the Karpenter deployment to enable instance status health checks")
@@ -100,6 +110,21 @@ func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Re
 		}
 		return reconciler.Result{}, fmt.Errorf("getting instance statuses, %w", err)
 	}
+	instanceStatuses = lo.FilterMap(instanceStatuses, func(hs instancestatus.HealthStatus, _ int) (instancestatus.HealthStatus, bool) {
+		// Do not evaluate against the unhealthy threshold when its a scheduled maintenance event.
+		// Scheduled maintenance events often have a future scheduled time which makes a threshold
+		// difficult to utilize. We take the stance that if there is a scheduled maintenance event,
+		// then there is something wrong with the underlying host that warrants vacating immediately.
+		// This matches how we process scheduled maintenance events from EventBridge.
+		hs.Details = lo.Filter(hs.Details, func(details instancestatus.Details, _ int) bool {
+			return details.Category == instancestatus.EventStatus || c.clk.Since(details.ImpairedSince) >= instancestatus.UnhealthyThreshold
+		})
+		if len(hs.Details) == 0 {
+			return hs, false
+		}
+		hs.ImpairedSince = instancestatus.EarliestImpairedSince(hs.Details)
+		return hs, true
+	})
 
 	// Build the set of keys observed in this poll cycle for pruning stale entries.
 	currentKeys := make(map[unhealthyKey]struct{})
