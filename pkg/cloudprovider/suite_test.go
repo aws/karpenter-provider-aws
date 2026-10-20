@@ -469,6 +469,7 @@ var _ = Describe("CloudProvider", func() {
 			},
 			Entry("instance status", instancestatus.ReasonInstanceReachabilityFailed),
 			Entry("system status", instancestatus.ReasonSystemReachabilityFailed),
+			Entry("ebs status", instancestatus.ReasonEBSReachabilityFailed),
 		)
 		It("should not repair nodes that pass EC2 reachability checks", func() {
 			Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionTrue, instancestatus.ReasonNoImpairmentReported, time.Hour).Action).To(BeEmpty())

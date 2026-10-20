@@ -118,14 +118,15 @@ var _ = Describe("Instance Status Provider", func() {
 			},
 			Entry("instance status", instancestatus.InstanceStatus, "instance-status.status", string(ec2types.StatusNameReachability)),
 			Entry("system status", instancestatus.SystemStatus, "system-status.status", string(ec2types.StatusNameReachability)),
+			Entry("ebs status", instancestatus.EBSStatus, "attached-ebs-status.status", string(ec2types.StatusNameReachability)),
 			Entry("scheduled events", instancestatus.EventStatus, "event.code", string(ec2types.EventCodeInstanceRetirement)),
 		)
 		It("should merge every requested category into one status per instance", func() {
-			statuses, err := awsEnv.InstanceStatusProvider.List(ctx, instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus)
+			statuses, err := awsEnv.InstanceStatusProvider.List(ctx, instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EBSStatus, instancestatus.EventStatus)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(statuses).To(HaveLen(1))
 			Expect(lo.Map(statuses[0].Details, func(d instancestatus.Details, _ int) instancestatus.Category { return d.Category })).
-				To(ConsistOf(instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus))
+				To(ConsistOf(instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EBSStatus, instancestatus.EventStatus))
 		})
 		It("should not return healthy statuses", func() {
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
@@ -144,11 +145,59 @@ var _ = Describe("Instance Status Provider", func() {
 					},
 				},
 			})
-			for _, category := range []instancestatus.Category{instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus} {
+			for _, category := range []instancestatus.Category{instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EBSStatus, instancestatus.EventStatus} {
 				statuses, err := awsEnv.InstanceStatusProvider.List(ctx, category)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(statuses).To(HaveLen(0))
 			}
+		})
+		It("should return EBS impaired status even when instance and system statuses are healthy", func() {
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr("i-0123456789"),
+						SystemStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusOk,
+						},
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusOk,
+						},
+						AttachedEbsStatus: &ec2types.EbsStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.EbsStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			statuses, err := awsEnv.InstanceStatusProvider.List(ctx, instancestatus.EBSStatus)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(statuses).To(HaveLen(1))
+			Expect(statuses[0].Details).To(HaveLen(1))
+			Expect(statuses[0].Details[0].Category).To(Equal(instancestatus.EBSStatus))
+		})
+		It("should not return EBS status when AttachedEbsStatus is absent", func() {
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr("i-0123456789"),
+						SystemStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusOk,
+						},
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusOk,
+						},
+					},
+				},
+			})
+			statuses, err := awsEnv.InstanceStatusProvider.List(ctx, instancestatus.EBSStatus)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(statuses).To(HaveLen(0))
 		})
 		It("should return scheduled maintenance events even when other statuses are healthy", func() {
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
