@@ -398,4 +398,4 @@ Note that these expressions reproduce the defaults only up to rounding — the C
 
 `max` and `min` are custom two-argument overloads registered on the environment (int/int, double/double, and the mixed int/double pairs, which return a double). They are not CEL's variadic list-based macros — `max(a, b, c)` is not supported.
 
-Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.
+Note: This plan was made in mind to be compatible with potential future changes to the kubelet config struct switching from selected, hardcoded fields to an open map that gives users access to any field from a selected Kubernetes library version.  
