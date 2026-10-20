@@ -389,12 +389,12 @@ You should be aware of the CPU and memory default calculation when using Custom 
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Alpha]({{<ref "../reference/settings#aws-specific-feature-gates" >}})
 
-`maxPods`, `kubeReserved`, `systemReserved`, and EBS `volumeSize` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity, `kubeReserved` scale with vCPU count, or EBS volumes scale with instance size without fracturing into a separate NodeClass per instance size.
+`maxPods`, `kubeReserved`, and `systemReserved` can be set to a [CEL (Common Expression Language)](https://kubernetes.io/docs/reference/using-api/cel/) expression that Karpenter evaluates per instance type, instead of a static value that applies uniformly to every node launched from the NodeClass. This lets a single NodeClass span a heterogeneous fleet. For example, `maxPods` can scale with each instance type's ENI capacity or `kubeReserved` scale with vCPU count without fracturing into a separate NodeClass per instance size.
 
 {{% alert title="Feature Gate Required" color="warning" %}}
 Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}), which is disabled by default. Enable it with `--aws-feature-gates NodeClassCEL=true` (Helm: `settings.awsFeatureGates.nodeClassCEL: true`).
 
-While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `NodeClassCELDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields and volume sizes are all static values is unaffected.
+While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
 {{% /alert %}}
 
 Each field independently accepts either its usual static value or an expression string, there is no separate expression field.

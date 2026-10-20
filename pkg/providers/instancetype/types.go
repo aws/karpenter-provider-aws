@@ -554,10 +554,9 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			for i := len(blockDeviceMappings) - 1; i >= 0; i-- {
-				if bdm := blockDeviceMappings[i]; bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSize != nil {
-					return quantityFromVolumeSize(bdm.EBS.VolumeSize)
-				}
+			last := blockDeviceMappings[len(blockDeviceMappings)-1]
+			if last != nil && last.EBS != nil && last.EBS.VolumeSize != nil {
+				return quantityFromVolumeSize(last.EBS.VolumeSize)
 			}
 			return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
 		default:
