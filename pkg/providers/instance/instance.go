@@ -50,6 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -86,6 +87,7 @@ type Provider interface {
 	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
+	Reboot(context.Context, string, string) error
 	CreateTags(context.Context, string, map[string]string) error
 }
 
@@ -290,6 +292,34 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 			})
 			return err
 		}
+	}
+	return nil
+}
+
+// Reboot restarts the instance in place via ec2:RebootInstances.
+// EC2 has no client token; restart safety is handled by the reboot controller.
+func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID string) error {
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id, "operation-id", operationID))
+	// Get populates the cache with the instance's zone for the zonal-shift guard below.
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Avoid rebooting instances during zonal shift
+	if out.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, out.ZoneID) {
+		return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping reboot", id, out.Zone, out.ZoneID)
+	}
+	if _, err := p.ec2api.RebootInstances(ctx, &ec2.RebootInstancesInput{
+		InstanceIds: []string{id},
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("rebooting instance, %w", err))
+		}
+		// A missing ec2:RebootInstances permission won't fix itself, so fail the reboot instead of retrying it.
+		if awserrors.IsUnauthorizedOperationError(err) {
+			return cloudprovider.NewNodeRebootFailedError(fmt.Errorf("rebooting instance, %w", err))
+		}
+		return fmt.Errorf("rebooting instance, %w", err)
 	}
 	return nil
 }
@@ -739,7 +769,9 @@ func (p *DefaultProvider) getEFACountForInstance(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found && nodeClass.NetworkInterfaces() == nil {
+	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
+	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
+	if !requested && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {

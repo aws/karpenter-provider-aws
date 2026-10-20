@@ -39,6 +39,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -911,39 +912,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodes.Insert(node.Name)
 		}
 		Expect(nodes.Len()).To(Equal(1))
-	})
-	It("should launch instances for amd.com/gpu resource requests", func() {
-		nodeNames := sets.NewString()
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pods := []*corev1.Pod{
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("1")},
-				},
-			}),
-			// Should pack onto same instance
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("2")},
-				},
-			}),
-			// Should pack onto a separate instance
-			coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceAMDGPU: resource.MustParse("4")},
-				},
-			}),
-		}
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for _, pod := range pods {
-			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "g4ad.16xlarge"))
-			nodeNames.Insert(node.Name)
-		}
-		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2577,6 +2545,40 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 	})
+	Context("Volume Attachment Limits", func() {
+		DescribeTable("should only launch nodes that can attach every EBS volume a pod uses",
+			func(volumes int, schedulable bool) {
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"t3.large"},
+				})
+				storageClass := coretest.StorageClass(coretest.StorageClassOptions{
+					Provisioner:       lo.ToPtr("ebs.csi.aws.com"),
+					VolumeBindingMode: lo.ToPtr(storagev1.VolumeBindingWaitForFirstConsumer),
+				})
+				pvcs := lo.Times(volumes, func(_ int) *corev1.PersistentVolumeClaim {
+					return coretest.PersistentVolumeClaim(coretest.PersistentVolumeClaimOptions{StorageClassName: lo.ToPtr(storageClass.Name)})
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass, storageClass)
+				for _, pvc := range pvcs {
+					ExpectApplied(ctx, env.Client, pvc)
+				}
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					PersistentVolumeClaims: lo.Map(pvcs, func(pvc *corev1.PersistentVolumeClaim, _ int) string { return pvc.Name }),
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				if schedulable {
+					ExpectScheduled(ctx, env.Client, pod)
+				} else {
+					ExpectNotScheduled(ctx, env.Client, pod)
+				}
+			},
+			// t3.large allows 27 EBS attachments, one of which is the root volume
+			Entry("26 volumes", 26, true),
+			Entry("27 volumes", 27, false),
+		)
+	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -3578,6 +3580,31 @@ var _ = Describe("InstanceTypeProvider", func() {
 			awsEnv.OfferingCache.Flush()
 			Expect(availableOfferings()).To(BeEmpty())
 			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
+		})
+	})
+	Context("Nested Virtualization", func() {
+		It("should isolate cached offering availability by nested virtualization configuration", func() {
+			// None of the fake instance types advertise the nested virtualization processor feature, so every
+			// offering should be unavailable when nested virtualization is enabled on the NodeClass.
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
+
+			nodeClass.Spec.CPUOptions = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("disabled")}
 			Expect(availableOfferings()).ToNot(BeEmpty())
 		})
 	})

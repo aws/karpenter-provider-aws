@@ -780,7 +780,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
 				// Bottlerocket control volume
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(6)))
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 				// Bottlerocket user volume

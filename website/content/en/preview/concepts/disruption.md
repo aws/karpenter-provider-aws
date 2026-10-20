@@ -113,6 +113,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 * Nodes running fewer pods
 * Nodes that will expire soon
 * Nodes with lower priority pods
+* Nodes that have a lower total [`disruption-cost`]({{<ref "#disruption-cost" >}})
 
 If consolidation is enabled, Karpenter periodically reports events against nodes that indicate why the node can't be consolidated.  These events can be used to investigate nodes that you expect to have been consolidated, but still remain in your cluster.
 
@@ -142,6 +143,10 @@ By default every pod contributes an equal weight to disruption, so an action's d
 
 Karpenter records each scoring decision so you can see why an action was or wasn't taken. Approved actions emit a `ConsolidationApproved` event (on the Node and on the NodeClaim for single-node actions, on the NodePool for multi-node actions) that includes the score and the savings and disruption percentages. Scoring decisions are also exported as the `karpenter_consolidation_score` and `karpenter_consolidation_moves_total` [metrics]({{<ref "../reference/metrics" >}}), labeled by decision, NodePool, and policy, and logged at `--log-level debug`.
 
+#### Pod deletion cost management
+
+When a Deployment scales in, the ReplicaSet controller doesn't know which nodes Karpenter wants to consolidate. The alpha `PodDeletionCostManagement` feature gate lets Karpenter steer ReplicaSet scale-down toward those nodes. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
@@ -152,7 +157,6 @@ We refer to the number of instances that Karpenter has within its launch decisio
 2) We launch with enough instance types that there’s high likelihood that our replacement instance has comparable availability to our current one.
 
 Karpenter requires a minimum instance type flexibility of 15 instance types when performing single node spot-to-spot consolidations (1 node to 1 node). It does not have the same instance type flexibility requirement for multi-node spot-to-spot consolidations (many nodes to 1 node) since doing so without requiring flexibility won't lead to "race to the bottom" scenarios.
-
 
 ### Drift
 Drift handles changes to the NodePool/EC2NodeClass. For Drift, values in the NodePool/EC2NodeClass are reflected in the NodeClaimTemplateSpec/EC2NodeClassSpec in the same way that they’re set. A NodeClaim will be detected as drifted if the values in its owning NodePool/EC2NodeClass do not match the values in the NodeClaim. Similar to the upstream `deployment.spec.template` relationship to pods, Karpenter will annotate the owning NodePool and EC2NodeClass with a hash of the NodeClaimTemplateSpec to check for drift. Some special cases will be discovered either from Karpenter or through the CloudProvider interface, triggered by NodeClaim/Instance/NodePool/EC2NodeClass changes.
@@ -183,7 +187,6 @@ Behavioral Fields are treated as over-arching settings on the NodePool to dictat
 | spec.disruption.*   |
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
-
 
 Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
@@ -228,16 +231,16 @@ Karpenter assumes that it can relaunch into the slot the terminated node frees. 
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.1.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})
 
-Node Auto Repair automatically identifies and replaces unhealthy nodes in your cluster. Nodes can experience various types of failures affecting their hardware, file systems, or container environments. These failures are surfaced through node status conditions, set either by the kubelet or by a node diagnostic agent such as the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html). When a node reports one of the [monitored conditions](#monitored-node-conditions) for longer than that condition's toleration duration, Karpenter repairs it.
+Node Auto Repair automatically identifies and repairs unhealthy nodes in your cluster, either by replacing them or by [rebooting them in place](#repair-actions). Nodes can experience various types of failures affecting their hardware, file systems, or container environments. These failures are surfaced through node status conditions, set by the kubelet, by Karpenter from [EC2 status checks](#interruption), or by a node diagnostic agent such as the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html). When a node reports one of the [monitored conditions](#monitored-node-conditions) for longer than that condition's toleration duration, Karpenter repairs it.
 
 To enable Node Auto Repair:
-  1. Ensure you have a [Node Monitoring Agent](https://docs.aws.amazon.com/en_us/eks/latest/userguide/node-health.html) deployed or any agent that will add status conditions to nodes that are supported (e.g., Node Problem Detector)
+  1. Ensure you have a [Node Monitoring Agent](https://docs.aws.amazon.com/en_us/eks/latest/userguide/node-health.html) deployed or any agent that will add status conditions to nodes that are supported (e.g., Node Problem Detector). Note: Repairing conditions from [EC2 status checks](#interruption) doesn't require an agent since Karpenter adds them.
   2. Enable the feature flag: `NodeRepair=true`. See [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 Node repair is a graceful disruption method, and it follows the same [standard disruption process](#disruption-controller) as Drift and Consolidation:
-* **Pre-spin:** Karpenter launches a replacement node, waits for it to become ready, and only then terminates the unhealthy node. If the node's pods can't be rescheduled, Karpenter emits a `DisruptionBlocked` event on the node and retries later.
-* **Budgets:** Repair is rate limited by [NodePool Disruption Budgets](#nodepool-disruption-budgets) under the `Unhealthy` reason. Unlike other reasons, nodes that are `NotReady` do not count against the `Unhealthy` budget, so a wave of unhealthy nodes does not block the repairs that would fix them. Only nodes that are already being deleted count against it.
-* **Drain:** Karpenter drains the node through the [Termination Controller]({{<ref "#termination-controller" >}}), which respects PDBs. Each [monitored condition](#monitored-node-conditions) has a termination grace period that bounds the drain. Karpenter uses the shorter of that period and the NodeClaim's [`terminationGracePeriod`](#terminationgraceperiod). A termination grace period of `0` means Karpenter skips the drain, for conditions such as a lost kubelet heartbeat where the node can't evict pods. Pods with blocking PDBs or the `karpenter.sh/do-not-disrupt` annotation don't stop Karpenter from selecting a node for repair, and can't delay its drain past the termination grace period.
+* **Pre-spin:** For a replacement, Karpenter launches a replacement node, waits for it to become ready, and only then terminates the unhealthy node. If the node's pods can't be rescheduled, Karpenter emits a `DisruptionBlocked` event on the node and retries later.
+* **Budgets:** Repair is rate limited by [NodePool Disruption Budgets](#nodepool-disruption-budgets) under the `Unhealthy` reason. Unlike other reasons, nodes that are `NotReady` do not count against the `Unhealthy` budget, so a wave of unhealthy nodes does not block the repairs that would fix them. Only nodes that are already being deleted or [rebooted](#repair-actions) count against it.
+* **Drain:** Karpenter drains the node through the [Termination Controller]({{<ref "#termination-controller" >}}), which respects PDBs. Each [monitored condition](#monitored-node-conditions) has a termination grace period that bounds the drain. Karpenter uses the shorter of that period and the NodeClaim's [`terminationGracePeriod`](#terminationgraceperiod). A termination grace period of `0` means Karpenter skips the drain. Pods with blocking PDBs or the `karpenter.sh/do-not-disrupt` annotation don't stop Karpenter from selecting a node for repair, and can't delay its drain past the termination grace period.
 * **Ordering:** When several nodes are eligible, Karpenter repairs the node that has been unhealthy past its toleration duration the longest.
 
 Karpenter includes safety mechanisms to prevent cascading failures. If more than 20% of the nodes in a NodePool report a monitored condition, Karpenter stops repairing that NodePool, because the failure is likely correlated (for example, a bad AMI or an Availability Zone outage) and replacing nodes would not fix it. Karpenter emits a `NodeRepairBlocked` warning event on the node, NodeClaim, and NodePool while repair is blocked. The 20% threshold counts a node as unhealthy as soon as it reports a monitored condition, before its toleration duration elapses.
@@ -246,24 +249,93 @@ If a replacement can't be pre-spun, for example because the node is in a full ca
 
 To opt a node out of repair, annotate it with `karpenter.sh/do-not-repair: "true"`. See [Node-Level Controls]({{<ref "#node-level-controls" >}}).
 
+#### Repair Actions
+
+Each [monitored condition](#monitored-node-conditions) has a repair action, and can match on the condition's reason. For example, a transient GPU error is rebooted while a fatal one is replaced. When a node matches several conditions, Karpenter takes the most disruptive action.
+
+Rebooting for repair is opt-in through the `RebootForRepair` [AWS feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}) (alpha, disabled by default), which needs the `ec2:RebootInstances` permission. Without it, policies with the `RebootNode` action replace the node instead, on the same toleration duration and termination grace period.
+
+* **Replace:** Karpenter replaces the node, as described above.
+* **Reboot:** Karpenter reboots the node's instance in place, keeping the instance, its capacity, and its local storage. This suits faults that a reboot clears, on instances that are scarce or slow to replace.
+
+A reboot follows these steps:
+
+![reboot](/reboot.png)
+
+1. Karpenter taints the node with `karpenter.sh/rebooting:NoSchedule` so that no new pods schedule to it.
+2. Karpenter drains the node through the eviction API, which respects PDBs, bounded by the same termination grace period as a replacement. Pods that haven't been evicted when the grace period ends stay on the node through the reboot; Karpenter doesn't delete them. With a termination grace period of `0`, Karpenter skips the drain and every pod stays on the node.
+3. Karpenter reboots the instance through the cloud provider (`ec2:RebootInstances`).
+4. When the node reports a new boot ID, Karpenter removes the taint. The reboot succeeds once the node is also `Ready`.
+
+Pods that stay on the node restart in place when it comes back, unless the kubelet stops them first: with a non-zero `shutdownGracePeriod`, the kubelet's graceful node shutdown terminates them and their controllers recreate them. A reboot that keeps the node `NotReady` past a pod's `NoExecute` toleration (300 seconds by default) also evicts it.
+
+While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
+
+Karpenter replaces the node if the reboot fails: if the cloud provider rejects the reboot with an error that retrying can't fix, such as a missing `ec2:RebootInstances` permission (immediately), if it keeps rejecting the reboot with other errors for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
+If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.
+
+To follow a reboot, check the NodeClaim's `Rebooting` status condition. Its reason moves from `RebootRequested` (draining) to `RebootIssued` (rebooting), and then to `RebootSucceeded` or `RebootFailed`.
+Karpenter records reboot outcomes in the `karpenter_nodes_reboots_total` [metric]({{<ref "../reference/metrics" >}}), labeled by `result`, and records reboot decisions as `reboot` in the `decision` label of `karpenter_voluntary_disruption_decisions_total`.
+
 #### Monitored Node Conditions
 
-Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
-The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above.
+Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. `EC2StatusReady` is reported by Karpenter from [EC2 DescribeInstanceStatus](#interruption). The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
+A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above. Policies with the `RebootNode` action reboot the node only with the `RebootForRepair` AWS feature gate enabled; otherwise they replace it on the same toleration duration and termination grace period.
 
 [comment]: <> (the content below is generated from hack/docs/repairpolicies_gen/main.go)
 
-| Condition Type | Status | Toleration Duration | Termination Grace Period |
-|---|---|---|---|
-| `Ready` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `Ready` | `Unknown` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `AcceleratedHardwareReady` | `False` | 10 minutes | NodeClaim's `terminationGracePeriod` |
-| `StorageReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `NetworkingReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `KernelReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
-| `ContainerRuntimeReady` | `False` | 30 minutes | NodeClaim's `terminationGracePeriod` |
+| Condition Type | Status | Reason | Toleration Duration | Termination Grace Period | Action |
+|---|---|---|---|---|---|
+| `EC2StatusReady` | `False` | Any | 2 minutes | 5 minutes | `ReplaceNode` |
+| `Ready` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
+| `AcceleratedHardwareReady` | `False` | Any reason not matched by another policy for the condition | 10 minutes | 10 minutes | `ReplaceNode` |
+| `StorageReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `StorageReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `NetworkingReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `NetworkingReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `KernelReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `KernelReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `ContainerRuntimeReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `ContainerRuntimeReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 
 [comment]: <> (end docs generated content from hack/docs/repairpolicies_gen/main.go)
+
+#### Legacy Node Repair
+
+{{% alert title="Warning" color="warning" %}}
+We plan to deprecate the legacy node repair controller. If you use it because the new one does not work for you, please [open an issue](https://github.com/kubernetes-sigs/karpenter/issues) with your use case/problem.
+{{% /alert %}}
+
+To use the legacy node repair controller (pre-1.15) before node repair became a graceful disruption method, enable the `NodeRepair` feature gate and also set `--legacy-node-repair` (`LEGACY_NODE_REPAIR=true`).
+
+The legacy controller only replaces nodes, and uses the repair policies from before 1.15 instead of the [Monitored Node Conditions](#monitored-node-conditions) above. They match every reason of a condition:
+
+| Condition | Status | Toleration Duration |
+|---|---|---|
+| Ready | False | 30 minutes |
+| Ready | Unknown | 30 minutes |
+| AcceleratedHardwareReady | False | 10 minutes |
+| StorageReady | False | 30 minutes |
+| NetworkingReady | False | 30 minutes |
+| KernelReady | False | 30 minutes |
+| ContainerRuntimeReady | False | 30 minutes |
+
+When a node reports one of these conditions for longer than its toleration duration, Karpenter deletes the node's NodeClaim and forcefully terminates it, without pre-spinning a replacement. It sets the NodeClaim's termination timestamp to the current time, so the drain bypasses PDBs. It ignores NodePool Disruption Budgets and the `karpenter.sh/do-not-disrupt` annotation. It has its own 20% breaker: if more than 20% of the nodes in a NodePool (or in the cluster, for NodeClaims without a NodePool) report one of these conditions, it stops repairing them and retries every 5 minutes. It emits `karpenter_nodeclaims_unhealthy_disrupted_total` and `karpenter_nodeclaims_disrupted_total` with the `unhealthy` reason.
+
+The legacy controller does not support:
+* [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
+* The `RebootNode` action, or reason granularity for policies. For example, an `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes regardless of the reason, including reasons the default policies would reboot.
+* Repair policy priority
+* Per-condition termination grace periods
+* NodePool Disruption Budgets
+* The `karpenter.sh/do-not-repair` annotation
 
 ## Automated Forceful Methods
 
@@ -300,7 +372,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 * Scheduled Change Health Events (Maintenance Events) 
 * Instance Terminating Events 
 * Instance Stopping Events 
-* Instance Status Check Failures
+* Instance Status Check Failures (unless `NodeRepair=true` and `--legacy-node-repair` is not set in which case [Node Auto Repair](#node-auto-repair) handles these).
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
 
@@ -323,6 +395,17 @@ Additionally, Karpenter utilizes the [EC2 DescribeInstanceStatus](https://docs.a
 * Scheduled Maintenance Events - surfaces upcoming maintenance events that may affect the instance
 
 These status checks do not require the `--interruption-queue` to be configured, just EC2 DescribeInstanceStatus IAM permissions.
+
+When `NodeRepair=true` and `--legacy-node-repair` is not set, [Node Auto Repair](#node-auto-repair) (rather than interruption handling) handles System Status and Instance Status failures. Karpenter sets the `EC2StatusReady` condition to:
+* `False` with reason `SystemReachabilityFailed` when the System Status check fails.
+* `False` with reason `InstanceReachabilityFailed` when only the Instance Status check fails.
+* `True` with reason `NoImpairmentReported` when neither check fails.
+
+The transition time of a `False` condition is when EC2 first reported the failure. Node Auto Repair then replaces the node under [its usual rules](#node-auto-repair).
+
+In this mode, `karpenter_interruption_instance_status_unhealthy_total` only counts Scheduled Maintenance Events, and replacements for failed system/instance status checks are counted with `reason="unhealthy"` in `karpenter_nodeclaims_disrupted_total` and `condition="ec2_status_ready"` in `karpenter_nodeclaims_unhealthy_disrupted_total`. In this mode, Karpenter no longer logs `detected unhealthy instance owned by cluster` or publishes the `InstanceUnhealthy` event for these failures. The `EC2StatusReady` condition transition and Node Auto Repair's logs and events report them instead.
+
+Scheduled Maintenance Events are handled as interruptions regardless of `NodeRepair`.
 
 ## Controls
 
@@ -493,6 +576,46 @@ Manual intervention may be required to unblock node termination, by removing pod
 For this reason, it is not recommended to use the `karpenter.sh/do-not-disrupt` annotation with `expireAfter` **if** you have not also configured `terminationGracePeriod`.
 {{% /alert %}}
 
+#### Disruption Cost
+
+You can tell Karpenter which workloads are expensive to disrupt with the `karpenter.sh/disruption-cost` annotation. Set a higher value on pods that are costly to evict, such as pods with long startup times or warm caches, and Karpenter prefers to consolidate other nodes first. Set a lower value on pods that are cheap to evict, and Karpenter prefers to consolidate their nodes first. The value is a 32-bit integer (`-2147483648` to `2147483647`). Karpenter limits how much a single pod can affect its node's disruption cost, so past a certain point, larger positive or negative values have no additional effect.
+
+Here are two example workloads using `karpenter.sh/disruption-cost`: a database StatefulSet that is expensive to disrupt because it has to replicate its data after each restart, and a stateless web frontend Deployment that is cheap to disrupt.
+
+```yaml
+# Expensive workload: Karpenter prefers to consolidate other nodes first
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+spec:
+  template:
+    metadata:
+      annotations:
+        karpenter.sh/disruption-cost: "1000000000"
+---
+# Inexpensive workload: Karpenter prefers to consolidate nodes running it first
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-frontend
+spec:
+  template:
+    metadata:
+      annotations:
+        karpenter.sh/disruption-cost: "-100000000"
+```
+
+Kubernetes doesn't validate this annotation. If the value isn't an integer in the 32-bit range, Karpenter logs a `failed parsing disruption cost` error that includes the pod and the value, and treats the annotation as unset.
+
+{{% alert title="Warning" color="warning" %}}
+Unlike `karpenter.sh/do-not-disrupt`, this annotation doesn't block disruption outright, but a high value can stop the `Balanced` [consolidation policy]({{<ref "#balanced-consolidation" >}}) from consolidating a node. If every pod on a node has a very low value, Karpenter treats the node as empty and can remove it without first checking that its pods fit on other nodes.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+Earlier versions of Karpenter read the Kubernetes [`controller.kubernetes.io/pod-deletion-cost`](https://kubernetes.io/docs/reference/labels-annotations-taints/#pod-deletion-cost) annotation for this purpose. Using that annotation to steer Karpenter consolidation is deprecated. While the `PodDeletionCostManagement` feature gate is disabled, Karpenter still falls back to `controller.kubernetes.io/pod-deletion-cost` on pods that don't have `karpenter.sh/disruption-cost`. When the feature gate is enabled, Karpenter reads only `karpenter.sh/disruption-cost`, and the fallback is planned to be removed in a future release. `controller.kubernetes.io/pod-deletion-cost` keeps its normal Kubernetes meaning for ReplicaSet scale-down. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
+{{% /alert %}}
+
 ### Node-Level Controls
 
 You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node.
@@ -509,6 +632,8 @@ metadata:
 To block Karpenter from repairing a node, set the `karpenter.sh/do-not-repair: "true"` annotation on the node.
 This is useful when you want to keep an unhealthy node around to debug it.
 The `karpenter.sh/do-not-repair` annotation only affects Node Auto Repair; the node can still be disrupted by other methods.
+When `karpenter.sh/do-not-repair` blocks Node Auto Repair on a node, Karpenter emits a `DisruptionBlocked` event on the node and its NodeClaim.
+Karpenter emits this event only after a [monitored condition](#monitored-node-conditions) has persisted on the node for longer than its toleration duration.
 
 ```yaml
 apiVersion: v1

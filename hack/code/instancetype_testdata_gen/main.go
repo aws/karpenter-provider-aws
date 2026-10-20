@@ -128,9 +128,9 @@ func getDescribeInstanceTypeOfferingsOutput() string {
 		"m5.4xlarge":     {"test-zone-1a"},
 		"m5.8xlarge":     {"test-zone-1a"},
 		"g5.12xlarge":    {"test-zone-1a", "test-zone-1b"},
+		"g6.12xlarge":    {"test-zone-1a", "test-zone-1b"},
 		"p5.48xlarge":    {"test-zone-1a", "test-zone-1b"},
 		"g4dn.8xlarge":   {"test-zone-1a", "test-zone-1b"},
-		"g4ad.16xlarge":  {"test-zone-1a", "test-zone-1b"},
 		"t3.large":       {"test-zone-1a", "test-zone-1b"},
 		"inf2.xlarge":    {"test-zone-1a"},
 		"inf2.24xlarge":  {"test-zone-1a"},
@@ -194,6 +194,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		}
 		fmt.Fprintf(src, "EbsOptimizedSupport: \"%s\",\n", info.EbsInfo.EbsOptimizedSupport)
 		fmt.Fprintf(src, "EncryptionSupport: \"%s\",\n", info.EbsInfo.EncryptionSupport)
+		fmt.Fprintf(src, "MaximumEbsAttachments: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.MaximumEbsAttachments))
 		fmt.Fprintf(src, "NvmeSupport: \"%s\",\n", info.EbsInfo.NvmeSupport)
 		fmt.Fprintf(src, "},\n")
 	}

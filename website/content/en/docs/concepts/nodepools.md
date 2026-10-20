@@ -129,6 +129,7 @@ spec:
 
     # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
+    # Optional, defaults to '0s'
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
     # Budgets control the speed Karpenter can scale down nodes.
@@ -548,6 +549,10 @@ spec:
     budgets:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
+
+Karpenter pre-spins replacements for drifted nodes in static NodePools, so `limits.nodes` must leave headroom above `replicas`.
+If `limits.nodes` is equal to `replicas`, drifted nodes can't be replaced unless you enable the `TerminateFirstDrift` feature gate. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
+This doesn't affect [expiration]({{<ref "./disruption#expiration" >}}): Karpenter terminates expired nodes without pre-spinning a replacement, and then provisions back up to `replicas`.
 
 ### Cilium Startup Taint
 
