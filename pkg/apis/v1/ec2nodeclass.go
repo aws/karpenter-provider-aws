@@ -175,6 +175,15 @@ type EC2NodeClassSpec struct {
 	// CPUOptions defines the CPU options for the instance.
 	// +optional
 	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
+	// BandwidthWeighting specifies how baseline network and EBS bandwidth
+	// is allocated on instance types that support configurable bandwidth
+	// weighting. Valid values are "vpc-1" (boost networking, reduce EBS),
+	// "ebs-1" (boost EBS, reduce networking), and "default" (standard
+	// configuration). When omitted, EC2 uses the default allocation.
+	// See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configure-bandwidth-weighting.html
+	// +kubebuilder:validation:Enum:={default,vpc-1,ebs-1}
+	// +optional
+	BandwidthWeighting *string `json:"bandwidthWeighting,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -617,6 +626,10 @@ func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 
 func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
 	return in.Spec.EnclaveOptions
+}
+
+func (in *EC2NodeClass) BandwidthWeighting() *string {
+	return in.Spec.BandwidthWeighting
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

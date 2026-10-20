@@ -3354,6 +3354,42 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
+	Context("Bandwidth Weighting", func() {
+		It("should omit network performance options when bandwidth weighting is not set", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).To(BeNil())
+			})
+		})
+		It("should set bandwidth weighting to vpc-1 when specified", func() {
+			nodeClass.Spec.BandwidthWeighting = lo.ToPtr("vpc-1")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).ToNot(BeNil())
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions.BandwidthWeighting).To(Equal(ec2types.InstanceBandwidthWeightingVpc1))
+			})
+		})
+		It("should set bandwidth weighting to ebs-1 when specified", func() {
+			nodeClass.Spec.BandwidthWeighting = lo.ToPtr("ebs-1")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions).ToNot(BeNil())
+				Expect(ltInput.LaunchTemplateData.NetworkPerformanceOptions.BandwidthWeighting).To(Equal(ec2types.InstanceBandwidthWeightingEbs1))
+			})
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found

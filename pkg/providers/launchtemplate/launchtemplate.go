@@ -439,6 +439,15 @@ func cpuOptions(cpuOptions *v1.CPUOptions) *ec2types.LaunchTemplateCpuOptionsReq
 	}
 }
 
+func networkPerformanceOptions(bandwidthWeighting *string) *ec2types.LaunchTemplateNetworkPerformanceOptionsRequest {
+	if bandwidthWeighting == nil {
+		return nil
+	}
+	return &ec2types.LaunchTemplateNetworkPerformanceOptionsRequest{
+		BandwidthWeighting: ec2types.InstanceBandwidthWeighting(*bandwidthWeighting),
+	}
+}
+
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {

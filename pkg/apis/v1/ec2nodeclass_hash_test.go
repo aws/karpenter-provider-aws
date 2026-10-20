@@ -110,6 +110,8 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", "13743705849402595405", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", "17941926745862994490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", "6157846767212910604", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("BandwidthWeighting vpc-1", "5656990772362661000", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BandwidthWeighting: lo.ToPtr("vpc-1")}}),
+		Entry("BandwidthWeighting ebs-1", "4077787788237049686", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BandwidthWeighting: lo.ToPtr("ebs-1")}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
@@ -170,6 +172,7 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("BandwidthWeighting", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BandwidthWeighting: lo.ToPtr("vpc-1")}}),
 	)
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity

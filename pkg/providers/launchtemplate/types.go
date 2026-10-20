@@ -140,6 +140,7 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			EnclaveOptions: &ec2types.LaunchTemplateEnclaveOptionsRequest{
 				Enabled: lo.ToPtr(b.options.EnclaveEnabled),
 			},
+			NetworkPerformanceOptions: networkPerformanceOptions(b.options.BandwidthWeighting),
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{
