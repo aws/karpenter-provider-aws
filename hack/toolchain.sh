@@ -12,15 +12,12 @@ main() {
 
 tools() {
     go install github.com/google/go-licenses@latest
-    # asciicheck is a dependency of golangci-lint that got removed so golangci changed their go.mod to use the forked version
-    # fix - https://github.com/golangci/golangci-lint/issues/6017
-    # change to latest once golangci releases new version with the fix
-    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@main
+    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
     go install github.com/google/ko@v0.18.1
     go install github.com/mikefarah/yq/v4@latest
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@b9bccfd419149d26d14130887a5e5819e4a3b2be
-    go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+    go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0
     go install github.com/sigstore/cosign/v2/cmd/cosign@latest
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
     go install golang.org/x/vuln/cmd/govulncheck@latest
