@@ -214,6 +214,20 @@ We also recommend taking a look at [Keda](https://keda.sh/) if you're looking fo
 ### How does Karpenter deprovision nodes?
 See [Deprovisioning nodes]({{< ref "./concepts/disruption" >}}) for information on how Karpenter deprovisions nodes.
 
+### How does Karpenter handle NotReady nodes?
+
+Karpenter distinguishes between node **registration** (the kubelet joins the cluster and the Node object is created) and node **initialization** (the node is fully ready for pod scheduling). A node is considered "initialized" when all startup taints have been removed and all requested resources are registered on the node. See the [NodeClaim lifecycle conditions]({{< ref "./concepts/nodeclaims/#status-conditions" >}}) for details on the Launched, Registered, and Initialized status progression.
+
+Once a node is initialized and later becomes NotReady (for example, due to kubelet issues or network problems), Karpenter does not immediately terminate it. Kubernetes itself handles the NotReady condition through the kube-controller-manager's `--node-monitor-grace-period` (default: 40 seconds), which controls how long a node must be unresponsive before it is marked NotReady. Karpenter respects this Kubernetes-level behavior and does not race to replace NotReady nodes.
+
+However, NotReady nodes do affect [disruption budgets]({{< ref "./concepts/disruption/#disruption-budgets" >}}). When Karpenter calculates the number of allowed disruptions for a NodePool, NotReady nodes are subtracted from the budget just like nodes that are actively being deleted:
+
+`allowed_disruptions = roundup(total * percentage) - total_deleting - total_notready`
+
+This means that if several nodes in a NodePool go NotReady, Karpenter will become more conservative about voluntarily disrupting additional nodes, protecting overall cluster availability.
+
+If a NodeClaim never reaches a Ready state (for example, it is stuck during registration or initialization), Karpenter will not wait indefinitely. The NodeClaim lifecycle controller will terminate the NodeClaim after a configurable timeout, preventing stuck instances from consuming resources permanently.
+
 ## Upgrading Karpenter
 
 ### How do I upgrade Karpenter?
