@@ -469,6 +469,10 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		if len(resolved.BlockDeviceMappings) == 0 {
 			resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 		}
+		// Ensure the root volume is at least as large as the AMI's root snapshot.
+		// This prevents InvalidBlockDeviceMapping errors when the AMI's root
+		// snapshot grows beyond the family default size.
+		applyRootVolumeFloor(resolved.BlockDeviceMappings, nodeClass.Status.AMIs, amiID)
 		if resolved.MetadataOptions == nil {
 			resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 		}
@@ -573,6 +577,26 @@ func staticQuantities(m map[string]string) map[string]string {
 		_, err := resource.ParseQuantity(v)
 		return err == nil
 	})
+}
+
+// applyRootVolumeFloor ensures that the block device mapping matching the AMI's root device
+// has a volume size at least as large as the AMI's root snapshot. This prevents
+// InvalidBlockDeviceMapping errors when the AMI's root snapshot grows beyond
+// the family default without requiring a code change.
+func applyRootVolumeFloor(bdms []*v1.BlockDeviceMapping, statusAMIs []v1.AMI, amiID string) {
+	statusAMI, ok := lo.Find(statusAMIs, func(a v1.AMI) bool { return a.ID == amiID })
+	if !ok || statusAMI.RootDeviceVolumeSize == nil || statusAMI.RootDeviceName == "" {
+		return
+	}
+	snapshotSize := resource.MustParse(fmt.Sprintf("%dGi", *statusAMI.RootDeviceVolumeSize))
+	for _, bdm := range bdms {
+		if lo.FromPtr(bdm.DeviceName) == statusAMI.RootDeviceName && bdm.EBS != nil && bdm.EBS.VolumeSize != nil {
+			if bdm.EBS.VolumeSize.Cmp(snapshotSize) < 0 {
+				bdm.EBS.VolumeSize = &snapshotSize
+			}
+			return
+		}
+	}
 }
 
 // serializeResourceMap converts a resource map to a sorted, comparable string representation.

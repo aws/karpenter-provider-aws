@@ -183,9 +183,7 @@ func (b Bottlerocket) extractVersionFromName(name string) string {
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	xvdaEBS := DefaultEBS
-	// The root volume must be at least as large as the AMI's root snapshot.
-	// https://github.com/bottlerocket-os/bottlerocket/commit/a02834b6ac
-	xvdaEBS.VolumeSize = lo.ToPtr(resource.MustParse("6Gi"))
+	xvdaEBS.VolumeSize = lo.ToPtr(resource.MustParse("4Gi"))
 	return []*v1.BlockDeviceMapping{
 		{
 			DeviceName: aws.String("/dev/xvda"),

@@ -15,6 +15,9 @@ limitations under the License.
 package amifamily
 
 import (
+	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -22,6 +25,78 @@ import (
 )
 
 var _ = Describe("Bottlerocket", func() {
+	Describe("DefaultBlockDeviceMappings", func() {
+		It("should default the root volume to 4Gi", func() {
+			b := Bottlerocket{}
+			bdms := b.DefaultBlockDeviceMappings()
+			rootBDM, ok := lo.Find(bdms, func(bdm *v1.BlockDeviceMapping) bool {
+				return lo.FromPtr(bdm.DeviceName) == "/dev/xvda"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(rootBDM.EBS.VolumeSize.Cmp(resource.MustParse("4Gi"))).To(Equal(0))
+		})
+	})
+	Describe("applyRootVolumeFloor", func() {
+		It("should increase root volume when AMI snapshot is larger than default", func() {
+			bdms := []*v1.BlockDeviceMapping{
+				{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("4Gi"))},
+				},
+			}
+			statusAMIs := []v1.AMI{
+				{
+					ID:                   "ami-123",
+					RootDeviceName:       "/dev/xvda",
+					RootDeviceVolumeSize: lo.ToPtr(int32(6)),
+				},
+			}
+			applyRootVolumeFloor(bdms, statusAMIs, "ami-123")
+			Expect(bdms[0].EBS.VolumeSize.Cmp(resource.MustParse("6Gi"))).To(Equal(0))
+		})
+		It("should not decrease root volume when AMI snapshot is smaller than default", func() {
+			bdms := []*v1.BlockDeviceMapping{
+				{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("20Gi"))},
+				},
+			}
+			statusAMIs := []v1.AMI{
+				{
+					ID:                   "ami-123",
+					RootDeviceName:       "/dev/xvda",
+					RootDeviceVolumeSize: lo.ToPtr(int32(6)),
+				},
+			}
+			applyRootVolumeFloor(bdms, statusAMIs, "ami-123")
+			Expect(bdms[0].EBS.VolumeSize.Cmp(resource.MustParse("20Gi"))).To(Equal(0))
+		})
+		It("should not modify volumes when AMI has no root device info", func() {
+			bdms := []*v1.BlockDeviceMapping{
+				{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("4Gi"))},
+				},
+			}
+			statusAMIs := []v1.AMI{
+				{
+					ID: "ami-123",
+				},
+			}
+			applyRootVolumeFloor(bdms, statusAMIs, "ami-123")
+			Expect(bdms[0].EBS.VolumeSize.Cmp(resource.MustParse("4Gi"))).To(Equal(0))
+		})
+		It("should not modify volumes when AMI is not found in status", func() {
+			bdms := []*v1.BlockDeviceMapping{
+				{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("4Gi"))},
+				},
+			}
+			applyRootVolumeFloor(bdms, []v1.AMI{}, "ami-missing")
+			Expect(bdms[0].EBS.VolumeSize.Cmp(resource.MustParse("4Gi"))).To(Equal(0))
+		})
+	})
 	Describe("resolveAMIVersion", func() {
 		It("should resolve version from alias", func() {
 			b := Bottlerocket{

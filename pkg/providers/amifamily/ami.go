@@ -203,12 +203,15 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
+					rootDeviceName, rootDeviceVolumeSize := rootDeviceInfo(image)
 					ami := AMI{
-						Name:         lo.FromPtr(image.Name),
-						AmiID:        lo.FromPtr(image.ImageId),
-						CreationDate: lo.FromPtr(image.CreationDate),
-						Deprecated:   candidateDeprecated,
-						Requirements: reqs,
+						Name:                 lo.FromPtr(image.Name),
+						AmiID:                lo.FromPtr(image.ImageId),
+						CreationDate:         lo.FromPtr(image.CreationDate),
+						Deprecated:           candidateDeprecated,
+						Requirements:         reqs,
+						RootDeviceName:       rootDeviceName,
+						RootDeviceVolumeSize: rootDeviceVolumeSize,
 					}
 					if v, ok := images[reqsHash]; ok {
 						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
@@ -265,4 +268,18 @@ func compareAMI(i, j AMI) int {
 	}
 	// If all attributes are are equal, both AMIs are exactly identical
 	return 0
+}
+
+// rootDeviceInfo extracts the root device name and its EBS snapshot volume size (GiB) from an EC2 image.
+func rootDeviceInfo(image ec2types.Image) (string, *int32) {
+	rootDeviceName := lo.FromPtr(image.RootDeviceName)
+	if rootDeviceName == "" {
+		return "", nil
+	}
+	for _, bdm := range image.BlockDeviceMappings {
+		if lo.FromPtr(bdm.DeviceName) == rootDeviceName && bdm.Ebs != nil && bdm.Ebs.VolumeSize != nil {
+			return rootDeviceName, bdm.Ebs.VolumeSize
+		}
+	}
+	return rootDeviceName, nil
 }
