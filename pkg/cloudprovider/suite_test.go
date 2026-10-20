@@ -404,9 +404,28 @@ var _ = Describe("CloudProvider", func() {
 			Entry("reboot-clearable XID within toleration", "NvidiaXID48Error", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
 			Entry("reboot-clearable XID", "NvidiaXID48Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
 			Entry("reboot-clearable XID past the fallback toleration", "NvidiaXID158Error", 31*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID119", "NvidiaXID119Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID120", "NvidiaXID120Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
 			Entry("fatal XID", "NvidiaXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
-			Entry("well-known XID without a family", "NvidiaXID142Error", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
-			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 30*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("fatal XID142", "NvidiaXID142Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("fatal XID151", "NvidiaXID151Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("well-known XID without a family", "NvidiaXID13Error", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("non-XID GPU fault within toleration", "NvidiaDoubleBitError", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", 24*365*time.Hour, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("DCGM fault naming a fatal XID", "DCGMXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+		)
+		DescribeTable("should resolve AcceleratedHardwareReady=Unknown by reason",
+			func(reason string, action corecloudprovider.RepairAction, fallback bool) {
+				Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 9*time.Minute).Action).To(BeEmpty())
+				result := evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 10*time.Minute)
+				Expect(result.Action).To(Equal(action))
+				Expect(result.Fallback).To(Equal(fallback))
+			},
+			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.RebootNode, false),
+			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.ReplaceNode, false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.ReplaceNode, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.RepairAction(""), false),
 		)
 		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
 			matcher = newMatcher(false)
@@ -435,6 +454,10 @@ var _ = Describe("CloudProvider", func() {
 			Entry("NetworkingReady=False", corev1.NodeConditionType("NetworkingReady"), corev1.ConditionFalse),
 			Entry("KernelReady=False", corev1.NodeConditionType("KernelReady"), corev1.ConditionFalse),
 			Entry("ContainerRuntimeReady=False", corev1.NodeConditionType("ContainerRuntimeReady"), corev1.ConditionFalse),
+			Entry("StorageReady=Unknown", corev1.NodeConditionType("StorageReady"), corev1.ConditionUnknown),
+			Entry("NetworkingReady=Unknown", corev1.NodeConditionType("NetworkingReady"), corev1.ConditionUnknown),
+			Entry("KernelReady=Unknown", corev1.NodeConditionType("KernelReady"), corev1.ConditionUnknown),
+			Entry("ContainerRuntimeReady=Unknown", corev1.NodeConditionType("ContainerRuntimeReady"), corev1.ConditionUnknown),
 		)
 		DescribeTable("should replace nodes that fail EC2 reachability checks after 2m",
 			func(reason string) {
