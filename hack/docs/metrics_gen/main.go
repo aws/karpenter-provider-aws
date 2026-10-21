@@ -189,7 +189,7 @@ var labelInjections = map[string]map[string]labelInfo{
 		"result":     {help: "The outcome of the reconcile call.", values: []valueInfo{{name: "success"}, {name: "error"}, {name: "requeue"}, {name: "requeue_after"}}},
 	},
 	"client_go": {
-		"verb":        {help: "The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`."},
+		"verb":        {help: "The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`."},
 		"code":        {help: "The HTTP status code of the Kubernetes API response."},
 		"method":      {help: "The HTTP method of the Kubernetes API request."},
 		"host":        {help: "The Kubernetes API server host the request was made to."},
