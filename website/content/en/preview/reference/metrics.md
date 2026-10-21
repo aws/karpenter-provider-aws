@@ -1123,6 +1123,19 @@ Total number of conversion webhook panics
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
 - Stability Level: STABLE
 
+### `controller_runtime_client_consistency_wait_duration_seconds`
+Length of time waiting for the cache to observe writes before serving reads.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: STABLE
+- Dimensions:
+  - `operation` — The client read operation that waited for the cache.
+    - `get`
+    - `list`
+  - `result` — The outcome of waiting for the cache to observe prior writes.
+    - `success`
+    - `error`
+    - `timeout`
+
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
