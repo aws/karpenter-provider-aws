@@ -39,6 +39,7 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -203,6 +204,50 @@ var _ = Describe("InstanceProvider", func() {
 			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
 			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
+	})
+	It("should mark an ICE'd additional on-demand class capacity type unavailable without marking on-demand", func() {
+		const onDemandAlt = "on-demand-alt"
+		Expect(corecloudprovider.SetCapacityTypeClassResolver(corecloudprovider.DefaultCapacityTypeClasses.With(corecloudprovider.CapacityTypeClasses{
+			onDemandAlt: corecloudprovider.CapacityTypeClassOnDemand,
+		}))).To(Succeed())
+		DeferCleanup(coretest.ResetCapacityTypeClasses)
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{onDemandAlt}},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		it, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool { return i.Name == "m5.xlarge" })
+		Expect(ok).To(BeTrue())
+		// No resolver in this suite adds offerings for the registered type, so give m5.xlarge one per on-demand offering
+		zones := []string{"test-zone-1a", "test-zone-1b", "test-zone-1c"}
+		altOfferings := lo.FilterMap(it.Offerings, func(o *corecloudprovider.Offering, _ int) (*corecloudprovider.Offering, bool) {
+			if o.CapacityType() != karpv1.CapacityTypeOnDemand || !lo.Contains(zones, o.Zone()) {
+				return nil, false
+			}
+			reqs := scheduling.NewRequirements(o.Requirements.Values()...)
+			delete(reqs, karpv1.CapacityTypeLabelKey)
+			reqs.Add(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, onDemandAlt))
+			return &corecloudprovider.Offering{Requirements: reqs, Price: o.Price, Available: true}, true
+		})
+		Expect(lo.Uniq(lo.Map(altOfferings, func(o *corecloudprovider.Offering, _ int) string { return o.Zone() }))).To(ConsistOf(zones))
+		alt := &corecloudprovider.InstanceType{Name: it.Name, Requirements: it.Requirements, Offerings: altOfferings, Capacity: it.Capacity, Overhead: it.Overhead}
+		// The registered type launches as on-demand, so EC2 reports the ICE against on-demand pools
+		awsEnv.EC2API.InsufficientCapacityPools.Set(lo.Map(zones, func(zone string, _ int) fake.CapacityPool {
+			return fake.CapacityPool{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: zone}
+		}))
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, []*corecloudprovider.InstanceType{alt})
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+		for _, zone := range zones {
+			subnets := test.GetSubnetsFromZone(zone, nodeClass.ZoneInfo())
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, onDemandAlt)).To(BeTrue(), zone)
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, karpv1.CapacityTypeOnDemand)).To(BeFalse(), zone)
+		}
 	})
 	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
