@@ -52,6 +52,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.0 \
 | controller.image.digest | string | `"sha256:ab0f953e1460c61566d48209b517734ba79fe2105f335af1ff85faa8b6baf157"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"1.15.0"` | Tag of the controller image. |
+| controller.memoryLimit | string | `""` | Memory limit in bytes passed to the controller as MEMORY_LIMIT (GOMEMLIMIT is set to 90% of it), e.g. 1073741824 for 1Gi. Leave empty to use the container's limits.memory, or set to -1 to disable GOMEMLIMIT. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
