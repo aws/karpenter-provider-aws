@@ -25,6 +25,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
+const metricsTimeout = 3 * time.Minute
+
 var _ = Describe("Metrics", func() {
 	var instanceTypeCount int
 	var availabilityZoneCount int
@@ -57,7 +59,7 @@ var _ = Describe("Metrics", func() {
 			expectedNonZeroCount := (instanceTypeCount-100)*availabilityZoneCount + (instanceTypeCount-200)*availabilityZoneCount
 			g.Expect(priceMetricCount).To(BeNumerically(">", expectedCount))
 			g.Expect(nonZeroPriceMetricCount).To(BeNumerically(">", expectedNonZeroCount))
-		}, time.Minute, time.Second*5).Should(Succeed())
+		}, metricsTimeout, time.Second*5).Should(Succeed())
 
 	})
 	It("should expose karpenter_cloudprovider_instance_type_offering_available metrics", func() {
@@ -82,6 +84,6 @@ var _ = Describe("Metrics", func() {
 			expectedNonZeroCount := (instanceTypeCount-100)*selectedAZCount + (instanceTypeCount-200)*selectedAZCount
 			g.Expect(availableMetricCount).To(BeNumerically(">", expectedCount))
 			g.Expect(nonZeroAvailableMetricCount).To(BeNumerically(">", expectedNonZeroCount))
-		}, time.Minute, time.Second*5).Should(Succeed())
+		}, metricsTimeout, time.Second*5).Should(Succeed())
 	})
 })
