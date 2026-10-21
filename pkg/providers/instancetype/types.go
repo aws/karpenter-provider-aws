@@ -544,6 +544,19 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
 		}
 	}
+	if size := ephemeralStorageFromBlockDeviceMappings(amiFamily, blockDeviceMappings); size != nil {
+		return size
+	}
+	// Return the ephemeralBlockDevice size if defined in ami.
+	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
+		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
+	}); ok {
+		return quantityFromVolumeSize(ephemeralBlockDevice.EBS.VolumeSize)
+	}
+	return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
+}
+
+func ephemeralStorageFromBlockDeviceMappings(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1.BlockDeviceMapping) *resource.Quantity {
 	if len(blockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
 		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
@@ -568,13 +581,7 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			}
 		}
 	}
-	//Return the ephemeralBlockDevice size if defined in ami
-	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
-		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
-	}); ok {
-		return quantityFromVolumeSize(ephemeralBlockDevice.EBS.VolumeSize)
-	}
-	return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
+	return nil
 }
 
 func quantityFromVolumeSize(volumeSize *string) *resource.Quantity {

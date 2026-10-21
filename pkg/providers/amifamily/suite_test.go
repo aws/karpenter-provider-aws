@@ -1260,9 +1260,9 @@ var _ = Describe("AMIResolver", func() {
 		It("should give instance types that resolve to different volume sizes distinct launch templates", func() {
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			listedInstanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
-			small := lo.Filter(instanceTypes, func(it *corecloudprovider.InstanceType, _ int) bool {
+			small := lo.Filter(listedInstanceTypes, func(it *corecloudprovider.InstanceType, _ int) bool {
 				return it.Name == "m5.large" || it.Name == "m5.xlarge"
 			})
 			Expect(small).To(HaveLen(2))
