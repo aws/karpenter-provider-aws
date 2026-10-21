@@ -17,34 +17,30 @@ package repair_test
 import (
 	"testing"
 
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/suites/repair"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var env *aws.Environment
-var nodeClass *v1.EC2NodeClass
-var nodePool *karpv1.NodePool
-
 func TestRepair(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
+		repair.Env = aws.NewEnvironment(t)
 	})
 	AfterSuite(func() {
-		env.Stop()
+		repair.Env.Stop()
 	})
 	RunSpecs(t, "Repair")
 }
 
 var _ = BeforeEach(func() {
-	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
+	repair.Env.BeforeEach()
+	repair.NodeClass = repair.Env.DefaultEC2NodeClass()
+	repair.NodePool = repair.Env.DefaultNodePool(repair.NodeClass)
 })
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() { repair.Env.Cleanup() })
+var _ = AfterEach(func() { repair.Env.AfterEach() })
+
+var _ = repair.RegisterTests()
