@@ -175,6 +175,64 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
+	It("should not create a new instance profile when role is specified as an ARN and profile already has the correct role", func() {
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+
+		// Use full ARN instead of plain role name
+		nodeClass.Spec.Role = "arn:aws:iam::123456789012:role/role-A"
+		nodeClass.Status.InstanceProfile = profileName
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		// Should not have created a new profile since the existing one already has the correct role
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+		Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("role-A"))
+
+		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+	})
+	It("should not create a new instance profile when role is specified as an ARN with path and profile already has the correct role", func() {
+		profileName := "profile-A"
+		awsEnv.IAMAPI.InstanceProfiles = map[string]*iamtypes.InstanceProfile{
+			profileName: {
+				InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+				InstanceProfileName: aws.String(profileName),
+				Roles: []iamtypes.Role{
+					{
+						RoleName: aws.String("role-A"),
+					},
+				},
+			},
+		}
+
+		// Use full ARN with a custom path
+		nodeClass.Spec.Role = "arn:aws:iam::123456789012:role/custom-path/role-A"
+		nodeClass.Status.InstanceProfile = profileName
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+		// Should not have created a new profile
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
+		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+	})
 	It("should resolve the specified instance profile into the status when using instanceProfile field", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
