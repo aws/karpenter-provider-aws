@@ -4,7 +4,7 @@
 
 EC2 [bandwidth weighting](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configure-bandwidth-weighting.html)
 lets an instance shift its baseline bandwidth between networking and EBS. `vpc-1` raises the
-networking baseline and lowers EBS; `ebs-1` does the reverse; `default` leaves it unchanged. The
+networking baseline and lowers EBS; `ebs-1` does the reverse. The
 combined bandwidth doesn't change; it's a redistribution, and it costs nothing.
 
 For a workload that uses local NVMe and touches EBS lightly, `vpc-1` is free network headroom.
@@ -49,14 +49,14 @@ metadata:
   name: high-network
 spec:
   networkPerformanceOptions:
-    bandwidthWeighting: vpc-1   # default | vpc-1 | ebs-1
+    bandwidthWeighting: vpc-1   # vpc-1 | ebs-1
 ```
 
 ```go
 type NetworkPerformanceOptions struct {
     // BandwidthWeighting shifts baseline bandwidth between networking and EBS.
     // vpc-1 favors networking, ebs-1 favors EBS.
-    // +kubebuilder:validation:Enum:={"default","vpc-1","ebs-1"}
+    // +kubebuilder:validation:Enum:={"vpc-1","ebs-1"}
     // +optional
     BandwidthWeighting *string `json:"bandwidthWeighting,omitempty"`
 }
@@ -65,11 +65,11 @@ type NetworkPerformanceOptions struct {
 The pointer matters: NodeClasses that don't set the field must not write an empty
 `NetworkPerformanceOptions` block into every launch template.
 
-Unset and `bandwidthWeighting: default` are not the same thing. Unset omits
-`NetworkPerformanceOptions` from the launch template entirely and applies no instance type
-filtering. `default` sends the value explicitly, so the field is set and filtering applies: the
-NodeClass is pinned to capable types at the default split. Operators who want today's behavior
-should leave it unset.
+EC2 also accepts `default` as a value, but it isn't exposed here. Leaving the field unset
+already produces default behavior, and EC2 accepts an explicit `default` on every instance type,
+including ones with no bandwidth weighting support, so it would carry no filtering semantics.
+Offering it would be a second way to spell "unset." Unset omits `NetworkPerformanceOptions` from
+the launch template and applies no instance type filtering.
 
 The CRD enum is the only validation; nothing re-checks the value at runtime.
 
@@ -84,24 +84,7 @@ When `bandwidthWeighting` is set, the compatibility check in
 `pkg/providers/instancetype/compatibility` drops any instance type whose
 `BandwidthWeightings` doesn't contain the requested value. This follows the existing
 `CompatibleCheck` pattern in that package, alongside the network-interface and
-nested-virtualization checks:
-
-```go
-func (c bandwidthWeightingCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
-    if c.npo == nil || c.npo.BandwidthWeighting == nil {
-        return true
-    }
-    if info.NetworkInfo == nil {
-        return false
-    }
-    for _, w := range info.NetworkInfo.BandwidthWeightings {
-        if string(w) == *c.npo.BandwidthWeighting {
-            return true
-        }
-    }
-    return false
-}
-```
+nested-virtualization checks.
 
 Filtering has to happen here, during instance type resolution, and not in the launch-path
 filter in `pkg/providers/instance/filter`. The compatibility check runs before the scheduler
@@ -110,9 +93,11 @@ launch-path filter runs after the scheduler has committed: it would reject the l
 NodeClaim, and the scheduler would create another, repeating until the compatible types were
 exhausted. Operators would see that as Karpenter churning NodeClaims.
 
-Filtering also removes any dependence on how EC2 treats an unsupported request. Karpenter never
-sends `NetworkPerformanceOptions` to a type that doesn't accept it, so whether EC2 ignores the
-parameter or rejects it with `InvalidParameterValue` stops mattering.
+EC2 rejects `vpc-1` or `ebs-1` on an unsupported type at launch: both `RunInstances` and
+`CreateFleet` fail with an `Unsupported` error. Nothing earlier catches it. `CreateLaunchTemplate`
+accepts the option for any instance type, and `CreateFleet --dry-run` passes as well, so a bad
+combination only surfaces when a real launch is attempted. That is why the check has to run at
+instance type resolution rather than relying on the API.
 
 
 ## Mixed Fleets
