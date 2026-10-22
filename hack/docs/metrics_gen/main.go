@@ -189,7 +189,7 @@ var labelInjections = map[string]map[string]labelInfo{
 		"result":     {help: "The outcome of the reconcile call.", values: []valueInfo{{name: "success"}, {name: "error"}, {name: "requeue"}, {name: "requeue_after"}}},
 	},
 	"client_go": {
-		"verb":        {help: "The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`."},
+		"verb":        {help: "The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`."},
 		"code":        {help: "The HTTP status code of the Kubernetes API response."},
 		"method":      {help: "The HTTP method of the Kubernetes API request."},
 		"host":        {help: "The Kubernetes API server host the request was made to."},
@@ -208,13 +208,28 @@ var labelInjections = map[string]map[string]labelInfo{
 	},
 }
 
-func describeLabel(subsystem, name, scope string) (labelInfo, bool) {
-	if inj, ok := labelInjections[subsystem]; ok {
+// Per-metric overrides of labelInjections, keyed by qualified metric name, for
+// third-party metrics that reuse a subsystem's label name with a different meaning
+// (e.g. controller-runtime's client consistency `result` isn't a reconcile result).
+var metricLabelInjections = map[string]map[string]labelInfo{
+	"controller_runtime_client_consistency_wait_duration_seconds": {
+		"operation": {help: "The client read operation that waited for the cache.", values: []valueInfo{{name: "get"}, {name: "list"}}},
+		"result":    {help: "The outcome of waiting for the cache to observe prior writes.", values: []valueInfo{{name: "success"}, {name: "error"}, {name: "timeout"}}},
+	},
+}
+
+func describeLabel(m metricInfo, name string) (labelInfo, bool) {
+	if inj, ok := metricLabelInjections[m.qualifiedName()]; ok {
 		if li, ok := inj[name]; ok {
 			return li, true
 		}
 	}
-	if scope != "" {
+	if inj, ok := labelInjections[m.subsystem]; ok {
+		if li, ok := inj[name]; ok {
+			return li, true
+		}
+	}
+	if scope := m.labelScope; scope != "" {
 		if scoped, ok := scopedLabelRegistry[scope]; ok {
 			if li, ok := scoped[name]; ok {
 				return li, true
@@ -414,7 +429,7 @@ func formatDimensions(m metricInfo) string {
 	var b strings.Builder
 	for _, l := range m.labels {
 		b.WriteString(fmt.Sprintf("\n  - `%s`", l))
-		info, ok := describeLabel(m.subsystem, l, m.labelScope)
+		info, ok := describeLabel(m, l)
 		// a Label from THIS metric's []Label arg is authoritative — disambiguates
 		// dimensions like `reason` that the global registry collapses.
 		if mi, has := m.labelInfos[l]; has {

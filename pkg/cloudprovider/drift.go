@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -41,12 +42,12 @@ const (
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
-func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	// First check if the node class is statically drifted to save on API calls.
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
-	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, nodeClass)
+	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
@@ -81,17 +82,11 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	return drifted, nil
 }
 
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool,
-	nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	instanceTypeName := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
+	nodeInstanceType, err := c.instanceTypeProvider.Get(ctx, nodeClass, ec2types.InstanceType(instanceTypeName))
 	if err != nil {
-		return "", fmt.Errorf("getting instanceTypes, %w", err)
-	}
-	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
-		return instType.Name == nodeClaim.Labels[corev1.LabelInstanceTypeStable]
-	})
-	if !found {
-		return "", serrors.Wrap(fmt.Errorf("finding node instance type"), "instance-type", nodeClaim.Labels[corev1.LabelInstanceTypeStable])
+		return "", serrors.Wrap(fmt.Errorf("getting node instance type, %w", err), "instance-type", instanceTypeName)
 	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
