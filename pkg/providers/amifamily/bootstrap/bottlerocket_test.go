@@ -153,4 +153,65 @@ memory = "327Mi"
 			Expect(*roundTrip.Settings.Kubernetes.MemorySwapBehavior).To(Equal("LimitedSwap"))
 		})
 	})
+	Describe("MemoryQoS", func() {
+		It("should unmarshal memory-reservation-policy and memory-throttling-factor from TOML", func() {
+			userData := `
+[settings.kubernetes]
+"memory-reservation-policy" = "TieredReservation"
+"memory-throttling-factor" = 0.8
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config.Settings.Kubernetes.MemoryReservationPolicy).ToNot(BeNil())
+			Expect(*config.Settings.Kubernetes.MemoryReservationPolicy).To(Equal("TieredReservation"))
+			Expect(config.Settings.Kubernetes.MemoryThrottlingFactor).ToNot(BeNil())
+			Expect(*config.Settings.Kubernetes.MemoryThrottlingFactor).To(Equal(0.8))
+		})
+
+		It("should unmarshal the None reservation policy", func() {
+			userData := `
+[settings.kubernetes]
+"memory-reservation-policy" = "None"
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config.Settings.Kubernetes.MemoryReservationPolicy).ToNot(BeNil())
+			Expect(*config.Settings.Kubernetes.MemoryReservationPolicy).To(Equal("None"))
+			Expect(config.Settings.Kubernetes.MemoryThrottlingFactor).To(BeNil())
+		})
+
+		It("should round-trip through marshal/unmarshal", func() {
+			userData := `
+[settings.kubernetes]
+"memory-reservation-policy" = "TieredReservation"
+"memory-throttling-factor" = 0.9
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := config.MarshalTOML()
+			Expect(err).ToNot(HaveOccurred())
+
+			roundTrip, err := NewBottlerocketConfig(context.Background(), lo.ToPtr(string(out)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(roundTrip.Settings.Kubernetes.MemoryReservationPolicy).ToNot(BeNil())
+			Expect(*roundTrip.Settings.Kubernetes.MemoryReservationPolicy).To(Equal("TieredReservation"))
+			Expect(roundTrip.Settings.Kubernetes.MemoryThrottlingFactor).ToNot(BeNil())
+			Expect(*roundTrip.Settings.Kubernetes.MemoryThrottlingFactor).To(Equal(0.9))
+		})
+
+		It("should omit unset fields when marshaling", func() {
+			userData := `
+[settings.kubernetes]
+"cluster-name" = "test"
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := config.MarshalTOML()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(out)).ToNot(ContainSubstring("memory-reservation-policy"))
+			Expect(string(out)).ToNot(ContainSubstring("memory-throttling-factor"))
+		})
+	})
 })

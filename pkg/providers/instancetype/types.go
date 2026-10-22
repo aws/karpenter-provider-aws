@@ -335,6 +335,11 @@ func computeRequirements(
 		}
 		return string(uc), true
 	})
+	if lo.Contains(capacityTypes, karpv1.CapacityTypeOnDemand) {
+		// Capacity types the cloud provider registered in the on-demand class are on-demand capacity bought another way,
+		// so they're valid wherever on-demand is. An additional offering resolver supplies their offerings.
+		capacityTypes = append(capacityTypes, lo.Without(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), karpv1.CapacityTypeOnDemand)...)
+	}
 	if len(capacityReservations) != 0 {
 		capacityTypes = append(capacityTypes, karpv1.CapacityTypeReserved)
 	}

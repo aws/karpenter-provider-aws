@@ -63,7 +63,7 @@ Yes, NodePools can identify multiple teams based on labels. See the [NodePool AP
 
 ### If multiple NodePools are defined, which will my pod use?
 
-Pending pods will be handled by any NodePools that matches the requirements of the pod. There is no ordering guarantee if multiple NodePools match pod requirements. We recommend that NodePools are set-up to be mutually exclusive. To select a specific NodePool, use the node selector `karpenter.sh/nodepool: my-nodepool`. Do not select `karpenter.sh/registered` or `karpenter.sh/initialized`: those labels match existing Karpenter nodes but cannot trigger scale-up.
+Pending pods will be handled by any NodePools that matches the requirements of the pod. If multiple NodePools match pod requirements, Karpenter will use the NodePool with the highest [weight]({{< ref "./concepts/nodepools#specweight" >}}). We recommend that NodePools are set-up to be mutually exclusive or weighted. To select a specific NodePool, use the node selector `karpenter.sh/nodepool: my-nodepool`.
 
 ### How can I configure Karpenter to only provision pods for a particular namespace?
 
@@ -114,6 +114,8 @@ The best defense against running out of Spot capacity is to allow Karpenter to p
 Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. Moreover, if Spot capacity becomes constrained, this instance type diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
 
 Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire NodePool) so that Karpenter can make forward progress with different options.
+
+If no Spot offerings are available, Karpenter will only fall back to `on-demand` capacity if the NodePool allows it. A NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity, while a NodePool that only allows `spot` will not, and pods will remain pending until Spot capacity is available. See [Capacity Type]({{< ref "./concepts/nodepools#capacity-type" >}}) for more details.
 
 ### Does Karpenter support IPv6?
 
@@ -268,6 +270,6 @@ Consolidation packs pods tightly onto nodes which can leave little free allocata
 
 ### How do I customize or configure the log output?
 
-Karpenter uses [uber-go/zap](https://github.com/uber-go/zap) for logging. You can customize or configure the log messages by editing the [configmap-logging.yaml](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/configmap-logging.yaml)
-`ConfigMap`'s [data.zap-logger-config](https://github.com/aws/karpenter/blob/main/charts/karpenter/templates/configmap-logging.yaml#L26) field.
-The available configuration options are specified in the [zap.Config godocs](https://pkg.go.dev/go.uber.org/zap#Config).
+Karpenter uses [uber-go/zap](https://github.com/uber-go/zap) for logging and writes structured JSON logs.
+You can configure the log level and where logs are written with the `LOG_LEVEL`, `LOG_OUTPUT_PATHS`, and `LOG_ERROR_OUTPUT_PATHS` [settings]({{< ref "./reference/settings" >}}).
+If you install Karpenter with Helm, set these with the `logLevel`, `logOutputPaths`, and `logErrorOutputPaths` values.
