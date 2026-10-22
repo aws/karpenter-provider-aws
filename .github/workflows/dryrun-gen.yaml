@@ -5,6 +5,9 @@ on:
       - 'main'
       - 'release-v*'
       - 'staging/*'
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   dryrun-gen:
     permissions:
