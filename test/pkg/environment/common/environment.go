@@ -61,6 +61,8 @@ type Environment struct {
 	Monitor    *Monitor
 
 	StartingNodeCount int
+
+	ManagedController *ManagedController
 }
 
 func NewEnvironment(t *testing.T) *Environment {
@@ -82,6 +84,8 @@ func NewEnvironment(t *testing.T) *Environment {
 		Client:     client,
 		KubeClient: kubernetes.NewForConfigOrDie(config),
 		Monitor:    NewMonitor(ctx, client),
+
+		ManagedController: managedControllerFromEnv(),
 	}
 }
 

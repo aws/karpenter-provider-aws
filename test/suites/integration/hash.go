@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package integration
 
 import (
 	"github.com/samber/lo"
@@ -24,18 +24,20 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("CRD Hash", func() {
-	It("should have EC2NodeClass hash", func() {
-		env.ExpectCreated(nodeClass)
+func registerHash() bool {
+	return Describe("CRD Hash", func() {
+		It("should have EC2NodeClass hash", func() {
+			Env.ExpectCreated(NodeClass)
 
-		Eventually(func(g Gomega) {
-			nc := &v1.EC2NodeClass{}
-			err := env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)
-			g.Expect(err).ToNot(HaveOccurred())
+			Eventually(func(g Gomega) {
+				nc := &v1.EC2NodeClass{}
+				err := Env.Client.Get(Env, client.ObjectKeyFromObject(NodeClass), nc)
+				g.Expect(err).ToNot(HaveOccurred())
 
-			hash, found := nc.Annotations[v1.AnnotationEC2NodeClassHash]
-			g.Expect(found).To(BeTrue())
-			g.Expect(hash).To(Equal(nc.Hash(lo.ToPtr(env.ExpectCABundle()))))
+				hash, found := nc.Annotations[v1.AnnotationEC2NodeClassHash]
+				g.Expect(found).To(BeTrue())
+				g.Expect(hash).To(Equal(nc.Hash(lo.ToPtr(Env.ExpectCABundle()))))
+			})
 		})
 	})
-})
+}

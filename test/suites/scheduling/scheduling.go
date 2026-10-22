@@ -15,9 +15,9 @@ limitations under the License.
 package scheduling
 
 import (
+	_ "embed"
 	"fmt"
 	"math/rand"
-	"os"
 	"strconv"
 	"time"
 
@@ -26,6 +26,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
+	"github.com/onsi/ginkgo/v2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -46,6 +47,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+//go:embed testdata/hugepage_userdata_input.sh
+var hugepageUserData string
+
 var Env *environmentaws.Environment
 var NodeClass *v1.EC2NodeClass
 var NodePool *karpv1.NodePool
@@ -54,6 +58,7 @@ var NodePool *karpv1.NodePool
 func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 	return Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		var selectors sets.Set[string]
+		var ranAllSpecs bool
 
 		BeforeEach(func() {
 			// Make the NodePool requirements fully flexible, so we can match well-known label keys
@@ -71,8 +76,17 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 		})
 		BeforeAll(func() {
 			selectors = sets.New[string]()
+			ranAllSpecs = !specsFiltered()
+		})
+		ReportAfterEach(func(report SpecReport) {
+			if report.State.Is(types.SpecStateSkipped | types.SpecStatePending) {
+				ranAllSpecs = false
+			}
 		})
 		AfterAll(func() {
+			if !ranAllSpecs {
+				return
+			}
 			// Ensure that we're exercising all well known labels
 			Expect(lo.Keys(selectors)).To(ContainElements(append(karpv1.WellKnownLabels.UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 		})
@@ -128,7 +142,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 						{
 							Key:      v1.LabelTopologyZoneID,
 							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName})[0].ZoneID},
+							Values:   []string{Env.DiscoveredSubnetInfo()[0].ZoneID},
 						},
 					},
 				}})
@@ -271,7 +285,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
 			// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
-			It("should support well-known labels for windows-build version", func() {
+			It("should support well-known labels for windows-build version", Label("needs:windows"), func() {
 				Env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					Env.ExpectWindowsIPAMDisabled()
@@ -464,9 +478,9 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				// In that case, we still expect to eventually have three nodes.
 				Env.EventuallyExpectNodeCount("==", 3)
 			})
-			It("should provision nodes for a zonal topology spread when a Zonal Shift is active", func() {
+			It("should provision nodes for a zonal topology spread when a Zonal Shift is active", Label("needs:zonal-shift"), func() {
 				clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", Env.Region, Env.ExpectAccountID(), Env.ClusterName)
-				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
 					return s.Zone
 				})
 				numzones := len(subnetInfo)
@@ -761,7 +775,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 
 			It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
 					return s.Zone
 				})
 				Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
@@ -799,7 +813,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Operator: corev1.NodeSelectorOpExists,
 				})
 
-				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
 					return s.Zone
 				})
 				pods := lo.Map(subnetInfo, func(info environmentaws.SubnetInfo, _ int) *corev1.Pod {
@@ -837,7 +851,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 		})
 
-		Context("Capacity Reservations", func() {
+		Context("Capacity Reservations", Label("needs:capacity-reservation"), func() {
 			var largeCapacityReservation, xlargeCapacityReservation environmentaws.CapacityReservation
 			BeforeAll(func() {
 				largeCapacityReservation, xlargeCapacityReservation = Env.ExpectCapacityReservationPairCreated(1, 2)
@@ -968,7 +982,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 		})
 
-		Context("Interruptible Capacity Resverations", func() {
+		Context("Interruptible Capacity Resverations", Label("needs:capacity-reservation"), func() {
 			var sourceReservation, xlargeReservation environmentaws.CapacityReservation
 			var interruptibleReservationID string
 			BeforeAll(func() {
@@ -1376,9 +1390,7 @@ func RegisterNodeOverlayTests() bool {
 				},
 			})
 
-			content, err := os.ReadFile("../scheduling/testdata/hugepage_userdata_input.sh")
-			Expect(err).To(BeNil())
-			NodeClass.Spec.UserData = lo.ToPtr(string(content))
+			NodeClass.Spec.UserData = lo.ToPtr(hugepageUserData)
 
 			Env.ExpectCreated(NodePool, NodeClass, nodeOverlay, pod)
 			Env.EventuallyExpectHealthy(pod)
@@ -1389,6 +1401,11 @@ func RegisterNodeOverlayTests() bool {
 			Expect(instanceType).To(Equal(overlaiedInstanceType))
 		})
 	})
+}
+
+func specsFiltered() bool {
+	config, _ := GinkgoConfiguration()
+	return len(config.FocusStrings) > 0 || len(config.SkipStrings) > 0 || len(config.FocusFiles) > 0 || len(config.SkipFiles) > 0 || config.LabelFilter != ""
 }
 
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {
