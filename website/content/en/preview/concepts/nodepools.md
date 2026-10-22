@@ -20,7 +20,7 @@ Here are things you should know about NodePools:
 * Each NodePool that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the NodePool that is not tolerated by a Pod, Karpenter won't use that NodePool to provision the pod.
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
+* It is recommended to create NodePools that are either mutually exclusive, so that no Pod matches multiple NodePools, or [weighted](#specweight), so that the preferred NodePool is explicit. If multiple NodePools are matched, Karpenter will launch the node from the NodePool with the highest weight, falling back to lower-weight NodePools if it can't be used (for example, if its limits have been reached). If you need a specific NodePool to be preferred over another, give it a higher weight.
 
 
 {{% alert title="Note" color="primary" %}}
