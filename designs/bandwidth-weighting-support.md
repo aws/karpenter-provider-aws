@@ -15,7 +15,7 @@ dependency, but S3 reads plus shuffle traffic saturate the default networking ba
 
 There's no way to get this through Karpenter today. `EC2NodeClass` has no
 `networkPerformanceOptions` field, custom launch templates were removed in v0.33+, and the
-weighting can only be set at launch — `ModifyInstanceNetworkPerformanceOptions` requires a
+weighting can only be set at launch. `ModifyInstanceNetworkPerformanceOptions` requires a
 `Stopped` instance, so userData can't reach it either.
 
 This design adds the field to `EC2NodeClass` and, when it's set, restricts Karpenter to
@@ -104,7 +104,7 @@ instance type resolution rather than relying on the API.
 
 Filtering narrows the instance types a weighted NodeClass can use, which matters for anyone
 running mixed generations for capacity flexibility. That case is expressed with two NodePools
-pointing at two NodeClasses — one weighted, one not — and a weight preferring the weighted pool:
+pointing at two NodeClasses, one weighted and one not, with a weight preferring the weighted pool:
 
 ```yaml
 # Preferred: capable types, vpc-1 applied.
@@ -168,5 +168,4 @@ No new IAM permissions are needed; `NetworkPerformanceOptions` is a parameter on
 
 ---
 
-*AI was used to review and help shape and enrich this document. The work and all technical
-decisions are authored and reviewed by a human.*
+Drafted and reviewed by the author, with AI assistance for editing.
