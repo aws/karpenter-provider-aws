@@ -278,6 +278,7 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 If a NodePool is compatible with multiple capacity types, Karpenter will prioritize `reserved` capacity, followed by `spot`, then finally `on-demand`.
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
 If there are no other possible offerings available for a higher priority capacity type, Karpenter will attempt to fallback to a lower priority capacity type, generally within milliseconds.
+Karpenter will only fall back to capacity types that the NodePool allows. For example, a NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity when no `spot` offerings are available, but a NodePool that only allows `spot` will never launch `on-demand` capacity; pods will remain pending until a `spot` offering can be launched.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 

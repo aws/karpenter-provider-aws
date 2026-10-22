@@ -115,6 +115,8 @@ Allowing Karpenter to provision nodes from a large, diverse set of instance type
 
 Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire NodePool) so that Karpenter can make forward progress with different options.
 
+If no Spot offerings are available, Karpenter will only fall back to `on-demand` capacity if the NodePool allows it. A NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity, while a NodePool that only allows `spot` will not, and pods will remain pending until Spot capacity is available. See [Capacity Type]({{< ref "./concepts/nodepools#capacity-type" >}}) for more details.
+
 ### Does Karpenter support IPv6?
 
 Yes! Karpenter dynamically discovers if you are running in an IPv6 cluster by checking the kube-dns service's cluster-ip. When using an AMI Family such as `AL2`, Karpenter will automatically configure the EKS Bootstrap script for IPv6. Some EC2 instance types do not support IPv6 and the Amazon VPC CNI only supports instance types that run on the Nitro hypervisor. It's best to add a requirement to your NodePool to only allow Nitro instance types:
