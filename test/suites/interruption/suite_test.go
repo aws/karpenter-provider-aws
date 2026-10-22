@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,11 +29,13 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -258,8 +261,8 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
-	It("should terminate the node when receiving an instance status failure", func() {
-		By("Disabling the SQS interruption queue so only the instance status controller handles interruptions")
+	It("should repair the node when EC2 reports a failed instance status check", func() {
+		By("Disabling the SQS interruption queue so only DescribeInstanceStatus detects the failure")
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
 		DeferCleanup(func() {
 			env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: env.InterruptionQueue})
@@ -311,11 +314,36 @@ var _ = Describe("Interruption", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		instanceID := lo.Must(utils.ParseInstanceID(node.Spec.ProviderID))
 
-		By("Waiting for the instance status controller to detect the failure and terminate the node")
+		By("Waiting for the instance status controller to report the node healthy")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-			g.Expect(!node.DeletionTimestamp.IsZero()).To(BeTrue())
+			condition := nodeutils.GetCondition(node, instancestatus.ConditionTypeEC2StatusReady)
+			g.Expect(condition.Status).To(Equal(corev1.ConditionTrue))
+			g.Expect(condition.Reason).To(Equal(instancestatus.ReasonNoImpairmentReported))
+		}).Should(Succeed())
+
+		By("Waiting for the instance status controller to report the failure on the node")
+		// Poll quickly so EC2 still reports the instance when the condition flips, before repair terminates it.
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+			condition := nodeutils.GetCondition(node, instancestatus.ConditionTypeEC2StatusReady)
+			g.Expect(condition.Status).To(Equal(corev1.ConditionFalse))
+			g.Expect(condition.Reason).To(Equal(instancestatus.ReasonInstanceReachabilityFailed))
+			out, err := env.EC2API.DescribeInstanceStatus(env.Context, &ec2.DescribeInstanceStatusInput{InstanceIds: []string{instanceID}})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(out.InstanceStatuses).To(HaveLen(1))
+			g.Expect(out.InstanceStatuses[0].InstanceStatus.Details).ToNot(BeEmpty())
+			g.Expect(condition.LastTransitionTime.Time).To(BeTemporally("==", lo.FromPtr(out.InstanceStatuses[0].InstanceStatus.Details[0].ImpairedSince)))
+		}).WithTimeout(30 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+
+		By("Waiting for node repair to terminate the node")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.DeletionTimestamp.IsZero()).To(BeFalse())
+			g.Expect(nodeClaim.StatusConditions().Get(karpv1.ConditionTypeDisruptionReason).Reason).To(Equal(string(karpv1.DisruptionReasonUnhealthy)))
 		}).WithTimeout(30 * time.Minute).WithPolling(30 * time.Second).Should(Succeed())
 		env.EventuallyExpectNotFound(node)
 		env.EventuallyExpectHealthyPodCount(selector, 1)

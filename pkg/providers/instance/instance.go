@@ -113,6 +113,17 @@ type DefaultProvider struct {
 	placementGroupProvider      placementgroup.Provider
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
+	allocationStrategyProvider  AllocationStrategyProvider
+}
+
+type DefaultProviderOpts = option.Function[DefaultProvider]
+
+// WithAllocationStrategyProvider chooses CreateFleet allocation strategies with p instead of
+// DefaultAllocationStrategyProvider.
+func WithAllocationStrategyProvider(p AllocationStrategyProvider) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.allocationStrategyProvider = p
+	}
 }
 
 func NewDefaultProvider(
@@ -127,8 +138,9 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	zonalshiftProvider arczonalshift.Provider,
 	instanceCache *cache.Cache,
+	opts ...DefaultProviderOpts,
 ) *DefaultProvider {
-	return &DefaultProvider{
+	provider := &DefaultProvider{
 		region:                      region,
 		recorder:                    recorder,
 		ec2api:                      ec2api,
@@ -140,7 +152,12 @@ func NewDefaultProvider(
 		placementGroupProvider:      placementGroupProvider,
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
+		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
 	}
+	for _, opt := range opts {
+		opt(provider)
+	}
+	return provider
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
@@ -402,7 +419,7 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs).WithAllocationStrategyProvider(p.allocationStrategyProvider)
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}
@@ -416,7 +433,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		cfiBuilder.WithCapacityReservationType(*crt, getCapacityReservationInterruptible(instanceTypes))
 	}
-	createFleetInput := cfiBuilder.Build()
+	createFleetInput := cfiBuilder.Build(ctx, nodeClaim)
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
@@ -466,7 +483,7 @@ func (p *DefaultProvider) launchInstance(
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
+	if class, _ := cloudprovider.CapacityTypeClassOf(getCapacityType(nodeClaim, instanceTypes)); class != cloudprovider.CapacityTypeClassOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -808,9 +825,11 @@ func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
 }
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.
-// Prioritization is as follows: reserved, spot, on-demand.
+// Prioritization is as follows: reserved, spot, additional on-demand class capacity types, on-demand.
 func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
-	for _, capacityType := range []string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot} {
+	additionalOnDemand := lo.Without(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), karpv1.CapacityTypeOnDemand)
+	allowed := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey)
+	for _, capacityType := range append([]string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot}, additionalOnDemand...) {
 		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(capacityType) {
 			continue
@@ -822,6 +841,12 @@ func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider
 			if len(it.Offerings.Compatible(requirements).Launchable()) != 0 {
 				return capacityType
 			}
+		}
+	}
+	// Without a launchable offering, fall back to the on-demand class capacity type the NodeClaim allows.
+	if !allowed.Has(karpv1.CapacityTypeOnDemand) {
+		if capacityType, ok := lo.Find(additionalOnDemand, allowed.Has); ok {
+			return capacityType
 		}
 	}
 	return karpv1.CapacityTypeOnDemand

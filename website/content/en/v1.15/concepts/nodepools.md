@@ -20,7 +20,7 @@ Here are things you should know about NodePools:
 * Each NodePool that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the NodePool that is not tolerated by a Pod, Karpenter won't use that NodePool to provision the pod.
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
+* It is recommended to create NodePools that are either mutually exclusive, so that no Pod matches multiple NodePools, or [weighted](#specweight), so that the preferred NodePool is explicit. If multiple NodePools are matched, Karpenter will launch the node from the NodePool with the highest weight, falling back to lower-weight NodePools if it can't be used (for example, if its limits have been reached). If you need a specific NodePool to be preferred over another, give it a higher weight.
 
 
 {{% alert title="Note" color="primary" %}}
@@ -278,6 +278,7 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 If a NodePool is compatible with multiple capacity types, Karpenter will prioritize `reserved` capacity, followed by `spot`, then finally `on-demand`.
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
 If there are no other possible offerings available for a higher priority capacity type, Karpenter will attempt to fallback to a lower priority capacity type, generally within milliseconds.
+Karpenter will only fall back to capacity types that the NodePool allows. For example, a NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity when no `spot` offerings are available, but a NodePool that only allows `spot` will never launch `on-demand` capacity; pods will remain pending until a `spot` offering can be launched.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
