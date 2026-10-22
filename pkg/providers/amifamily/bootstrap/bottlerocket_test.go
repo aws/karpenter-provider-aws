@@ -124,4 +124,33 @@ memory = "327Mi"
 			Expect(config.Settings.Kubernetes.MemoryManagerReservedMemory["1"].Memory).To(Equal("327Mi"))
 		})
 	})
+	Describe("MemorySwapBehavior", func() {
+		It("should unmarshal memory-swap-behavior from TOML", func() {
+			userData := `
+[settings.kubernetes]
+"memory-swap-behavior" = "LimitedSwap"
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config.Settings.Kubernetes.MemorySwapBehavior).ToNot(BeNil())
+			Expect(*config.Settings.Kubernetes.MemorySwapBehavior).To(Equal("LimitedSwap"))
+		})
+
+		It("should round-trip through marshal/unmarshal", func() {
+			userData := `
+[settings.kubernetes]
+"memory-swap-behavior" = "LimitedSwap"
+`
+			config, err := NewBottlerocketConfig(context.Background(), &userData)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := config.MarshalTOML()
+			Expect(err).ToNot(HaveOccurred())
+
+			roundTrip, err := NewBottlerocketConfig(context.Background(), lo.ToPtr(string(out)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(roundTrip.Settings.Kubernetes.MemorySwapBehavior).ToNot(BeNil())
+			Expect(*roundTrip.Settings.Kubernetes.MemorySwapBehavior).To(Equal("LimitedSwap"))
+		})
+	})
 })

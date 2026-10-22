@@ -1123,6 +1123,19 @@ Total number of conversion webhook panics
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
 - Stability Level: STABLE
 
+### `controller_runtime_client_consistency_wait_duration_seconds`
+Length of time waiting for the cache to observe writes before serving reads.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: STABLE
+- Dimensions:
+  - `operation` — The client read operation that waited for the cache.
+    - `get`
+    - `list`
+  - `result` — The outcome of waiting for the cache to observe prior writes.
+    - `success`
+    - `error`
+    - `timeout`
+
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
@@ -1307,7 +1320,18 @@ Request latency in seconds. Broken down by verb, group, version, kind, and subre
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: STABLE
 - Dimensions:
-  - `verb` — The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`.
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
+  - `group` — The API group of the request's target resource.
+  - `version` — The API version of the request's target resource.
+  - `kind` — The kind of the request's target resource.
+  - `subresource` — The subresource of the request, if any.
+
+### `client_go_rate_limiter_duration_seconds`
+Time spent waiting on the client-side rate limiter before sending a Kubernetes API request. Broken down by verb, group, version, kind, and subresource.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
   - `group` — The API group of the request's target resource.
   - `version` — The API version of the request's target resource.
   - `kind` — The kind of the request's target resource.
