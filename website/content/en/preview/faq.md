@@ -63,7 +63,7 @@ Yes, NodePools can identify multiple teams based on labels. See the [NodePool AP
 
 ### If multiple NodePools are defined, which will my pod use?
 
-Pending pods will be handled by any NodePools that matches the requirements of the pod. There is no ordering guarantee if multiple NodePools match pod requirements. We recommend that NodePools are set-up to be mutually exclusive. To select a specific NodePool, use the node selector `karpenter.sh/nodepool: my-nodepool`.
+Pending pods will be handled by any NodePools that matches the requirements of the pod. There is no ordering guarantee if multiple NodePools match pod requirements. We recommend that NodePools are set-up to be mutually exclusive. To select a specific NodePool, use the node selector `karpenter.sh/nodepool: my-nodepool`. Do not select `karpenter.sh/registered` or `karpenter.sh/initialized`: those labels match existing Karpenter nodes but cannot trigger scale-up.
 
 ### How can I configure Karpenter to only provision pods for a particular namespace?
 

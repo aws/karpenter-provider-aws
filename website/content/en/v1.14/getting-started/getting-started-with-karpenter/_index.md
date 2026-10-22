@@ -48,7 +48,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="1.14.1"
+export KARPENTER_VERSION="1.14.2"
 export K8S_VERSION="1.36"
 ```
 
@@ -116,13 +116,13 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:1.14.1 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.14.2 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.14.1 \
-  --annotations version=1.14.1
+  --certificate-github-workflow-ref=refs/tags/v1.14.2 \
+  --annotations version=1.14.2
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
@@ -154,6 +154,19 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step12-add-nodepool.sh" language="bash"%}}
 
 Karpenter is now active and ready to begin provisioning nodes.
+
+{{% alert title="Note" color="primary" %}}
+NodePools, EC2NodeClasses, and NodeClaims are standard Kubernetes custom resources. You can list and inspect them with `kubectl` the same way you would any other cluster resource:
+
+```bash
+kubectl get nodepools
+kubectl describe nodepool default
+kubectl get ec2nodeclasses
+kubectl describe ec2nodeclass default
+kubectl get nodeclaims
+kubectl describe nodeclaim <nodeclaim-name>
+```
+{{% /alert %}}
 
 ### 6. Scale up deployment
 

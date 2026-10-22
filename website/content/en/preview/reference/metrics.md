@@ -10,6 +10,10 @@ Karpenter makes several metrics available in Prometheus format to allow monitori
 
 Each metric below lists its type, stability level, and dimensions (labels). The type is one of the [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/): a `Counter` only increases, a `Gauge` can go up or down, a `Histogram` samples observations into buckets, and a `Summary` tracks configurable quantiles over a sliding time window.
 
+{{% alert title="Note" color="primary" %}}
+Not every dimension listed for a metric is populated on every series at all times. A dimension that doesn't apply to the object's current state is emitted as an empty string, which Prometheus treats the same as the label being absent, so a selector such as `{zone="us-west-2a"}` won't match those series. For example, `karpenter_pods_state` only populates its node-derived dimensions (`node`, `nodepool`, `zone`, `arch`, `capacity_type`, and `instance_type`) once the pod is bound to a node. Until then they're empty and `managed` is `false`.
+{{% /alert %}}
+
 [comment]: <> (the content below is generated from hack/docs/metrics_gen/main.go)
 
 ### `karpenter_consolidation_score`
@@ -18,7 +22,6 @@ Score of balanced consolidation moves. Labeled by decision, NodePool, and policy
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
-    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -30,7 +33,6 @@ Number of balanced consolidation moves. Labeled by decision, NodePool, and polic
 - Stability Level: ALPHA
 - Dimensions:
   - `decision` — Whether a scored balanced-consolidation move was approved or rejected.
-    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
     - `approved` — The move's cost savings justified the pod disruption; it was approved.
     - `rejected` — The move's cost savings did not justify the pod disruption; it was rejected.
   - `nodepool` — The name of the NodePool that owns the resource.
@@ -66,6 +68,7 @@ The number of nodes consuming the budget of a nodepool at a point in time. Label
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
 
 ### `karpenter_nodepools_limit`
 Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
@@ -99,6 +102,7 @@ The number of nodes for a given NodePool that can be concurrently disrupting at 
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
 
 ## Nodeclaims Metrics
 
@@ -194,6 +198,7 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
   - `nodepool` — The name of the NodePool that owns the resource.
   - `min_values_relaxed` — Whether minValues requirements were relaxed to satisfy scheduling.
     - `true`
@@ -337,6 +342,25 @@ Node system daemon overhead are the resources reserved for system overhead, the 
   - `phase` — The node's lifecycle phase, e.g. `Pending`, `Running`.
   - `managed`
   - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
+
+### `karpenter_nodes_reboots_total`
+Number of node reboots carried out by Karpenter, labeled by terminal result (succeeded, provider_error, recovery_timeout).
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: BETA
+- Dimensions:
+  - `result`
+
+### `karpenter_nodes_reboot_recovery_duration_seconds`
+Time from issuing a reboot until the node proved a new boot and rejoined (bootID changed + Ready). Recorded on successful reboots only.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+
+### `karpenter_nodes_reboot_duration_seconds`
+Duration of the full reboot action from request to terminal outcome, labeled by result.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+- Dimensions:
+  - `result`
 
 ### `karpenter_nodes_lifetime_duration_seconds`
 The lifetime duration of the nodes since creation.
@@ -681,6 +705,21 @@ The number of a condition for a given object, type and status. e.g. Alarm := Ava
 
 ## Voluntary Disruption Metrics
 
+### `karpenter_voluntary_disruption_terminate_first_decisions_total`
+Number of terminate-first disruption decisions performed. Labeled by nodepool name, reason, and why the replacement couldn't be staged first.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+  - `reason` — The voluntary-disruption reason.
+    - `underutilized` — The node was underutilized.
+    - `empty` — The node had no workload pods.
+    - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
+  - `terminate_first_reason` — Why the terminate-first command couldn't stage its replacement before terminating the node.
+    - `no-reserved-capacity` — The replacement has no reserved capacity to launch into except the slot the node holds in a full capacity reservation.
+    - `static-at-limit` — The node's static NodePool is at its node limit, so the replacement can't launch alongside it.
+
 ### `karpenter_voluntary_disruption_queue_failures_total`
 The number of times that an enqueued disruption decision failed. Labeled by disruption method.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
@@ -690,10 +729,13 @@ The number of times that an enqueued disruption decision failed. Labeled by disr
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
   - `consolidation_type` — The consolidation algorithm that produced the decision.
     - `multi` — Consolidation that considers removing multiple nodes at once.
     - `single` — Consolidation that considers removing a single node.
@@ -718,6 +760,7 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption reas
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
 
 ### `karpenter_voluntary_disruption_decisions_total`
 Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.
@@ -728,10 +771,13 @@ Number of disruption decisions performed. Labeled by disruption decision, reason
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
   - `consolidation_type` — The consolidation algorithm that produced the decision.
     - `multi` — Consolidation that considers removing multiple nodes at once.
     - `single` — Consolidation that considers removing a single node.
@@ -747,10 +793,13 @@ Number of disruption decisions performed by nodepool. Labeled by nodepool name, 
     - `no-op` — No disruption action was taken.
     - `replace` — The candidate(s) were replaced with more efficient capacity.
     - `delete` — The candidate(s) were deleted without replacement.
+    - `terminate-first` — The candidate(s) were deleted without staging a replacement first; reactive provisioning refills afterward.
+    - `reboot` — The candidate(s) were rebooted in place.
   - `reason` — The voluntary-disruption reason.
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
   - `consolidation_type` — The consolidation algorithm that produced the decision.
     - `multi` — Consolidation that considers removing multiple nodes at once.
     - `single` — Consolidation that considers removing a single node.
@@ -765,6 +814,7 @@ Duration of the disruption decision evaluation process in seconds. Labeled by me
     - `underutilized` — The node was underutilized.
     - `empty` — The node had no workload pods.
     - `drifted` — The node drifted from its desired specification.
+    - `unhealthy` — The node failed a node-repair health check.
   - `consolidation_type` — The consolidation algorithm that produced the decision.
     - `multi` — Consolidation that considers removing multiple nodes at once.
     - `single` — Consolidation that considers removing a single node.
@@ -824,6 +874,22 @@ Pending pods dimensioned by effective zone constraint, or the intersection of po
 Number of pods ignored during scheduling by Karpenter
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
 - Stability Level: ALPHA
+
+## Pod Deletion Cost Metrics
+
+### `karpenter_pod_deletion_cost_pod_annotation_writes_total`
+Number of pod-deletion-cost annotation write attempts. Labeled by outcome.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `result`
+
+### `karpenter_pod_deletion_cost_nodes_with_pending_annotation_writes`
+Number of nodes with at least one pending pod-deletion-cost annotation change enqueued this cycle.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
 
 ## Interruption Metrics
 
@@ -969,6 +1035,7 @@ Total number of errors returned from CloudProvider calls.
     - `NodeClassNotReadyError` — The referenced NodeClass is not yet ready.
     - `InsufficientCapacityError` — The cloud provider had insufficient capacity to fulfill the request.
     - `unknown` — An error that does not match a well-known CloudProvider error category.
+  - `nodepool` — The name of the NodePool that owns the resource.
 
 ### `karpenter_cloudprovider_duration_seconds`
 Duration of cloud provider method calls. Labeled by the controller, method name and provider.
@@ -1055,6 +1122,19 @@ Maximum number of concurrent reconciles per controller
 Total number of conversion webhook panics
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
 - Stability Level: STABLE
+
+### `controller_runtime_client_consistency_wait_duration_seconds`
+Length of time waiting for the cache to observe writes before serving reads.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: STABLE
+- Dimensions:
+  - `operation` — The client read operation that waited for the cache.
+    - `get`
+    - `list`
+  - `result` — The outcome of waiting for the cache to observe prior writes.
+    - `success`
+    - `error`
+    - `timeout`
 
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
@@ -1240,7 +1320,18 @@ Request latency in seconds. Broken down by verb, group, version, kind, and subre
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: STABLE
 - Dimensions:
-  - `verb` — The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`.
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
+  - `group` — The API group of the request's target resource.
+  - `version` — The API version of the request's target resource.
+  - `kind` — The kind of the request's target resource.
+  - `subresource` — The subresource of the request, if any.
+
+### `client_go_rate_limiter_duration_seconds`
+Time spent waiting on the client-side rate limiter before sending a Kubernetes API request. Broken down by verb, group, version, kind, and subresource.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
   - `group` — The API group of the request's target resource.
   - `version` — The API version of the request's target resource.
   - `kind` — The kind of the request's target resource.

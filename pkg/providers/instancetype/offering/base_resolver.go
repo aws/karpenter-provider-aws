@@ -101,6 +101,10 @@ func (r *BaseResolver) ResolveOfferings(
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
 				}
+				// Additional capacity types registered by the cloud provider get their offerings from an additional resolver
+				if _, builtIn := cloudprovider.DefaultCapacityTypeClasses[capacityType]; !builtIn && lo.Contains(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), capacityType) {
+					continue
+				}
 				// Check both the general ICE signal and the PG-scoped signal.
 				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
 				isUnavailable := r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
@@ -177,6 +181,9 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	enclaveOptions := nodeClass.EnclaveOptions()
 	enclavesEnabled := enclaveOptions != nil && enclaveOptions.Enabled
 	enclavesEnabledHash, _ := hashstructure.Hash(enclavesEnabled, hashstructure.FormatV2, nil)
+	cpuOptions := nodeClass.CPUOptions()
+	nestedVirtualizationEnabled := cpuOptions != nil && lo.FromPtr(cpuOptions.NestedVirtualization) == "enabled"
+	nestedVirtualizationEnabledHash, _ := hashstructure.Hash(nestedVirtualizationEnabled, hashstructure.FormatV2, nil)
 	var placementGroupHash uint64
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
@@ -184,12 +191,13 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
 			enclavesEnabledHash,
+			nestedVirtualizationEnabledHash,
 			placementGroupHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),

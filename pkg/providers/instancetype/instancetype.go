@@ -47,6 +47,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	"golang.org/x/sync/singleflight"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -104,7 +105,11 @@ type DefaultProvider struct {
 	instanceTypesOfferings   map[ec2types.InstanceType]sets.Set[string]
 	allZones                 sets.Set[string]
 
-	instanceTypesCache      *cache.Cache
+	instanceTypesCache *cache.Cache
+	// instanceTypesGroup dedupes concurrent cache-miss builds of the same instanceTypesCache key. Without it, every
+	// caller that misses (e.g. hundreds of concurrent NodeClaim launches after the cache expires) builds its own copy
+	// of every instance type.
+	instanceTypesGroup      singleflight.Group
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
@@ -178,26 +183,23 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		// so that modifications to the ordering of the data don't affect the original
 		instanceTypes = item.([]*cloudprovider.InstanceType)
 	} else {
-		parsedKubelet, err := parseKubeletConfig(nodeClass)
-		if err != nil {
-			return nil, err
-		}
-		// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
-		// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
-		// instance type, not a failure to resolve one.
-		instanceTypes = make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
-		for name := range p.instanceTypesInfo {
-			it, err := p.get(ctx, nodeClass, name, parsedKubelet)
+		item, err, _ := p.instanceTypesGroup.Do(key, func() (any, error) {
+			// Another caller may have populated the cache while we were waiting to start the build
+			if item, ok := p.instanceTypesCache.Get(key); ok {
+				return item, nil
+			}
+			// The build runs on behalf of every caller sharing this key, so it shouldn't be canceled with the first one
+			its, err := p.buildInstanceTypes(context.WithoutCancel(ctx), nodeClass)
 			if err != nil {
 				return nil, err
 			}
-			// A nil instance type with no error is the Resolver declining to offer this one; skip it.
-			if it == nil {
-				continue
-			}
-			instanceTypes = append(instanceTypes, it)
+			p.instanceTypesCache.SetDefault(key, its)
+			return its, nil
+		})
+		if err != nil {
+			return nil, err
 		}
-		p.instanceTypesCache.SetDefault(key, instanceTypes)
+		instanceTypes = item.([]*cloudprovider.InstanceType)
 	}
 	// Offerings aren't cached along with the rest of the instance type info because reserved offerings need to have up to
 	// date capacity information. Rather than incurring a cache miss each time an instance is launched into a reserved
@@ -210,6 +212,31 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*clo
 		nodeClass,
 		p.allZones,
 	), nil
+}
+
+// buildInstanceTypes resolves every known instance type for the NodeClass. Callers must hold the instance type info
+// and offerings read locks.
+func (p *DefaultProvider) buildInstanceTypes(ctx context.Context, nodeClass NodeClass) ([]*cloudprovider.InstanceType, error) {
+	parsedKubelet, err := parseKubeletConfig(nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
+	// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
+	// instance type, not a failure to resolve one.
+	instanceTypes := make([]*cloudprovider.InstanceType, 0, len(p.instanceTypesInfo))
+	for name := range p.instanceTypesInfo {
+		it, err := p.get(ctx, nodeClass, name, parsedKubelet)
+		if err != nil {
+			return nil, err
+		}
+		// A nil instance type with no error is the Resolver declining to offer this one; skip it.
+		if it == nil {
+			continue
+		}
+		instanceTypes = append(instanceTypes, it)
+	}
+	return instanceTypes, nil
 }
 
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass NodeClass, name ec2types.InstanceType) (*cloudprovider.InstanceType, error) {
