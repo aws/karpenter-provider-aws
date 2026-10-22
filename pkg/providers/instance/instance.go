@@ -50,6 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -86,6 +87,7 @@ type Provider interface {
 	Get(context.Context, string, ...Options) (*Instance, error)
 	List(context.Context) ([]*Instance, error)
 	Delete(context.Context, string) error
+	Reboot(context.Context, string, string) error
 	CreateTags(context.Context, string, map[string]string) error
 }
 
@@ -111,6 +113,17 @@ type DefaultProvider struct {
 	placementGroupProvider      placementgroup.Provider
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
+	allocationStrategyProvider  AllocationStrategyProvider
+}
+
+type DefaultProviderOpts = option.Function[DefaultProvider]
+
+// WithAllocationStrategyProvider chooses CreateFleet allocation strategies with p instead of
+// DefaultAllocationStrategyProvider.
+func WithAllocationStrategyProvider(p AllocationStrategyProvider) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.allocationStrategyProvider = p
+	}
 }
 
 func NewDefaultProvider(
@@ -125,8 +138,9 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	zonalshiftProvider arczonalshift.Provider,
 	instanceCache *cache.Cache,
+	opts ...DefaultProviderOpts,
 ) *DefaultProvider {
-	return &DefaultProvider{
+	provider := &DefaultProvider{
 		region:                      region,
 		recorder:                    recorder,
 		ec2api:                      ec2api,
@@ -138,7 +152,12 @@ func NewDefaultProvider(
 		placementGroupProvider:      placementGroupProvider,
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
+		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
 	}
+	for _, opt := range opts {
+		opt(provider)
+	}
+	return provider
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
@@ -294,6 +313,34 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// Reboot restarts the instance in place via ec2:RebootInstances.
+// EC2 has no client token; restart safety is handled by the reboot controller.
+func (p *DefaultProvider) Reboot(ctx context.Context, id string, operationID string) error {
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id, "operation-id", operationID))
+	// Get populates the cache with the instance's zone for the zonal-shift guard below.
+	out, err := p.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Avoid rebooting instances during zonal shift
+	if out.ZoneID != "" && p.zonalshiftProvider.IsZonalShifted(ctx, out.ZoneID) {
+		return fmt.Errorf("instance %s is in zonally shifted availability zone %s (%s), skipping reboot", id, out.Zone, out.ZoneID)
+	}
+	if _, err := p.ec2api.RebootInstances(ctx, &ec2.RebootInstancesInput{
+		InstanceIds: []string{id},
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("rebooting instance, %w", err))
+		}
+		// A missing ec2:RebootInstances permission won't fix itself, so fail the reboot instead of retrying it.
+		if awserrors.IsUnauthorizedOperationError(err) {
+			return cloudprovider.NewNodeRebootFailedError(fmt.Errorf("rebooting instance, %w", err))
+		}
+		return fmt.Errorf("rebooting instance, %w", err)
+	}
+	return nil
+}
+
 func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[string]string) error {
 	// Check the instance cache for zonal shift status before making the API call.
 	// During a zonal shift, CreateTags calls to the impaired AZ can cause retry storms.
@@ -321,7 +368,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	rejectedInstanceTypes := map[string][]*cloudprovider.InstanceType{}
 	reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	for _, filter := range []instancefilter.Filter{
-		instancefilter.CompatibleAvailableFilter(reqs, nodeClaim.Spec.Resources.Requests),
+		instancefilter.CompatibleLaunchableFilter(reqs, nodeClaim.Spec.Resources.Requests),
 		instancefilter.CapacityReservationTypeFilter(reqs),
 		instancefilter.CapacityBlockFilter(reqs),
 		instancefilter.ReservedOfferingFilter(reqs),
@@ -332,7 +379,7 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 		if len(remaining) == 0 {
 			return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("all requested instance types were unavailable during launch"))
 		}
-		if len(rejected) != 0 && filter.Name() != "compatible-available-filter" {
+		if len(rejected) != 0 && filter.Name() != "compatible-launchable-filter" {
 			rejectedInstanceTypes[filter.Name()] = rejected
 		}
 		instanceTypes = remaining
@@ -372,7 +419,7 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs).WithAllocationStrategyProvider(p.allocationStrategyProvider)
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}
@@ -386,7 +433,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		cfiBuilder.WithCapacityReservationType(*crt, getCapacityReservationInterruptible(instanceTypes))
 	}
-	createFleetInput := cfiBuilder.Build()
+	createFleetInput := cfiBuilder.Build(ctx, nodeClaim)
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
@@ -436,7 +483,7 @@ func (p *DefaultProvider) launchInstance(
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
+	if class, _ := cloudprovider.CapacityTypeClassOf(getCapacityType(nodeClaim, instanceTypes)); class != cloudprovider.CapacityTypeClassOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -517,7 +564,7 @@ func (p *DefaultProvider) getOverrides(
 	}
 	var filteredOfferings []offeringWithParentName
 	for _, it := range instanceTypes {
-		ofs := it.Offerings.Available().Compatible(reqs)
+		ofs := it.Offerings.Compatible(reqs).Launchable()
 		// If we are generating a launch template for a specific capacity reservation, we only want to include the offering
 		// for that capacity reservation when generating overrides.
 		if capacityReservationID != "" {
@@ -650,29 +697,64 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 		return
 	}
 
-	reservationIDs := make([]string, 0, len(errs))
-	for i := range errs {
-		if awserrors.IsUnfulfillableCapacity(errs[i]) {
-			if awserrors.IsSpreadPlacementGroupLimitError(errs[i]) {
-				continue
+	// A reserved launch failure marks the offering in the shared UnavailableOfferings cache (which drives Available),
+	// not the reservation manager (which tracks only capacity) — keeping a full-but-healthy reservation distinct from
+	// an ICE'd one.
+	for _, err := range errs {
+		if !awserrors.IsUnfulfillableCapacity(err) {
+			continue
+		}
+		if awserrors.IsSpreadPlacementGroupLimitError(err) {
+			continue
+		}
+		instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
+		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		resID := reservedOfferingID(instanceType, zone, instanceTypes)
+		if awserrors.IsReservationCapacityExceeded(err) {
+			// A full reservation is out of capacity, not unhealthy, so we don't mark it ICE-unavailable (that would wrongly
+			// flip Available=false for a healthy reservation). But we can't rely on the reservation manager already knowing
+			// it's full: for a shared ODCR consumed by others, our cached availability count only refreshes on the next EC2
+			// sync, so until then the offering still looks launchable and we'd re-attempt and ICE. Zero the count now so
+			// scheduling stops selecting it until the sync corrects it.
+			if resID != "" {
+				p.capacityReservationProvider.SetAvailableInstanceCount(resID, 0)
 			}
-			capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
-				string(errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType),
-				lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-				instanceTypes,
-			)
-			reservationIDs = append(reservationIDs, capacityReservationDetails.ID)
-			log.FromContext(ctx).WithValues(
-				"reason", lo.FromPtr(errs[i].ErrorCode),
-				"instance-type", errs[i].LaunchTemplateAndOverrides.Overrides.InstanceType,
-				"zone", lo.FromPtr(errs[i].LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
-				"capacity-reservation-id", capacityReservationDetails.ID,
-			).V(1).Info("marking capacity reservation unavailable")
+			continue
+		}
+		// Scope the ICE to the specific reservation ID, not the whole reserved capacity type in the zone, so one IODCR's
+		// ICE doesn't poison sibling reservations of the same instance type + zone. The resolver keys reserved-offering
+		// availability by reservation ID (see reserved_capacity_resolver.go).
+		var opts []awscache.UnavailableOfferingsOption
+		if resID != "" {
+			opts = append(opts, awscache.WithReservationID(resID))
+		}
+		log.FromContext(ctx).WithValues(
+			"reason", lo.FromPtr(err.ErrorCode),
+			"instance-type", instanceType,
+			"zone", zone,
+			"capacity-type", karpv1.CapacityTypeReserved,
+		).V(1).Info("marking reserved offering unavailable")
+		p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, karpv1.CapacityTypeReserved, map[string]string{
+			"reason": lo.FromPtr(err.ErrorCode),
+		}, opts...)
+	}
+}
+
+// reservedOfferingID returns the reservation ID of the reserved offering matching the instance type and zone, or "" if
+// none is found. Create-time filtering guarantees a single reservation per zone for a given launch, so the first match
+// is unambiguous.
+func reservedOfferingID(instanceType ec2types.InstanceType, zone string, instanceTypes []*cloudprovider.InstanceType) string {
+	for _, it := range instanceTypes {
+		if it.Name != string(instanceType) {
+			continue
+		}
+		for _, o := range it.Offerings {
+			if o.CapacityType() == karpv1.CapacityTypeReserved && o.Zone() == zone {
+				return o.ReservationID()
+			}
 		}
 	}
-	if len(reservationIDs) > 0 {
-		p.capacityReservationProvider.MarkUnavailable(reservationIDs...)
-	}
+	return ""
 }
 
 func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zone string, instanceTypes []*cloudprovider.InstanceType) *CapacityReservationDetails {
@@ -703,7 +785,9 @@ func (p *DefaultProvider) getEFACountForInstance(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	if found := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA); !found && nodeClass.NetworkInterfaces() == nil {
+	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
+	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
+	if !requested && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {
@@ -741,18 +825,28 @@ func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
 }
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.
-// Prioritization is as follows: reserved, spot, on-demand.
+// Prioritization is as follows: reserved, spot, additional on-demand class capacity types, on-demand.
 func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
-	for _, capacityType := range []string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot} {
+	additionalOnDemand := lo.Without(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), karpv1.CapacityTypeOnDemand)
+	allowed := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey)
+	for _, capacityType := range append([]string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot}, additionalOnDemand...) {
 		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(capacityType) {
 			continue
 		}
 		requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 		for _, it := range instanceTypes {
-			if len(it.Offerings.Available().Compatible(requirements)) != 0 {
+			// Launchable, not Available: a full reservation would otherwise pin us to the reserved capacity type and
+			// ICE, instead of falling back to on-demand/spot.
+			if len(it.Offerings.Compatible(requirements).Launchable()) != 0 {
 				return capacityType
 			}
+		}
+	}
+	// Without a launchable offering, fall back to the on-demand class capacity type the NodeClaim allows.
+	if !allowed.Has(karpv1.CapacityTypeOnDemand) {
+		if capacityType, ok := lo.Find(additionalOnDemand, allowed.Has); ok {
+			return capacityType
 		}
 	}
 	return karpv1.CapacityTypeOnDemand

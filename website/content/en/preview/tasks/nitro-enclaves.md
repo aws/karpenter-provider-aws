@@ -26,7 +26,7 @@ Common use cases include:
 - Implementing secure key management and cryptographic operations
 - Supporting compliance efforts for workloads with data-isolation requirements, such as PCI DSS or HIPAA-regulated workloads
 
-For more information, see the [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/).
+For more information, see the [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
 Karpenter enables Nitro Enclaves in EC2 launch templates, excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`, and models `NodeOverlay` capacity. You must configure the node, install the Kubernetes device plugin, and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet.
 
@@ -87,7 +87,7 @@ Switching `enabled` between `true` and `false` changes the generated launch temp
 
 The example uses an EKS-optimized AMI only to keep the EC2NodeClass concise. You must still provide the node-level Nitro Enclaves configuration, either by baking it into an AMI or supplying appropriate user data. It uses `@latest` for brevity; follow the [AMI pinning guidance]({{< relref "managing-amis#pinning-amis" >}}) for production.
 
-For compatibility with existing configurations, omitting `enclaveOptions` disables Nitro Enclaves unless a NodeClaim requests `eks.amazonaws.com/nitro-sandbox`. When `enclaveOptions` is specified, `enabled` is required. Setting `enabled` to `false` explicitly disables Nitro Enclaves; a conflicting NodeClaim fails before EC2 instance creation with reason `NitroEnclavesDisabled`. Karpenter retries the NodeClaim until its launch timeout, and the workload remains pending until the conflict is resolved.
+Omitting `enclaveOptions` or setting `enabled` to `false` disables Nitro Enclaves. When `enclaveOptions` is specified, `enabled` is required.
 
 {{% alert title="Warning" color="warning" %}}
 [Nitro Enclaves are not supported in AWS Local Zones, AWS Wavelength Zones, or AWS Outposts](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html). Configure `subnetSelectorTerms` to resolve only subnets in standard Availability Zones. Karpenter filters instance types based on EC2's `NitroEnclavesSupport` value, but does not filter these unsupported locations. EC2 can reject launch attempts that target them. If only unsupported locations match, the workload remains pending.
@@ -281,7 +281,7 @@ After launch, compare standard `cpu` in the NodeClaim's `.status.allocatable` wi
 
 ## Additional Resources
 
-- [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/)
+- [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html)
 - [Nitro Enclaves SDK](https://github.com/aws/aws-nitro-enclaves-sdk-c)
 - [AWS Nitro Enclaves Kubernetes device plugin](https://github.com/aws/aws-nitro-enclaves-k8s-device-plugin)
 - [EC2NodeClass reference]({{< relref "../concepts/nodeclasses#specenclaveoptions" >}})

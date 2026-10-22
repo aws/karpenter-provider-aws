@@ -36,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
+	"github.com/aws/smithy-go"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -46,16 +47,22 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
+	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -97,7 +104,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -326,6 +333,411 @@ var _ = Describe("CloudProvider", func() {
 		v, ok := cloudProviderNodeClaim.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
+	})
+	Context("Legacy RepairPolicies", func() {
+		newCloudProvider := func(opts ...cloudprovider.Option) *cloudprovider.CloudProvider {
+			return cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"), opts...)
+		}
+		It("should return the 1.14 repair policies with WithLegacyRepairPolicies", func() {
+			replace := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, toleration time.Duration) corecloudprovider.RepairPolicy {
+				return corecloudprovider.RepairPolicy{ConditionType: conditionType, ConditionStatus: status, TolerationDuration: toleration, Action: corecloudprovider.ReplaceNode}
+			}
+			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(true)).RepairPolicies()).To(Equal([]corecloudprovider.RepairPolicy{
+				replace(corev1.NodeReady, corev1.ConditionFalse, 30*time.Minute),
+				replace(corev1.NodeReady, corev1.ConditionUnknown, 30*time.Minute),
+				replace("AcceleratedHardwareReady", corev1.ConditionFalse, 10*time.Minute),
+				replace("StorageReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("NetworkingReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("KernelReady", corev1.ConditionFalse, 30*time.Minute),
+				replace("ContainerRuntimeReady", corev1.ConditionFalse, 30*time.Minute),
+			}))
+		})
+		It("should return the default repair policies without WithLegacyRepairPolicies", func() {
+			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(false)).RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
+			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
+			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
+		})
+	})
+	Context("RepairPolicies", func() {
+		var matcher *health.RepairPolicyMatcher
+		newMatcher := func(rebootForRepair bool) *health.RepairPolicyMatcher {
+			provider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"), cloudprovider.WithRebootForRepair(rebootForRepair))
+			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
+			m, err := health.NewRepairPolicyMatcher(repairCtx, provider)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(m).ToNot(BeNil())
+			return m
+		}
+		BeforeEach(func() {
+			matcher = newMatcher(true)
+		})
+		// evaluate returns the repair result for a Node that has carried the condition for the elapsed duration.
+		evaluate := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, reason string, elapsed time.Duration) health.RepairResult {
+			now := fakeClock.Now()
+			node := coretest.Node()
+			node.Status.Conditions = []corev1.NodeCondition{{
+				Type:               conditionType,
+				Status:             status,
+				Reason:             reason,
+				LastTransitionTime: metav1.NewTime(now.Add(-elapsed)),
+			}}
+			return health.Resolve(matcher.Match(node), now, time.Time{})
+		}
+		It("should bound the drain of every policy", func() {
+			for _, policy := range cloudProvider.RepairPolicies() {
+				Expect(policy.TerminationGracePeriod).ToNot(BeNil(), "%s=%s", policy.ConditionType, policy.ConditionStatus)
+			}
+		})
+		DescribeTable("should resolve AcceleratedHardwareReady by reason",
+			func(reason string, elapsed time.Duration, action corecloudprovider.RepairAction, terminationGracePeriod time.Duration, fallback bool) {
+				result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, reason, elapsed)
+				Expect(result.Action).To(Equal(action))
+				if action == "" {
+					return
+				}
+				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(terminationGracePeriod))
+				Expect(result.Fallback).To(Equal(fallback))
+			},
+			Entry("reboot-clearable XID within toleration", "NvidiaXID48Error", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("reboot-clearable XID", "NvidiaXID48Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID past the fallback toleration", "NvidiaXID158Error", 31*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID119", "NvidiaXID119Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID120", "NvidiaXID120Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("fatal XID", "NvidiaXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("fatal XID142", "NvidiaXID142Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("fatal XID151", "NvidiaXID151Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("well-known XID without a family", "NvidiaXID13Error", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("non-XID GPU fault within toleration", "NvidiaDoubleBitError", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", 24*365*time.Hour, corecloudprovider.RepairAction(""), time.Duration(0), false),
+			Entry("DCGM fault naming a fatal XID", "DCGMXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+		)
+		DescribeTable("should resolve AcceleratedHardwareReady=Unknown by reason",
+			func(reason string, action corecloudprovider.RepairAction, fallback bool) {
+				Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 9*time.Minute).Action).To(BeEmpty())
+				result := evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 10*time.Minute)
+				Expect(result.Action).To(Equal(action))
+				Expect(result.Fallback).To(Equal(fallback))
+			},
+			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.RebootNode, false),
+			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.ReplaceNode, false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.ReplaceNode, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.RepairAction(""), false),
+		)
+		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
+			matcher = newMatcher(false)
+			Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 9*time.Minute).Action).To(BeEmpty())
+			result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 10*time.Minute)
+			Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+			Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
+			Expect(result.Fallback).To(BeFalse())
+		})
+		It("should not select reboot for any policy without RebootForRepair", func() {
+			for _, policy := range cloudProvider.RepairPolicies() {
+				Expect(policy.Action).To(Equal(corecloudprovider.ReplaceNode), "%s=%s %s", policy.ConditionType, policy.ConditionStatus, policy.ReasonRegex)
+			}
+		})
+		DescribeTable("should replace other supported conditions after 30m",
+			func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus) {
+				Expect(evaluate(conditionType, status, "AnyReason", 29*time.Minute).Action).To(BeEmpty())
+				result := evaluate(conditionType, status, "AnyReason", 30*time.Minute)
+				Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(10 * time.Minute))
+				Expect(result.Fallback).To(BeFalse())
+			},
+			Entry("Ready=False", corev1.NodeReady, corev1.ConditionFalse),
+			Entry("Ready=Unknown", corev1.NodeReady, corev1.ConditionUnknown),
+			Entry("StorageReady=False", corev1.NodeConditionType("StorageReady"), corev1.ConditionFalse),
+			Entry("NetworkingReady=False", corev1.NodeConditionType("NetworkingReady"), corev1.ConditionFalse),
+			Entry("KernelReady=False", corev1.NodeConditionType("KernelReady"), corev1.ConditionFalse),
+			Entry("ContainerRuntimeReady=False", corev1.NodeConditionType("ContainerRuntimeReady"), corev1.ConditionFalse),
+			Entry("StorageReady=Unknown", corev1.NodeConditionType("StorageReady"), corev1.ConditionUnknown),
+			Entry("NetworkingReady=Unknown", corev1.NodeConditionType("NetworkingReady"), corev1.ConditionUnknown),
+			Entry("KernelReady=Unknown", corev1.NodeConditionType("KernelReady"), corev1.ConditionUnknown),
+			Entry("ContainerRuntimeReady=Unknown", corev1.NodeConditionType("ContainerRuntimeReady"), corev1.ConditionUnknown),
+		)
+		DescribeTable("should replace nodes that fail EC2 reachability checks after 2m",
+			func(reason string) {
+				Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute-time.Second).Action).To(BeEmpty())
+				result := evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute)
+				Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
+				Expect(result.Fallback).To(BeFalse())
+			},
+			Entry("instance status", instancestatus.ReasonInstanceReachabilityFailed),
+			Entry("system status", instancestatus.ReasonSystemReachabilityFailed),
+		)
+		It("should not repair nodes that pass EC2 reachability checks", func() {
+			Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionTrue, instancestatus.ReasonNoImpairmentReported, time.Hour).Action).To(BeEmpty())
+		})
+		It("should ignore unsupported conditions", func() {
+			Expect(evaluate(corev1.NodeDiskPressure, corev1.ConditionTrue, "", time.Hour).Action).To(BeEmpty())
+		})
+	})
+	Context("Reboot", func() {
+		It("should reboot the instance via ec2:RebootInstances", func() {
+			instance := test.EC2Instance()
+			id := aws.ToString(instance.InstanceId)
+			awsEnv.EC2API.Instances.Store(id, instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(id)
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Pop().InstanceIds).To(ConsistOf(id))
+		})
+		It("should propagate an error when RebootInstances fails", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(fmt.Errorf("throttled"))
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(corecloudprovider.IsNodeRebootFailedError(err)).To(BeFalse())
+		})
+		It("should fail the reboot for good when the controller isn't allowed to reboot", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(&smithy.GenericAPIError{Code: "UnauthorizedOperation"})
+			Expect(corecloudprovider.IsNodeRebootFailedError(cloudProvider.Reboot(ctx, nodeClaim, "op-1"))).To(BeTrue())
+		})
+		It("should return NodeClaimNotFound without rebooting when the instance is gone", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+		It("should return NodeClaimNotFound when the instance disappears before RebootInstances", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			awsEnv.EC2API.RebootInstancesBehavior.Error.Set(&smithy.GenericAPIError{Code: "InvalidInstanceID.NotFound"})
+			err := cloudProvider.Reboot(ctx, nodeClaim, "op-1")
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+		})
+		It("should return an error for an unparseable provider id", func() {
+			nodeClaim.Status.ProviderID = "not-a-valid-provider-id"
+			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+	})
+	Context("DynamicResources", func() {
+		BeforeEach(func() {
+			// Every spec here needs both switches: an AWS driver gate to contribute templates at all, and the
+			// core option to stop ignoring DRA. The specs that assert nothing is populated flip one back.
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{
+				DRANVIDIAGPU: lo.ToPtr(true),
+				DRAEFA:       lo.ToPtr(true),
+			}}))
+		})
+		It("should populate DynamicResources from every DRA driver that applies", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+
+			// Driven off the metadata rather than a hard-coded instance type, so this keeps asserting the
+			// merge as the scraped instance types change. Counted, so it can't pass vacuously if the fake
+			// instance types and the scraped metadata stop overlapping.
+			var merged int
+			for _, it := range instanceTypes {
+				gpu, hasGPU := drametadata.GPUMetadataByInstanceType[it.Name]
+				efa, hasEFA := drametadata.EFAMetadataByInstanceType[it.Name]
+				if !hasGPU && !hasEFA {
+					Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty(), it.Name)
+					Expect(it.DynamicResources.AttributeBindings).To(BeEmpty(), it.Name)
+					continue
+				}
+				drivers := lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+					return t.Driver.Value()
+				})
+				expected := []string{}
+				if hasGPU {
+					expected = append(expected, nvidiadra.DriverName)
+				}
+				if hasEFA {
+					expected = append(expected, efadra.DriverName)
+				}
+				Expect(drivers).To(ConsistOf(expected), it.Name)
+
+				// Each driver's devices survive the merge intact.
+				for _, template := range it.DynamicResources.ResourceSliceTemplates {
+					switch template.Driver.Value() {
+					case nvidiadra.DriverName:
+						Expect(template.Devices).To(HaveLen(gpu.Count), it.Name)
+					case efadra.DriverName:
+						Expect(template.Devices).To(HaveLen(efa.Count), it.Name)
+					}
+				}
+				// Only nvidia contributes bindings, one per runtime-only attribute.
+				Expect(it.DynamicResources.AttributeBindings).To(HaveLen(lo.Ternary(hasGPU, 2, 0)), it.Name)
+				if hasGPU && hasEFA {
+					merged++
+				}
+			}
+			Expect(merged).To(BeNumerically(">", 0), "no fake instance type carries both GPU and EFA metadata, so the merge is untested")
+		})
+		It("should publish no counter sets, since MIG partitions are out of scope", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			for _, it := range instanceTypes {
+				for _, template := range it.DynamicResources.ResourceSliceTemplates {
+					Expect(template.SharedCounters).To(BeEmpty(), it.Name)
+					for _, device := range template.Devices {
+						Expect(device.ConsumesCounters).To(BeEmpty(), it.Name)
+					}
+				}
+			}
+		})
+		It("should mark GPUs shareable from the consumable capacity annotation", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+				v1.AnnotationNVIDIAConsumableCapacity: "4",
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
+			Expect(ok).To(BeTrue())
+			nvidia, ok := lo.Find(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(ok).To(BeTrue())
+			Expect(nvidia.Devices).ToNot(BeEmpty())
+			for _, device := range nvidia.Devices {
+				Expect(device.AllowMultipleAllocations).To(BeTrue())
+				Expect(device.Capacity).To(HaveKey(nvidiadra.CapacityShares))
+			}
+		})
+		It("should fall back to unshared GPUs for an invalid consumable capacity annotation", func() {
+			// The nodeclass validation reconciler rejects the value and blocks launch, so this only has to
+			// avoid over-packing in the meantime: no sharing, rather than a guess at the driver's mode.
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+				v1.AnnotationNVIDIAConsumableCapacity: "sometimes",
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
+			Expect(ok).To(BeTrue())
+			nvidia, ok := lo.Find(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(ok).To(BeTrue())
+			Expect(nvidia.Devices).ToNot(BeEmpty())
+			for _, device := range nvidia.Devices {
+				Expect(device.AllowMultipleAllocations).To(BeFalse())
+				Expect(device.Capacity).ToNot(HaveKey(nvidiadra.CapacityShares))
+			}
+		})
+		It("should not leak one NodeClass's sharing mode into another's instance types", func() {
+			// populateDynamicResources writes DynamicResources in place. That is only safe because
+			// offering.InjectOfferings allocates a fresh *InstanceType per List call and does not carry
+			// DynamicResources forward, so each call owns what it writes -- the instance type cache itself
+			// is not keyed on the annotation. The pointer assertion below is what pins that invariant: if
+			// List ever hands back a shared or forward-copied struct, in-place writes start leaking and
+			// this fails here rather than in a user's scheduling decision.
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			plain, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			plainGPU, ok := lo.Find(plain, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
+			Expect(ok).To(BeTrue())
+
+			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+				v1.AnnotationNVIDIAConsumableCapacity: "memory",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+			shared, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			sharedGPU, ok := lo.Find(shared, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
+			Expect(ok).To(BeTrue())
+
+			// Distinct objects per call: the property that makes the in-place write safe.
+			Expect(plainGPU).ToNot(BeIdenticalTo(sharedGPU))
+
+			// The second call is shareable; the first must still not be.
+			sharedTemplate, _ := lo.Find(sharedGPU.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(sharedTemplate.Devices[0].AllowMultipleAllocations).To(BeTrue())
+			plainTemplate, _ := lo.Find(plainGPU.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+				return t.Driver.Value() == nvidiadra.DriverName
+			})
+			Expect(plainTemplate.Devices[0].AllowMultipleAllocations).To(BeFalse())
+		})
+		// driversByInstanceType resolves the instance types and returns the set of DRA drivers each one
+		// carries a template for.
+		driversByInstanceType := func() map[string][]string {
+			GinkgoHelper()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			return lo.SliceToMap(instanceTypes, func(it *corecloudprovider.InstanceType) (string, []string) {
+				return it.Name, lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+					return t.Driver.Value()
+				})
+			})
+		}
+		It("should only populate NVIDIA templates when only the DRANVIDIAGPU gate is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRANVIDIAGPU: lo.ToPtr(true)}}))
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			drivers := driversByInstanceType()
+			// g6.12xlarge carries both GPU and EFA metadata, so it's the type that tells the gates apart.
+			Expect(drivers["g6.12xlarge"]).To(ConsistOf(nvidiadra.DriverName))
+			for name, d := range drivers {
+				Expect(d).ToNot(ContainElement(efadra.DriverName), name)
+			}
+		})
+		It("should only populate dra.net templates when only the DRAEFA gate is enabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{DRAEFA: lo.ToPtr(true)}}))
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			drivers := driversByInstanceType()
+			Expect(drivers["g6.12xlarge"]).To(ConsistOf(efadra.DriverName))
+			for name, d := range drivers {
+				Expect(d).ToNot(ContainElement(nvidiadra.DriverName), name)
+			}
+			// Only the NVIDIA driver contributes attribute bindings, so none survive with it gated off.
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			for _, it := range instanceTypes {
+				Expect(it.DynamicResources.AttributeBindings).To(BeEmpty(), it.Name)
+			}
+		})
+		It("should not populate DynamicResources when every DRA feature gate is disabled", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{FeatureGates: test.FeatureGates{
+				DRANVIDIAGPU: lo.ToPtr(false),
+				DRAEFA:       lo.ToPtr(false),
+			}}))
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			for _, it := range instanceTypes {
+				Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+			}
+		})
+		It("should not populate DynamicResources when DRA requests are ignored", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(true)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(instanceTypes).ToNot(BeEmpty())
+			for _, it := range instanceTypes {
+				Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+			}
+		})
 	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"
@@ -996,6 +1408,35 @@ var _ = Describe("CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
+		It("should error if the NodeClaim's instance type is unknown", func() {
+			nodeClaim.Labels[corev1.LabelInstanceTypeStable] = "unknown.large"
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).To(HaveOccurred())
+			Expect(isDrifted).To(BeEmpty())
+		})
+		It("should map the AMI using the NodeClaim's own instance type", func() {
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			armInstanceType, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool {
+				return i.Requirements.Compatible(scheduling.NewLabelRequirements(map[string]string{
+					corev1.LabelArchStable: karpv1.ArchitectureArm64,
+				})) == nil
+			})
+			Expect(ok).To(BeTrue())
+			nodeClaim.Labels[corev1.LabelInstanceTypeStable] = armInstanceType.Name
+
+			// An arm64 instance type running the arm64 AMI is not drifted
+			nodeClaim.Status.ImageID = armAMIID
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(BeEmpty())
+
+			// An arm64 instance type running the amd64 AMI is drifted
+			nodeClaim.Status.ImageID = amdAMIID
+			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+		})
 		It("should error if the NodeClaim doesn't have ImageID", func() {
 			nodeClaim.Status.ImageID = ""
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -1454,6 +1895,51 @@ var _ = Describe("CloudProvider", func() {
 			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			ExpectLaunchTemplateNetworkInterfaces(ltInput, true, []*v1.NetworkInterface{})
 		})
+		It("should attach EFA interfaces when the nodeclaim was allocated dra.net devices", func() {
+			// A DRA claim for EFA reaches the NodeClaim only through the driver list core records on it, never as
+			// the extended resource. Without the interfaces dranet publishes no EFA devices on the launched node.
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"p5.48xlarge"},
+				},
+			}
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: strings.Join([]string{nvidiadra.DriverName, efadra.DriverName}, ","),
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			// The interfaces are attached either way, so the extended resource is advertised the same as for a request.
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			// The all-EFA check below passes on an empty list, so pin that interfaces were attached at all.
+			Expect(ltInput.LaunchTemplateData.NetworkInterfaces).ToNot(BeEmpty())
+			ExpectLaunchTemplateNetworkInterfaces(ltInput, true, []*v1.NetworkInterface{})
+		})
+		It("shouldn't attach EFA interfaces when the nodeclaim was only allocated devices from other DRA drivers", func() {
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+				{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"p5.48xlarge"},
+				},
+			}
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: nvidiadra.DriverName,
+			})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
+			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+			for _, ni := range ltInput.LaunchTemplateData.NetworkInterfaces {
+				Expect(lo.FromPtr(ni.InterfaceType)).ToNot(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+			}
+		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
 			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
@@ -1591,6 +2077,21 @@ var _ = Describe("CloudProvider", func() {
 			err = cloudProvider.Delete(ctx, ncs[0])
 			Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(ncs[0].Labels[corecloudprovider.ReservationIDLabel])).To(Equal(10))
+		})
+		It("should not double-count a terminated instance when Delete is called again after NotFound", func() {
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ncs := ExpectNodeClaims(ctx, env.Client)
+			Expect(ncs).To(HaveLen(1))
+			id := ncs[0].Labels[corecloudprovider.ReservationIDLabel]
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(id)).To(Equal(9))
+			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{})
+			// Core calls Delete from node termination (until NotFound) and again from the NodeClaim lifecycle finalizer.
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(ctx, ncs[0]))).To(BeTrue())
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(ctx, ncs[0]))).To(BeTrue())
+			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(id)).To(Equal(10))
 		})
 		DescribeTable(
 			"should include capacity reservation labels",

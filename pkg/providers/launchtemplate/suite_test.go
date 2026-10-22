@@ -60,6 +60,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -112,7 +113,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -780,7 +781,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
 				// Bottlerocket control volume
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(6)))
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 				// Bottlerocket user volume
@@ -2756,8 +2757,8 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
-	Context("Legacy Nitro Sandbox Resource", func() {
-		It("should disable enclave options when the field is omitted and the resource is not requested", func() {
+	Context("Default Enclave Options", func() {
+		It("should disable enclave options when the field is omitted", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2765,38 +2766,6 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
-			})
-		})
-		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-
-			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
-			// simulating what the scheduler sets when pods request that resource
-			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
-				Spec: karpv1.NodeClaimSpec{
-					Resources: karpv1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							v1.ResourceNitroSandbox: resource.MustParse("1"),
-						},
-					},
-					NodeClassRef: &karpv1.NodeClassReference{
-						Group: "karpenter.k8s.aws",
-						Kind:  "EC2NodeClass",
-						Name:  nodeClass.Name,
-					},
-				},
-			})
-
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(instanceTypes).ToNot(BeEmpty())
-
-			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
 	})
@@ -3360,6 +3329,7 @@ eviction-max-pod-grace-period = 10
 				awsEnv.Clock,
 				deviceallocation.NewController(env.Client),
 				virtualpods.NewVirtualPodCache(env.Client),
+				prediction.NewStore(env.Client),
 			)
 			pod := coretest.UnschedulablePod()
 			pod.Spec.Containers[0].Resources = corev1.ResourceRequirements{

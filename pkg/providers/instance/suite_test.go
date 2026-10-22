@@ -16,7 +16,6 @@ package instance_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -40,6 +39,7 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -47,6 +47,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -204,6 +205,50 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
 			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 	})
+	It("should mark an ICE'd additional on-demand class capacity type unavailable without marking on-demand", func() {
+		const onDemandAlt = "on-demand-alt"
+		Expect(corecloudprovider.SetCapacityTypeClassResolver(corecloudprovider.DefaultCapacityTypeClasses.With(corecloudprovider.CapacityTypeClasses{
+			onDemandAlt: corecloudprovider.CapacityTypeClassOnDemand,
+		}))).To(Succeed())
+		DeferCleanup(coretest.ResetCapacityTypeClasses)
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{onDemandAlt}},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		it, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool { return i.Name == "m5.xlarge" })
+		Expect(ok).To(BeTrue())
+		// No resolver in this suite adds offerings for the registered type, so give m5.xlarge one per on-demand offering
+		zones := []string{"test-zone-1a", "test-zone-1b", "test-zone-1c"}
+		altOfferings := lo.FilterMap(it.Offerings, func(o *corecloudprovider.Offering, _ int) (*corecloudprovider.Offering, bool) {
+			if o.CapacityType() != karpv1.CapacityTypeOnDemand || !lo.Contains(zones, o.Zone()) {
+				return nil, false
+			}
+			reqs := scheduling.NewRequirements(o.Requirements.Values()...)
+			delete(reqs, karpv1.CapacityTypeLabelKey)
+			reqs.Add(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, onDemandAlt))
+			return &corecloudprovider.Offering{Requirements: reqs, Price: o.Price, Available: true}, true
+		})
+		Expect(lo.Uniq(lo.Map(altOfferings, func(o *corecloudprovider.Offering, _ int) string { return o.Zone() }))).To(ConsistOf(zones))
+		alt := &corecloudprovider.InstanceType{Name: it.Name, Requirements: it.Requirements, Offerings: altOfferings, Capacity: it.Capacity, Overhead: it.Overhead}
+		// The registered type launches as on-demand, so EC2 reports the ICE against on-demand pools
+		awsEnv.EC2API.InsufficientCapacityPools.Set(lo.Map(zones, func(zone string, _ int) fake.CapacityPool {
+			return fake.CapacityPool{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: zone}
+		}))
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, []*corecloudprovider.InstanceType{alt})
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+		for _, zone := range zones {
+			subnets := test.GetSubnetsFromZone(zone, nodeClass.ZoneInfo())
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, onDemandAlt)).To(BeTrue(), zone)
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, karpv1.CapacityTypeOnDemand)).To(BeFalse(), zone)
+		}
+	})
 	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -344,7 +389,7 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
 			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeFalse())
 	})
-	It("should return an ICE error when all attempted instance types return a ReservedCapacityReservation error", func() {
+	It("should return an ICE error but keep the reservation Available when it is out of capacity (ReservationCapacityExceeded)", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
 		// Ensure that Karpenter believes a reservation is available, but the API returns no capacity when attempting to launch
 		awsEnv.CapacityReservationProvider.SetAvailableInstanceCount(targetReservationID, 1)
@@ -387,8 +432,11 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 
-		// Ensure we marked the reservation as unavailable after encountering the error
-		Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount(targetReservationID)).To(Equal(0))
+		// ReservationCapacityExceeded means the reservation is out of capacity, not unhealthy. Capacity and health are
+		// independent axes, so the offering must stay Available (it is not marked in the UnavailableOfferings cache) —
+		// its zero remaining capacity is tracked by the reservation manager. The launch still ICEs because a full
+		// reservation isn't launchable, but the offering must remain a valid target for when a slot frees up.
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.large", "test-zone-1a", nil, karpv1.CapacityTypeReserved)).To(BeFalse())
 	})
 	It("should not mark capacity reservations unavailable for RequestLimitExceeded CreateFleet errors", func() {
 		const targetReservationID = "cr-m5.large-1a-1"
@@ -564,27 +612,6 @@ var _ = Describe("InstanceProvider", func() {
 
 		after := counterValue("karpenter_cloudprovider_instance_launch_failures_total", labels)
 		Expect(after - before).To(Equal(float64(1)))
-	})
-	It("should surface a specific launch failure when the EC2NodeClass disables requested Nitro Enclaves", func() {
-		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
-		nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
-			v1.ResourceNitroSandbox: resource.MustParse("1"),
-		}
-		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
-		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-
-		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
-		Expect(err).ToNot(HaveOccurred())
-		for _, instanceType := range instanceTypes {
-			instanceType.Capacity[v1.ResourceNitroSandbox] = resource.MustParse("1")
-		}
-
-		_, err = awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
-		var createError *corecloudprovider.CreateError
-		Expect(errors.As(err, &createError)).To(BeTrue())
-		Expect(createError.ConditionReason).To(Equal("NitroEnclavesDisabled"))
-		Expect(createError.ConditionMessage).To(Equal("Error getting launch template configs: EC2NodeClass disables Nitro Enclaves while the NodeClaim requests eks.amazonaws.com/nitro-sandbox"))
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(BeZero())
 	})
 	It("should treat instances which launched into open ODCRs as on-demand when the ReservedCapacity gate is disabled", func() {
 		id := fake.InstanceID()
@@ -983,6 +1010,24 @@ var _ = Describe("InstanceProvider", func() {
 			},
 			}, 0),
 		)
+		It("should set EFACount based on instance type capacity when NodeClaim was allocated dra.net devices", func() {
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				karpv1.DRADriversAnnotationKey: efadra.DriverName,
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+				return i.Name == "g4dn.8xlarge"
+			})
+
+			createdInstance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(BeNil())
+			Expect(createdInstance).ToNot(BeNil())
+			Expect(createdInstance.EFACount).To(Equal(1))
+		})
 		It("should set EFACount based on instance type capacity when NodeClaim requests EFA", func() {
 			// NodeClaim requests EFA resource
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
@@ -1067,6 +1112,13 @@ var _ = Describe("InstanceProvider", func() {
 			after := counterValue("karpenter_cloudprovider_instance_termination_failures_total", labels)
 			Expect(after - before).To(Equal(float64(0)))
 		})
+		It("should not call RebootInstances for instances in a zonally shifted AZ", func() {
+			err := awsEnv.InstanceProvider.Reboot(ctx, instanceID, "op-1")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+			Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
 		It("should not call CreateTags for instances in a zonally shifted AZ", func() {
 			err := awsEnv.InstanceProvider.CreateTags(ctx, instanceID, map[string]string{"test-key": "test-value"})
 			Expect(err).To(HaveOccurred())
@@ -1131,6 +1183,13 @@ var _ = Describe("InstanceProvider", func() {
 				// DescribeInstances is called by Get() inside Delete() to fetch instance data
 				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
 				Expect(awsEnv.EC2API.TerminateInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			})
+			It("should not call RebootInstances even with a cold cache since Reboot calls Get first", func() {
+				err := awsEnv.InstanceProvider.Reboot(ctx, uncachedInstanceID, "op-1")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("zonally shifted"))
+				Expect(awsEnv.EC2API.DescribeInstancesBehavior.CalledWithInput.Len()).To(Equal(1))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
 			})
 			It("should proceed with CreateTags when instance is not in the cache", func() {
 				err := awsEnv.InstanceProvider.CreateTags(ctx, uncachedInstanceID, map[string]string{"test-key": "test-value"})
