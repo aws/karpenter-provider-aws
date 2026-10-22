@@ -51,24 +51,40 @@ If you have another option for using IAM credentials with workloads (e.g. [kube2
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step04-controller-iam.sh" language="bash" %}}
 
+## Create interruption handling infrastructure
+
+Karpenter supports [native interruption handling]({{<ref "../../concepts/disruption#interruption" >}}) to gracefully drain nodes before they are reclaimed by EC2. This requires an SQS queue and EventBridge rules to forward EC2 interruption events to Karpenter.
+
+{{% alert title="Note" color="primary" %}}
+If you do not need interruption handling, you can skip this section and remove `--set "settings.interruptionQueue=${CLUSTER_NAME}"` from the Helm chart generation step below.
+{{% /alert %}}
+
+Create the SQS queue:
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-sqs-queue.sh" language="bash" %}}
+
+Create EventBridge rules to forward EC2 spot interruption, rebalance, health, and state change events to the queue:
+
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step06-sqs-events.sh" language="bash" %}}
+
 ## Add tags to subnets and security groups
 
 We need to add tags to our nodegroup subnets so Karpenter will know which subnets to use.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step05-tag-subnets.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-tag-subnets.sh" language="bash" %}}
 
 Add tags to our security groups.
 This command only tags the security groups for the first nodegroup in the cluster.
 If you have multiple nodegroups or multiple security groups you will need to decide which one Karpenter should use.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step06-tag-security-groups.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-tag-security-groups.sh" language="bash" %}}
 
 ## Update aws-auth ConfigMap
 
 We need to allow nodes that are using the node IAM role we just created to join the cluster.
 To do that we have to modify the `aws-auth` ConfigMap in the cluster.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step07-edit-aws-auth.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-edit-aws-auth.sh" language="bash" %}}
 
 You will need to add a section to the mapRoles that looks something like this.
 Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOUNT_ID}` variable with your account ID, and `${CLUSTER_NAME}` variable with the cluster name, but do not replace the `{{EC2PrivateDNSName}}`.
@@ -97,7 +113,7 @@ export KARPENTER_VERSION="{{< param "latest_release_version" >}}"
 
 We can now generate a full Karpenter deployment yaml from the Helm chart.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-generate-chart.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-generate-chart.sh" language="bash" %}}
 
 Modify the following lines in the karpenter.yaml file.
 
@@ -128,13 +144,13 @@ affinity:
 
 Now that our deployment is ready we can create the karpenter namespace, create the NodePool CRD, and then deploy the rest of the karpenter resources.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-deploy.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-deploy.sh" language="bash" %}}
 
 ## Create default NodePool
 
 We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree{{< githubRelRef >}}examples/v1) for specific needs.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-nodepool.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-create-nodepool.sh" language="bash" %}}
 
 ## Set nodeAffinity for critical workloads (optional)
 
@@ -165,7 +181,7 @@ affinity:
 Now that karpenter is running we can disable the cluster autoscaler.
 To do that we will scale the number of replicas to zero.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-scale-cas.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step13-scale-cas.sh" language="bash" %}}
 
 To get rid of the instances that were added from the node group we can scale our nodegroup down to a minimum size to support Karpenter and other critical services.
 
@@ -173,11 +189,11 @@ To get rid of the instances that were added from the node group we can scale our
 
 If you have a single multi-AZ node group, we suggest a minimum of 2 instances.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-scale-single-ng.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step14-scale-single-ng.sh" language="bash" %}}
 
 Or, if you have multiple single-AZ node groups, we suggest a minimum of 1 instance each.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step12-scale-multiple-ng.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step14-scale-multiple-ng.sh" language="bash" %}}
 
 {{% alert title="Note" color="warning" %}}
 If you have a lot of nodes or workloads you may want to slowly scale down your node groups by a few instances at a time. It is recommended to watch the transition carefully for workloads that may not have enough replicas running or disruption budgets configured.
