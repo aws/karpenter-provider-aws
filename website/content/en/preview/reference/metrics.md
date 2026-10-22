@@ -1320,7 +1320,18 @@ Request latency in seconds. Broken down by verb, group, version, kind, and subre
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
 - Stability Level: STABLE
 - Dimensions:
-  - `verb` — The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`.
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
+  - `group` — The API group of the request's target resource.
+  - `version` — The API version of the request's target resource.
+  - `kind` — The kind of the request's target resource.
+  - `subresource` — The subresource of the request, if any.
+
+### `client_go_rate_limiter_duration_seconds`
+Time spent waiting on the client-side rate limiter before sending a Kubernetes API request. Broken down by verb, group, version, kind, and subresource.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `verb` — The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`.
   - `group` — The API group of the request's target resource.
   - `version` — The API version of the request's target resource.
   - `kind` — The kind of the request's target resource.
