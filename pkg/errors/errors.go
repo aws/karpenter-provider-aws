@@ -51,6 +51,8 @@ var (
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
+	// returned when launching into an interruptible capacity reservation that is being reclaimed
+	capacityReservationStateUnavailableErrorCode = "InvalidCapacityReservationState.Unavailable"
 
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New(
@@ -61,7 +63,9 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
+		capacityReservationStateUnavailableErrorCode,
 	)
 )
 
