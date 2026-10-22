@@ -16,6 +16,7 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/samber/lo"
@@ -214,4 +215,21 @@ memory = "327Mi"
 			Expect(string(out)).ToNot(ContainSubstring("memory-throttling-factor"))
 		})
 	})
+	DescribeTable("should pass settings from the Bottlerocket settings SDK through to the node",
+		func(setting string) {
+			userData := "[settings.kubernetes]\n" + setting + "\n"
+			script, err := Bottlerocket{Options: Options{ClusterName: "test", ClusterEndpoint: "https://test", CustomUserData: &userData}}.Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+			out, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(out)).To(ContainSubstring(setting))
+		},
+		Entry("max-parallel-image-pulls", "max-parallel-image-pulls = 5"),
+		Entry("memory-reservation-policy", "memory-reservation-policy = 'TieredReservation'"),
+		Entry("memory-throttling-factor", "memory-throttling-factor = 0.8"),
+		Entry("reserved-cpus", "reserved-cpus = '0-1'"),
+		Entry("image-minimum-gc-age", "image-minimum-gc-age = '2m'"),
+		Entry("image-maximum-gc-age", "image-maximum-gc-age = '1h'"),
+		Entry("container-runtime-endpoint", "container-runtime-endpoint = 'unix:///run/containerd/containerd.sock'"),
+	)
 })

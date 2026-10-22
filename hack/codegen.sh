@@ -42,6 +42,15 @@ vpcLimits() {
   checkForUpdates "${GENERATED_FILE}"
 }
 
+bottlerocketSettings() {
+  GENERATED_FILE="pkg/providers/amifamily/bootstrap/zz_generated.bottlerocket_kubernetes.go"
+
+  go run hack/code/bottlerocket_settings_gen/main.go --output "${GENERATED_FILE}"
+
+  IGNORE_PATTERN="// source:"
+  checkForUpdates "${GENERATED_FILE}" "${IGNORE_PATTERN}"
+}
+
 instanceTypeTestData() {
   GENERATED_FILE="pkg/fake/zz_generated.describe_instance_types.go"
 
@@ -107,6 +116,8 @@ echo "Updating pricing..."
 pricing
 echo "Updating VPC limits..."
 vpcLimits
+echo "Updating Bottlerocket settings..."
+bottlerocketSettings
 echo "Updating instance type data..."
 instanceTypeTestData
 echo "Finished codegen"
