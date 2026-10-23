@@ -359,7 +359,7 @@ $ kg nodeclaim $NODECLAIM_NAME -o jsonpath='{.status.conditions[?(@.type=="Consi
 This can be spot checked like shown above, or monitored via the following metric:
 
 ```
-operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
+operator_nodeclaim_status_condition_count{type="ConsistentStateFound",status="False"}
 ```
 
 ### `FailedConsistencyCheck` event: `expected X of resource Y, but found Z` is reported
