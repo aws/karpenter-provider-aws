@@ -291,6 +291,8 @@ A policy matches the condition's reason with a [Go regular expression](https://p
 | `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `False` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
