@@ -1513,7 +1513,7 @@ var _ = Describe("CloudProvider", func() {
 									KMSKeyID:            lo.ToPtr("fakeKMSKeyID"),
 									SnapshotID:          lo.ToPtr("fakeSnapshot"),
 									Throughput:          lo.ToPtr(int64(0)),
-									VolumeSize:          resource.NewScaledQuantity(2, resource.Giga),
+									VolumeSize:          aws.String("2G"),
 									VolumeType:          lo.ToPtr("standard"),
 								},
 							},
@@ -1586,10 +1586,8 @@ var _ = Describe("CloudProvider", func() {
 				Entry("BlockDeviceMapping Throughput", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 				Entry("BlockDeviceMapping VolumeType", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
 			)
-			// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
-			// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 			It("should return drifted when updating blockDeviceMapping volumeSize", func() {
-				nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
+				nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = aws.String("10G")
 				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash(testCABundle)})
 
 				ExpectApplied(ctx, env.Client, nodeClass)

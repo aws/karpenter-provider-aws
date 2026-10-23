@@ -397,7 +397,7 @@ You should be aware of the CPU and memory default calculation when using Custom 
 {{% alert title="Feature Gate Required" color="warning" %}}
 Expression support is behind the AWS-specific `NodeClassCEL` [feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}), which is disabled by default. Enable it with `--aws-feature-gates NodeClassCEL=true` (Helm: `settings.awsFeatureGates.nodeClassCEL: true`).
 
-While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `KubeletExpressionsDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields are all static literals is unaffected.
+While the gate is disabled, a NodeClass that carries an expression is rejected. Its `ValidationSucceeded` status condition is set to `False` with reason `NodeClassCELDisabled`, and no nodes launch from it. A NodeClass whose kubelet fields and volume sizes are all static values is unaffected.
 {{% /alert %}}
 
 Each field independently accepts either its usual static value or an expression string, there is no separate expression field.
@@ -1297,6 +1297,22 @@ spec:
 ### Custom
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
+
+### Sizing volumes per instance type with CEL
+
+An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000; fractional results are truncated.
+
+The same resolved size is used for the node's `ephemeral-storage` capacity and the launch template, so instance types resolving to different sizes get different launch templates.
+
+```yaml
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      rootVolume: true
+      ebs:
+        volumeSize: "min(max(vcpus * 20, 50), 500)"
+        volumeType: gp3
+```
 
 ## spec.networkInterfaces
 

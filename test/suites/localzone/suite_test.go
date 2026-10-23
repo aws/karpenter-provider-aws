@@ -19,7 +19,6 @@ import (
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -56,11 +55,7 @@ var _ = BeforeEach(func() {
 	nodeClass.Spec.BlockDeviceMappings = append(nodeClass.Spec.BlockDeviceMappings, &v1.BlockDeviceMapping{
 		DeviceName: lo.ToPtr("/dev/xvda"),
 		EBS: &v1.BlockDevice{
-			VolumeSize: func() *resource.Quantity {
-				quantity, err := resource.ParseQuantity("80Gi")
-				Expect(err).To(BeNil())
-				return &quantity
-			}(),
+			VolumeSize: lo.ToPtr("80Gi"),
 			VolumeType: lo.ToPtr("gp2"),
 			Encrypted:  lo.ToPtr(false),
 		},

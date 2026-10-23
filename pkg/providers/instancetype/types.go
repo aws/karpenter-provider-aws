@@ -134,13 +134,23 @@ func (d *DefaultResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 			fmt.Errorf("resolving systemReserved, %w", err),
 			"instance-type", info.InstanceType)
 	}
+	// volumeSize CEL expressions are resolved through the same shared path the launch template resolver uses, so the
+	// ephemeral-storage capacity computed below matches the volume that's actually created.
+	blockDeviceMappings, err := amifamily.ResolveBlockDeviceMappings(ctx, d.celEnv, nodeClass.BlockDeviceMappings(), func() (kubeletcel.InstanceTypeVars, error) {
+		return buildCELVars(ctx, info, amiFamily, maxPods, parsed.PodsPerCore, nodeClass.NetworkInterfaces()), nil
+	})
+	if err != nil {
+		return nil, serrors.Wrap(
+			fmt.Errorf("resolving blockDeviceMappings, %w", err),
+			"instance-type", info.InstanceType)
+	}
 	return NewInstanceType(
 		ctx,
 		info,
 		d.region,
 		zones,
 		nodeClass.ZoneInfo(),
-		nodeClass.BlockDeviceMappings(),
+		blockDeviceMappings,
 		nodeClass.InstanceStorePolicy(),
 		nodeClass.NetworkInterfaces(),
 		maxPods,
@@ -539,34 +549,52 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
 		}
 	}
+	if size := ephemeralStorageFromBlockDeviceMappings(amiFamily, blockDeviceMappings); size != nil {
+		return size
+	}
+	// Return the ephemeralBlockDevice size if defined in ami.
+	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
+		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
+	}); ok {
+		return quantityFromVolumeSize(ephemeralBlockDevice.EBS.VolumeSize)
+	}
+	return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
+}
+
+func ephemeralStorageFromBlockDeviceMappings(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1.BlockDeviceMapping) *resource.Quantity {
 	if len(blockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
 		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-			return blockDeviceMapping.EBS.VolumeSize
+			return quantityFromVolumeSize(blockDeviceMapping.EBS.VolumeSize)
 		}
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
-			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
+			last := blockDeviceMappings[len(blockDeviceMappings)-1]
+			if last != nil && last.EBS != nil && last.EBS.VolumeSize != nil {
+				return quantityFromVolumeSize(last.EBS.VolumeSize)
+			}
+			return quantityFromVolumeSize(amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
 			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
-			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-				return blockDeviceMapping.EBS.VolumeSize
+			}); ok && blockDeviceMapping.EBS != nil && blockDeviceMapping.EBS.VolumeSize != nil {
+				return quantityFromVolumeSize(blockDeviceMapping.EBS.VolumeSize)
 			}
 		}
 	}
-	//Return the ephemeralBlockDevice size if defined in ami
-	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1.BlockDeviceMapping) bool {
-		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
-	}); ok {
-		return ephemeralBlockDevice.EBS.VolumeSize
+	return nil
+}
+
+func quantityFromVolumeSize(volumeSize *string) *resource.Quantity {
+	if volumeSize == nil {
+		return nil
 	}
-	return amifamily.DefaultEBS.VolumeSize
+	quantity := resource.MustParse(*volumeSize)
+	return &quantity
 }
 
 // volumeAttachmentLimits returns EC2's maximum EBS attachments for the instance type, less one for the root volume.

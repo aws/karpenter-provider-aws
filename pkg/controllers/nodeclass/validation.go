@@ -57,22 +57,24 @@ import (
 )
 
 const (
-	requeueAfterTime                               = 10 * time.Minute
-	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
-	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
-	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
-	ConditionReasonInstanceProfileNotFound         = "InstanceProfileNotFound"
-	ConditionReasonDependenciesNotReady            = "DependenciesNotReady"
-	ConditionReasonTagValidationFailed             = "TagValidationFailed"
-	ConditionReasonInvalidKubeletConfiguration     = "InvalidKubeletConfiguration"
-	ConditionReasonKubeletExpressionInvalid        = "KubeletExpressionInvalid"
-	ConditionReasonKubeletExpressionEvalFailed     = "KubeletExpressionEvaluationFailed"
-	ConditionReasonKubeletExpressionsDisabled      = "KubeletExpressionsDisabled"
-	ConditionReasonUnsupportedKubeletConfiguration = "UnsupportedKubeletConfiguration"
-	ConditionReasonDryRunDisabled                  = "DryRunDisabled"
-	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
-	ConditionReasonConsumableCapacityInvalid       = "NVIDIAConsumableCapacityInvalid"
-	ConditionReasonDRADisabled                     = "DRADisabled"
+	requeueAfterTime                                      = 10 * time.Minute
+	ConditionReasonCreateFleetAuthFailed                  = "CreateFleetAuthCheckFailed"
+	ConditionReasonCreateLaunchTemplateAuthFailed         = "CreateLaunchTemplateAuthCheckFailed"
+	ConditionReasonRunInstancesAuthFailed                 = "RunInstancesAuthCheckFailed"
+	ConditionReasonInstanceProfileNotFound                = "InstanceProfileNotFound"
+	ConditionReasonDependenciesNotReady                   = "DependenciesNotReady"
+	ConditionReasonTagValidationFailed                    = "TagValidationFailed"
+	ConditionReasonInvalidKubeletConfiguration            = "InvalidKubeletConfiguration"
+	ConditionReasonKubeletExpressionInvalid               = "KubeletExpressionInvalid"
+	ConditionReasonKubeletExpressionEvalFailed            = "KubeletExpressionEvaluationFailed"
+	ConditionReasonNodeClassCELDisabled                   = "NodeClassCELDisabled"
+	ConditionReasonBlockDeviceMappingExpressionInvalid    = "BlockDeviceMappingExpressionInvalid"
+	ConditionReasonBlockDeviceMappingExpressionEvalFailed = "BlockDeviceMappingExpressionEvaluationFailed"
+	ConditionReasonUnsupportedKubeletConfiguration        = "UnsupportedKubeletConfiguration"
+	ConditionReasonDryRunDisabled                         = "DryRunDisabled"
+	ConditionReasonUserDataTooLarge                       = "UserDataSizeLimitExceeded"
+	ConditionReasonConsumableCapacityInvalid              = "NVIDIAConsumableCapacityInvalid"
+	ConditionReasonDRADisabled                            = "DRADisabled"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -183,13 +185,13 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// The CRD schema can't gate expressions itself, since it has no view of operator flags. Reject here so a
 	// NodeClass carrying an expression goes NotReady rather than silently launching nodes with the AMI family
 	// defaults the user didn't ask for.
-	if parsedKubelet.HasExpressions() && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
+	if (parsedKubelet.HasExpressions() || nodeClass.HasVolumeSizeExpressions()) && !options.FromContext(ctx).FeatureGates.NodeClassCEL {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 			v1.ConditionTypeValidationSucceeded,
-			ConditionReasonKubeletExpressionsDisabled,
-			"spec.kubelet contains a CEL expression, but the NodeClassCEL feature gate is disabled",
+			ConditionReasonNodeClassCELDisabled,
+			"spec.kubelet or spec.blockDeviceMappings contains a CEL expression, but the NodeClassCEL feature gate is disabled",
 		)
-		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("kubelet expressions are disabled"))
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("NodeClassCEL expressions are disabled"))
 	}
 
 	if err := validateKubeletExpressions(v.celEnv, parsedKubelet); err != nil {
@@ -199,6 +201,20 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating kubelet expressions, %w", err))
+	}
+
+	for _, bdm := range nodeClass.Spec.BlockDeviceMappings {
+		if bdm == nil || !bdm.EBS.HasVolumeSizeExpression() {
+			continue
+		}
+		if err := v.celEnv.ValidateExpression(*bdm.EBS.VolumeSize); err != nil {
+			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+				v1.ConditionTypeValidationSucceeded,
+				ConditionReasonBlockDeviceMappingExpressionInvalid,
+				err.Error(),
+			)
+			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating volumeSize CEL expression for device %q, %w", lo.FromPtr(bdm.DeviceName), err))
+		}
 	}
 
 	// Reject kubelet fields the NodeClass' AMI family won't apply. Without this they'd be dropped
@@ -277,6 +293,18 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			err.Error(),
 		)
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating kubelet expressions, %w", err))
+	}
+
+	if err := v.instanceTypeProvider.ValidateBlockDeviceMappingExpressions(ctx, nodeClass); err != nil {
+		if errors.Is(err, instancetype.ErrInstanceTypesNotHydrated) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonBlockDeviceMappingExpressionEvalFailed,
+			err.Error(),
+		)
+		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("evaluating CEL volumeSize expressions, %w", err))
 	}
 
 	nodeClaim := &karpv1.NodeClaim{
