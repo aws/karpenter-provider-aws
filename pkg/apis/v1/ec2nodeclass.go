@@ -558,7 +558,7 @@ type EC2NodeClass struct {
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
 // 4. An already-hashed field changes its type, since that changes the hash of an unchanged value
-const EC2NodeClassHashVersion = "v7"
+const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
