@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 1.15.0](https://img.shields.io/badge/Version-1.15.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.15.0](https://img.shields.io/badge/AppVersion-1.15.0-informational?style=flat-square)
+![Version: 1.15.1](https://img.shields.io/badge/Version-1.15.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.15.1](https://img.shields.io/badge/AppVersion-1.15.1-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 1.15.0 \
+  --version 1.15.1 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -27,13 +27,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```shell
-cosign verify public.ecr.aws/karpenter/karpenter:1.15.0 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.15.0 \
-  --annotations version=1.15.0
+  --certificate-github-workflow-ref=refs/tags/v1.15.1 \
+  --annotations version=1.15.1
 ```
 
 ## Values
@@ -49,9 +49,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.0 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:ab0f953e1460c61566d48209b517734ba79fe2105f335af1ff85faa8b6baf157"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"1.15.0"` | Tag of the controller image. |
+| controller.image.tag | string | `"1.15.1"` | Tag of the controller image. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
