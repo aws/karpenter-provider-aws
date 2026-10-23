@@ -2,7 +2,7 @@
 
 Let drift resolve an AMI change on an existing EC2 instance by replacing its root volume, instead of terminating and replacing the node.
 
-This is the AWS provider half of [In-Place Drift Remediation](https://github.com/kubernetes-sigs/karpenter/pull/3460), which defines the provider-agnostic core hooks (`DriftRemediation`, `RebootStatus`) and the reuse of the reboot lifecycle.
+This is the AWS provider half of [In-Place Drift Remediation](https://github.com/kubernetes-sigs/karpenter/pull/3460), which replaces `IsDrifted` with the provider-agnostic `GetDriftStatus` (`NoOp | Replace | Reboot`) and reuses the reboot lifecycle.
 This document covers the EC2NodeClass opt-in and everything EC2-specific.
 
 ## Motivation
@@ -42,14 +42,13 @@ spec:
 
 ### How It Works
 
-1. **Report every drift reason.** [`isNodeClassDrifted`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/cloudprovider/drift.go#L45-L55) returns `AMIDrift` before it checks security groups, subnets, capacity reservations and placement groups. `DriftRemediation` needs to know AMI is the only drift, so the AMI check moves after the others (or all reasons are computed) when `amiDriftPolicy` is `ReplaceRootVolume`.
-2. **`DriftRemediation`.** Returns `RebootNode` only when `amiDriftPolicy` is `ReplaceRootVolume`, the reason is `AMIDrift` alone, and every gate below passes. Otherwise `ReplaceNode`.
+1. **Report every drift reason.** [`isNodeClassDrifted`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/cloudprovider/drift.go#L45-L55) returns `AMIDrift` before it checks security groups, subnets, capacity reservations and placement groups. `GetDriftStatus` needs to know AMI is the only drift, so the AMI check moves after the others (or all reasons are computed) when `amiDriftPolicy` is `ReplaceRootVolume`.
+2. **`GetDriftStatus`.** Returns `NoOp` when nothing drifted. Returns `Reboot` only when `amiDriftPolicy` is `ReplaceRootVolume`, the reason is `AMIDrift` alone, and every gate below passes. Any other drift returns `Replace`.
 3. **Gates.** Every failed gate emits an event naming it.
    - AMI level, computed once per EC2NodeClass and exposed as status conditions: the AMI has a single root volume, no Marketplace product codes, is not AL2023 with RAID0 instance store, and its backing snapshot is readable (`createVolumePermission`) from the node's account.
    - Node level, per NodeClaim: AMI family, variant and Kubernetes minor version are unchanged, and the instance is running.
 4. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and `operationID` as the `ClientToken`. Any other reason stays `RebootInstances`.
-5. **`RebootStatus`.** Reads the task with `DescribeReplaceRootVolumeTasks`: `pending` and `in-progress` map to `InProgress`, `succeeded` to `Succeeded`, and `failing`, `failed` and `failed-detached` to `Failed`.
-6. **`Get`.** Returns the instance's current AMI, so core refreshes `Status.ImageID` and drift clears.
+5. **`Get`.** Returns the instance's current AMI, so core refreshes `Status.ImageID` after the reboot. Core then calls `GetDriftStatus` again, and `NoOp` confirms the swap landed.
 
 ### Interaction with Existing Features
 
@@ -60,14 +59,15 @@ spec:
 ### Observability
 
 - EC2NodeClass status conditions for AMI-level eligibility.
-- An event on every `ReplaceNode` decision naming the gate that failed.
+- An event on every `Replace` decision naming the gate that failed.
 
 ### Edge Cases
 
 - **AMI and subnet drift at once.** AMI is not the only drift, so the node is replaced.
 - **Snapshot not shared to the node's account.** The gate fails and the node is replaced. Operators fix sharing and later rollouts go in place.
 - **Controller restart mid-swap.** The re-issued call carries the same `ClientToken`, so it joins the existing task.
-- **Task fails after the drain.** `RebootStatus` reports `Failed` and core replaces the node.
+- **Task fails and the instance boots the old AMI.** `Get` returns the old AMI, `GetDriftStatus` still reports drift, and core replaces the node.
+- **Task fails before the instance reboots.** No new boot appears, so core replaces the node when its observation window ends.
 
 ## Alternatives Considered
 
