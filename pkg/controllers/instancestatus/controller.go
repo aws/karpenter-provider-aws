@@ -72,7 +72,7 @@ func NewController(kubeClient client.Client, clk clock.Clock, cloudProvider clou
 func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "node.instancestatus")
 
-	statuses, err := c.provider.List(ctx, instancestatus.InstanceStatus, instancestatus.SystemStatus)
+	statuses, err := c.provider.List(ctx, instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EBSStatus)
 	if err != nil {
 		if awserrors.IsUnauthorizedOperationError(err) {
 			return reconciler.Result{}, fmt.Errorf("ec2:DescribeInstanceStatus permission is not allowed, update the IAM policy to enable instance status health checks, %w", err)
@@ -120,9 +120,20 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		if hs, ok := impaired[instanceID]; ok {
 			condition.Status = corev1.ConditionFalse
 			// A system failure takes precedence because it requires moving off the host, which also resolves an
-			// instance failure.
-			condition.Reason = lo.Ternary(lo.ContainsBy(hs.Details, func(d instancestatus.Details) bool { return d.Category == instancestatus.SystemStatus }),
-				instancestatus.ReasonSystemReachabilityFailed, instancestatus.ReasonInstanceReachabilityFailed)
+			// instance failure. An EBS failure uses its own reason when no instance or system failure is present.
+			hasSystem := lo.ContainsBy(hs.Details, func(d instancestatus.Details) bool { return d.Category == instancestatus.SystemStatus })
+			hasInstance := lo.ContainsBy(hs.Details, func(d instancestatus.Details) bool { return d.Category == instancestatus.InstanceStatus })
+			hasEBS := lo.ContainsBy(hs.Details, func(d instancestatus.Details) bool { return d.Category == instancestatus.EBSStatus })
+			switch {
+			case hasSystem:
+				condition.Reason = instancestatus.ReasonSystemReachabilityFailed
+			case hasInstance:
+				condition.Reason = instancestatus.ReasonInstanceReachabilityFailed
+			case hasEBS:
+				condition.Reason = instancestatus.ReasonEBSReachabilityFailed
+			default:
+				condition.Reason = instancestatus.ReasonInstanceReachabilityFailed
+			}
 			condition.Message = fmt.Sprintf("EC2 reports failing reachability checks: %s", strings.Join(lo.Uniq(lo.Map(hs.Details, func(d instancestatus.Details, _ int) string { return string(d.Category) })), ", "))
 			// Toleration is measured from when EC2 first reported the impairment, not from when Karpenter observed it.
 			// EC2 may omit ImpairedSince, in which case the observation time is used.

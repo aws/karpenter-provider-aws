@@ -44,6 +44,7 @@ const (
 	// Kinds from EC2 DescribeInstanceStatus categories
 	InstanceStatusKind Kind = "instance_status"
 	SystemStatusKind   Kind = "system_status"
+	EBSStatusKind      Kind = "ebs_status"
 	EventStatusKind    Kind = "event_status"
 	NoOpKind           Kind = "no_op"
 )
