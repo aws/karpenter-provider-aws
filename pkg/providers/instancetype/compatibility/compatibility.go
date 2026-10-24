@@ -31,6 +31,7 @@ type NodeClass interface {
 	ConnectionTracking() *v1.ConnectionTracking
 	CPUOptions() *v1.CPUOptions
 	EnclaveOptions() *v1.EnclaveOptions
+	NetworkPerformanceOptions() *v1.NetworkPerformanceOptions
 }
 
 type CompatibleCheck interface {
@@ -44,6 +45,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
+		bandwidthWeightingCompatibility(nodeClass.NetworkPerformanceOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
 	} {
@@ -167,6 +169,30 @@ func (c nitroEnclavesCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool
 		return true
 	}
 	return info.NitroEnclavesSupport == ec2types.NitroEnclavesSupportSupported
+}
+
+type bandwidthWeightingCheck struct {
+	networkPerformanceOptions *v1.NetworkPerformanceOptions
+}
+
+func bandwidthWeightingCompatibility(networkPerformanceOptions *v1.NetworkPerformanceOptions) CompatibleCheck {
+	return &bandwidthWeightingCheck{
+		networkPerformanceOptions: networkPerformanceOptions,
+	}
+}
+
+// compatibleCheck gates on NetworkInfo.BandwidthWeightings, the per-instance-type list of
+// accepted weighting values. EC2 rejects an unsupported value at launch (RunInstances and
+// CreateFleet both fail with Unsupported), but CreateLaunchTemplate and CreateFleet dry-run
+// accept it, so this is the only point where the mismatch can be caught before a NodeClaim exists.
+func (c bandwidthWeightingCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.networkPerformanceOptions == nil || c.networkPerformanceOptions.BandwidthWeighting == nil {
+		return true
+	}
+	if info.NetworkInfo == nil {
+		return false
+	}
+	return lo.Contains(info.NetworkInfo.BandwidthWeightings, ec2types.BandwidthWeightingType(*c.networkPerformanceOptions.BandwidthWeighting))
 }
 
 type placementGroupCheck struct {
