@@ -38,27 +38,60 @@ spec:
 
 - `Replace`: today's behavior.
 - `ReplaceRootVolume`: prefer an in-place root volume replacement for AMI drift. Falls back to `Replace` whenever a safety check fails or the swap fails.
-- The field is excluded from the EC2NodeClass drift hash (`hash:"ignore"`). [`EC2NodeClass.Hash`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/apis/v1/ec2nodeclass.go#L553) hashes the whole spec, so without it turning the field on would drift every node on the EC2NodeClass for a non-AMI reason, and they would all be replaced.
+
+Each entry in `status.amis` reports whether that AMI can be swapped in place:
+
+```yaml
+status:
+  amis:
+    - id: ami-0abc
+      requirements: [...]
+      inPlaceUpgrade:
+        supported: true
+    - id: ami-0def
+      requirements: [...]
+      inPlaceUpgrade:
+        supported: false
+        reason: SnapshotNotReadable
+```
+
+An EC2NodeClass can resolve several AMIs (per architecture or variant), and each can pass or fail on its own, so the result lives on the AMI entry rather than in one EC2NodeClass condition.
 
 ### How It Works
 
-1. **Report every drift reason.** [`isNodeClassDrifted`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/cloudprovider/drift.go#L45-L55) returns `AMIDrift` before it checks security groups, subnets, capacity reservations and placement groups. `GetDriftStatus` needs to know AMI is the only drift, so the AMI check moves after the others (or all reasons are computed) when `amiDriftPolicy` is `ReplaceRootVolume`.
-2. **`GetDriftStatus`.** Returns `NoOp` when nothing drifted. Returns `Reboot` only when `amiDriftPolicy` is `ReplaceRootVolume`, the reason is `AMIDrift` alone, and every gate below passes. Any other drift returns `Replace`.
-3. **Gates.** Every failed gate emits an event naming it.
-   - AMI level, computed once per EC2NodeClass and exposed as status conditions: the AMI has a single root volume, no Marketplace product codes, is not AL2023 with RAID0 instance store, and its backing snapshot is readable (`createVolumePermission`) from the node's account.
+1. **Keep the field out of the drift hash.** `amiDriftPolicy` is excluded with `hash:"ignore"`. [`EC2NodeClass.Hash`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/apis/v1/ec2nodeclass.go#L553) hashes the whole spec, so without it turning the field on would drift every node on the EC2NodeClass for a non-AMI reason, and they would all be replaced.
+2. **Report every drift reason.** [`isNodeClassDrifted`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/cloudprovider/drift.go#L45-L55) returns `AMIDrift` before it checks security groups, subnets, capacity reservations and placement groups. `GetDriftStatus` needs to know AMI is the only drift, so the AMI check moves after the others (or all reasons are computed) when `amiDriftPolicy` is `ReplaceRootVolume`.
+3. **`GetDriftStatus`.** Returns `NoOp` when nothing drifted. Returns `Reboot` only when `amiDriftPolicy` is `ReplaceRootVolume`, the reason is `AMIDrift` alone, and every gate below passes. Any other drift returns `Replace`.
+4. **Gates.** Every failed gate emits an event naming it.
+   - AMI level, computed once per resolved AMI and reported in its `status.amis[].inPlaceUpgrade`: the AMI has a single root volume, no Marketplace product codes, and its backing snapshot is readable (`createVolumePermission`) from the node's account.
    - Node level, per NodeClaim: AMI family, variant and Kubernetes minor version are unchanged, and the instance is running.
-4. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and `operationID` as the `ClientToken`. Any other reason stays `RebootInstances`.
-5. **`Get`.** Returns the instance's current AMI, so core refreshes `Status.ImageID` after the reboot. Core then calls `GetDriftStatus` again, and `NoOp` confirms the swap landed.
+5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and `operationID` as the `ClientToken`. Any other reason stays `RebootInstances`.
+6. **`Get`.** Returns the instance's current AMI, so core refreshes `Status.ImageID` after the reboot. Core then calls `GetDriftStatus` again, and `NoOp` confirms the swap landed.
 
 ### Interaction with Existing Features
 
 - **Instance store and data volumes.** Only the root volume is replaced. Instance-store and attached data EBS volumes are untouched.
 - **Capacity reservations.** The instance keeps its reservation; nothing is relaunched.
 - **Cross-account AMIs.** The snapshot gate makes snapshot sharing a prerequisite for organizations that publish AMIs from a central account. Launch permission on the AMI is not enough.
+- **AL2023 with `instanceStorePolicy: RAID0`.** The instance-store RAID0 array may not be reassembled after the root volume swap, so the node may not rejoin the cluster. This is not a gate: the EC2NodeClass gets a warning event, and the docs call out this user data mitigation:
+
+  ```bash
+  #cloud-boothook
+  #!/bin/bash
+  set -euo pipefail
+  MD_CONFIG=/.aws/mdadm.conf
+  if mdadm --detail --scan 2>/dev/null | grep -q "ARRAY" && [ ! -s "$MD_CONFIG" ]; then
+    mkdir -p "$(dirname "$MD_CONFIG")"
+    mdadm --detail --scan > "$MD_CONFIG"
+  fi
+  ```
+
+  Without it, a node that does not rejoin never becomes `Ready`, and core replaces it when its observation window ends.
 
 ### Observability
 
-- EC2NodeClass status conditions for AMI-level eligibility.
+- `status.amis[].inPlaceUpgrade` for AMI-level eligibility, with the failed gate as `reason`.
+- A warning event on EC2NodeClasses that combine `amiDriftPolicy: ReplaceRootVolume` with AL2023 and `instanceStorePolicy: RAID0`.
 - An event on every `Replace` decision naming the gate that failed.
 
 ### Edge Cases
@@ -87,9 +120,9 @@ Rejected because they bypass disruption budgets, drains and drift state, and rac
 ## Graduation Criteria
 
 - **Alpha:** behind the core feature gate, AWS as the first provider. Proves the gates on real fleets.
-- **Beta:** enabled by default after production data on swap duration across instance types.
+- **Beta:** the feature gate is on by default after production data on swap duration across instance types. `amiDriftPolicy` keeps defaulting to `Replace`, because launching a replacement before terminating is faster, so in-place stays opt-in per EC2NodeClass for nodes whose instance-store data must survive.
 
 ## Open Questions
 
-1. Names and shape of the EC2NodeClass status conditions for AMI-level eligibility.
+1. Shape of the per-AMI result: a nested `inPlaceUpgrade` object, or flat `inPlaceUpgradeSupported` and `inPlaceUpgradeReason` fields on each `status.amis` entry.
 2. Root volume replacements typically take 2 to 10 minutes. Is core's 20 minute observation window right for them?
