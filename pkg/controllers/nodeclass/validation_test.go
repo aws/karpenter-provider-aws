@@ -667,6 +667,76 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			}, nodeclass.ConditionReasonRunInstancesAuthFailed,
 				"Controller isn't authorized to call ec2:RunInstances: User is not authorized to perform this operation due to a service control policy"),
 		)
+		It("should use exponential backoff for auth failure requeue intervals", func() {
+			// Set up a persistent RunInstances auth failure
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			// First reconcile should fail and requeue with the initial backoff (10s)
+			res := ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonRunInstancesAuthFailed))
+			Expect(res.RequeueAfter).To(Equal(10 * time.Second))
+
+			// Advance past the cache TTL and reconcile again - backoff should double to 20s
+			awsEnv.Clock.Step(11 * time.Second)
+			awsEnv.ValidationCache.Flush()
+			res = ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(res.RequeueAfter).To(Equal(20 * time.Second))
+
+			// Advance further and reconcile - backoff should double to 40s
+			awsEnv.Clock.Step(21 * time.Second)
+			awsEnv.ValidationCache.Flush()
+			res = ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(res.RequeueAfter).To(Equal(40 * time.Second))
+		})
+		It("should cap exponential backoff at 10 minutes for auth failures", func() {
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			// First reconcile sets the condition to False
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+
+			// Jump far ahead (beyond all backoff steps) to verify the cap
+			awsEnv.Clock.Step(30 * time.Minute)
+			awsEnv.ValidationCache.Flush()
+			res := ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			Expect(res.RequeueAfter).To(Equal(10 * time.Minute))
+		})
+		It("should reset backoff when auth failure is resolved", func() {
+			// Start with an auth failure
+			awsEnv.EC2API.RunInstancesBehavior.Error.Set(&smithy.GenericAPIError{
+				Code: "UnauthorizedOperation",
+			})
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			res := ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+			Expect(res.RequeueAfter).To(Equal(10 * time.Second))
+
+			// Advance time so the backoff would have increased
+			awsEnv.Clock.Step(11 * time.Second)
+			awsEnv.ValidationCache.Flush()
+
+			// Now resolve the auth failure - the condition should become True
+			awsEnv.EC2API.RunInstancesBehavior.Error.Reset()
+			res = ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+			Expect(res.RequeueAfter).To(Equal(10 * time.Minute))
+		})
 		It("should succeed RunInstances validation when first subnet returns 500 but another subnet succeeds", func() {
 			// Fail the first RunInstances call (first subnet) with a server error,
 			// then let subsequent calls (remaining subnets) succeed via the default dry-run path

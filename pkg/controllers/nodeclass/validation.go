@@ -58,6 +58,8 @@ import (
 
 const (
 	requeueAfterTime                               = 10 * time.Minute
+	authBackoffInitialInterval                     = 10 * time.Second
+	authBackoffMaxInterval                         = 10 * time.Minute
 	ConditionReasonCreateFleetAuthFailed           = "CreateFleetAuthCheckFailed"
 	ConditionReasonCreateLaunchTemplateAuthFailed  = "CreateLaunchTemplateAuthCheckFailed"
 	ConditionReasonRunInstancesAuthFailed          = "RunInstancesAuthCheckFailed"
@@ -304,7 +306,13 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 				entry.message,
 			)
 		}
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		// Auth failures use exponential backoff to detect IAM permission propagation
+		// faster than the default requeue interval.
+		requeue := requeueAfterTime
+		if isAuthFailureReason(entry.reason) {
+			requeue = v.calculateAuthBackoff(nodeClass)
+		}
+		return reconcile.Result{RequeueAfter: requeue}, nil
 	}
 
 	if v.dryRunDisabled {
@@ -346,6 +354,62 @@ func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[s
 	)
 }
 
+// updateCacheOnAuthFailure caches an authorization failure with a TTL that
+// matches the exponential backoff interval, so the next reconcile re-checks
+// rather than serving the stale cached failure for the full default TTL.
+func (v *Validation) updateCacheOnAuthFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string, reasonMessage string, backoff time.Duration) {
+	message := fmt.Sprintf("%s: %s", ValidationConditionMessages[failureReason], reasonMessage)
+	v.cache.Set(v.cacheKey(nodeClass, tags), validationCacheEntry{
+		reason:  failureReason,
+		message: message,
+	}, backoff)
+	nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+		v1.ConditionTypeValidationSucceeded,
+		failureReason,
+		message,
+	)
+}
+
+// isAuthFailureReason returns true if the condition reason represents an
+// authorization check failure that should use exponential backoff.
+func isAuthFailureReason(reason string) bool {
+	switch reason {
+	case ConditionReasonCreateFleetAuthFailed,
+		ConditionReasonCreateLaunchTemplateAuthFailed,
+		ConditionReasonRunInstancesAuthFailed:
+		return true
+	}
+	return false
+}
+
+// calculateAuthBackoff computes an exponential backoff interval for auth
+// validation failures. It starts at authBackoffInitialInterval (10s), doubles
+// on each retry, and caps at authBackoffMaxInterval (10m). The backoff is
+// derived from the elapsed time since the ValidationSucceeded condition first
+// transitioned to False, so no separate retry counter is needed.
+func (v *Validation) calculateAuthBackoff(nodeClass *v1.EC2NodeClass) time.Duration {
+	condition := nodeClass.StatusConditions(status.WithClock(v.clk)).Get(v1.ConditionTypeValidationSucceeded)
+	if condition == nil || !condition.IsFalse() || !isAuthFailureReason(condition.Reason) {
+		return authBackoffInitialInterval
+	}
+	elapsed := v.clk.Since(condition.LastTransitionTime.Time)
+	if elapsed < 0 {
+		return authBackoffInitialInterval
+	}
+	// Walk through the backoff schedule to find the interval that covers
+	// the current elapsed time. Each step doubles the interval.
+	interval := authBackoffInitialInterval
+	cumulative := time.Duration(0)
+	for cumulative+interval <= elapsed && interval < authBackoffMaxInterval {
+		cumulative += interval
+		interval *= 2
+		if interval > authBackoffMaxInterval {
+			interval = authBackoffMaxInterval
+		}
+	}
+	return interval
+}
+
 //nolint:staticcheck
 func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	ctx context.Context,
@@ -381,8 +445,9 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateLaunchTemplate")
 		_, reasonMessage := awserrors.ToReasonMessage(err)
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed, reasonMessage)
-		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		backoff := v.calculateAuthBackoff(nodeClass)
+		v.updateCacheOnAuthFailure(nodeClass, tags, ConditionReasonCreateLaunchTemplateAuthFailed, reasonMessage, backoff)
+		return nil, reconcile.Result{RequeueAfter: backoff}, nil
 	}
 	// this case should never occur as we ensure instance types are compatible with AMI
 	if len(launchTemplates) == 0 {
@@ -415,8 +480,9 @@ func (v *Validation) validateCreateFleetAuthorization(
 		}
 		log.FromContext(ctx).Error(err, "unauthorized to call ec2:CreateFleet")
 		_, reasonMessage := awserrors.ToReasonMessage(err)
-		v.updateCacheOnFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed, reasonMessage)
-		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+		backoff := v.calculateAuthBackoff(nodeClass)
+		v.updateCacheOnAuthFailure(nodeClass, tags, ConditionReasonCreateFleetAuthFailed, reasonMessage, backoff)
+		return reconcile.Result{RequeueAfter: backoff}, nil
 	}
 	return reconcile.Result{}, nil
 }
@@ -471,8 +537,9 @@ func (v *Validation) validateRunInstancesAuthorization(
 	}
 	log.FromContext(ctx).Error(firstSubnetErr, "unauthorized to call ec2:RunInstances")
 	_, reasonMessage := awserrors.ToReasonMessage(firstSubnetErr)
-	v.updateCacheOnFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed, reasonMessage)
-	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
+	backoff := v.calculateAuthBackoff(nodeClass)
+	v.updateCacheOnAuthFailure(nodeClass, tags, ConditionReasonRunInstancesAuthFailed, reasonMessage, backoff)
+	return reconcile.Result{RequeueAfter: backoff}, nil
 }
 
 func (*Validation) requiredConditions() []string {
