@@ -404,6 +404,25 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
 		},
 		{
+			// NMA reports these only after its own window (a hung driver, or a fabric Fabric Manager never trained), and
+			// a reboot clears both: it reloads the driver and restarts Fabric Manager. Without the RebootForRepair
+			// feature gate the node is replaced instead.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+		},
+		{
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+		},
+		{
 			// Fatal / uncorrectable GPU errors — replace fast, a reboot would only waste time on dead hardware.
 			ConditionType:          "AcceleratedHardwareReady",
 			ConditionStatus:        corev1.ConditionFalse,
