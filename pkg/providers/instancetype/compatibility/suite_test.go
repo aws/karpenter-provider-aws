@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
@@ -33,13 +34,26 @@ func TestCompatibility(t *testing.T) {
 	RunSpecs(t, "Compatibility")
 }
 
+// windowsSupportedTypes simulates the set of instance types that the pricing API
+// reports as having Windows pricing. Used by tests to exercise the runtime
+// Windows compatibility check.
+var windowsSupportedTypes = sets.New[ec2types.InstanceType](
+	"m5.large", "m5.xlarge", "c5.xlarge", "c5.2xlarge", "r6i.large",
+	"t3.medium", "a1.medium", "a1.large",
+)
+
+func supportsWindows(it ec2types.InstanceType) bool {
+	return windowsSupportedTypes.Has(it)
+}
+
 var _ = Describe("CompatibilityTest", func() {
 	Context("AMIFamilyCompatibility", func() {
 		DescribeTable("should handle various instance types across different AMI families",
 			func(instanceType string, amiFamily string, expected bool) {
 				info := makeInstanceTypeInfo(instanceType, nil)
 				nc := newMockNodeClass(amiFamily, nil)
-				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil,
+					compatibility.WithWindowsSupport(supportsWindows))
 				Expect(result).To(Equal(expected))
 			},
 			Entry("a1.medium w/ Custom AMI", "a1.medium", v1.AMIFamilyCustom, true),
@@ -48,25 +62,28 @@ var _ = Describe("CompatibilityTest", func() {
 			Entry("a1.medium w/ AL2023 AMI", "a1.medium", v1.AMIFamilyAL2023, false),
 			Entry("t3.medium w/ AL2023 AMI", "t3.medium", v1.AMIFamilyAL2023, true),
 			Entry("a1.large w/ Bottlerocket", "a1.large", v1.AMIFamilyBottlerocket, true),
-			// Windows-incompatible accelerated instance families
-			Entry("dl1.24xlarge w/ Windows2019", "dl1.24xlarge", v1.AMIFamilyWindows2019, false),
-			Entry("f1.4xlarge w/ Windows2022", "f1.4xlarge", v1.AMIFamilyWindows2022, false),
-			Entry("f2.12xlarge w/ Windows2025", "f2.12xlarge", v1.AMIFamilyWindows2025, false),
-			Entry("inf2.xlarge w/ Windows2019", "inf2.xlarge", v1.AMIFamilyWindows2019, false),
-			Entry("p4d.24xlarge w/ Windows2022", "p4d.24xlarge", v1.AMIFamilyWindows2022, false),
-			Entry("p5.48xlarge w/ Windows2019", "p5.48xlarge", v1.AMIFamilyWindows2019, false),
-			Entry("trn1.2xlarge w/ Windows2025", "trn1.2xlarge", v1.AMIFamilyWindows2025, false),
-			Entry("trn1n.32xlarge w/ Windows2019", "trn1n.32xlarge", v1.AMIFamilyWindows2019, false),
-			Entry("vt1.3xlarge w/ Windows2022", "vt1.3xlarge", v1.AMIFamilyWindows2022, false),
-			// Standard instance types remain compatible with Windows
+			// Instance types without Windows pricing are filtered when using a Windows AMI family
+			Entry("p5.48xlarge w/ Windows2019 (no Windows pricing)", "p5.48xlarge", v1.AMIFamilyWindows2019, false),
+			Entry("trn1.2xlarge w/ Windows2022 (no Windows pricing)", "trn1.2xlarge", v1.AMIFamilyWindows2022, false),
+			Entry("inf2.xlarge w/ Windows2025 (no Windows pricing)", "inf2.xlarge", v1.AMIFamilyWindows2025, false),
+			// Standard instance types with Windows pricing remain compatible
 			Entry("m5.large w/ Windows2019", "m5.large", v1.AMIFamilyWindows2019, true),
 			Entry("c5.xlarge w/ Windows2022", "c5.xlarge", v1.AMIFamilyWindows2022, true),
 			Entry("r6i.large w/ Windows2025", "r6i.large", v1.AMIFamilyWindows2025, true),
-			// Incompatible families remain compatible with Linux AMIs
+			// Instance types without Windows pricing remain compatible with Linux AMIs
 			Entry("p5.48xlarge w/ AL2023", "p5.48xlarge", v1.AMIFamilyAL2023, true),
 			Entry("trn1.2xlarge w/ Bottlerocket", "trn1.2xlarge", v1.AMIFamilyBottlerocket, true),
 			Entry("inf2.xlarge w/ Custom AMI", "inf2.xlarge", v1.AMIFamilyCustom, true),
 		)
+	})
+	Context("AMIFamilyCompatibility without WindowsSupport option", func() {
+		It("should allow all instance types for Windows when no SupportsWindows function is provided", func() {
+			// Without the WithWindowsSupport option, no Windows filtering occurs (permissive default)
+			info := makeInstanceTypeInfo("p5.48xlarge", nil)
+			nc := newMockNodeClass(v1.AMIFamilyWindows2019, nil)
+			result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+			Expect(result).To(BeTrue())
+		})
 	})
 	Context("NetworkInterfaceCompatibility", func() {
 		DescribeTable("should validate network interface compatibility with instance types",

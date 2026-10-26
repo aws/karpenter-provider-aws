@@ -19,24 +19,10 @@ import (
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
-)
-
-// windowsIncompatibleInstanceFamilies is the set of instance families that do not support
-// Windows. RunInstances calls with these families and a Windows AMI fail with
-// UnsupportedOperation. The list is derived from the EC2 pricing API by comparing
-// instances with Windows pricing to those with Linux pricing.
-var windowsIncompatibleInstanceFamilies = sets.New(
-	"dl1", "dl2q",
-	"f1", "f2",
-	"inf1", "inf2",
-	"p4d", "p4de", "p5", "p5e", "p5en",
-	"trn1", "trn1n", "trn2", "trn2u",
-	"vt1",
 )
 
 type NodeClass interface {
@@ -51,11 +37,31 @@ type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+// Option configures the compatibility check.
+type Option func(*options)
+
+type options struct {
+	supportsWindows func(ec2types.InstanceType) bool
+}
+
+// WithWindowsSupport provides a function that reports whether a given instance
+// type supports Windows. When the AMI family is a Windows variant, instance types
+// for which this function returns false are filtered out.
+func WithWindowsSupport(fn func(ec2types.InstanceType) bool) Option {
+	return func(o *options) {
+		o.supportsWindows = fn
+	}
+}
+
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup, opts ...Option) bool {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(networkInterfaces),
-		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		amiFamilyCompatibility(nodeClass.AMIFamily(), o.supportsWindows),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
 		placementGroupCompatibility(pg),
@@ -69,12 +75,14 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 }
 
 type amiFamilyCheck struct {
-	amiFamily string
+	amiFamily       string
+	supportsWindows func(ec2types.InstanceType) bool
 }
 
-func amiFamilyCompatibility(amiFamily string) CompatibleCheck {
+func amiFamilyCompatibility(amiFamily string, supportsWindows func(ec2types.InstanceType) bool) CompatibleCheck {
 	return &amiFamilyCheck{
-		amiFamily: amiFamily,
+		amiFamily:       amiFamily,
+		supportsWindows: supportsWindows,
 	}
 }
 
@@ -83,10 +91,11 @@ func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
 	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
 		return false
 	}
-	// Many accelerated instance families do not support Windows. RunInstances calls with these
-	// families and a Windows AMI fail with UnsupportedOperation.
-	if isWindowsFamily(c.amiFamily) {
-		if family := instanceFamily(info); windowsIncompatibleInstanceFamilies.Has(family) {
+	// Filter instance types that do not support Windows, as determined at runtime from
+	// the EC2 Pricing API. Instance types without Windows pricing fail RunInstances with
+	// UnsupportedOperation when paired with a Windows AMI.
+	if c.supportsWindows != nil && isWindowsFamily(c.amiFamily) {
+		if !c.supportsWindows(info.InstanceType) {
 			return false
 		}
 	}
@@ -100,15 +109,6 @@ func isWindowsFamily(amiFamily string) bool {
 		return true
 	}
 	return false
-}
-
-// instanceFamily extracts the family prefix from an instance type name (e.g. "p5" from "p5.48xlarge").
-func instanceFamily(info ec2types.InstanceTypeInfo) string {
-	parts := strings.SplitN(string(info.InstanceType), ".", 2)
-	if len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
 }
 
 type networkInterfaceCheck struct {
