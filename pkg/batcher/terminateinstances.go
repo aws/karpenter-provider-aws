@@ -64,7 +64,7 @@ func execTerminateInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.TerminateI
 			firstInput.InstanceIds = append(firstInput.InstanceIds, input.InstanceIds...)
 		}
 		// Create a set of all instance IDs
-		stillRunning := sets.NewString(lo.Map(firstInput.InstanceIds, func(i string, _ int) string { return i })...)
+		stillRunning := sets.New[string](lo.Map(firstInput.InstanceIds, func(i string, _ int) string { return i })...)
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure

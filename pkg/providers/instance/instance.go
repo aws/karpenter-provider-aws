@@ -891,7 +891,7 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
-	unique := sets.NewString()
+	unique := sets.New[string]()
 	for _, err := range fleetErrs {
 		unique.Insert(fmt.Sprintf("%s: %s", aws.ToString(err.ErrorCode), aws.ToString(err.ErrorMessage)))
 	}

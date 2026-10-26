@@ -763,7 +763,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should launch instances for nvidia.com/gpu resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -796,7 +796,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -829,7 +829,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should launch trn1 instances for aws.amazon.com/neuron resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
 				Key:      corev1.LabelInstanceTypeStable,
@@ -855,7 +855,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
 	It("should launch inf2 instances for aws.amazon.com/neuroncore resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
 
@@ -905,7 +905,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		nodes := sets.NewString()
+		nodes := sets.New[string]()
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
@@ -2156,7 +2156,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			for _, pod := range pods {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
-			nodeNames := sets.NewString()
+			nodeNames := sets.New[string]()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 			for _, pod := range pods {
 				node := ExpectScheduled(ctx, env.Client, pod)
@@ -2344,7 +2344,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).To(BeNil())
-			instanceTypeNames := sets.NewString()
+			instanceTypeNames := sets.New[string]()
 			for _, it := range instanceTypes {
 				instanceTypeNames.Insert(it.Name)
 				if it.Name == "m5.xlarge" {
