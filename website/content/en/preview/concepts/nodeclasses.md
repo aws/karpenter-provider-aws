@@ -1232,12 +1232,16 @@ For high volume short-lived, stateless UDP transactions it may be preferable to 
 
 Configure [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) on the ENIs Karpenter
 provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface` type network
-interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings. Secondary ENIs created at runtime by
-your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode) are out of scope and must be configured through the CNI.
+interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings. Karpenter doesn't configure ENA
+Express on secondary ENIs created at runtime by your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode), so traffic from pods
+that use those ENIs doesn't use ENA Express.
 
 ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase the maximum single flow bandwidth from 5 Gbps up to
-25 Gbps and to reduce tail latency between instances in the same Region. Both the sending and receiving instances must
-have ENA Express enabled for traffic to use SRD; otherwise traffic falls back to standard ENA transmission.
+25 Gbps between instances in the same Region, and to reduce tail latency between instances in the same Availability
+Zone. Both the sending and receiving instances must have ENA Express enabled for traffic to use SRD; otherwise traffic
+falls back to standard ENA transmission. Traffic also falls back when the network path includes middleboxes. ENA Express
+traffic can't be sent in a Local Zone, and traffic between Availability Zones isn't supported in some Regions. See
+[ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for the full list of requirements.
 
 ```yaml
 spec:
@@ -1254,7 +1258,9 @@ ENA Express is only supported on [specific instance types](https://docs.aws.amaz
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-If you use jumbo frames, set the MTU to 8900 to use ENA Express. See [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for tuning guidance on Linux instances.
+ENA Express requires a lower MTU than the default to accommodate SRD headers. New TCP connections automatically clamp
+the MSS, but UDP traffic still requires a lower MTU, so lower the node's MTU (e.g. through `userData`) when `udpEnabled`
+is `true`. See [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for tuning guidance on Linux instances.
 {{% /alert %}}
 
 ## spec.blockDeviceMappings

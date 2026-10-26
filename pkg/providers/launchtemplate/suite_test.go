@@ -2950,10 +2950,9 @@ eviction-max-pod-grace-period = 10
 				// as supported so the NodeClass compatibility filter can exercise launch behavior.
 				out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
 				Expect(err).ToNot(HaveOccurred())
-				for i := range out.InstanceTypes {
-					out.InstanceTypes[i].NetworkInfo.EnaSrdSupported = lo.ToPtr(true)
-				}
-				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(out)
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: withENAExpressSupport(out.InstanceTypes, func(ec2types.InstanceType) bool { return true }),
+				})
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			})
@@ -3042,10 +3041,9 @@ eviction-max-pod-grace-period = 10
 			It("should not provision instance types that don't support ENA Express", func() {
 				out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
 				Expect(err).ToNot(HaveOccurred())
-				for i := range out.InstanceTypes {
-					out.InstanceTypes[i].NetworkInfo.EnaSrdSupported = lo.ToPtr(false)
-				}
-				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(out)
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: withENAExpressSupport(out.InstanceTypes, func(ec2types.InstanceType) bool { return false }),
+				})
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
@@ -3469,6 +3467,18 @@ eviction-max-pod-grace-period = 10
 		})
 	})
 })
+
+// withENAExpressSupport returns copies of the instance types with EnaSrdSupported set. The generated test data predates
+// EnaSrdSupported, and the fake shares NetworkInfo with the default test data, so NetworkInfo is copied rather than
+// mutated in place.
+func withENAExpressSupport(instanceTypes []ec2types.InstanceTypeInfo, supported func(ec2types.InstanceType) bool) []ec2types.InstanceTypeInfo {
+	return lo.Map(instanceTypes, func(info ec2types.InstanceTypeInfo, _ int) ec2types.InstanceTypeInfo {
+		networkInfo := lo.FromPtr(info.NetworkInfo)
+		networkInfo.EnaSrdSupported = lo.ToPtr(supported(info.InstanceType))
+		info.NetworkInfo = &networkInfo
+		return info
+	})
+}
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []ec2types.Tag, expected map[string]string) {

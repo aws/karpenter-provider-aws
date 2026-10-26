@@ -1247,6 +1247,23 @@ var _ = Describe("AMIResolver", func() {
 		Expect(err.Error()).To(ContainSubstring("parsing kubelet configuration"))
 		Expect(launchTemplates).To(BeEmpty())
 	})
+	Context("ENAExpress", func() {
+		DescribeTable("should pass ENAExpress from the EC2NodeClass to the launch template",
+			func(enaExpress *v1.ENAExpress) {
+				nodeClass.Spec.ENAExpress = enaExpress
+				amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+				launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(launchTemplates).ToNot(BeEmpty())
+				lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+					Expect(lt.ENAExpress).To(Equal(enaExpress))
+				})
+			},
+			Entry("when omitted", (*v1.ENAExpress)(nil)),
+			Entry("when enabled", &v1.ENAExpress{Enabled: true}),
+			Entry("when enabled with UDP enabled", &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}),
+		)
+	})
 	Context("EnclaveEnabled", func() {
 		It("should set EnclaveEnabled to false by default when no resources are requested", func() {
 			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
