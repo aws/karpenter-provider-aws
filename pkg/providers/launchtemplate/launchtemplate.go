@@ -299,6 +299,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 // generateNetworkInterfaces generates network interfaces for the launch template.
 func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamily corev1.IPFamily) []ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 	connTrackSpec := connectionTrackingSpec(options.ConnectionTracking)
+	enaSrdSpec := enaSrdSpecification(options.ENAExpress)
 	if len(options.NetworkInterfaces) > 0 {
 		return lo.Map(options.NetworkInterfaces, func(ni *amifamily.ResolvedNetworkInterface, _ int) ec2types.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
 			// Assigning IPPrefixCounts or AssociatePublicIpAddress to EFA-only ENIs results in RunInstances failures w/ InvalidParameterValue
@@ -327,6 +328,8 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol && typeNotEFAOnly, lo.ToPtr(true), nil),
 				Ipv6AddressCount:                ipv6AddressCount,
 				ConnectionTrackingSpecification: lo.Ternary(typeNotEFAOnly, connTrackSpec, nil),
+				// EFA-only interfaces have no ENA device, so ENA Express can't be configured on them.
+				EnaSrdSpecification: lo.Ternary(typeNotEFAOnly, enaSrdSpec, nil),
 			}
 		})
 	}
@@ -348,6 +351,7 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 				PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
 				Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 				ConnectionTrackingSpecification: connTrackSpec,
+				EnaSrdSpecification:             enaSrdSpec,
 			}
 		})
 	}
@@ -364,6 +368,7 @@ func generateNetworkInterfaces(options *amifamily.LaunchTemplate, clusterIPFamil
 			PrimaryIpv6:                     lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(true), nil),
 			Ipv6AddressCount:                lo.Ternary(clusterIPFamily == corev1.IPv6Protocol, lo.ToPtr(int32(1)), nil),
 			ConnectionTrackingSpecification: connTrackSpec,
+			EnaSrdSpecification:             enaSrdSpec,
 		},
 	}
 }
@@ -390,6 +395,20 @@ func connectionTrackingSpec(ct *v1.ConnectionTracking) *ec2types.ConnectionTrack
 		TcpEstablishedTimeout: ct.TCPEstablishedTimeout,
 		UdpStreamTimeout:      ct.UDPStreamTimeout,
 		UdpTimeout:            ct.UDPTimeout,
+	}
+}
+
+// enaSrdSpecification only returns a specification when ENA Express is enabled. Instance types are only filtered on
+// ENA Express support when it is enabled, so we avoid sending the setting to instance types that may not support it.
+func enaSrdSpecification(enaExpress *v1.ENAExpress) *ec2types.EnaSrdSpecificationRequest {
+	if enaExpress == nil || !enaExpress.Enabled {
+		return nil
+	}
+	return &ec2types.EnaSrdSpecificationRequest{
+		EnaSrdEnabled: aws.Bool(true),
+		EnaSrdUdpSpecification: lo.Ternary(enaExpress.UDPEnabled != nil, &ec2types.EnaSrdUdpSpecificationRequest{
+			EnaSrdUdpEnabled: enaExpress.UDPEnabled,
+		}, nil),
 	}
 }
 

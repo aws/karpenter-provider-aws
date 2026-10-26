@@ -76,6 +76,7 @@ type NodeClass interface {
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ZoneInfo() []v1.ZoneInfo
 	ConnectionTracking() *v1.ConnectionTracking
+	ENAExpress() *v1.ENAExpress
 }
 
 type Provider interface {

@@ -68,6 +68,7 @@ type NodeClass interface {
 	AMIFamily() string
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ConnectionTracking() *v1.ConnectionTracking
+	ENAExpress() *v1.ENAExpress
 	CPUOptions() *v1.CPUOptions
 	EnclaveOptions() *v1.EnclaveOptions
 }

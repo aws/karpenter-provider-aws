@@ -168,6 +168,11 @@ type EC2NodeClassSpec struct {
 	// +optional
 	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
 
+	// ENAExpress configures ENA Express for ENIs Karpenter provisions in the
+	// launch template. EFA-only interfaces are excluded. See ENAExpress.
+	// +optional
+	ENAExpress *ENAExpress `json:"enaExpress,omitempty"`
+
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -387,6 +392,27 @@ type ConnectionTracking struct {
 	UDPTimeout *int32 `json:"udpTimeout,omitempty"`
 }
 
+// ENAExpress configures ENA Express on ENIs provisioned by Karpenter in the
+// launch template: the primary ENI, any EFA ENIs, and user-configured
+// "interface" type network interfaces. EFA-only interfaces are excluded.
+// Secondary ENIs created at runtime by the CNI are out of scope.
+// ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase single
+// flow bandwidth and reduce tail latency between supported instances. When
+// enabled, instance types are restricted to those that support ENA Express
+// (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html).
+// Both sending and receiving instances must have ENA Express enabled for
+// traffic to use SRD; otherwise traffic falls back to standard ENA transmission.
+// +kubebuilder:validation:XValidation:message="udpEnabled requires enabled to be true",rule="!has(self.udpEnabled) || !self.udpEnabled || self.enabled"
+type ENAExpress struct {
+	// Enabled indicates whether TCP traffic uses ENA Express.
+	// +required
+	Enabled bool `json:"enabled"`
+	// UDPEnabled indicates whether UDP traffic also uses ENA Express.
+	// Requires enabled to be true.
+	// +optional
+	UDPEnabled *bool `json:"udpEnabled,omitempty"`
+}
+
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	// +optional
@@ -601,6 +627,10 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 
 func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
 	return in.Spec.ConnectionTracking
+}
+
+func (in *EC2NodeClass) ENAExpress() *ENAExpress {
+	return in.Spec.ENAExpress
 }
 
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {

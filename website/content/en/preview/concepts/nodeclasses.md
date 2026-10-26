@@ -146,6 +146,13 @@ spec:
     # Optional, configures timeout (in seconds) for idle unidirectional or single-transaction UDP flows.
     udpTimeout: 45
 
+  # Optional, configures ENA Express on ENIs.
+  # Restricts instance types to those that support ENA Express when enabled.
+  enaExpress:
+    enabled: true
+    # Optional, also uses ENA Express for UDP traffic. Requires enabled to be true.
+    udpEnabled: true
+
   # Optional, configures storage devices for the instance
   blockDeviceMappings:
     - deviceName: /dev/xvda
@@ -1220,6 +1227,35 @@ Use a lower timeout to reclaim slots for true streaming traffic that stalls freq
 Timeout for idle UDP flows that have seen traffic only in a single direction or a single request-response transaction.
 Value must be between 30 and 60 seconds. AWS API defaults to 30 seconds.
 For high volume short-lived, stateless UDP transactions it may be preferable to use a lower timeout.
+
+## spec.enaExpress
+
+Configure [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) on the ENIs Karpenter
+provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface` type network
+interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings. Secondary ENIs created at runtime by
+your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode) are out of scope and must be configured through the CNI.
+
+ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase the maximum single flow bandwidth from 5 Gbps up to
+25 Gbps and to reduce tail latency between instances in the same Region. Both the sending and receiving instances must
+have ENA Express enabled for traffic to use SRD; otherwise traffic falls back to standard ENA transmission.
+
+```yaml
+spec:
+  enaExpress:
+    enabled: true
+    udpEnabled: true
+```
+
+* `enabled` (required): Uses ENA Express for TCP traffic.
+* `udpEnabled` (optional): Also uses ENA Express for UDP traffic. Requires `enabled` to be `true`.
+
+{{% alert title="Note" color="primary" %}}
+ENA Express is only supported on [specific instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html). When `enabled` is `true`, Karpenter automatically excludes instance types that don't support ENA Express from consideration.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+If you use jumbo frames, set the MTU to 8900 to use ENA Express. See [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for tuning guidance on Linux instances.
+{{% /alert %}}
 
 ## spec.blockDeviceMappings
 

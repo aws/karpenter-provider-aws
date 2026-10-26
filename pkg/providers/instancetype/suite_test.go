@@ -3692,6 +3692,31 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(availableOfferings()).ToNot(BeEmpty())
 		})
 	})
+	Context("ENA Express", func() {
+		It("should isolate cached offering availability by ENA Express configuration", func() {
+			// None of the fake instance types advertise EnaSrdSupported, so every offering should be
+			// unavailable when ENA Express is enabled on the NodeClass.
+			availableOfferings := func() corecloudprovider.Offerings {
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				m5large, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == "m5.large"
+				})
+				Expect(ok).To(BeTrue())
+				return m5large.Offerings.Available()
+			}
+
+			nodeClass.Spec.ENAExpress = nil
+			Expect(availableOfferings()).ToNot(BeEmpty())
+			nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+			Expect(availableOfferings()).To(BeEmpty())
+
+			awsEnv.OfferingCache.Flush()
+			Expect(availableOfferings()).To(BeEmpty())
+			nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: false}
+			Expect(availableOfferings()).ToNot(BeEmpty())
+		})
+	})
 	Context("Offering Resolvers", func() {
 		It("should call additional resolvers registered via variadic param", func() {
 			resolver := &fakeOfferingResolver{

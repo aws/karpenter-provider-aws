@@ -29,6 +29,7 @@ type NodeClass interface {
 	NetworkInterfaces() []*v1.NetworkInterface
 	AMIFamily() string
 	ConnectionTracking() *v1.ConnectionTracking
+	ENAExpress() *v1.ENAExpress
 	CPUOptions() *v1.CPUOptions
 	EnclaveOptions() *v1.EnclaveOptions
 }
@@ -46,6 +47,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
+		enaExpressCompatibility(nodeClass.ENAExpress()),
 	} {
 		if !check.compatibleCheck(info) {
 			return false
@@ -208,4 +210,24 @@ func (c connectionTrackingCheck) compatibleCheck(info ec2types.InstanceTypeInfo)
 		return true
 	}
 	return info.Hypervisor == "nitro"
+}
+
+type enaExpressCheck struct {
+	enaExpress *v1.ENAExpress
+}
+
+func enaExpressCompatibility(enaExpress *v1.ENAExpress) CompatibleCheck {
+	return &enaExpressCheck{
+		enaExpress: enaExpress,
+	}
+}
+
+func (c enaExpressCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.enaExpress == nil || !c.enaExpress.Enabled {
+		return true
+	}
+	if info.NetworkInfo == nil {
+		return false
+	}
+	return lo.FromPtr(info.NetworkInfo.EnaSrdSupported)
 }

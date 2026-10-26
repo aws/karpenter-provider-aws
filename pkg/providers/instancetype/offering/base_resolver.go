@@ -181,6 +181,9 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	enclaveOptions := nodeClass.EnclaveOptions()
 	enclavesEnabled := enclaveOptions != nil && enclaveOptions.Enabled
 	enclavesEnabledHash, _ := hashstructure.Hash(enclavesEnabled, hashstructure.FormatV2, nil)
+	enaExpress := nodeClass.ENAExpress()
+	enaExpressEnabled := enaExpress != nil && enaExpress.Enabled
+	enaExpressEnabledHash, _ := hashstructure.Hash(enaExpressEnabled, hashstructure.FormatV2, nil)
 	cpuOptions := nodeClass.CPUOptions()
 	nestedVirtualizationEnabled := cpuOptions != nil && lo.FromPtr(cpuOptions.NestedVirtualization) == "enabled"
 	nestedVirtualizationEnabledHash, _ := hashstructure.Hash(nestedVirtualizationEnabled, hashstructure.FormatV2, nil)
@@ -191,12 +194,13 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
 			enclavesEnabledHash,
+			enaExpressEnabledHash,
 			nestedVirtualizationEnabledHash,
 			placementGroupHash,
 		),
