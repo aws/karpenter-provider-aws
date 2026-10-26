@@ -3326,6 +3326,78 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Entry("when AMI is BottleRocket", v1.AMIFamilyBottlerocket, "bottlerocket@latest", true),
 			)
 		})
+		Context("AMI Architecture Filtering", func() {
+			It("should filter out arm64 instance types when only amd64 AMIs are available", func() {
+				nodeClass.Status.AMIs = []v1.AMI{
+					{
+						ID: "ami-amd64-only",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				filtered := awsEnv.InstanceTypesProvider.FilterForNodeClass(ctx, instanceTypes, nodeClass)
+				for _, it := range filtered {
+					arch := it.Requirements.Get(corev1.LabelArchStable)
+					Expect(arch).ToNot(BeNil())
+					Expect(arch.Values()).To(ContainElement(karpv1.ArchitectureAmd64))
+					Expect(arch.Values()).ToNot(ContainElement(karpv1.ArchitectureArm64))
+				}
+			})
+			It("should filter out amd64 instance types when only arm64 AMIs are available", func() {
+				nodeClass.Status.AMIs = []v1.AMI{
+					{
+						ID: "ami-arm64-only",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				filtered := awsEnv.InstanceTypesProvider.FilterForNodeClass(ctx, instanceTypes, nodeClass)
+				for _, it := range filtered {
+					arch := it.Requirements.Get(corev1.LabelArchStable)
+					Expect(arch).ToNot(BeNil())
+					Expect(arch.Values()).To(ContainElement(karpv1.ArchitectureArm64))
+					Expect(arch.Values()).ToNot(ContainElement(karpv1.ArchitectureAmd64))
+				}
+			})
+			It("should keep all instance types when both amd64 and arm64 AMIs are available", func() {
+				nodeClass.Status.AMIs = []v1.AMI{
+					{
+						ID: "ami-amd64",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+						},
+					},
+					{
+						ID: "ami-arm64",
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
+						},
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+				filtered := awsEnv.InstanceTypesProvider.FilterForNodeClass(ctx, instanceTypes, nodeClass)
+				// With both architectures available, the filtered set should contain both amd64 and arm64 instances
+				archValues := sets.New[string]()
+				for _, it := range filtered {
+					arch := it.Requirements.Get(corev1.LabelArchStable)
+					if arch != nil {
+						archValues.Insert(arch.Values()...)
+					}
+				}
+				Expect(archValues.Has(karpv1.ArchitectureAmd64)).To(BeTrue())
+				Expect(archValues.Has(karpv1.ArchitectureArm64)).To(BeTrue())
+			})
+		})
 		Context("Network Interfaces", func() {
 			It("should mark instance type offering as available when it supports network interface configuration", func() {
 				// get offerings before network interface configurations
@@ -4026,6 +4098,90 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 	})
 
+})
+
+var _ = Describe("AMIArchitectures", func() {
+	It("should return amd64 when only amd64 AMIs are present", func() {
+		amis := []v1.AMI{
+			{
+				ID: "ami-amd64",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+				},
+			},
+		}
+		archs := instancetype.AMIArchitectures(amis)
+		Expect(archs.Len()).To(Equal(1))
+		Expect(archs.Has(karpv1.ArchitectureAmd64)).To(BeTrue())
+		Expect(archs.Has(karpv1.ArchitectureArm64)).To(BeFalse())
+	})
+	It("should return arm64 when only arm64 AMIs are present", func() {
+		amis := []v1.AMI{
+			{
+				ID: "ami-arm64",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
+				},
+			},
+		}
+		archs := instancetype.AMIArchitectures(amis)
+		Expect(archs.Len()).To(Equal(1))
+		Expect(archs.Has(karpv1.ArchitectureArm64)).To(BeTrue())
+		Expect(archs.Has(karpv1.ArchitectureAmd64)).To(BeFalse())
+	})
+	It("should return both architectures when both AMI types are present", func() {
+		amis := []v1.AMI{
+			{
+				ID: "ami-amd64",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+				},
+			},
+			{
+				ID: "ami-arm64",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
+				},
+			},
+		}
+		archs := instancetype.AMIArchitectures(amis)
+		Expect(archs.Len()).To(Equal(2))
+		Expect(archs.Has(karpv1.ArchitectureAmd64)).To(BeTrue())
+		Expect(archs.Has(karpv1.ArchitectureArm64)).To(BeTrue())
+	})
+	It("should return an empty set when no AMIs are present", func() {
+		archs := instancetype.AMIArchitectures([]v1.AMI{})
+		Expect(archs.Len()).To(Equal(0))
+	})
+	It("should return an empty set when AMIs have no architecture requirement", func() {
+		amis := []v1.AMI{
+			{
+				ID:           "ami-no-arch",
+				Requirements: []corev1.NodeSelectorRequirement{},
+			},
+		}
+		archs := instancetype.AMIArchitectures(amis)
+		Expect(archs.Len()).To(Equal(0))
+	})
+	It("should deduplicate architectures from multiple AMIs", func() {
+		amis := []v1.AMI{
+			{
+				ID: "ami-amd64-1",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+				},
+			},
+			{
+				ID: "ami-amd64-2",
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+				},
+			},
+		}
+		archs := instancetype.AMIArchitectures(amis)
+		Expect(archs.Len()).To(Equal(1))
+		Expect(archs.Has(karpv1.ArchitectureAmd64)).To(BeTrue())
+	})
 })
 
 func ExpectSameInstanceTypeLists(instanceTypesLists ...[]*corecloudprovider.InstanceType) {
