@@ -504,7 +504,7 @@ func computeCapacity(ctx context.Context, info ec2types.InstanceTypeInfo, amiFam
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
 		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore, networkInterfaces),
-		v1.ResourceAWSPodENI:            *awsPodENI(string(info.InstanceType)),
+		v1.ResourceAWSPodENI:            *awsPodENI(ctx, string(info.InstanceType)),
 		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
 		v1.ResourceAMDGPU:               *amdGPUs(info),
 		v1.ResourceAWSNeuron:            *awsNeuronDevices(info),
@@ -577,14 +577,32 @@ func volumeAttachmentLimits(info ec2types.InstanceTypeInfo) map[string]int {
 	return map[string]int{"ebs.csi.aws.com": int(*info.EbsInfo.MaximumEbsAttachments) - 1}
 }
 
-// awsPodENI relies on the VPC resource controller to populate the vpc.amazonaws.com/pod-eni resource
-func awsPodENI(instanceTypeName string) *resource.Quantity {
+// awsPodENI relies on the VPC resource controller to populate the vpc.amazonaws.com/pod-eni resource.
+// When PodENITrunkingSupportedInstanceTypes is configured, only instance types in that allowlist
+// are considered trunking-compatible, preventing Karpenter from provisioning instance types that
+// the cluster's VPC Resource Controller doesn't yet support for ENI trunking.
+func awsPodENI(ctx context.Context, instanceTypeName string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := Limits[instanceTypeName]
-	if ok && limits.IsTrunkingCompatible {
-		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
+	if !ok || !limits.IsTrunkingCompatible {
+		return resources.Quantity("0")
 	}
-	return resources.Quantity("0")
+	// When an explicit allowlist is configured, only report pod-eni capacity for
+	// instance types in the list. This handles version skew between Karpenter's
+	// built-in VPC limits and the cluster's VPC Resource Controller.
+	if allowlist := options.FromContext(ctx).PodENITrunkingSupportedInstanceTypes; len(allowlist) > 0 {
+		found := false
+		for _, allowed := range allowlist {
+			if allowed == instanceTypeName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return resources.Quantity("0")
+		}
+	}
+	return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 }
 
 func nvidiaGPUs(info ec2types.InstanceTypeInfo) *resource.Quantity {

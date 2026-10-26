@@ -652,6 +652,49 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(supportsPodENI()).To(Equal(true))
 	})
+	It("should not launch vpc.amazonaws.com/pod-eni when instance type is not in the pod-eni trunking allowlist", func() {
+		// Configure the allowlist to only allow a specific instance type for trunking
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			PodENITrunkingSupportedInstanceTypes: []string{"m5.xlarge"},
+		}))
+		// Force a cache refresh with the new options
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+		awsEnv.InstanceTypesProvider.Reset()
+
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
+				Limits:   corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		// The pod should only be scheduled on the allowed instance type
+		Expect(node.Labels[corev1.LabelInstanceTypeStable]).To(Equal("m5.xlarge"))
+	})
+	It("should use the full trunking list when pod-eni trunking allowlist is empty", func() {
+		// Empty allowlist means use the full built-in Limits map (default)
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			PodENITrunkingSupportedInstanceTypes: nil,
+		}))
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
+				Limits:   corev1.ResourceList{v1.ResourceAWSPodENI: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKey(corev1.LabelInstanceTypeStable))
+		supportsPodENI := func() bool {
+			limits, ok := instancetype.Limits[node.Labels[corev1.LabelInstanceTypeStable]]
+			return ok && limits.IsTrunkingCompatible
+		}
+		Expect(supportsPodENI()).To(Equal(true))
+	})
 	It("should launch pod in flex instance type", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{

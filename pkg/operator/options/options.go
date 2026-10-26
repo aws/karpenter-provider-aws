@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	cliflag "k8s.io/component-base/cli/flag"
@@ -45,20 +46,22 @@ type FeatureGates struct {
 }
 
 type Options struct {
-	ClusterCABundle              string
-	ClusterName                  string
-	ClusterEndpoint              string
-	IsolatedVPC                  bool
-	EKSControlPlane              bool
-	VMMemoryOverheadPercent      float64
-	InterruptionQueue            string
-	ReservedENIs                 int
-	DisableDryRun                bool
-	EnableZonalShift             bool
-	AMIRefreshInterval           time.Duration
-	SubnetRefreshInterval        time.Duration
-	SecurityGroupRefreshInterval time.Duration
-	FeatureGates                 FeatureGates
+	ClusterCABundle                      string
+	ClusterName                          string
+	ClusterEndpoint                      string
+	IsolatedVPC                          bool
+	EKSControlPlane                      bool
+	VMMemoryOverheadPercent              float64
+	InterruptionQueue                    string
+	ReservedENIs                         int
+	DisableDryRun                        bool
+	EnableZonalShift                     bool
+	AMIRefreshInterval                   time.Duration
+	SubnetRefreshInterval                time.Duration
+	SecurityGroupRefreshInterval         time.Duration
+	PodENITrunkingSupportedInstanceTypes []string
+	podENITrunkingInput                  string
+	FeatureGates                         FeatureGates
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -75,6 +78,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")
 	fs.DurationVar(&o.SecurityGroupRefreshInterval, "security-group-refresh-interval", env.WithDefaultDuration("SECURITY_GROUP_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.")
+	fs.StringVar(&o.podENITrunkingInput, "pod-eni-trunking-supported-instance-types", env.WithDefaultString("POD_ENI_TRUNKING_SUPPORTED_INSTANCE_TYPES", ""), "Comma-separated list of instance types that are supported by the cluster's VPC Resource Controller for ENI trunking (Security Groups for Pods). When set, only these instance types will report non-zero vpc.amazonaws.com/pod-eni capacity. When empty (default), all trunking-compatible instance types from Karpenter's built-in list are used. Set this when your VPC Resource Controller version doesn't support all instance types in Karpenter's list.")
 	fs.StringVar(&o.FeatureGates.inputStr, "aws-feature-gates", env.WithDefaultString("AWS_FEATURE_GATES", "NodeClassCEL=false,DRANVIDIAGPU=false,DRAEFA=false,RebootForRepair=false"), "Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL, DRANVIDIAGPU, DRAEFA, RebootForRepair.")
 }
 
@@ -90,10 +94,33 @@ func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
 		return fmt.Errorf("parsing feature gates, %w", err)
 	}
 	o.FeatureGates = gates
+	o.PodENITrunkingSupportedInstanceTypes = parsePodENITrunkingInput(o.podENITrunkingInput)
 	if err := o.Validate(); err != nil {
 		return fmt.Errorf("validating options, %w", err)
 	}
 	return nil
+}
+
+// parsePodENITrunkingInput parses a comma-separated string of instance types
+// into a deduplicated slice. Empty input returns nil.
+func parsePodENITrunkingInput(input string) []string {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return nil
+	}
+	var result []string
+	seen := make(map[string]struct{})
+	for _, s := range strings.Split(input, ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if _, ok := seen[s]; !ok {
+			seen[s] = struct{}{}
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 func DefaultFeatureGates() FeatureGates {

@@ -137,6 +137,42 @@ var _ = Describe("Options", func() {
 		Expect(opts.SecurityGroupRefreshInterval).To(Equal(time.Minute))
 	})
 
+	Context("PodENITrunking", func() {
+		BeforeEach(func() {
+			opts.AddFlags(fs)
+		})
+		It("should default to empty when not set", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.PodENITrunkingSupportedInstanceTypes).To(BeNil())
+		})
+		It("should parse comma-separated instance types from CLI flag", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster",
+				"--pod-eni-trunking-supported-instance-types", "m5.large,c5.xlarge,r5.2xlarge")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.PodENITrunkingSupportedInstanceTypes).To(Equal([]string{"m5.large", "c5.xlarge", "r5.2xlarge"}))
+		})
+		It("should parse from environment variable", func() {
+			os.Setenv("POD_ENI_TRUNKING_SUPPORTED_INSTANCE_TYPES", "m5.large,c5.xlarge")
+			fs = &coreoptions.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
+			opts.AddFlags(fs)
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.PodENITrunkingSupportedInstanceTypes).To(Equal([]string{"m5.large", "c5.xlarge"}))
+		})
+		It("should handle whitespace in the comma-separated list", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster",
+				"--pod-eni-trunking-supported-instance-types", " m5.large , c5.xlarge ")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.PodENITrunkingSupportedInstanceTypes).To(Equal([]string{"m5.large", "c5.xlarge"}))
+		})
+		It("should deduplicate entries", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster",
+				"--pod-eni-trunking-supported-instance-types", "m5.large,m5.large,c5.xlarge")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.PodENITrunkingSupportedInstanceTypes).To(Equal([]string{"m5.large", "c5.xlarge"}))
+		})
+	})
 	Context("FeatureGates", func() {
 		BeforeEach(func() {
 			opts.AddFlags(fs)
@@ -247,5 +283,6 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
 	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
+	Expect(optsA.PodENITrunkingSupportedInstanceTypes).To(Equal(optsB.PodENITrunkingSupportedInstanceTypes))
 	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
 }
