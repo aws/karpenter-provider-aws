@@ -16,7 +16,6 @@ package v1
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -251,7 +250,7 @@ type AMISelectorTerm struct {
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
-	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@.+$')"
+	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@[^@]+$')"
 	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022', 'windows2025'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022','windows2025']"
 	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022','windows2025'] ? self.split('@')[1] == 'latest' : true"
 	// +kubebuilder:validation:MaxLength=30
@@ -631,7 +630,8 @@ func (in *EC2NodeClass) AMIFamily() string {
 	if alias := in.Alias(); alias != nil {
 		return alias.Family
 	}
-	// Unreachable: validation enforces that one of the above conditions must be met
+	// Reached when amiFamily is unset and the alias doesn't parse. Validation rejects both, but an object admitted
+	// before those rules existed must not take the controller down.
 	return AMIFamilyCustom
 }
 
@@ -655,16 +655,14 @@ func (in *EC2NodeClass) Alias() *Alias {
 	if !ok {
 		return nil
 	}
-	return &Alias{
-		Family:  amiFamilyFromAlias(term.Alias),
-		Version: amiVersionFromAlias(term.Alias),
-	}
+	return parseAlias(term.Alias)
 }
 
-func amiFamilyFromAlias(alias string) string {
+// parseAlias returns nil when the alias isn't "family@version" with a supported family.
+func parseAlias(alias string) *Alias {
 	components := strings.Split(alias, "@")
 	if len(components) != 2 {
-		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
+		return nil
 	}
 	family, ok := lo.Find([]string{
 		AMIFamilyAL2,
@@ -677,17 +675,9 @@ func amiFamilyFromAlias(alias string) string {
 		return strings.ToLower(family) == components[0]
 	})
 	if !ok {
-		log.Fatalf("%q is an invalid alias family", components[0])
+		return nil
 	}
-	return family
-}
-
-func amiVersionFromAlias(alias string) string {
-	components := strings.Split(alias, "@")
-	if len(components) != 2 {
-		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
-	}
-	return components[1]
+	return &Alias{Family: family, Version: components[1]}
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass
