@@ -200,6 +200,7 @@ nodes provisioned by Karpenter.
 
 ### 9. Delete the cluster
 To avoid additional charges, remove the demo infrastructure from your AWS account.
+Delete your NodePools and EC2NodeClasses before uninstalling Karpenter so that Karpenter terminates the nodes it launched and cleans up the resources it created; otherwise those instances are left running after the cluster is deleted.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step17-cleanup.sh" language="bash"%}}
 
