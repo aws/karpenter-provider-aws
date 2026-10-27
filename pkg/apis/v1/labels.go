@@ -56,6 +56,7 @@ func init() {
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
+		LabelNvidiaGPUPresent,
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
@@ -173,6 +174,11 @@ var (
 	LabelPlacementGroupPartition              = apis.Group + "/placement-group-partition"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
+	// LabelNvidiaGPUPresent is the label the NVIDIA device plugin, DRA driver, and GPU Operator select GPU nodes on.
+	// Karpenter applies it to the Node through the NodeClaim's labels on every Kubernetes version. The GPU Operator
+	// also sets it, as do AL2023 nodeadm and Bottlerocket NVIDIA variants on 1.35+. It's registered here so that pods
+	// selecting it can be scheduled before a GPU node exists.
+	LabelNvidiaGPUPresent = "nvidia.com/gpu.present"
 
 	AnnotationEC2NodeClassHash               = apis.Group + "/ec2nodeclass-hash"
 	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
