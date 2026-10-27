@@ -17,7 +17,7 @@ If you were previously utilizing `open` ODCRs using Karpenter, review the [migra
 
 To configure native ODCR support, you will need to make updates to both your EC2NodeClass and NodePool.
 First, you should configure `capacityReservationSelectorTerms` on your EC2NodeClass.
-Similar to `amiSelectorTerms`, you can specify a number of terms which are ANDed together to select ODCRs in your AWS account.
+Similar to `amiSelectorTerms`, you can specify a number of terms which are ORed together to select ODCRs in your AWS account.
 The following example demonstrates how to select all capacity reservations tagged with `application: foobar` in addition to `cr-56fac701cc1951b03`:
 
 ```yaml
