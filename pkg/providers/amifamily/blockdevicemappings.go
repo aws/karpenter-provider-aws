@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
@@ -61,6 +62,9 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 			if err != nil {
 				return nil, fmt.Errorf("resolving volumeSize CEL expression for device %q, %w", lo.FromPtr(bdm.DeviceName), err)
 			}
+			if err := validateVolumeSizeForType(bdm.EBS.VolumeType, size); err != nil {
+				return nil, fmt.Errorf("resolving volumeSize CEL expression for device %q, %w", lo.FromPtr(bdm.DeviceName), err)
+			}
 			resolvedSize := size.String()
 			bdm.EBS.VolumeSize = &resolvedSize
 		} else {
@@ -69,6 +73,39 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 		resolved = append(resolved, bdm)
 	}
 	return resolved, nil
+}
+
+// volumeSizeLimitsGiB holds the supported volume size range, in GiB, of each EBS volume type. It mirrors the
+// limits documented on BlockDevice.VolumeSize.
+var volumeSizeLimitsGiB = map[string]struct{ min, max int64 }{
+	"gp2":      {1, 16384},
+	"gp3":      {1, 16384},
+	"io1":      {4, 16384},
+	"io2":      {4, 16384},
+	"st1":      {125, 16384},
+	"sc1":      {125, 16384},
+	"standard": {1, 1024},
+}
+
+// defaultVolumeType is assumed when a blockDeviceMapping doesn't set volumeType.
+const defaultVolumeType = "gp3"
+
+// validateVolumeSizeForType rejects a resolved volume size that falls outside the limits of its volume type, so an
+// expression that only exceeds them on the largest instance types fails validation rather than at launch.
+func validateVolumeSizeForType(volumeType *string, size resource.Quantity) error {
+	vt := lo.FromPtr(volumeType)
+	if vt == "" {
+		vt = defaultVolumeType
+	}
+	limits, ok := volumeSizeLimitsGiB[vt]
+	if !ok {
+		return nil
+	}
+	gib := size.Value() / (1 << 30)
+	if gib < limits.min || gib > limits.max {
+		return fmt.Errorf("volume size of %d GiB is outside the %d-%d GiB range supported by %s volumes", gib, limits.min, limits.max, vt)
+	}
+	return nil
 }
 
 func hasVolumeSizeExpression(bdm *v1.BlockDeviceMapping) bool {

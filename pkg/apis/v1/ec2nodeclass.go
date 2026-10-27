@@ -562,7 +562,7 @@ const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
-		in.Spec,
+		in.specWithNormalizedVolumeSizes(),
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
@@ -574,6 +574,25 @@ func (in *EC2NodeClass) Hash(caBundle *string) string {
 		IgnoreZeroValue: true,
 		ZeroNil:         true,
 	})))
+}
+
+// specWithNormalizedVolumeSizes returns the spec with every static volumeSize rewritten to its canonical quantity form.
+// volumeSize used to be a resource.Quantity, which hashed as its canonical string, so "1024Gi" and "1Ti" hashed
+// identically. Normalizing keeps the hash of existing static values unchanged, so they don't drift.
+func (in *EC2NodeClass) specWithNormalizedVolumeSizes() EC2NodeClassSpec {
+	if !lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool { return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSize != nil }) {
+		return in.Spec
+	}
+	spec := *in.Spec.DeepCopy()
+	for _, bdm := range spec.BlockDeviceMappings {
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
+			continue
+		}
+		if q, err := resource.ParseQuantity(*bdm.EBS.VolumeSize); err == nil {
+			bdm.EBS.VolumeSize = lo.ToPtr(q.String())
+		}
+	}
+	return spec
 }
 
 func (in *EC2NodeClass) LegacyInstanceProfileName(clusterName, region string) string {

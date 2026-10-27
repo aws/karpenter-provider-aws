@@ -1300,7 +1300,7 @@ The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
 
 ### Sizing volumes per instance type with CEL
 
-An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000; fractional results are truncated.
+An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000 and within the range supported by the device's `volumeType` (for example 1-16384 for `gp3`); fractional results are truncated.
 
 The same resolved size is used for the node's `ephemeral-storage` capacity and the launch template, so instance types resolving to different sizes get different launch templates.
 
@@ -2081,14 +2081,16 @@ NodeClasses have the following status conditions:
 | CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
-The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet`]({{< ref "#speckubelet" >}}):
+The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet`]({{< ref "#speckubelet" >}}) and [CEL expressions]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}) in `spec.blockDeviceMappings`:
 
 | Reason                              | Description                                                                                                                                                       |
 |-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | InvalidKubeletConfiguration         | `spec.kubelet` has an unknown field, a value of the wrong type, or a value that fails Karpenter's semantic checks.                                                |
-| KubeletExpressionsDisabled          | `spec.kubelet` contains a [CEL expression]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}), but the `NodeClassCEL` feature gate is disabled.       |
+| NodeClassCELDisabled                | `spec.kubelet` or `spec.blockDeviceMappings` contains a [CEL expression]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}), but the `NodeClassCEL` feature gate is disabled. |
 | KubeletExpressionInvalid            | A kubelet expression fails to compile or type-check.                                                                                                              |
 | UnsupportedKubeletConfiguration     | `spec.kubelet` sets a field the NodeClass's AMI family doesn't apply. See [AMI Family Support]({{< ref "#ami-family-support" >}}).                               |
 | KubeletExpressionEvaluationFailed   | A kubelet expression fails to evaluate, or produces an unusable value, for at least one known instance type.                                                     |
+| BlockDeviceMappingExpressionInvalid | A `volumeSize` expression in `spec.blockDeviceMappings` fails to compile or type-check. |
+| BlockDeviceMappingExpressionEvaluationFailed | A `volumeSize` expression fails to evaluate, or produces a size outside the range supported by the device's `volumeType`, for at least one known instance type. |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.

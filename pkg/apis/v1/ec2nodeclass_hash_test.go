@@ -119,6 +119,24 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = aws.String("10G")
 		Expect(nodeClass.Hash(testCABundle)).To(Equal("10372902467896351912"))
 	})
+	// Hashes were captured on main, where volumeSize was a resource.Quantity hashed as its canonical string. Equivalent
+	// spellings must keep hashing identically so existing NodeClasses don't drift.
+	DescribeTable("should match main's hash for equivalent static volumeSize spellings",
+		func(volumeSize string, expected string) {
+			hashNodeClass := &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
+				Role:                "r",
+				BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeSize: aws.String(volumeSize)}}},
+			}}
+			Expect(hashNodeClass.Hash(nil)).To(Equal(expected))
+		},
+		Entry("1024Gi", "1024Gi", "14360448636435593026"),
+		Entry("1Ti", "1Ti", "14360448636435593026"),
+		Entry("2048Gi", "2048Gi", "5178618128968600456"),
+		Entry("2Ti", "2Ti", "5178618128968600456"),
+		Entry("1000G", "1000G", "9436614410499563993"),
+		Entry("1T", "1T", "9436614410499563993"),
+		Entry("100Gi", "100Gi", "8397403704400447745"),
+	)
 	It("should match static hash for instanceProfile", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")

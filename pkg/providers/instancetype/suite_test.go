@@ -3951,6 +3951,21 @@ var _ = Describe("InstanceTypeProvider", func() {
 			_, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 			Expect(err).To(MatchError(ContainSubstring("resolving blockDeviceMappings")))
 		})
+		It("should fail resolution when the volumeSize CEL expression exceeds the volume type's limit", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			// 16384 GiB is the gp3 cap; a large instance type's vcpus * 400 exceeds it while m5.large's 800 does not.
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/xvda"),
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 400"), VolumeType: lo.ToPtr("gp3")},
+			}}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			err := awsEnv.InstanceTypesProvider.ValidateBlockDeviceMappingExpressions(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("outside the 1-16384 GiB range supported by gp3 volumes")))
+		})
 		It("should fall back to the default ephemeral-storage when a volumeSize CEL expression is set but the gate is disabled", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
