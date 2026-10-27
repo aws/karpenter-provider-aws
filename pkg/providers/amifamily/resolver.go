@@ -141,6 +141,11 @@ type FeatureFlags struct {
 	// that leave it false only apply the specific fields Karpenter maps to bootstrap flags/settings;
 	// the validation controller rejects unmapped fields for them rather than dropping them silently.
 	SupportsArbitraryKubeletConfig bool
+	// UnsupportedManagedFields lists kubelet config field names that Karpenter maps into
+	// ParsedKubeletConfig but the AMI family's bootstrap does not apply. These are rejected
+	// by the validation controller for the family. Use this instead of one-off boolean flags
+	// when a family cannot apply a field that other families can.
+	UnsupportedManagedFields []string
 }
 
 // DefaultFamily provides default values for AMIFamilies that compose it
