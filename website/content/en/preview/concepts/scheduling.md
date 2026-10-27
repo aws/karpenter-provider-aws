@@ -204,6 +204,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/placement-group-id                           | pg-0fa32af67ed0f8da0 | [AWS Specific] The placement group ID.
 | karpenter.k8s.aws/placement-group-partition                    | 7                    | [AWS Specific] The partition number of the partition placement group the instance is in.
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                                                                                                                |
+| nvidia.com/gpu.present                                         | true                 | Whether the instance type has an NVIDIA GPU. Also set by the NVIDIA GPU Operator, and by AL2023 and Bottlerocket NVIDIA AMIs on Kubernetes 1.35+                                                                                          |
 
 
 {{% alert title="Note" color="primary" %}}
