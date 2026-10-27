@@ -7,21 +7,21 @@ require (
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/amazon-vpc-resource-controller-k8s v1.8.2
-	github.com/aws/aws-sdk-go-v2 v1.47.3
-	github.com/aws/aws-sdk-go-v2/config v1.33.9
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.3
-	github.com/aws/aws-sdk-go-v2/service/arczonalshift v1.34.1
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.339.0
-	github.com/aws/aws-sdk-go-v2/service/eks v1.104.1
-	github.com/aws/aws-sdk-go-v2/service/fis v1.46.4
-	github.com/aws/aws-sdk-go-v2/service/iam v1.64.4
-	github.com/aws/aws-sdk-go-v2/service/pricing v1.49.4
-	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.4
-	github.com/aws/aws-sdk-go-v2/service/ssm v1.79.3
-	github.com/aws/aws-sdk-go-v2/service/sts v1.51.4
-	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.43.4
+	github.com/aws/aws-sdk-go-v2 v1.47.4
+	github.com/aws/aws-sdk-go-v2/config v1.33.10
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.4
+	github.com/aws/aws-sdk-go-v2/service/arczonalshift v1.34.3
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.341.0
+	github.com/aws/aws-sdk-go-v2/service/eks v1.104.3
+	github.com/aws/aws-sdk-go-v2/service/fis v1.46.6
+	github.com/aws/aws-sdk-go-v2/service/iam v1.64.5
+	github.com/aws/aws-sdk-go-v2/service/pricing v1.51.0
+	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.6
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.81.0
+	github.com/aws/aws-sdk-go-v2/service/sts v1.51.5
+	github.com/aws/aws-sdk-go-v2/service/timestreamwrite v1.45.0
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20260430210630-2cd163d6f0d3
-	github.com/aws/smithy-go v1.28.5
+	github.com/aws/smithy-go v1.28.6
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20261002163259-5e8ed3699dea
 	github.com/awslabs/operatorpkg/aws v0.0.0-20260903001236-7040d0c02b82
@@ -60,16 +60,16 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/andybalholm/cascadia v1.3.4 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.9 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.6 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.21 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.13.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.6 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.10.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.38.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.4 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.10 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.22 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.13.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.7 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.10.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.38.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
