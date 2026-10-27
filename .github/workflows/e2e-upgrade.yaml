@@ -2,6 +2,13 @@ name: E2EUpgrade
 on:
   workflow_dispatch:
     inputs:
+      runs_on:
+        description: "Runner label. Use karpenter_ubuntu-latest_4-core (dedicated larger-runner group, billed per minute) for release validation when the shared pool is saturated"
+        type: choice
+        options:
+          - "ubuntu-latest"
+          - "karpenter_ubuntu-latest_4-core"
+        default: "ubuntu-latest"
       from_git_ref:
         description: "Git ref to upgrade from. Defaults to the latest release"
         type: string
@@ -33,6 +40,9 @@ on:
         default: "aws" 
   workflow_call:
     inputs:
+      runs_on:
+        type: string
+        default: "ubuntu-latest"
       from_git_ref:
         description: "Git ref to upgrade from. Defaults to the latest release"
         type: string
@@ -62,7 +72,7 @@ jobs:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
     name: suite-upgrade
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
