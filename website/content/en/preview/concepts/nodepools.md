@@ -522,6 +522,10 @@ spec:
 ```
 In order for a pod to run on a node defined in this NodePool, it must tolerate `nvidia.com/gpu` in its pod spec.
 
+{{% alert title="Important" color="warning" %}}
+Taints and tolerations are **scheduling preferences**, not security boundaries. Any user who can create a pod in the cluster can add a toleration to bypass a taint and schedule onto tainted nodes. If you need to enforce that only specific teams or workloads can use certain NodePools, use Kubernetes RBAC, namespace restrictions, or admission controllers (e.g., OPA Gatekeeper, Kyverno) to control which tolerations pods are allowed to specify.
+{{% /alert %}}
+
 ### Static NodePool
 
 A NodePool can be configured for static capacity by setting the `replicas` field. This maintains a fixed number of nodes regardless of pod demand.
