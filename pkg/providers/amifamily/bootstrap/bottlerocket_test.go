@@ -16,12 +16,17 @@ package bootstrap
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"testing"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/samber/lo"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 func TestBootstrap(t *testing.T) {
@@ -30,6 +35,91 @@ func TestBootstrap(t *testing.T) {
 }
 
 var _ = Describe("Bottlerocket", func() {
+	Describe("Image garbage collection thresholds", func() {
+		DescribeTable("should emit string thresholds from custom user data", func(high, low, expectedHigh, expectedLow string) {
+			userData := fmt.Sprintf(`
+[settings.kubernetes]
+image-gc-high-threshold-percent = %s
+image-gc-low-threshold-percent = %s
+memory-manager-policy = "Static"
+
+[settings.host-containers.admin]
+enabled = true
+`, high, low)
+			bottlerocket := Bottlerocket{Options: Options{CustomUserData: &userData}}
+			script, err := bottlerocket.Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+			decoded, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+
+			var raw map[string]any
+			Expect(toml.Unmarshal(decoded, &raw)).To(Succeed())
+			settings := raw["settings"].(map[string]any)
+			kubernetes := settings["kubernetes"].(map[string]any)
+			Expect(kubernetes).To(HaveKeyWithValue("image-gc-high-threshold-percent", expectedHigh))
+			Expect(kubernetes).To(HaveKeyWithValue("image-gc-low-threshold-percent", expectedLow))
+			Expect(kubernetes).To(HaveKeyWithValue("memory-manager-policy", "Static"))
+			Expect(settings["host-containers"]).To(HaveKeyWithValue("admin", HaveKeyWithValue("enabled", true)))
+
+			config, err := NewBottlerocketConfig(context.Background(), lo.ToPtr(string(decoded)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).To(Equal(lo.ToPtr(expectedHigh)))
+			Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).To(Equal(lo.ToPtr(expectedLow)))
+		},
+			Entry("integers", "75", "45", "75", "45"),
+			Entry("strings", `"75"`, `"45"`, "75", "45"),
+			Entry("integer high and string low", "75", `"45"`, "75", "45"),
+			Entry("string high and integer low", `"75"`, "45", "75", "45"),
+			Entry("boundary values", "100", "0", "100", "0"),
+		)
+
+		It("should omit unspecified thresholds", func() {
+			config, err := NewBottlerocketConfig(context.Background(), lo.ToPtr("[settings.kubernetes]"))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config.Settings.Kubernetes.ImageGCHighThresholdPercent).To(BeNil())
+			Expect(config.Settings.Kubernetes.ImageGCLowThresholdPercent).To(BeNil())
+			data, err := config.MarshalTOML()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(data)).ToNot(ContainSubstring("image-gc-high-threshold-percent"))
+			Expect(string(data)).ToNot(ContainSubstring("image-gc-low-threshold-percent"))
+		})
+
+		It("should prefer kubelet configuration over integer thresholds in custom user data", func() {
+			bottlerocket := Bottlerocket{Options: Options{
+				CustomUserData: lo.ToPtr(`[settings.kubernetes]
+image-gc-high-threshold-percent = 75
+image-gc-low-threshold-percent = 45
+`),
+				KubeletConfig: &v1.ParsedKubeletConfig{
+					ImageGCHighThresholdPercent: lo.ToPtr[int32](85),
+					ImageGCLowThresholdPercent:  lo.ToPtr[int32](80),
+				},
+			}}
+			script, err := bottlerocket.Script(context.Background())
+			Expect(err).ToNot(HaveOccurred())
+			decoded, err := base64.StdEncoding.DecodeString(script)
+			Expect(err).ToNot(HaveOccurred())
+			var raw map[string]any
+			Expect(toml.Unmarshal(decoded, &raw)).To(Succeed())
+			kubernetes := raw["settings"].(map[string]any)["kubernetes"]
+			Expect(kubernetes).To(HaveKeyWithValue("image-gc-high-threshold-percent", "85"))
+			Expect(kubernetes).To(HaveKeyWithValue("image-gc-low-threshold-percent", "80"))
+		})
+
+		DescribeTable("should reject non-string, non-integer thresholds", func(value string) {
+			for _, key := range []string{"image-gc-high-threshold-percent", "image-gc-low-threshold-percent"} {
+				userData := fmt.Sprintf("[settings.kubernetes]\n%s = %s\n", key, value)
+				_, err := NewBottlerocketConfig(context.Background(), &userData)
+				Expect(err).To(HaveOccurred(), "expected %s to reject %s", key, value)
+			}
+		},
+			Entry("booleans", "true"),
+			Entry("floats", "75.0"),
+			Entry("arrays", "[75]"),
+			Entry("tables", "{ value = 75 }"),
+		)
+	})
+
 	Describe("EnableDefaultMountPaths", func() {
 		It("should use the configured flag value", func() {
 			bottlerocket := Bottlerocket{EnableDefaultMountPaths: true}
