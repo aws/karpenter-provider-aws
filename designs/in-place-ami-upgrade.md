@@ -66,7 +66,7 @@ An EC2NodeClass can resolve several AMIs (per architecture or variant), and each
    - AMI level, computed once per resolved AMI and reported in its `status.amis[].inPlaceUpgrade`: the AMI has a single root volume, no Marketplace product codes, and its backing snapshot is readable (`createVolumePermission`) from the node's account.
    - Node level, per NodeClaim: AMI family, variant and Kubernetes minor version are unchanged, and the instance is running.
 5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and `operationID` as the `ClientToken`. Any other reason stays `RebootInstances`.
-6. **`Get`.** Returns the instance's current AMI, so core refreshes `Status.ImageID` after the reboot. Core then calls `GetDriftStatus` again, and `NoOp` confirms the swap landed.
+6. **Confirm the swap.** Core does not read the AMI back after the reboot; it calls `GetDriftStatus` on its next drift pass. `Status.ImageID` still holds the launch AMI, so when the instance has a root volume replacement task (`DescribeReplaceRootVolumeTasks`), the AMI check uses the AMI of its latest task instead. A `succeeded` task on a current AMI returns `NoOp`, a `failed` or `failed-detached` task returns `Replace`, and a task that has not finished returns `NoOp` until the next drift pass.
 
 ### Interaction with Existing Features
 
@@ -99,7 +99,7 @@ An EC2NodeClass can resolve several AMIs (per architecture or variant), and each
 - **AMI and subnet drift at once.** AMI is not the only drift, so the node is replaced.
 - **Snapshot not shared to the node's account.** The gate fails and the node is replaced. Operators fix sharing and later rollouts go in place.
 - **Controller restart mid-swap.** The re-issued call carries the same `ClientToken`, so it joins the existing task.
-- **Task fails and the instance boots the old AMI.** `Get` returns the old AMI, `GetDriftStatus` still reports drift, and core replaces the node.
+- **Task fails and the instance boots the old AMI.** The reboot completes, the next `GetDriftStatus` sees the `failed` task and returns `Replace`, and core replaces the node through its normal drift path.
 - **Task fails before the instance reboots.** No new boot appears, so core replaces the node when its observation window ends.
 
 ## Alternatives Considered
@@ -119,8 +119,8 @@ Rejected because they bypass disruption budgets, drains and drift state, and rac
 
 ## Graduation Criteria
 
-- **Alpha:** behind the core feature gate, AWS as the first provider. Proves the gates on real fleets.
-- **Beta:** the feature gate is on by default after production data on swap duration across instance types. `amiDriftPolicy` keeps defaulting to `Replace`, because launching a replacement before terminating is faster, so in-place stays opt-in per EC2NodeClass for nodes whose instance-store data must survive.
+- **Alpha:** opt-in through `amiDriftPolicy` with no feature gate, AWS as the first provider. Proves the gates on real fleets.
+- **Beta:** after production data on swap duration across instance types. `amiDriftPolicy` keeps defaulting to `Replace`, because launching a replacement before terminating is faster, so in-place stays opt-in per EC2NodeClass for nodes whose instance-store data must survive.
 
 ## Open Questions
 
