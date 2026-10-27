@@ -64,6 +64,10 @@ var _ = Describe("ValidateKubeletConfig", func() {
 			"imageGCHighThresholdPercent": v1.JSONValue(80),
 			"imageGCLowThresholdPercent":  v1.JSONValue(60),
 		}),
+		Entry("shutdown grace periods with criticalPods within the overall window", v1.KubeletConfiguration{
+			"shutdownGracePeriod":             v1.JSONValue("3590s"),
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("120s"),
+		}),
 		Entry("zero-valued fields", v1.KubeletConfiguration{
 			"maxPods":                   v1.JSONValue(0),
 			"podsPerCore":               v1.JSONValue(0),
@@ -220,6 +224,47 @@ var _ = Describe("ValidateKubeletConfig", func() {
 		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
 			"imageGCHighThresholdPercent": v1.JSONValue(70),
 			"imageGCLowThresholdPercent":  v1.JSONValue(70),
+		})).ToNot(BeEmpty())
+	})
+	It("should accept valid shutdown grace periods", func() {
+		// Both set with criticalPods < gracePeriod.
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriod":             v1.JSONValue("3590s"),
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("120s"),
+		})).To(BeEmpty())
+		// Equal values are allowed: all shutdown time is allocated to critical pods.
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriod":             v1.JSONValue("120s"),
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("120s"),
+		})).To(BeEmpty())
+		// Zero disables graceful shutdown; setting only one field is valid.
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriod": v1.JSONValue("0s"),
+		})).To(BeEmpty())
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("30s"),
+		})).To(BeEmpty())
+	})
+	It("should reject shutdownGracePeriodCriticalPods exceeding shutdownGracePeriod", func() {
+		// The kubelet evicts non-critical pods in (gracePeriod - criticalPods) and then runs
+		// critical pods for criticalPods seconds. A budget larger than the window means
+		// non-critical pods get zero time (criticalPods > gracePeriod) or worse.
+		errs := v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriod":             v1.JSONValue("60s"),
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("90s"),
+		})
+		Expect(errs).ToNot(BeEmpty())
+		Expect(errs[0].Error()).To(ContainSubstring("shutdownGracePeriodCriticalPods"))
+		Expect(errs[0].Error()).To(ContainSubstring("shutdownGracePeriod"))
+	})
+	It("should reject a negative shutdownGracePeriod", func() {
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriod": v1.JSONValue("-1s"),
+		})).ToNot(BeEmpty())
+	})
+	It("should reject a negative shutdownGracePeriodCriticalPods", func() {
+		Expect(v1.ValidateKubeletConfig(v1.KubeletConfiguration{
+			"shutdownGracePeriodCriticalPods": v1.JSONValue("-30s"),
 		})).ToNot(BeEmpty())
 	})
 	// registerWithTaints is a legitimate kubelet field, so the decode against the upstream type
