@@ -65,8 +65,44 @@ An EC2NodeClass can resolve several AMIs (per architecture or variant), and each
 4. **Gates.** Every failed gate emits an event naming it.
    - AMI level, computed once per resolved AMI and reported in its `status.amis[].inPlaceUpgrade`: the AMI has a single root volume, no Marketplace product codes, and its backing snapshot is readable (`createVolumePermission`) from the node's account.
    - Node level, per NodeClaim: AMI family, variant and Kubernetes minor version are unchanged, and the instance is running.
-5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and `operationID` as the `ClientToken`. Any other reason stays `RebootInstances`.
+5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates and calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and a `ClientToken` derived from `operationID`. Core's `operationID` is about 93 characters (`<NodeClaim UID>-<request time in ns>-<boot ID>`) and EC2 allows 64, so the provider passes its SHA-256 hex digest, which is exactly 64 characters and the same on every retry. Any other reason stays `RebootInstances`.
 6. **Confirm the swap.** Core does not read the AMI back after the reboot; it calls `GetDriftStatus` on its next drift pass. `Status.ImageID` still holds the launch AMI, so when the instance has a root volume replacement task (`DescribeReplaceRootVolumeTasks`), the AMI check uses the AMI of its latest task instead. A `succeeded` task on a current AMI returns `NoOp`, a `failed` or `failed-detached` task returns `Replace`, and a task that has not finished returns `NoOp` until the next drift pass.
+
+### IAM
+
+The controller policy gains one write action and two reads.
+The write is scoped like `RebootInstances` in `AllowScopedDeletion`: the instance must carry the cluster and NodePool tags.
+The root volume and the task are new resources created by the call, so they cannot carry a tag condition.
+The image statement allows any AMI, matching `RunInstances` in `AllowScopedEC2InstanceAccessActions`; operators can narrow it with `ec2:Owner`.
+
+```json
+{
+  "Sid": "AllowScopedReplaceRootVolume",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+  "Action": "ec2:CreateReplaceRootVolumeTask",
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+    },
+    "StringLike": {
+      "aws:ResourceTag/karpenter.sh/nodepool": "*"
+    }
+  }
+},
+{
+  "Sid": "AllowReplaceRootVolumeResources",
+  "Effect": "Allow",
+  "Resource": [
+    "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:replace-root-volume-task/*"
+  ],
+  "Action": "ec2:CreateReplaceRootVolumeTask"
+}
+```
+
+`ec2:DescribeReplaceRootVolumeTasks` (confirming the swap) and `ec2:DescribeSnapshots` (the snapshot gate, with `RestorableByUserIds=self`) join `AllowRegionalReadActions`.
 
 ### Interaction with Existing Features
 
@@ -116,6 +152,7 @@ Rejected because they bypass disruption budgets, drains and drift state, and rac
 ## Backward Compatibility
 
 - `amiDriftPolicy` defaults to `Replace` and is excluded from the drift hash. Upgrading changes nothing.
+- Opting in needs the IAM above. Without it, `CreateReplaceRootVolumeTask` is denied, the reboot fails, and core replaces the node.
 
 ## Graduation Criteria
 
