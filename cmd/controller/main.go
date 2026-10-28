@@ -72,6 +72,7 @@ func main() {
 			op.InstanceTypeStore,
 			op.PredictionStore,
 			corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(op.InstanceProvider)),
+			corecontrollers.WithVPAPrediction(),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
