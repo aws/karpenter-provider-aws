@@ -11,7 +11,7 @@ Karpenter leverages Github Actions to run our E2E test suites. These suites are 
 - `./.github/workflows`: Workflow files run within this repository. Relevant files for E2E testing are prefixed with `e2e-`
 - `./.github/actions/e2e`: Composite actions utilized by the E2E workflows
 - `./test/cloudformation`: Testing IAM Roles, Managed Prometheus Workspace, Managed Grafana Workspace
-- `./test/suites`: Directories defining test suites
+- `./test/suites`: Directories defining test suites. See [suites/README.md](./suites/README.md) for how suites are laid out and how to write specs
 - `./test/pkg`: Common utilities and expectations
 - `./test/hack`: Testing scripts
 
