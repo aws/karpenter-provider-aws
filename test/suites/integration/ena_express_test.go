@@ -16,6 +16,8 @@ package integration_test
 
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -37,6 +39,14 @@ var _ = Describe("ENAExpress", func() {
 			env.ExpectCreatedNodeCount("==", 1)
 
 			instance := env.GetInstance(pod.Spec.NodeName)
+			// Karpenter should only launch instance types that support ENA Express when it's enabled
+			out, err := env.EC2API.DescribeInstanceTypes(env.Context, &ec2.DescribeInstanceTypesInput{
+				InstanceTypes: []ec2types.InstanceType{instance.InstanceType},
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out.InstanceTypes).To(HaveLen(1))
+			Expect(aws.ToBool(out.InstanceTypes[0].NetworkInfo.EnaSrdSupported)).To(BeTrue())
+
 			primaryNI, found := environmentaws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
 			Expect(found).To(BeTrue())
 			Expect(primaryNI.Attachment.EnaSrdSpecification).ToNot(BeNil())
