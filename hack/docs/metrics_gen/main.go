@@ -257,9 +257,6 @@ var (
 		"nodeclaim_status_condition", "nodeclaim_termination",
 		"nodepool_status_condition", "nodepool_termination",
 		"ec2nodeclass_status_condition", "ec2nodeclass_termination"}
-	// Deprecated generic status/termination metrics (no object prefix); still emitted
-	// but superseded by per-object variants.
-	deprecatedMetrics = []string{"status_condition", "termination"}
 )
 
 func (i metricInfo) qualifiedName() string {
@@ -269,8 +266,6 @@ func (i metricInfo) qualifiedName() string {
 // stabilityFromLists resolves a Stage-less metric's level by subsystem or qualified name.
 func stabilityFromLists(m metricInfo) string {
 	switch {
-	case slices.Contains(deprecatedMetrics, m.subsystem) || slices.Contains(deprecatedMetrics, m.qualifiedName()):
-		return "DEPRECATED"
 	case slices.Contains(stableMetrics, m.subsystem) || slices.Contains(stableMetrics, m.qualifiedName()):
 		return "STABLE"
 	case slices.Contains(betaMetrics, m.subsystem) || slices.Contains(betaMetrics, m.qualifiedName()):
@@ -306,10 +301,9 @@ func main() {
 
 	// per-object status metrics are created at runtime from status.NewController[T]()
 	// and can't be read from a declaration; synthesize them from the registration
-	// sites (+ deprecated + client_go).
+	// sites (+ client_go).
 	statusObjects := parseStatusControllerObjects(allPackages)
 	allMetrics = append(allMetrics, perObjectStatusMetrics(statusObjects)...)
-	allMetrics = append(allMetrics, deprecatedStatusMetrics(statusObjects)...)
 	allMetrics = append(allMetrics, hardcodedMetrics()...)
 
 	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
@@ -651,39 +645,6 @@ func perObjectStatusMetrics(objects []statusObject) []metricInfo {
 				metricType:  t.metricType,
 			})
 		}
-	}
-	return out
-}
-
-// deprecated generic status/termination metrics (no object prefix), still emitted
-// under emitDeprecatedMetrics. They carry group/kind labels, so kind/type span every
-// registered object.
-func deprecatedStatusMetrics(objects []statusObject) []metricInfo {
-	allKinds := lo.Map(objects, func(o statusObject, _ int) valueInfo { return valueInfo{name: o.kind} })
-	var allTypes []valueInfo
-	for _, o := range objects {
-		allTypes = append(allTypes, conditionTypesByKind[o.kind]...)
-	}
-	// A condition type (e.g. ValidationSucceeded) can be set by more than one object;
-	// dedupe by name so the union lists each once.
-	allTypes = lo.UniqBy(allTypes, func(v valueInfo) string { return v.name })
-
-	var out []metricInfo
-	for _, t := range statusMetricTemplates() {
-		labelValues := map[string][]valueInfo{"kind": allKinds}
-		if slices.Contains(t.labels, "type") && len(allTypes) > 0 {
-			labelValues["type"] = allTypes
-		}
-		out = append(out, metricInfo{
-			namespace:   "operator",
-			subsystem:   t.subsystemSuffix,
-			name:        t.name,
-			help:        t.help,
-			labels:      slices.Concat(t.labels, []string{"group", "kind"}),
-			labelScope:  "operatorpkg",
-			labelValues: labelValues,
-			metricType:  t.metricType,
-		})
 	}
 	return out
 }
