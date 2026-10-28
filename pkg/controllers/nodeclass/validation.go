@@ -361,6 +361,9 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
+	if len(instanceTypes) == 0 {
+		return nil, reconcile.Result{}, fmt.Errorf("no compatible instance types found for nodeclass and its nodepools")
+	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	tenancyType := getTenancyType(nodePools)
 
