@@ -1232,15 +1232,22 @@ For high volume short-lived, stateless UDP transactions it may be preferable to 
 
 Configure [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) on the ENIs Karpenter
 provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface` type network
-interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings. Karpenter doesn't configure ENA
-Express on secondary ENIs created at runtime by your CNI (e.g. VPC-CNI, Cilium in ENI IPAM mode), so traffic from pods
-that use those ENIs doesn't use ENA Express.
+interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings.
+
+Only traffic sent and received through those ENIs uses ENA Express. Karpenter doesn't configure ENA Express on ENIs
+that your CNI attaches at runtime (e.g. VPC-CNI, Cilium in ENI IPAM mode), so whether a pod's traffic uses ENA Express
+depends on which ENI its IP address belongs to:
+
+* Pods using `hostNetwork`, and pods with IP addresses on the primary ENI, use ENA Express.
+* Pods with IP addresses on ENIs attached at runtime by the CNI don't use ENA Express, unless the CNI enables it on
+  those ENIs. For example, with VPC-CNI custom networking pods never get IP addresses on the primary ENI, so only
+  `hostNetwork` pods use ENA Express.
 
 ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase the maximum single flow bandwidth from 5 Gbps up to
 25 Gbps between instances in the same Region, and to reduce tail latency between instances in the same Availability
 Zone. Both the sending and receiving instances must have ENA Express enabled for traffic to use SRD; otherwise traffic
-falls back to standard ENA transmission. Traffic also falls back when the network path includes middleboxes. ENA Express
-traffic can't be sent in a Local Zone, and traffic between Availability Zones isn't supported in some Regions. See
+falls back to standard ENA transmission. Traffic also falls back when the network path includes middleboxes, and
+between a Local Zone and its parent Region. Traffic between Availability Zones isn't supported in some Regions. See
 [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for the full list of requirements.
 
 ```yaml
