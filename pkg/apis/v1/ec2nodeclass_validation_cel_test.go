@@ -233,6 +233,18 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("SubnetSelectorTerms", func() {
+		It("should fail when specifying id with tags in one of several terms", func() {
+			nc.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{"test": "testvalue"},
+				},
+				{
+					ID:   "subnet-12345749",
+					Tags: map[string]string{"test": "testvalue"},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should succeed with a valid subnet selector on tags", func() {
 			nc.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
@@ -331,6 +343,30 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("SecurityGroupSelectorTerms", func() {
+		It("should fail when specifying id with tags in one of several terms", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{"test": "testvalue"},
+				},
+				{
+					ID:   "sg-12345749",
+					Tags: map[string]string{"test": "testvalue"},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when specifying name with tags in one of several terms", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{"test": "testvalue"},
+				},
+				{
+					Name: "my-security-group",
+					Tags: map[string]string{"test": "testvalue"},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should succeed with a valid security group selector on tags", func() {
 			nc.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 				{
@@ -457,6 +493,18 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("CapacityReservationSelectorTerms", func() {
+		It("should fail when specifying id with tags in one of several terms", func() {
+			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
+				{
+					Tags: map[string]string{"test": "testvalue"},
+				},
+				{
+					ID:   "cr-12345749",
+					Tags: map[string]string{"test": "testvalue"},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should succeed with a valid capacity reservation selector on tags", func() {
 			nc.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{{
 				Tags: map[string]string{
