@@ -45,6 +45,7 @@ type OptionsFields struct {
 	SecurityGroupRefreshInterval *time.Duration
 	EnableZonalShift             *bool
 	FeatureGates                 FeatureGates
+	NodeKubernetesVersion        *string
 }
 
 func Options(overrides ...OptionsFields) *options.Options {
@@ -73,5 +74,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 			DRANVIDIAGPU: lo.FromPtrOr(opts.FeatureGates.DRANVIDIAGPU, false),
 			DRAEFA:       lo.FromPtrOr(opts.FeatureGates.DRAEFA, false),
 		},
+		NodeKubernetesVersion: lo.FromPtrOr(opts.NodeKubernetesVersion, ""),
 	}
 }
