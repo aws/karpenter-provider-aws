@@ -785,6 +785,51 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m6g"))
 			})
 		})
+		Context("No Compatible Instance Types", func() {
+			It("should return an error rather than panic when no instance types are compatible with the NodeClass AMI", func() {
+				// The NodeClass only resolves an x86_64 AMI
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+					Images: []ec2types.Image{
+						{
+							Name:         lo.ToPtr("amd64-ami"),
+							ImageId:      lo.ToPtr("amd64-ami-id"),
+							CreationDate: lo.ToPtr(time.Time{}.Format(time.RFC3339)),
+							Architecture: "x86_64",
+							State:        ec2types.ImageStateAvailable,
+						},
+					},
+				})
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "amd64-ami-id"}}
+
+				// The NodePool only allows arm64, so no instance type is compatible with both the NodePool and the AMI
+				nodePool := coretest.NodePool(karpv1.NodePool{Spec: karpv1.NodePoolSpec{Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{
+								Key:      corev1.LabelArchStable,
+								Operator: corev1.NodeSelectorOpIn,
+								Values:   []string{karpv1.ArchitectureArm64},
+							},
+						},
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
+						},
+					},
+				}}})
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+				Expect(err.Error()).To(ContainSubstring("no compatible instance types found for nodeclass and its nodepools"))
+
+				// The other sub-reconcilers still ran, so their status was persisted on the NodeClass
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsTrue()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeFalse())
+			})
+		})
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
