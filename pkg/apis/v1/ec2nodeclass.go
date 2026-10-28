@@ -577,8 +577,13 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
+	spec := in.Spec
+	// ENAExpress should be hashed using the setting it applies to EC2 rather than the literal value of the field.
+	// This ensures that scenarios such as setting enabled or udpEnabled to false explicitly, rather than leaving
+	// them unset, doesn't trigger drift.
+	spec.ENAExpress = in.Spec.ENAExpress.effective()
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
-		in.Spec,
+		spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
@@ -627,6 +632,18 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 
 func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
 	return in.Spec.ConnectionTracking
+}
+
+// effective returns the ENA Express setting applied to EC2, which is nil when ENA Express is disabled and has
+// UDPEnabled unset when UDP is disabled.
+func (in *ENAExpress) effective() *ENAExpress {
+	if in == nil || !in.Enabled {
+		return nil
+	}
+	if !lo.FromPtr(in.UDPEnabled) {
+		return &ENAExpress{Enabled: true}
+	}
+	return in
 }
 
 func (in *EC2NodeClass) ENAExpress() *ENAExpress {

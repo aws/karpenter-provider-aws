@@ -142,6 +142,20 @@ var _ = Describe("Hash", func() {
 		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
 		Expect(nodeClass.Hash(testCABundle)).ToNot(Equal(omittedHash))
 	})
+	DescribeTable("should match the omitted hash when ENA Express is explicitly disabled", func(enaExpress *v1.ENAExpress) {
+		omittedHash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.ENAExpress = enaExpress
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(omittedHash))
+	},
+		Entry("Enabled false", &v1.ENAExpress{Enabled: false}),
+		Entry("Enabled false and UDPEnabled false", &v1.ENAExpress{Enabled: false, UDPEnabled: lo.ToPtr(false)}),
+	)
+	It("should match the UDPEnabled unset hash when UDPEnabled is explicitly false", func() {
+		nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+		unsetHash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(false)}
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(unsetHash))
+	})
 	DescribeTable("should change hash when static fields are updated", func(changes v1.EC2NodeClass) {
 		hash := nodeClass.Hash(testCABundle)
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
