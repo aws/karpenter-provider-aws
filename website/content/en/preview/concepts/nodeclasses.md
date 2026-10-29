@@ -1300,7 +1300,7 @@ The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
 
 ### Sizing volumes per instance type with CEL
 
-An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000 and within the range supported by the device's `volumeType` (for example 1-16384 for `gp3`); fractional results are truncated.
+An EBS device's `volumeSize` may be a quantity or a [CEL](https://cel.dev) expression evaluated for each instance type that returns the volume size in GiB. Expressions require the `NodeClassCEL` feature gate. Available variables are `instance_type`, `vcpus`, `memory_mib`, `default_enis`, `ips_per_eni` and `max_pods`, plus the `min()` and `max()` functions. Results must be between 1 and 59000 and within the range supported by the device's `volumeType` (for example 1-16384 for `gp2`); fractional results are truncated.
 
 The same resolved size is used for the node's `ephemeral-storage` capacity and the launch template, so instance types resolving to different sizes get different launch templates.
 

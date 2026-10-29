@@ -407,6 +407,8 @@ var _ = Describe("CloudProvider", func() {
 			Entry("reboot-clearable XID past the fallback toleration", "NvidiaXID158Error", 31*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
 			Entry("reboot-clearable XID119", "NvidiaXID119Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
 			Entry("reboot-clearable XID120", "NvidiaXID120Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("unresponsive driver", "NvidiaDriverUnresponsive", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
+			Entry("Fabric Manager not started", "FabricManagerNotStarted", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
 			Entry("fatal XID", "NvidiaXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
 			Entry("fatal XID142", "NvidiaXID142Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
 			Entry("fatal XID151", "NvidiaXID151Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
@@ -424,6 +426,8 @@ var _ = Describe("CloudProvider", func() {
 				Expect(result.Fallback).To(Equal(fallback))
 			},
 			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.RebootNode, false),
+			Entry("unresponsive driver", "NvidiaDriverUnresponsive", corecloudprovider.RebootNode, false),
+			Entry("Fabric Manager not started", "FabricManagerNotStarted", corecloudprovider.RebootNode, false),
 			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.ReplaceNode, false),
 			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.ReplaceNode, true),
 			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.RepairAction(""), false),

@@ -75,13 +75,14 @@ func ResolveBlockDeviceMappings(ctx context.Context, celEnv *kubeletcel.CELEnvir
 	return resolved, nil
 }
 
-// volumeSizeLimitsGiB holds the supported volume size range, in GiB, of each EBS volume type. It mirrors the
-// limits documented on BlockDevice.VolumeSize.
+// volumeSizeLimitsGiB holds the supported volume size range, in GiB, of each EBS volume type. See
+// https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html. gp3 on Outposts is capped at 16 TiB, which
+// isn't distinguished here. Expressions are separately capped at kubeletcel.MaxVolumeSizeGiB.
 var volumeSizeLimitsGiB = map[string]struct{ min, max int64 }{
 	"gp2":      {1, 16384},
-	"gp3":      {1, 16384},
+	"gp3":      {1, 65536},
 	"io1":      {4, 16384},
-	"io2":      {4, 16384},
+	"io2":      {4, 65536},
 	"st1":      {125, 16384},
 	"sc1":      {125, 16384},
 	"standard": {1, 1024},

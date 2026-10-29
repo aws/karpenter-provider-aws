@@ -147,6 +147,10 @@ Karpenter records each scoring decision so you can see why an action was or wasn
 
 When a Deployment scales in, the ReplicaSet controller doesn't know which nodes Karpenter wants to consolidate. The alpha `PodDeletionCostManagement` feature gate lets Karpenter steer ReplicaSet scale-down toward those nodes. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
 
+#### VPA predictions
+
+When Karpenter moves pods that a Vertical Pod Autoscaler manages, VPA sets the recreated pods' requests to its recommendation. The alpha `PredictionEnabled` feature gate lets Karpenter use those recommendations, instead of the pods' current requests, when it decides whether the pods fit on other nodes and how large a replacement node should be. See [VPA Predictions]({{<ref "vpa-predictions.md" >}}).
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
@@ -271,6 +275,10 @@ Pods that stay on the node restart in place when it comes back, unless the kubel
 
 While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "./nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
+{{% /alert %}}
+
 Karpenter replaces the node if the reboot fails: if the cloud provider rejects the reboot with an error that retrying can't fix, such as a missing `ec2:RebootInstances` permission (immediately), if it keeps rejecting the reboot with other errors for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
 If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.
 
@@ -291,6 +299,8 @@ A policy matches the condition's reason with a [Go regular expression](https://p
 | `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `False` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
+| `AcceleratedHardwareReady` | `Unknown` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
 | `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
 | `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |

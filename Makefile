@@ -24,6 +24,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.nodeOverlay=true \
 			--set settings.featureGates.staticCapacity=true \
 			--set settings.featureGates.capacityBuffer=true \
+			--set settings.featureGates.predictionEnabled=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace

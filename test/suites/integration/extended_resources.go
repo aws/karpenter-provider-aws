@@ -12,11 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package integration
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/samber/lo"
@@ -40,325 +39,325 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-var _ = Describe("Extended Resources", func() {
-	BeforeEach(func() {
-		if env.PrivateCluster {
-			Skip("skipping Extended Resources test for private cluster")
-		}
+func registerExtendedResources() bool {
+	return Describe("Extended Resources", func() {
+		BeforeEach(func() {
+			if Env.PrivateCluster {
+				Skip("skipping Extended Resources test for private cluster")
+			}
+		})
+		It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
+			ExpectNvidiaDevicePluginCreated()
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"nvidia.com/gpu": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"nvidia.com/gpu": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			})
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			})
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
+			// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
+			NodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"nvidia.com/gpu": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"nvidia.com/gpu": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			})
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceFamily,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values:   []string{"g6f"},
+			})
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		It("should provision nodes for a deployment that requests aws.amazon.com/neuron", func() {
+			ExpectNeuronDevicePluginCreated()
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							// Only 1 is requested to avoid the use of the Neuron scheduler
+							// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
+							"aws.amazon.com/neuron": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"aws.amazon.com/neuron": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			})
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceGeneration,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
+			})
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		It("should provision nodes for a deployment that requests aws.amazon.com/neuroncore", func() {
+			ExpectNeuronDevicePluginCreated()
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							// Only 1 is requested to avoid the use of the Neuron scheduler
+							// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
+							"aws.amazon.com/neuroncore": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"aws.amazon.com/neuroncore": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			})
+			test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				Key:      v1.LabelInstanceGeneration,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{"2"},
+			})
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
+			Env.ExpectPodENIEnabled()
+			DeferCleanup(func() {
+				Env.ExpectPodENIDisabled()
+			})
+			Env.ExpectCreated(NodeClass) // Creating the nodeclass first to discover the security groups
+
+			// evenutally expect the status on the nodeclass to be hydrated
+			Eventually(func(g Gomega) {
+				NodeClass = Env.ExpectExists(NodeClass).(*v1.EC2NodeClass)
+				g.Expect(len(NodeClass.Status.SecurityGroups)).To(BeNumerically(">", 0))
+			}).Should(Succeed())
+			securityGroupIDs := lo.Map(NodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) string {
+				return sg.ID
+			})
+
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			sgp := &v1beta1.SecurityGroupPolicy{
+				ObjectMeta: test.NamespacedObjectMeta(),
+				Spec: v1beta1.SecurityGroupPolicySpec{
+					PodSelector: metav1.SetAsLabelSelector(dep.Spec.Selector.MatchLabels),
+					SecurityGroups: v1beta1.GroupIds{
+						Groups: securityGroupIDs,
+					},
+				},
+			}
+
+			Env.ExpectCreated(NodePool, dep, sgp)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		It("should provision nodes for a deployment that requests amd.com/gpu", func() {
+			Skip("skipping test on AMD instance types")
+			ExpectAMDDevicePluginCreated()
+
+			customAMI := Env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", Env.K8sVersion()))
+
+			// We create custom userData that installs the AMD Radeon driver and then performs the EKS bootstrap script
+			// We use a Custom AMI so that we can reboot after we start the kubelet service
+			NodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
+			NodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
+			NodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(amdDriverInput, Env.ClusterName,
+				Env.ClusterEndpoint, Env.ExpectCABundle(), NodePool.Name))
+
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"amd.com/gpu": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"amd.com/gpu": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Eventually(func(g Gomega) {
+				g.Expect(Env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+			}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+		// Need to subscribe to the AMI to run the test successfully
+		// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
+		It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
+			Skip("skipping test on an exotic instance type")
+			ExpectHabanaDevicePluginCreated()
+
+			NodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			NodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
+				{
+					ID: "ami-0fae925f94979981f",
+				},
+			}
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"habana.ai/gaudi": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"habana.ai/gaudi": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		})
+
+		DescribeTable("should provision nodes for a deployment that requests vpc.amazonaws.com/efa", func(networkInterfaces []*v1.NetworkInterface) {
+			Env.ExpectEFADevicePluginCreated()
+
+			NodePool.Spec.Template.Labels = map[string]string{
+				"aws.amazon.com/efa": "true",
+			}
+			NodePool.Spec.Template.Spec.Taints = []corev1.Taint{
+				{
+					Key:    "aws.amazon.com/efa",
+					Effect: corev1.TaintEffectNoSchedule,
+				},
+			}
+			// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
+			NodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+			NodeClass.Spec.NetworkInterfaces = networkInterfaces
+
+			numPods := 1
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "efa-app"},
+					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "aws.amazon.com/efa",
+							Operator: corev1.TolerationOpExists,
+						},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"vpc.amazonaws.com/efa": resource.MustParse("1"),
+						},
+						Limits: corev1.ResourceList{
+							"vpc.amazonaws.com/efa": resource.MustParse("1"),
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			Env.ExpectCreated(NodeClass, NodePool, dep)
+			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			Env.ExpectCreatedNodeCount("==", 1)
+			Env.EventuallyExpectInitializedNodeCount("==", 1)
+		},
+			Entry("with no Node Class network interface configurations", nil),
+			Entry("with Node Class network interface configurations", []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}))
 	})
-	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
-		ExpectNvidiaDevicePluginCreated()
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"nvidia.com/gpu": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"nvidia.com/gpu": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceCategory,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceFamily,
-			Operator: corev1.NodeSelectorOpNotIn,
-			Values:   []string{"g6f"},
-		})
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
-		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"nvidia.com/gpu": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"nvidia.com/gpu": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceCategory,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceFamily,
-			Operator: corev1.NodeSelectorOpNotIn,
-			Values:   []string{"g6f"},
-		})
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	It("should provision nodes for a deployment that requests aws.amazon.com/neuron", func() {
-		ExpectNeuronDevicePluginCreated()
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						// Only 1 is requested to avoid the use of the Neuron scheduler
-						// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
-						"aws.amazon.com/neuron": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"aws.amazon.com/neuron": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceCategory,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceGeneration,
-			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"2"},
-		})
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	It("should provision nodes for a deployment that requests aws.amazon.com/neuroncore", func() {
-		ExpectNeuronDevicePluginCreated()
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						// Only 1 is requested to avoid the use of the Neuron scheduler
-						// TODO: bryantbiggs@ add the ability to specify the scheduler name to test.PodOptions in order to use the Neuron scheduler
-						"aws.amazon.com/neuroncore": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"aws.amazon.com/neuroncore": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceCategory,
-			Operator: corev1.NodeSelectorOpExists,
-		})
-		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
-			Key:      v1.LabelInstanceGeneration,
-			Operator: corev1.NodeSelectorOpIn,
-			Values:   []string{"2"},
-		})
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
-		env.ExpectPodENIEnabled()
-		DeferCleanup(func() {
-			env.ExpectPodENIDisabled()
-		})
-		env.ExpectCreated(nodeClass) // Creating the nodeclass first to discover the security groups
-
-		// evenutally expect the status on the nodeclass to be hydrated
-		Eventually(func(g Gomega) {
-			nodeClass = env.ExpectExists(nodeClass).(*v1.EC2NodeClass)
-			g.Expect(len(nodeClass.Status.SecurityGroups)).To(BeNumerically(">", 0))
-		}).Should(Succeed())
-		securityGroupIDs := lo.Map(nodeClass.Status.SecurityGroups, func(sg v1.SecurityGroup, _ int) string {
-			return sg.ID
-		})
-
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		sgp := &v1beta1.SecurityGroupPolicy{
-			ObjectMeta: test.NamespacedObjectMeta(),
-			Spec: v1beta1.SecurityGroupPolicySpec{
-				PodSelector: metav1.SetAsLabelSelector(dep.Spec.Selector.MatchLabels),
-				SecurityGroups: v1beta1.GroupIds{
-					Groups: securityGroupIDs,
-				},
-			},
-		}
-
-		env.ExpectCreated(nodePool, dep, sgp)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	It("should provision nodes for a deployment that requests amd.com/gpu", func() {
-		Skip("skipping test on AMD instance types")
-		ExpectAMDDevicePluginCreated()
-
-		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
-
-		// We create custom userData that installs the AMD Radeon driver and then performs the EKS bootstrap script
-		// We use a Custom AMI so that we can reboot after we start the kubelet service
-		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
-		Expect(err).ToNot(HaveOccurred())
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
-		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
-			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))
-
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"amd.com/gpu": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"amd.com/gpu": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		Eventually(func(g Gomega) {
-			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
-		}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-	// Need to subscribe to the AMI to run the test successfully
-	// https://aws.amazon.com/marketplace/pp/prodview-st5jc2rk3phr2?sr=0-2&ref_=beagle&applicationId=AWSMPContessa
-	It("should provision nodes for a deployment that requests habana.ai/gaudi", func() {
-		Skip("skipping test on an exotic instance type")
-		ExpectHabanaDevicePluginCreated()
-
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-			{
-				ID: "ami-0fae925f94979981f",
-			},
-		}
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"habana.ai/gaudi": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"habana.ai/gaudi": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	})
-
-	DescribeTable("should provision nodes for a deployment that requests vpc.amazonaws.com/efa", func(networkInterfaces []*v1.NetworkInterface) {
-		env.ExpectEFADevicePluginCreated()
-
-		nodePool.Spec.Template.Labels = map[string]string{
-			"aws.amazon.com/efa": "true",
-		}
-		nodePool.Spec.Template.Spec.Taints = []corev1.Taint{
-			{
-				Key:    "aws.amazon.com/efa",
-				Effect: corev1.TaintEffectNoSchedule,
-			},
-		}
-		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
-		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
-		nodeClass.Spec.NetworkInterfaces = networkInterfaces
-
-		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "efa-app"},
-				},
-				Tolerations: []corev1.Toleration{
-					{
-						Key:      "aws.amazon.com/efa",
-						Operator: corev1.TolerationOpExists,
-					},
-				},
-				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("1"),
-					},
-					Limits: corev1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("1"),
-					},
-				},
-			},
-		})
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(nodeClass, nodePool, dep)
-		env.EventuallyExpectHealthyPodCount(selector, numPods)
-		env.ExpectCreatedNodeCount("==", 1)
-		env.EventuallyExpectInitializedNodeCount("==", 1)
-	},
-		Entry("with no Node Class network interface configurations", nil),
-		Entry("with Node Class network interface configurations", []*v1.NetworkInterface{
-			{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
-			{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
-		}))
-})
+}
 
 func ExpectNvidiaDevicePluginCreated() {
 	GinkgoHelper()
-	env.ExpectCreated(&appsv1.DaemonSet{
+	Env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "nvidia-device-plugin-daemonset",
 			Namespace: "kube-system",
@@ -439,7 +438,7 @@ func ExpectNeuronDevicePluginCreated() {
 
 	neuronDevicePlugin := "neuron-device-plugin"
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: neuronDevicePlugin,
 		},
@@ -479,7 +478,7 @@ func ExpectNeuronDevicePluginCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: neuronDevicePlugin,
 		},
@@ -497,14 +496,14 @@ func ExpectNeuronDevicePluginCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+	Env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      neuronDevicePlugin,
 			Namespace: "kube-system",
 		},
 	})
 
-	env.ExpectCreated(&appsv1.DaemonSet{
+	Env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      neuronDevicePlugin,
 			Namespace: "kube-system",
@@ -600,14 +599,14 @@ func ExpectK8sNeuronSchedulerCreated() {
 
 	k8sNeuronScheduler := "k8s-neuron-scheduler"
 
-	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+	Env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      k8sNeuronScheduler,
 			Namespace: "kube-system",
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: k8sNeuronScheduler,
 		},
@@ -640,7 +639,7 @@ func ExpectK8sNeuronSchedulerCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: k8sNeuronScheduler,
 		},
@@ -658,7 +657,7 @@ func ExpectK8sNeuronSchedulerCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&corev1.Service{
+	Env.ExpectCreatedOrUpdated(&corev1.Service{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      k8sNeuronScheduler,
 			Namespace: "kube-system",
@@ -679,7 +678,7 @@ func ExpectK8sNeuronSchedulerCreated() {
 
 	replicas := int32(1)
 
-	env.ExpectCreatedOrUpdated(&appsv1.Deployment{
+	Env.ExpectCreatedOrUpdated(&appsv1.Deployment{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      k8sNeuronScheduler,
 			Namespace: "kube-system",
@@ -744,14 +743,14 @@ func ExpectNeuronSchedulerExtensionCreated() {
 
 	neuronSchedulerExtension := "neuron-scheduler-ext"
 
-	env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
+	Env.ExpectCreatedOrUpdated(&corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      neuronSchedulerExtension,
 			Namespace: "kube-system",
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: neuronSchedulerExtension,
 		},
@@ -769,7 +768,7 @@ func ExpectNeuronSchedulerExtensionCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-kube-scheduler", neuronSchedulerExtension),
 		},
@@ -786,7 +785,7 @@ func ExpectNeuronSchedulerExtensionCreated() {
 			Name:     "system:kube-scheduler",
 		},
 	})
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-volume-scheduler", neuronSchedulerExtension),
 		},
@@ -803,7 +802,7 @@ func ExpectNeuronSchedulerExtensionCreated() {
 			Name:     "system:volume-scheduler",
 		},
 	})
-	env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
+	Env.ExpectCreatedOrUpdated(&rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: neuronSchedulerExtension,
 		},
@@ -821,7 +820,7 @@ func ExpectNeuronSchedulerExtensionCreated() {
 		},
 	})
 
-	env.ExpectCreatedOrUpdated(&corev1.ConfigMap{
+	Env.ExpectCreatedOrUpdated(&corev1.ConfigMap{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-config", neuronSchedulerExtension),
 			Namespace: "kube-system",
@@ -854,7 +853,7 @@ leaderElection:
 
 	replicas := int32(1)
 
-	env.ExpectCreatedOrUpdated(&appsv1.Deployment{
+	Env.ExpectCreatedOrUpdated(&appsv1.Deployment{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      neuronSchedulerExtension,
 			Namespace: "kube-system",
@@ -889,7 +888,7 @@ leaderElection:
 							Name:    neuronSchedulerExtension,
 							Args:    []string{fmt.Sprintf("--config=/etc/kubernetes/%[1]v/%[1]v-config.yaml", neuronSchedulerExtension), "--leader-elect=true", "--v=2"},
 							Command: []string{"/usr/local/bin/kube-scheduler"},
-							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%v.0-eks-1-%v-", env.K8sMinorVersion(), env.K8sMinorVersion()) + lo.Ternary(env.K8sMinorVersion() >= 35, "2", "latest"),
+							Image:   fmt.Sprintf("public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.%v.0-eks-1-%v-", Env.K8sMinorVersion(), Env.K8sMinorVersion()) + lo.Ternary(Env.K8sMinorVersion() >= 35, "2", "latest"),
 							LivenessProbe: &corev1.Probe{
 								InitialDelaySeconds: 15,
 								ProbeHandler: corev1.ProbeHandler{
@@ -943,7 +942,7 @@ leaderElection:
 
 func ExpectAMDDevicePluginCreated() {
 	GinkgoHelper()
-	env.ExpectCreated(&appsv1.DaemonSet{
+	Env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "amdgpu-device-plugin-daemonset",
 			Namespace: "kube-system",
@@ -1017,12 +1016,12 @@ func ExpectAMDDevicePluginCreated() {
 
 func ExpectHabanaDevicePluginCreated() {
 	GinkgoHelper()
-	env.ExpectCreated(&corev1.Namespace{
+	Env.ExpectCreated(&corev1.Namespace{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name: "habana-system",
 		}),
 	})
-	env.ExpectCreated(&appsv1.DaemonSet{
+	Env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "habanalabs-device-plugin-daemonset",
 			Namespace: "habana-system",
