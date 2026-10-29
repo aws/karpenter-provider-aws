@@ -45,6 +45,10 @@ type Provider interface {
 	InstanceTypes() []ec2types.InstanceType
 	OnDemandPrice(ec2types.InstanceType) (float64, bool)
 	SpotPrice(ec2types.InstanceType, string) (float64, bool)
+	// SupportsWindows reports whether the given instance type supports Windows,
+	// as determined by the presence of Windows pricing in the EC2 Pricing API.
+	// Before the first successful pricing update, this returns true (permissive default).
+	SupportsWindows(ec2types.InstanceType) bool
 	UpdateOnDemandPricing(context.Context) error
 	UpdateSpotPricing(context.Context) error
 }
@@ -78,6 +82,10 @@ type DefaultProvider struct {
 	muSpot             sync.RWMutex
 	spotPrices         map[ec2types.InstanceType]zonal
 	spotPricingUpdated bool
+
+	muWindows              sync.RWMutex
+	windowsInstanceTypes   map[ec2types.InstanceType]struct{}
+	windowsPricingResolved bool
 }
 
 // zonalPricing is used to capture the per-zone price
@@ -165,6 +173,20 @@ func (p *DefaultProvider) OnDemandPrice(instanceType ec2types.InstanceType) (flo
 	return price, true
 }
 
+// SupportsWindows reports whether the given instance type supports Windows,
+// as determined by the presence of Windows pricing in the EC2 Pricing API.
+// Before the first successful pricing update, this returns true (permissive default)
+// so that no instance types are incorrectly filtered before runtime data is available.
+func (p *DefaultProvider) SupportsWindows(instanceType ec2types.InstanceType) bool {
+	p.muWindows.RLock()
+	defer p.muWindows.RUnlock()
+	if !p.windowsPricingResolved {
+		return true
+	}
+	_, ok := p.windowsInstanceTypes[instanceType]
+	return ok
+}
+
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
 // if there is no known spot pricing for that instance type or zone
 func (p *DefaultProvider) SpotPrice(instanceType ec2types.InstanceType, zone string) (float64, bool) {
@@ -186,7 +208,8 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	// standard on-demand instances
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[ec2types.InstanceType]float64
-	var onDemandErr, onDemandMetalErr error
+	var windowsTypes map[ec2types.InstanceType]struct{}
+	var onDemandErr, onDemandMetalErr, windowsErr error
 
 	// if we are in isolated vpc, skip updating on demand pricing
 	// as pricing api may not be available
@@ -236,6 +259,12 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 			})
 	})
 
+	// Discover which instance types support Windows by querying for Windows pricing.
+	// Instance types that appear in the Windows pricing results are Windows-compatible.
+	wg.Go(func() {
+		windowsTypes, windowsErr = p.fetchWindowsInstanceTypes(ctx)
+	})
+
 	wg.Wait()
 
 	err := multierr.Append(onDemandErr, onDemandMetalErr)
@@ -251,6 +280,20 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	p.onDemandPrices = lo.Assign(p.onDemandPrices, onDemandPrices, onDemandMetalPrices)
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
 		log.FromContext(ctx).WithValues("instance-type-count", len(p.onDemandPrices)).V(1).Info("updated on-demand pricing")
+	}
+
+	// Update Windows-supported instance types. A failure here is non-fatal — the permissive
+	// default (all types considered compatible) remains until the next successful update.
+	if windowsErr != nil {
+		log.FromContext(ctx).V(1).Info("unable to determine Windows-compatible instance types from pricing data", "error", windowsErr)
+	} else if len(windowsTypes) > 0 {
+		p.muWindows.Lock()
+		p.windowsInstanceTypes = windowsTypes
+		p.windowsPricingResolved = true
+		p.muWindows.Unlock()
+		if p.cm.HasChanged("windows-instance-types", windowsTypes) {
+			log.FromContext(ctx).WithValues("instance-type-count", len(windowsTypes)).V(1).Info("updated Windows-compatible instance types")
+		}
 	}
 	return nil
 }
@@ -308,6 +351,71 @@ func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 	}
 
 	return prices, nil
+}
+
+// fetchWindowsInstanceTypes queries the EC2 Pricing API for Windows on-demand pricing
+// and returns the set of instance types that have Windows pricing entries. This is used
+// to determine Windows compatibility at runtime rather than relying on a hardcoded list.
+func (p *DefaultProvider) fetchWindowsInstanceTypes(ctx context.Context) (map[ec2types.InstanceType]struct{}, error) {
+	result := map[ec2types.InstanceType]struct{}{}
+	filters := []pricingtypes.Filter{
+		{
+			Field: aws.String("regionCode"),
+			Type:  "TERM_MATCH",
+			Value: aws.String(p.region),
+		},
+		{
+			Field: aws.String("serviceCode"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("AmazonEC2"),
+		},
+		{
+			Field: aws.String("preInstalledSw"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("NA"),
+		},
+		{
+			Field: aws.String("operatingSystem"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Windows"),
+		},
+		{
+			Field: aws.String("capacitystatus"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Used"),
+		},
+		{
+			Field: aws.String("marketoption"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("OnDemand"),
+		},
+		{
+			Field: aws.String("tenancy"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Shared"),
+		},
+		{
+			Field: aws.String("productFamily"),
+			Type:  "TERM_MATCH",
+			Value: aws.String("Compute Instance"),
+		},
+	}
+	input := &pricing.GetProductsInput{
+		Filters:     filters,
+		ServiceCode: aws.String("AmazonEC2"),
+		MaxResults:  lo.ToPtr[int32](100),
+	}
+	paginator := pricing.NewGetProductsPaginator(p.pricing, input)
+	for paginator.HasMorePages() {
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("getting Windows pricing data, %w", err)
+		}
+		for it := range p.onDemandPage(ctx, output) {
+			result[it] = struct{}{}
+		}
+	}
+	return result, nil
 }
 
 func (p *DefaultProvider) spotPage(ctx context.Context, output *ec2.DescribeSpotPriceHistoryOutput) map[ec2types.InstanceType]zonal {
@@ -435,9 +543,11 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	// ensure we don't deadlock and nolint for the empty critical section
 	p.muOnDemand.Lock()
 	p.muSpot.Lock()
+	p.muWindows.Lock()
 	//nolint: staticcheck
 	p.muOnDemand.Unlock()
 	p.muSpot.Unlock()
+	p.muWindows.Unlock()
 	return nil
 }
 
@@ -461,4 +571,6 @@ func (p *DefaultProvider) Reset() {
 	// default our spot pricing to the same as the on-demand pricing until a price update
 	p.spotPrices = populateInitialSpotPricing(staticPricing)
 	p.spotPricingUpdated = false
+	p.windowsInstanceTypes = nil
+	p.windowsPricingResolved = false
 }
