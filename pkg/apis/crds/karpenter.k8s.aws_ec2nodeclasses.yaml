@@ -174,10 +174,10 @@ spec:
 
                                  * io1: 100-64,000 IOPS
 
-                                 * io2: 100-64,000 IOPS
+                                 * io2: 100-256,000 IOPS
 
-                              For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
-                              on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+                              For io1 volumes, we guarantee 64,000 IOPS and for io2 volumes 256,000 IOPS only
+                              for Instances built on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
                               Other instance families guarantee performance up to 32,000 IOPS.
 
                               This parameter is supported for io1, io2, and gp3 volumes only. This parameter
@@ -217,12 +217,14 @@ spec:
 
                                  * gp3: 1-65,536
 
-                                 * io1 and io2: 4-16,384
+                                 * io1: 4-16,384
+
+                                 * io2: 4-65,536
 
                                  * st1 and sc1: 125-16,384
 
                                  * standard: 1-1,024
-                            pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
+                            pattern: ^((?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-6])Gi|(?:[1-9][0-9]{0,3}|[1-6][0-9]{4}|70[0-2][0-9]{2}|703[0-5][0-9]|7036[0-8])G|(?:[1-9]|[1-5][0-9]|6[0-4])Ti|(?:[1-9]|[1-6][0-9]|70)T)$
                             type: string
                           volumeType:
                             description: |-
