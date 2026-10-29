@@ -168,6 +168,11 @@ type EC2NodeClassSpec struct {
 	// +optional
 	ConnectionTracking *ConnectionTracking `json:"connectionTracking,omitempty"`
 
+	// ENAExpress configures ENA Express for ENIs Karpenter provisions in the
+	// launch template. EFA-only interfaces are excluded. See ENAExpress.
+	// +optional
+	ENAExpress *ENAExpress `json:"enaExpress,omitempty"`
+
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -387,6 +392,27 @@ type ConnectionTracking struct {
 	UDPTimeout *int32 `json:"udpTimeout,omitempty"`
 }
 
+// ENAExpress configures ENA Express on ENIs provisioned by Karpenter in the
+// launch template: the primary ENI, any EFA ENIs, and user-configured
+// "interface" type network interfaces. EFA-only interfaces are excluded.
+// Secondary ENIs created at runtime by the CNI are out of scope.
+// ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase single
+// flow bandwidth and reduce tail latency between supported instances. When
+// enabled, instance types are restricted to those that support ENA Express
+// (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html).
+// Both sending and receiving instances must have ENA Express enabled for
+// traffic to use SRD; otherwise traffic falls back to standard ENA transmission.
+// +kubebuilder:validation:XValidation:message="udpEnabled requires enabled to be true",rule="!has(self.udpEnabled) || !self.udpEnabled || self.enabled"
+type ENAExpress struct {
+	// Enabled indicates whether TCP traffic uses ENA Express.
+	// +required
+	Enabled bool `json:"enabled"`
+	// UDPEnabled indicates whether UDP traffic also uses ENA Express.
+	// Requires enabled to be true.
+	// +optional
+	UDPEnabled *bool `json:"udpEnabled,omitempty"`
+}
+
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
 	// +optional
@@ -551,8 +577,13 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
+	spec := in.Spec
+	// ENAExpress should be hashed using the setting it applies to EC2 rather than the literal value of the field.
+	// This ensures that scenarios such as setting enabled or udpEnabled to false explicitly, rather than leaving
+	// them unset, doesn't trigger drift.
+	spec.ENAExpress = in.Spec.ENAExpress.effective()
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
-		in.Spec,
+		spec,
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
@@ -601,6 +632,22 @@ func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {
 
 func (in *EC2NodeClass) ConnectionTracking() *ConnectionTracking {
 	return in.Spec.ConnectionTracking
+}
+
+// effective returns the ENA Express setting applied to EC2, which is nil when ENA Express is disabled and has
+// UDPEnabled unset when UDP is disabled.
+func (in *ENAExpress) effective() *ENAExpress {
+	if in == nil || !in.Enabled {
+		return nil
+	}
+	if !lo.FromPtr(in.UDPEnabled) {
+		return &ENAExpress{Enabled: true}
+	}
+	return in
+}
+
+func (in *EC2NodeClass) ENAExpress() *ENAExpress {
+	return in.Spec.ENAExpress
 }
 
 func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {

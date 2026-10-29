@@ -110,6 +110,8 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", "13743705849402595405", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", "17941926745862994490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", "6157846767212910604", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("ENAExpress Enabled", "13875994204566548447", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ENAExpress: &v1.ENAExpress{Enabled: true}}}),
+		Entry("ENAExpress UDPEnabled", "12104192569623977394", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ENAExpress: &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
@@ -139,6 +141,20 @@ var _ = Describe("Hash", func() {
 		omittedHash := nodeClass.Hash(testCABundle)
 		nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
 		Expect(nodeClass.Hash(testCABundle)).ToNot(Equal(omittedHash))
+	})
+	DescribeTable("should match the omitted hash when ENA Express is explicitly disabled", func(enaExpress *v1.ENAExpress) {
+		omittedHash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.ENAExpress = enaExpress
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(omittedHash))
+	},
+		Entry("Enabled false", &v1.ENAExpress{Enabled: false}),
+		Entry("Enabled false and UDPEnabled false", &v1.ENAExpress{Enabled: false, UDPEnabled: lo.ToPtr(false)}),
+	)
+	It("should match the UDPEnabled unset hash when UDPEnabled is explicitly false", func() {
+		nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+		unsetHash := nodeClass.Hash(testCABundle)
+		nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(false)}
+		Expect(nodeClass.Hash(testCABundle)).To(Equal(unsetHash))
 	})
 	DescribeTable("should change hash when static fields are updated", func(changes v1.EC2NodeClass) {
 		hash := nodeClass.Hash(testCABundle)
@@ -170,6 +186,8 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("ENAExpress Enabled", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ENAExpress: &v1.ENAExpress{Enabled: true}}}),
+		Entry("ENAExpress UDPEnabled", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ENAExpress: &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}}}),
 	)
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity

@@ -146,6 +146,13 @@ spec:
     # Optional, configures timeout (in seconds) for idle unidirectional or single-transaction UDP flows.
     udpTimeout: 45
 
+  # Optional, configures ENA Express on ENIs.
+  # Restricts instance types to those that support ENA Express when enabled.
+  enaExpress:
+    enabled: true
+    # Optional, also uses ENA Express for UDP traffic. Requires enabled to be true.
+    udpEnabled: true
+
   # Optional, configures storage devices for the instance
   blockDeviceMappings:
     - deviceName: /dev/xvda
@@ -1220,6 +1227,48 @@ Use a lower timeout to reclaim slots for true streaming traffic that stalls freq
 Timeout for idle UDP flows that have seen traffic only in a single direction or a single request-response transaction.
 Value must be between 30 and 60 seconds. AWS API defaults to 30 seconds.
 For high volume short-lived, stateless UDP transactions it may be preferable to use a lower timeout.
+
+## spec.enaExpress
+
+Configure [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) on the ENIs Karpenter
+provisions in the launch template: the primary ENI, any EFA ENIs, and user-configured `interface` type network
+interfaces. EFA-only (`efa-only`) interfaces do not receive ENA Express settings.
+
+Only traffic sent and received through those ENIs uses ENA Express. Karpenter doesn't configure ENA Express on ENIs
+that your CNI attaches at runtime (e.g. VPC-CNI, Cilium in ENI IPAM mode), so whether a pod's traffic uses ENA Express
+depends on which ENI its IP address belongs to:
+
+* Pods using `hostNetwork`, and pods with IP addresses on the primary ENI, use ENA Express.
+* Pods with IP addresses on ENIs attached at runtime by the CNI don't use ENA Express, unless the CNI enables it on
+  those ENIs. For example, with VPC-CNI custom networking pods never get IP addresses on the primary ENI, so only
+  `hostNetwork` pods use ENA Express.
+
+ENA Express uses AWS Scalable Reliable Datagram (SRD) to increase the maximum single flow bandwidth from 5 Gbps up to
+25 Gbps between instances in the same Region, and to reduce tail latency between instances in the same Availability
+Zone. Both the sending and receiving instances must have ENA Express enabled for traffic to use SRD; otherwise traffic
+falls back to standard ENA transmission. Traffic also falls back when the network path includes middleboxes, and
+between a Local Zone and its parent Region. Traffic between Availability Zones isn't supported in some Regions. See
+[ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for the full list of requirements.
+
+```yaml
+spec:
+  enaExpress:
+    enabled: true
+    udpEnabled: true
+```
+
+* `enabled` (required): Uses ENA Express for TCP traffic.
+* `udpEnabled` (optional): Also uses ENA Express for UDP traffic. Requires `enabled` to be `true`.
+
+{{% alert title="Note" color="primary" %}}
+ENA Express is only supported on [specific instance types](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html). When `enabled` is `true`, Karpenter automatically excludes instance types that don't support ENA Express from consideration.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+ENA Express requires a lower MTU than the default to accommodate SRD headers. New TCP connections automatically clamp
+the MSS, but UDP traffic still requires a lower MTU, so lower the node's MTU (e.g. through `userData`) when `udpEnabled`
+is `true`. See [ENA Express](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ena-express.html) for tuning guidance on Linux instances.
+{{% /alert %}}
 
 ## spec.blockDeviceMappings
 

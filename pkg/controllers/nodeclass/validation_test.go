@@ -784,6 +784,45 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m5"))
 				Expect(string(runInstancesInput.InstanceType)).ToNot(HavePrefix("m6g"))
 			})
+			It("should succeed validation using an ENA Express compatible instance type with no NodePools", func() {
+				// The generated test data predates EnaSrdSupported. Mark a single fake instance type as supported so
+				// validation can't fall back to the static m5 / m6g instance types.
+				out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+				Expect(err).ToNot(HaveOccurred())
+				// The fake shares NetworkInfo with the default test data, so copy it rather than mutating it in place.
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: lo.Map(out.InstanceTypes, func(info ec2types.InstanceTypeInfo, _ int) ec2types.InstanceTypeInfo {
+						networkInfo := lo.FromPtr(info.NetworkInfo)
+						networkInfo.EnaSrdSupported = lo.ToPtr(info.InstanceType == "m6idn.32xlarge")
+						info.NetworkInfo = &networkInfo
+						return info
+					}),
+				})
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+				nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+
+				runInstancesInput := awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Pop()
+				Expect(string(runInstancesInput.InstanceType)).To(Equal("m6idn.32xlarge"))
+			})
+			It("should fail validation when no instance types are compatible with the NodeClass", func() {
+				// None of the fake instance types advertise EnaSrdSupported, so enabling ENA Express leaves no instance types.
+				nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsFalse()).To(BeTrue())
+				Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).Reason).To(Equal(nodeclass.ConditionReasonNoCompatibleInstanceTypes))
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(Equal(0))
+				Expect(awsEnv.EC2API.RunInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+			})
 		})
 		Context("Instance Type Prioritization Validation", func() {
 			BeforeEach(func() {
