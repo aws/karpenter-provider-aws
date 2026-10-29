@@ -1048,6 +1048,29 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
+		DescribeTable("should validate VolumeSize against the 64Ti gp3 maximum",
+			func(size string, valid bool) {
+				nc.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+					DeviceName: aws.String("map-device-1"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse(size))},
+				}}
+				if valid {
+					Expect(env.Client.Create(ctx, nc)).To(Succeed())
+				} else {
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				}
+			},
+			Entry("18Ti", "18Ti", true),
+			Entry("59Ti", "59Ti", true),
+			Entry("64Ti", "64Ti", true),
+			Entry("65535Gi", "65535Gi", true),
+			Entry("70368G", "70368G", true),
+			Entry("70T", "70T", true),
+			Entry("65Ti", "65Ti", false),
+			Entry("65537Gi", "65537Gi", false),
+			Entry("70369G", "70369G", false),
+			Entry("71T", "71T", false),
+		)
 		It("should fail for VolumeSize that do not parse into quantity values", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
