@@ -1398,4 +1398,38 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
 	})
+
+	Context("NetworkPerformanceOptions", func() {
+		It("should succeed with bandwidthWeighting vpc-1", func() {
+			nc.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: aws.String("vpc-1"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with bandwidthWeighting ebs-1", func() {
+			nc.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: aws.String("ebs-1"),
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with bandwidthWeighting default", func() {
+			// `default` is intentionally not in the enum: unset already produces default
+			// behavior, and EC2 accepts an explicit default on every instance type, so it
+			// would carry no filtering semantics.
+			nc.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: aws.String("default"),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with invalid bandwidthWeighting value", func() {
+			nc.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{
+				BandwidthWeighting: aws.String("invalid"),
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should succeed with empty NetworkPerformanceOptions", func() {
+			nc.Spec.NetworkPerformanceOptions = &v1.NetworkPerformanceOptions{}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+	})
 })

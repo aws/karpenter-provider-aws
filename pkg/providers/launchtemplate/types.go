@@ -108,8 +108,9 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 	lt := &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: lo.ToPtr(LaunchTemplateName(b.options)),
 		LaunchTemplateData: &ec2types.RequestLaunchTemplateData{
-			BlockDeviceMappings: blockDeviceMappings(b.options.BlockDeviceMappings),
-			CpuOptions:          cpuOptions(b.options.CPUOptions),
+			BlockDeviceMappings:       blockDeviceMappings(b.options.BlockDeviceMappings),
+			CpuOptions:                cpuOptions(b.options.CPUOptions),
+			NetworkPerformanceOptions: networkPerformanceOptions(b.options.NetworkPerformanceOptions),
 			IamInstanceProfile: &ec2types.LaunchTemplateIamInstanceProfileSpecificationRequest{
 				Name: lo.ToPtr(b.options.InstanceProfile),
 			},
