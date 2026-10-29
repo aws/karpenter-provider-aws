@@ -418,7 +418,7 @@ type BlockDevice struct {
 	//
 	// The following are the supported values for each volume type:
 	//
-	//    * gp3: 3,000-16,000 IOPS
+	//    * gp3: 3,000-80,000 IOPS
 	//
 	//    * io1: 100-64,000 IOPS
 	//
@@ -438,8 +438,8 @@ type BlockDevice struct {
 	// SnapshotID is the ID of an EBS snapshot
 	// +optional
 	SnapshotID *string `json:"snapshotID,omitempty"`
-	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
-	// Valid Range: Minimum value of 125. Maximum value of 1000.
+	// Throughput to provision for a gp3 volume, with a maximum of 2,000 MiB/s.
+	// Valid Range: Minimum value of 125. Maximum value of 2000.
 	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
 	// VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
@@ -455,7 +455,9 @@ type BlockDevice struct {
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
 	//
-	//    * gp2 and gp3: 1-16,384
+	//    * gp2: 1-16,384
+	//
+	//    * gp3: 1-65,536
 	//
 	//    * io1 and io2: 4-16,384
 	//
