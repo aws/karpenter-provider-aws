@@ -209,8 +209,11 @@ spec:
                             type: integer
                           volumeSize:
                             description: |-
-                              VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
-                              a volume size. The following are the supported volumes sizes for each volume
+                              VolumeSize is a quantity in `Gi`, `G`, `Ti`, or `T`, or a CEL expression evaluated per instance type
+                              to compute the volume size. Expressions may reference instance_type, vcpus, memory_mib, default_enis,
+                              ips_per_eni, and max_pods, and require the NodeClassCEL feature gate. Numeric expression results are
+                              interpreted as GiB, truncated to a whole number, and must be between 1 and 59000. You must specify
+                              either a snapshot ID or a volume size. The following are the supported volume sizes for each volume
                               type:
 
                                  * gp2 and gp3: 1-16,384
@@ -220,8 +223,11 @@ spec:
                                  * st1 and sc1: 125-16,384
 
                                  * standard: 1-1,024
-                            pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
+                            maxLength: 512
                             type: string
+                            x-kubernetes-validations:
+                              - message: volumeSize must be a quantity in Gi, G, Ti, or T, or a CEL expression referencing an instance type variable
+                                rule: self.matches('^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|5[0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-3][0-9]{3}|64000)G|([1-9]|[1-4][0-9]|5[0-8])Ti|([1-9]|[1-5][0-9]|6[0-4])T)$') || self.matches('instance_type|vcpus|memory_mib|default_enis|ips_per_eni|max_pods')
                           volumeType:
                             description: |-
                               VolumeType of the block device.

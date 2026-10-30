@@ -278,7 +278,7 @@ func RegisterTests() bool {
 				{
 					DeviceName: awssdk.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resources.Quantity("20Gi"),
+						VolumeSize: awssdk.String("20Gi"),
 						VolumeType: awssdk.String("gp3"),
 						Encrypted:  awssdk.Bool(true),
 					},
@@ -437,7 +437,7 @@ func RegisterTests() bool {
 				{
 					DeviceName: awssdk.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize: resources.Quantity("20Gi"),
+						VolumeSize: awssdk.String("20Gi"),
 						VolumeType: awssdk.String("gp3"),
 						Encrypted:  awssdk.Bool(true),
 					},
@@ -448,7 +448,7 @@ func RegisterTests() bool {
 			nodeClaim := Env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 			node := Env.ExpectCreatedNodeCount("==", 1)[0]
 
-			NodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resources.Quantity("100Gi")
+			NodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = awssdk.String("100Gi")
 			Env.ExpectCreatedOrUpdated(NodeClass)
 
 			By("validating the drifted status condition has propagated")

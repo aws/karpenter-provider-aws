@@ -324,6 +324,36 @@ func registerKubeletConfig() bool {
 			Entry("2 vCPUs", int32(2)),
 			Entry("4 vCPUs", int32(4)),
 		)
+		DescribeTable("should size EBS volumes per instance type with a volumeSize CEL expression",
+			func(vcpus int32, expectedSize int32) {
+				// Requires the NodeClassCEL gate, which the e2e install enables via
+				// test/hack/e2e_scripts/install_karpenter.sh.
+				test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
+					Key:      v1.LabelInstanceCPU,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{fmt.Sprintf("%d", vcpus)},
+				})
+				NodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+					DeviceName: lo.ToPtr("/dev/xvda"),
+					RootVolume: true,
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr("vcpus * 10"),
+						VolumeType: lo.ToPtr("gp3"),
+					},
+				}}
+				pod := test.Pod()
+				Env.ExpectCreated(NodeClass, NodePool, pod)
+				Env.EventuallyExpectHealthy(pod)
+				Env.ExpectCreatedNodeCount("==", 1)
+
+				instance := Env.GetInstance(pod.Spec.NodeName)
+				Expect(instance.BlockDeviceMappings).To(HaveLen(1))
+				volume := Env.GetVolume(lo.FromPtr(instance.BlockDeviceMappings[0].Ebs.VolumeId))
+				Expect(volume.Size).To(HaveValue(Equal(expectedSize)))
+			},
+			Entry("2 vCPUs", int32(2), int32(20)),
+			Entry("4 vCPUs", int32(4), int32(40)),
+		)
 		It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 			// PodsPerCore needs to account for the daemonsets that will run on the nodes
 			// This will have 4 pods available on each node (2 taken by daemonset pods)
