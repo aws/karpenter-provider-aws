@@ -3955,10 +3955,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
 			}))
-			// 16384 GiB is the gp2 cap; a large instance type's vcpus * 400 exceeds it while m5.large's 800 does not.
+			// 16384 GiB is the gp2 cap. vcpus * 100 only exceeds it on the largest instance types (e.g. p5.48xlarge's 192 vCPUs),
+			// and stays under the 59000 GiB expression cap on every type, so the volume type's limit is what's hit regardless of
+			// the order instance types are validated in.
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
 				DeviceName: lo.ToPtr("/dev/xvda"),
-				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 400"), VolumeType: lo.ToPtr("gp2")},
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 100"), VolumeType: lo.ToPtr("gp2")},
 			}}
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
