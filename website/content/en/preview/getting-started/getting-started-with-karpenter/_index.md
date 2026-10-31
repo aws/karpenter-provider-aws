@@ -26,10 +26,9 @@ Follow the clean-up instructions to reduce any charges.
 
 Karpenter is installed in clusters with a Helm chart.
 
-Karpenter requires cloud provider permissions to provision nodes, for AWS IAM
-Roles for Service Accounts (IRSA) should be used. IRSA permits Karpenter
-(within the cluster) to make privileged requests to AWS (as the cloud provider)
-via a ServiceAccount.
+Karpenter requires cloud provider permissions to provision nodes. With managed node groups, this guide uses
+[EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to grant them.
+With Fargate, it uses [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 Install these tools before proceeding:
 
@@ -73,7 +72,7 @@ Create a basic cluster with `eksctl`.
 The following cluster configuration will:
 
 * Use CloudFormation to set up the infrastructure needed by the EKS cluster. See [CloudFormation]({{< relref "../../reference/cloudformation/" >}}) for a complete description of what `cloudformation.yaml` does for Karpenter.
-* Create a Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
+* Create an AWS IAM Role for Karpenter and associate it with the Karpenter service account using EKS Pod Identity (managed node groups) or IRSA (Fargate) to let Karpenter launch instances.
 * Add the Karpenter node role to the aws-auth configmap to allow nodes to connect.
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
 * Set KARPENTER_IAM_ROLE_ARN variables.
