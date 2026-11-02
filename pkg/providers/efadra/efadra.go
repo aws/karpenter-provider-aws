@@ -106,9 +106,17 @@ func NewDefaultProvider() *DefaultProvider {
 func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]Resources {
 	resources := map[string]Resources{}
 	for _, it := range instanceTypes {
-		if r, ok := dynamicResources[it.Name]; ok {
+		if r, ok := DynamicResourcesFor(it.Name); ok {
 			resources[it.Name] = r
 		}
 	}
 	return resources
+}
+
+// DynamicResourcesFor returns the dra.net set and attribute bindings for one instance type. It applies no feature
+// gates, so callers decide whether EFA DRA is enabled. The returned set is unscoped, and the caller may set its
+// requirements on a copy. It returns false for instance types with no network device metadata.
+func DynamicResourcesFor(instanceType string) (Resources, bool) {
+	r, ok := dynamicResources[instanceType]
+	return r, ok
 }

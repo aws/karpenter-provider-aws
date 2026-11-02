@@ -152,15 +152,24 @@ func NewDefaultProvider() *DefaultProvider {
 func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType, mode *ConsumableCapacityMode) map[string]Resources {
 	resources := map[string]Resources{}
 	for _, it := range instanceTypes {
-		base, ok := dynamicResources[it.Name]
-		if !ok {
-			continue
+		if r, ok := DynamicResourcesFor(it.Name, mode); ok {
+			resources[it.Name] = r
 		}
-		if mode == nil {
-			resources[it.Name] = base
-			continue
-		}
-		resources[it.Name] = withConsumableCapacity(base, mode)
 	}
 	return resources
+}
+
+// DynamicResourcesFor returns the NVIDIA GPU set and attribute bindings for one instance type, shaped by the
+// consumable-capacity mode; a nil mode leaves every GPU single-allocation. It applies no feature gates, so callers
+// decide whether NVIDIA DRA is enabled. The returned set is unscoped, and the caller may set its requirements on a
+// copy. It returns false for instance types with no NVIDIA GPU metadata.
+func DynamicResourcesFor(instanceType string, mode *ConsumableCapacityMode) (Resources, bool) {
+	base, ok := dynamicResources[instanceType]
+	if !ok {
+		return Resources{}, false
+	}
+	if mode == nil {
+		return base, true
+	}
+	return withConsumableCapacity(base, mode), true
 }

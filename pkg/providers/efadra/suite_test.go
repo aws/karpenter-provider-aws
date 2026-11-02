@@ -40,6 +40,21 @@ var _ = Describe("EFA DRA Provider", func() {
 	BeforeEach(func() {
 		provider = efadra.NewDefaultProvider()
 	})
+	Describe("DynamicResourcesFor", func() {
+		It("should return false for an instance type with no network device metadata", func() {
+			_, ok := efadra.DynamicResourcesFor("m5.large")
+			Expect(ok).To(BeFalse())
+		})
+		It("should return the same unscoped set and bindings the provider resolves", func() {
+			for name := range drametadata.EFAMetadataByInstanceType {
+				r, ok := efadra.DynamicResourcesFor(name)
+				Expect(ok).To(BeTrue(), name)
+				Expect(r.Set.Requirements).To(BeEmpty(), name)
+				resolved := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{{Name: name}})[name]
+				Expect(r).To(Equal(resolved), name)
+			}
+		})
+	})
 	It("should omit instance types with no network device metadata", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},

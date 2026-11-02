@@ -42,6 +42,31 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 	BeforeEach(func() {
 		provider = nvidiadra.NewDefaultProvider()
 	})
+	Describe("DynamicResourcesFor", func() {
+		It("should return false for an instance type with no NVIDIA GPU metadata", func() {
+			_, ok := nvidiadra.DynamicResourcesFor("m5.large", nil)
+			Expect(ok).To(BeFalse())
+		})
+		It("should return the same unscoped set and bindings the provider resolves", func() {
+			mode := lo.Must(nvidiadra.ParseConsumableCapacity("4"))
+			for name := range drametadata.GPUMetadataByInstanceType {
+				for _, m := range []*nvidiadra.ConsumableCapacityMode{nil, mode} {
+					r, ok := nvidiadra.DynamicResourcesFor(name, m)
+					Expect(ok).To(BeTrue(), name)
+					Expect(r.Set.Requirements).To(BeEmpty(), name)
+					resolved := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{{Name: name}}, m)[name]
+					Expect(r).To(Equal(resolved), name)
+				}
+			}
+		})
+		It("should leave GPUs single-allocation for a nil mode and shareable otherwise", func() {
+			plain, _ := nvidiadra.DynamicResourcesFor("g6.12xlarge", nil)
+			shared, _ := nvidiadra.DynamicResourcesFor("g6.12xlarge", lo.Must(nvidiadra.ParseConsumableCapacity("4")))
+			Expect(plain.Set.ResourceSliceTemplates[0].Devices[0].AllowMultipleAllocations).To(BeFalse())
+			Expect(shared.Set.ResourceSliceTemplates[0].Devices[0].AllowMultipleAllocations).To(BeTrue())
+			Expect(shared.AttributeBindings).To(Equal(plain.AttributeBindings))
+		})
+	})
 	It("should omit instance types with no GPU metadata", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},
