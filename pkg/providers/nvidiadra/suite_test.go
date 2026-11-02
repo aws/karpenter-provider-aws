@@ -102,16 +102,18 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		it.AttributeBindings = resources.AttributeBindings
 		bindings := dynamicresources.BuildAttributeBindings(map[string][]*cloudprovider.InstanceType{"default": {it}})
 
-		deviceID := func(name string) dynamicresources.DeviceID {
-			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{
-				Driver: unique.Make(nvidiadra.DriverName),
-				Pool:   unique.Make(nvidiadra.PoolName(it.Name)),
-				Device: unique.Make(name),
-			}}
-		}
+		// Pool and device names are internal placeholders that core may rewrite, so take the device IDs from the
+		// templates core resolved instead of building them by hand.
+		tmpl := it.AllDynamicResources()[0].ResourceSliceTemplates[0]
+		Expect(len(tmpl.Devices)).To(BeNumerically(">=", 2))
+		deviceIDs := lo.Map(tmpl.Devices, func(d cloudprovider.Device, _ int) dynamicresources.DeviceID {
+			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{Driver: tmpl.Driver, Pool: tmpl.Pool.Name, Device: d.Name}}
+		})
 		for _, attribute := range []resourcev1.QualifiedName{"gpu.nvidia.com/driverVersion", "gpu.nvidia.com/cudaDriverVersion"} {
-			Expect(bindings.HasBindings("default", unique.Make(it.Name), attribute, deviceID("gpu-0"))).To(BeTrue(), string(attribute))
-			Expect(bindings.Bound("default", unique.Make(it.Name), attribute, deviceID("gpu-0"), deviceID("gpu-3"))).To(BeTrue(), string(attribute))
+			for _, deviceID := range deviceIDs {
+				Expect(bindings.HasBindings("default", unique.Make(it.Name), attribute, deviceID)).To(BeTrue(), string(attribute))
+				Expect(bindings.Bound("default", unique.Make(it.Name), attribute, deviceIDs[0], deviceID)).To(BeTrue(), string(attribute))
+			}
 		}
 	})
 	It("should advertise every scraped instance type with its full device count", func() {
