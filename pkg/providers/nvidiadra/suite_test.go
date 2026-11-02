@@ -52,10 +52,10 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.12xlarge"},
 		}, nil)
-		Expect(resources["g6.12xlarge"].ResourceSliceTemplates).To(HaveLen(1))
+		Expect(resources["g6.12xlarge"].Set.ResourceSliceTemplates).To(HaveLen(1))
 
 		metadata := drametadata.GPUMetadataByInstanceType["g6.12xlarge"]
-		template := resources["g6.12xlarge"].ResourceSliceTemplates[0]
+		template := resources["g6.12xlarge"].Set.ResourceSliceTemplates[0]
 		Expect(template.Driver.Value()).To(Equal(nvidiadra.DriverName))
 		Expect(template.Devices).To(HaveLen(len(metadata.Devices)))
 		for i, device := range template.Devices {
@@ -97,7 +97,9 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		// Run the bindings through the allocator's own lookup, keyed by the literal names a ResourceClaim would
 		// carry, so a binding the allocator can't match fails here rather than leaving claims unschedulable.
 		it := &cloudprovider.InstanceType{Name: "g6.12xlarge"}
-		it.DynamicResources = provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{it}, nil)["g6.12xlarge"]
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{it}, nil)["g6.12xlarge"]
+		it.DynamicResources = []*cloudprovider.DynamicResources{resources.Set}
+		it.AttributeBindings = resources.AttributeBindings
 		bindings := dynamicresources.BuildAttributeBindings(map[string][]*cloudprovider.InstanceType{"default": {it}})
 
 		deviceID := func(name string) dynamicresources.DeviceID {
@@ -122,9 +124,9 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		for name, metadata := range drametadata.GPUMetadataByInstanceType {
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
-			Expect(resources[name].ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
+			Expect(resources[name].Set.ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
 			// Device names must be unique within a pool.
-			names := lo.Map(resources[name].ResourceSliceTemplates[0].Devices, func(d cloudprovider.Device, _ int) string {
+			names := lo.Map(resources[name].Set.ResourceSliceTemplates[0].Devices, func(d cloudprovider.Device, _ int) string {
 				return d.Name.Value()
 			})
 			Expect(lo.Uniq(names)).To(HaveLen(len(names)), name)
@@ -134,7 +136,7 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.48xlarge"},
 		}, nil)
-		templates := resources["g6.48xlarge"].ResourceSliceTemplates
+		templates := resources["g6.48xlarge"].Set.ResourceSliceTemplates
 		Expect(templates).To(HaveLen(1))
 		Expect(templates[0].SharedCounters).To(BeEmpty())
 		for _, device := range templates[0].Devices {

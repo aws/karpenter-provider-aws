@@ -529,6 +529,12 @@ var _ = Describe("CloudProvider", func() {
 		})
 	})
 	Context("DynamicResources", func() {
+		// allTemplates flattens an instance type's dynamic resource sets into their templates, in set order.
+		allTemplates := func(it *corecloudprovider.InstanceType) []*corecloudprovider.ResourceSliceTemplate {
+			return lo.FlatMap(it.DynamicResources, func(set *corecloudprovider.DynamicResources, _ int) []*corecloudprovider.ResourceSliceTemplate {
+				return set.ResourceSliceTemplates
+			})
+		}
 		BeforeEach(func() {
 			// Every spec here needs both switches: an AWS driver gate to contribute templates at all, and the
 			// core option to stop ignoring DRA. The specs that assert nothing is populated flip one back.
@@ -552,11 +558,11 @@ var _ = Describe("CloudProvider", func() {
 				gpu, hasGPU := drametadata.GPUMetadataByInstanceType[it.Name]
 				efa, hasEFA := drametadata.EFAMetadataByInstanceType[it.Name]
 				if !hasGPU && !hasEFA {
-					Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty(), it.Name)
-					Expect(it.DynamicResources.AttributeBindings).To(BeEmpty(), it.Name)
+					Expect(allTemplates(it)).To(BeEmpty(), it.Name)
+					Expect(it.AttributeBindings).To(BeEmpty(), it.Name)
 					continue
 				}
-				drivers := lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+				drivers := lo.Map(allTemplates(it), func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
 					return t.Driver.Value()
 				})
 				expected := []string{}
@@ -569,7 +575,7 @@ var _ = Describe("CloudProvider", func() {
 				Expect(drivers).To(ConsistOf(expected), it.Name)
 
 				// Each driver's devices survive the merge intact.
-				for _, template := range it.DynamicResources.ResourceSliceTemplates {
+				for _, template := range allTemplates(it) {
 					switch template.Driver.Value() {
 					case nvidiadra.DriverName:
 						Expect(template.Devices).To(HaveLen(gpu.Count), it.Name)
@@ -578,12 +584,50 @@ var _ = Describe("CloudProvider", func() {
 					}
 				}
 				// Only nvidia contributes bindings, one per runtime-only attribute.
-				Expect(it.DynamicResources.AttributeBindings).To(HaveLen(lo.Ternary(hasGPU, 2, 0)), it.Name)
+				Expect(it.AttributeBindings).To(HaveLen(lo.Ternary(hasGPU, 2, 0)), it.Name)
 				if hasGPU && hasEFA {
 					merged++
 				}
 			}
 			Expect(merged).To(BeNumerically(">", 0), "no fake instance type carries both GPU and EFA metadata, so the merge is untested")
+		})
+		It("should publish one unscoped set per driver, in NVIDIA then EFA order", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			var checked int
+			for _, it := range instanceTypes {
+				_, hasGPU := drametadata.GPUMetadataByInstanceType[it.Name]
+				_, hasEFA := drametadata.EFAMetadataByInstanceType[it.Name]
+				expected := []string{}
+				if hasGPU {
+					expected = append(expected, nvidiadra.DriverName)
+				}
+				if hasEFA {
+					expected = append(expected, efadra.DriverName)
+				}
+				Expect(it.DynamicResources).To(HaveLen(len(expected)), it.Name)
+				for i, set := range it.DynamicResources {
+					// Unscoped: every offering publishes every driver's devices, as before sets were scoped.
+					Expect(set.Requirements).To(BeEmpty(), it.Name)
+					Expect(set.ResourceSliceTemplates).To(HaveLen(1), it.Name)
+					Expect(set.ResourceSliceTemplates[0].Driver.Value()).To(Equal(expected[i]), it.Name)
+				}
+				// The parity with the per-driver providers: the same templates and bindings they resolve.
+				if hasGPU {
+					resolved := nvidiadra.NewDefaultProvider().ResolveDynamicResources(ctx, []*corecloudprovider.InstanceType{it}, nil)[it.Name]
+					Expect(it.DynamicResources[0].ResourceSliceTemplates).To(Equal(resolved.Set.ResourceSliceTemplates), it.Name)
+					Expect(it.AttributeBindings).To(Equal(resolved.AttributeBindings), it.Name)
+					checked++
+				}
+				if hasEFA {
+					resolved := efadra.NewDefaultProvider().ResolveDynamicResources(ctx, []*corecloudprovider.InstanceType{it})[it.Name]
+					Expect(it.DynamicResources[len(it.DynamicResources)-1].ResourceSliceTemplates).To(Equal(resolved.Set.ResourceSliceTemplates), it.Name)
+				}
+			}
+			Expect(checked).To(BeNumerically(">", 0))
 		})
 		It("should publish no counter sets, since MIG partitions are out of scope", func() {
 			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
@@ -591,7 +635,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			for _, it := range instanceTypes {
-				for _, template := range it.DynamicResources.ResourceSliceTemplates {
+				for _, template := range allTemplates(it) {
 					Expect(template.SharedCounters).To(BeEmpty(), it.Name)
 					for _, device := range template.Devices {
 						Expect(device.ConsumesCounters).To(BeEmpty(), it.Name)
@@ -610,7 +654,7 @@ var _ = Describe("CloudProvider", func() {
 
 			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
 			Expect(ok).To(BeTrue())
-			nvidia, ok := lo.Find(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+			nvidia, ok := lo.Find(allTemplates(it), func(t *corecloudprovider.ResourceSliceTemplate) bool {
 				return t.Driver.Value() == nvidiadra.DriverName
 			})
 			Expect(ok).To(BeTrue())
@@ -633,7 +677,7 @@ var _ = Describe("CloudProvider", func() {
 
 			it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == "g6.12xlarge" })
 			Expect(ok).To(BeTrue())
-			nvidia, ok := lo.Find(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+			nvidia, ok := lo.Find(allTemplates(it), func(t *corecloudprovider.ResourceSliceTemplate) bool {
 				return t.Driver.Value() == nvidiadra.DriverName
 			})
 			Expect(ok).To(BeTrue())
@@ -645,9 +689,9 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should not leak one NodeClass's sharing mode into another's instance types", func() {
 			// populateDynamicResources writes DynamicResources in place. That is only safe because
-			// offering.InjectOfferings allocates a fresh *InstanceType per List call and does not carry
-			// DynamicResources forward, so each call owns what it writes -- the instance type cache itself
-			// is not keyed on the annotation. The pointer assertion below is what pins that invariant: if
+			// offering.InjectOfferings allocates a fresh *InstanceType per List call, so each call owns what it
+			// writes -- the instance type cache itself is not keyed on the annotation, and InjectOfferings only
+			// carries forward what the cached instance type holds, which populateDynamicResources never touches. The pointer assertion below is what pins that invariant: if
 			// List ever hands back a shared or forward-copied struct, in-place writes start leaking and
 			// this fails here rather than in a user's scheduling decision.
 			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{IgnoreDRARequests: lo.ToPtr(false)}))
@@ -670,11 +714,11 @@ var _ = Describe("CloudProvider", func() {
 			Expect(plainGPU).ToNot(BeIdenticalTo(sharedGPU))
 
 			// The second call is shareable; the first must still not be.
-			sharedTemplate, _ := lo.Find(sharedGPU.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+			sharedTemplate, _ := lo.Find(allTemplates(sharedGPU), func(t *corecloudprovider.ResourceSliceTemplate) bool {
 				return t.Driver.Value() == nvidiadra.DriverName
 			})
 			Expect(sharedTemplate.Devices[0].AllowMultipleAllocations).To(BeTrue())
-			plainTemplate, _ := lo.Find(plainGPU.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate) bool {
+			plainTemplate, _ := lo.Find(allTemplates(plainGPU), func(t *corecloudprovider.ResourceSliceTemplate) bool {
 				return t.Driver.Value() == nvidiadra.DriverName
 			})
 			Expect(plainTemplate.Devices[0].AllowMultipleAllocations).To(BeFalse())
@@ -688,7 +732,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).ToNot(BeEmpty())
 			return lo.SliceToMap(instanceTypes, func(it *corecloudprovider.InstanceType) (string, []string) {
-				return it.Name, lo.Map(it.DynamicResources.ResourceSliceTemplates, func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
+				return it.Name, lo.Map(allTemplates(it), func(t *corecloudprovider.ResourceSliceTemplate, _ int) string {
 					return t.Driver.Value()
 				})
 			})
@@ -715,7 +759,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			for _, it := range instanceTypes {
-				Expect(it.DynamicResources.AttributeBindings).To(BeEmpty(), it.Name)
+				Expect(it.AttributeBindings).To(BeEmpty(), it.Name)
 			}
 		})
 		It("should not populate DynamicResources when every DRA feature gate is disabled", func() {
@@ -729,7 +773,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).ToNot(BeEmpty())
 			for _, it := range instanceTypes {
-				Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+				Expect(allTemplates(it)).To(BeEmpty())
 			}
 		})
 		It("should not populate DynamicResources when DRA requests are ignored", func() {
@@ -739,7 +783,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(instanceTypes).ToNot(BeEmpty())
 			for _, it := range instanceTypes {
-				Expect(it.DynamicResources.ResourceSliceTemplates).To(BeEmpty())
+				Expect(allTemplates(it)).To(BeEmpty())
 			}
 		})
 	})

@@ -38,6 +38,13 @@ func PoolName(instanceType string) string {
 	return "network-" + instanceType
 }
 
+// Resources is the dranet DRA metadata for one instance type: a single-driver dynamic resource set,
+// unscoped, plus the attribute bindings that span its devices (none today).
+type Resources struct {
+	Set               *cloudprovider.DynamicResources
+	AttributeBindings []*cloudprovider.AttributeBinding
+}
+
 // dynamicResources holds the network device DRA metadata keyed by instance type name, built once at
 // package init and immutable afterwards, making it safe to share by pointer.
 var dynamicResources = buildDynamicResources()
@@ -49,20 +56,22 @@ var dynamicResources = buildDynamicResources()
 // scraped metadata does not carry, and a template name only has to be unique: the template decides
 // whether an instance type can satisfy a claim, and the node makes the real allocation under its own
 // names.
-func buildDynamicResources() map[string]cloudprovider.DynamicResources {
-	resources := make(map[string]cloudprovider.DynamicResources, len(drametadata.EFAMetadataByInstanceType))
+func buildDynamicResources() map[string]Resources {
+	resources := make(map[string]Resources, len(drametadata.EFAMetadataByInstanceType))
 	for instanceType, metadata := range drametadata.EFAMetadataByInstanceType {
-		resources[instanceType] = cloudprovider.DynamicResources{
-			ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
-				Driver: unique.Make(DriverName),
-				Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName(instanceType))},
-				Devices: lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
-					return cloudprovider.Device{
-						Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
-						Attributes: device.Attributes,
-					}
-				}),
-			}},
+		resources[instanceType] = Resources{
+			Set: &cloudprovider.DynamicResources{
+				ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{
+					Driver: unique.Make(DriverName),
+					Pool:   cloudprovider.ResourcePool{Name: unique.Make(PoolName(instanceType))},
+					Devices: lo.Map(metadata.Devices, func(device drametadata.DRADevice, index int) cloudprovider.Device {
+						return cloudprovider.Device{
+							Name:       unique.Make(fmt.Sprintf("efa-%d", index)),
+							Attributes: device.Attributes,
+						}
+					}),
+				}},
+			},
 		}
 	}
 	return resources
@@ -83,9 +92,9 @@ func Requested(nodeClaim *karpv1.NodeClaim) bool {
 
 // Provider resolves the dranet DRA metadata for a set of instance types.
 type Provider interface {
-	// ResolveDynamicResources returns the dra.net templates keyed by instance type name. Instance
-	// types with no network device metadata are omitted.
-	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources
+	// ResolveDynamicResources returns the dra.net set keyed by instance type name. Instance types with
+	// no network device metadata are omitted.
+	ResolveDynamicResources(ctx context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]Resources
 }
 
 type DefaultProvider struct{}
@@ -94,8 +103,8 @@ func NewDefaultProvider() *DefaultProvider {
 	return &DefaultProvider{}
 }
 
-func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]cloudprovider.DynamicResources {
-	resources := map[string]cloudprovider.DynamicResources{}
+func (p *DefaultProvider) ResolveDynamicResources(_ context.Context, instanceTypes []*cloudprovider.InstanceType) map[string]Resources {
+	resources := map[string]Resources{}
 	for _, it := range instanceTypes {
 		if r, ok := dynamicResources[it.Name]; ok {
 			resources[it.Name] = r
