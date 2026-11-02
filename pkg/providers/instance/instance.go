@@ -50,7 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -114,20 +114,17 @@ type DefaultProvider struct {
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
 	allocationStrategyProvider  AllocationStrategyProvider
-	efaCount                    EFACountFunc
+	efaProvider                 efa.Provider
 }
 
 type DefaultProviderOpts = option.Function[DefaultProvider]
 
-// EFACountFunc returns how many EFA interfaces to attach when launching instanceType for nodeClaim. instanceTypes are
-// the launch candidates, which include instanceType. The count is recorded on the returned Instance, so it has to
-// agree with the EFA interfaces the launch template attaches.
-type EFACountFunc func(instanceType string, instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) int
-
-// WithEFACountFunc decides the EFA count with f instead of DefaultEFACount.
-func WithEFACountFunc(f EFACountFunc) DefaultProviderOpts {
+// WithEFAProvider decides whether instances are launched with EFA interfaces with p instead of efa.DefaultProvider.
+// Pass the same Provider to the launch template resolver (amifamily.WithEFAProvider) so the EFA count recorded on the
+// instance agrees with the interfaces the launch template attaches.
+func WithEFAProvider(p efa.Provider) DefaultProviderOpts {
 	return func(provider *DefaultProvider) {
-		provider.efaCount = f
+		provider.efaProvider = p
 	}
 }
 
@@ -166,7 +163,7 @@ func NewDefaultProvider(
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
 		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
-		efaCount:                    DefaultEFACount,
+		efaProvider:                 efa.DefaultProvider{},
 	}
 	for _, opt := range opts {
 		opt(provider)
@@ -201,7 +198,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		opts = append(opts, WithCapacityReservationDetails(capacityReservationDetails))
 	}
 
-	if efaCount := p.efaCount(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
+	if efaCount := p.getEFACountForInstance(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
 		opts = append(opts, WithEFACount(efaCount))
 	}
 
@@ -792,17 +789,16 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	panic("reservation ID doesn't exist for reserved launch")
 }
 
-// DefaultEFACount returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim
-// requirements. It's the EFACountFunc the provider uses unless WithEFACountFunc overrides it.
-func DefaultEFACount(
+// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and
+// whether the EFA provider enables EFA for the NodeClaim. When EFA is on, every EFA interface the instance type supports
+// is attached.
+func (p *DefaultProvider) getEFACountForInstance(
 	instanceType string,
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
-	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
-	if !requested && nodeClass.NetworkInterfaces() == nil {
+	if !p.efaProvider.Enabled(nodeClaim, nodeClass) && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {

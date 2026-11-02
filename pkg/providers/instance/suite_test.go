@@ -1058,40 +1058,41 @@ var _ = Describe("InstanceProvider", func() {
 			Expect(createdInstance).ToNot(BeNil())
 			Expect(createdInstance.EFACount).To(Equal(0))
 		})
-		It("should set EFACount from an EFACountFunc passed with WithEFACountFunc", func() {
-			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
-			Expect(err).ToNot(HaveOccurred())
-			instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
-				return i.Name == "g4dn.8xlarge"
-			})
+		DescribeTable("should decide EFA with the efa.Provider passed with WithEFAProvider",
+			func(enabled bool, requestEFA bool, expected int) {
+				if requestEFA {
+					nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
+				}
+				ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+				instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+					return i.Name == "g4dn.8xlarge"
+				})
 
-			// Nothing requests EFA, so the default would attach none; the override decides instead.
-			var calledWith string
-			provider := instance.NewDefaultProvider(
-				ctx,
-				"",
-				awsEnv.EventRecorder,
-				awsEnv.EC2API,
-				awsEnv.UnavailableOfferingsCache,
-				awsEnv.SubnetProvider,
-				awsEnv.LaunchTemplateProvider,
-				awsEnv.CapacityReservationProvider,
-				awsEnv.PlacementGroupProvider,
-				awsEnv.ZonalShiftProvider,
-				awsEnv.InstanceCache,
-				instance.WithEFACountFunc(func(instanceType string, _ []*corecloudprovider.InstanceType, _ *v1.EC2NodeClass, nc *karpv1.NodeClaim) int {
-					Expect(nc.Name).To(Equal(nodeClaim.Name))
-					calledWith = instanceType
-					return 3
-				}),
-			)
-			createdInstance, err := provider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
-			Expect(err).To(BeNil())
-			Expect(calledWith).To(Equal("g4dn.8xlarge"))
-			Expect(createdInstance.EFACount).To(Equal(3))
-		})
+				provider := instance.NewDefaultProvider(
+					ctx,
+					"",
+					awsEnv.EventRecorder,
+					awsEnv.EC2API,
+					awsEnv.UnavailableOfferingsCache,
+					awsEnv.SubnetProvider,
+					awsEnv.LaunchTemplateProvider,
+					awsEnv.CapacityReservationProvider,
+					awsEnv.PlacementGroupProvider,
+					awsEnv.ZonalShiftProvider,
+					awsEnv.InstanceCache,
+					instance.WithEFAProvider(staticEFAProvider(enabled)),
+				)
+				createdInstance, err := provider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+				Expect(err).To(BeNil())
+				Expect(createdInstance.EFACount).To(Equal(expected))
+			},
+			// When enabled, every EFA interface the instance type supports is attached, whatever the request.
+			Entry("enabled without an EFA request", true, false, 1),
+			Entry("disabled despite an EFA request", false, true, 0),
+		)
 	})
 	Context("Zonal Shift", func() {
 		var instanceID string
@@ -1313,3 +1314,8 @@ var _ = Describe("InstanceProvider", func() {
 		})
 	})
 })
+
+// staticEFAProvider is an efa.Provider that always returns its own value.
+type staticEFAProvider bool
+
+func (s staticEFAProvider) Enabled(*karpv1.NodeClaim, *v1.EC2NodeClass) bool { return bool(s) }
