@@ -259,7 +259,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					"instance-type", it.Name)
 			}
 			return launchTemplateParams{
-				// Must agree with the instance provider's getEFACountForInstance, which records the count on the instance.
+				// Must agree with the instance provider's EFA count (instance.DefaultEFACount by default), which records the count on the instance.
 				efaCount: lo.Ternary(
 					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim),
 					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),

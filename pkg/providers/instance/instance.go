@@ -114,9 +114,22 @@ type DefaultProvider struct {
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
 	allocationStrategyProvider  AllocationStrategyProvider
+	efaCount                    EFACountFunc
 }
 
 type DefaultProviderOpts = option.Function[DefaultProvider]
+
+// EFACountFunc returns how many EFA interfaces to attach when launching instanceType for nodeClaim. instanceTypes are
+// the launch candidates, which include instanceType. The count is recorded on the returned Instance, so it has to
+// agree with the EFA interfaces the launch template attaches.
+type EFACountFunc func(instanceType string, instanceTypes []*cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim) int
+
+// WithEFACountFunc decides the EFA count with f instead of DefaultEFACount.
+func WithEFACountFunc(f EFACountFunc) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.efaCount = f
+	}
+}
 
 // WithAllocationStrategyProvider chooses CreateFleet allocation strategies with p instead of
 // DefaultAllocationStrategyProvider.
@@ -153,6 +166,7 @@ func NewDefaultProvider(
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
 		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
+		efaCount:                    DefaultEFACount,
 	}
 	for _, opt := range opts {
 		opt(provider)
@@ -187,7 +201,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 		opts = append(opts, WithCapacityReservationDetails(capacityReservationDetails))
 	}
 
-	if efaCount := p.getEFACountForInstance(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
+	if efaCount := p.efaCount(string(fleetInstance.InstanceType), instanceTypes, nodeClass, nodeClaim); efaCount > 0 {
 		opts = append(opts, WithEFACount(efaCount))
 	}
 
@@ -778,8 +792,9 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	panic("reservation ID doesn't exist for reserved launch")
 }
 
-// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim requirements
-func (p *DefaultProvider) getEFACountForInstance(
+// DefaultEFACount returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim
+// requirements. It's the EFACountFunc the provider uses unless WithEFACountFunc overrides it.
+func DefaultEFACount(
 	instanceType string,
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
