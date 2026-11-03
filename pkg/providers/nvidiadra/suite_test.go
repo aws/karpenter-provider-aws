@@ -42,6 +42,31 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 	BeforeEach(func() {
 		provider = nvidiadra.NewDefaultProvider()
 	})
+	Describe("DynamicResourcesFor", func() {
+		It("should return false for an instance type with no NVIDIA GPU metadata", func() {
+			_, ok := nvidiadra.DynamicResourcesFor("m5.large", nil)
+			Expect(ok).To(BeFalse())
+		})
+		It("should return the same unscoped set and bindings the provider resolves", func() {
+			mode := lo.Must(nvidiadra.ParseConsumableCapacity("4"))
+			for name := range drametadata.GPUMetadataByInstanceType {
+				for _, m := range []*nvidiadra.ConsumableCapacityMode{nil, mode} {
+					r, ok := nvidiadra.DynamicResourcesFor(name, m)
+					Expect(ok).To(BeTrue(), name)
+					Expect(r.Set.Requirements).To(BeEmpty(), name)
+					resolved := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{{Name: name}}, m)[name]
+					Expect(r).To(Equal(resolved), name)
+				}
+			}
+		})
+		It("should leave GPUs single-allocation for a nil mode and shareable otherwise", func() {
+			plain, _ := nvidiadra.DynamicResourcesFor("g6.12xlarge", nil)
+			shared, _ := nvidiadra.DynamicResourcesFor("g6.12xlarge", lo.Must(nvidiadra.ParseConsumableCapacity("4")))
+			Expect(plain.Set.ResourceSliceTemplates[0].Devices[0].AllowMultipleAllocations).To(BeFalse())
+			Expect(shared.Set.ResourceSliceTemplates[0].Devices[0].AllowMultipleAllocations).To(BeTrue())
+			Expect(shared.AttributeBindings).To(Equal(plain.AttributeBindings))
+		})
+	})
 	It("should omit instance types with no GPU metadata", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},
@@ -52,10 +77,10 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.12xlarge"},
 		}, nil)
-		Expect(resources["g6.12xlarge"].ResourceSliceTemplates).To(HaveLen(1))
+		Expect(resources["g6.12xlarge"].Set.ResourceSliceTemplates).To(HaveLen(1))
 
 		metadata := drametadata.GPUMetadataByInstanceType["g6.12xlarge"]
-		template := resources["g6.12xlarge"].ResourceSliceTemplates[0]
+		template := resources["g6.12xlarge"].Set.ResourceSliceTemplates[0]
 		Expect(template.Driver.Value()).To(Equal(nvidiadra.DriverName))
 		Expect(template.Devices).To(HaveLen(len(metadata.Devices)))
 		for i, device := range template.Devices {
@@ -97,19 +122,23 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		// Run the bindings through the allocator's own lookup, keyed by the literal names a ResourceClaim would
 		// carry, so a binding the allocator can't match fails here rather than leaving claims unschedulable.
 		it := &cloudprovider.InstanceType{Name: "g6.12xlarge"}
-		it.DynamicResources = provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{it}, nil)["g6.12xlarge"]
+		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{it}, nil)["g6.12xlarge"]
+		it.DynamicResources = []*cloudprovider.DynamicResources{resources.Set}
+		it.AttributeBindings = resources.AttributeBindings
 		bindings := dynamicresources.BuildAttributeBindings(map[string][]*cloudprovider.InstanceType{"default": {it}})
 
-		deviceID := func(name string) dynamicresources.DeviceID {
-			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{
-				Driver: unique.Make(nvidiadra.DriverName),
-				Pool:   unique.Make(nvidiadra.PoolName(it.Name)),
-				Device: unique.Make(name),
-			}}
-		}
+		// Pool and device names are internal placeholders that core may rewrite, so take the device IDs from the
+		// templates core resolved instead of building them by hand.
+		tmpl := it.AllDynamicResources()[0].ResourceSliceTemplates[0]
+		Expect(len(tmpl.Devices)).To(BeNumerically(">=", 2))
+		deviceIDs := lo.Map(tmpl.Devices, func(d cloudprovider.Device, _ int) dynamicresources.DeviceID {
+			return dynamicresources.DeviceID{DeviceID: cloudprovider.DeviceID{Driver: tmpl.Driver, Pool: tmpl.Pool.Name, Device: d.Name}}
+		})
 		for _, attribute := range []resourcev1.QualifiedName{"gpu.nvidia.com/driverVersion", "gpu.nvidia.com/cudaDriverVersion"} {
-			Expect(bindings.HasBindings("default", unique.Make(it.Name), attribute, deviceID("gpu-0"))).To(BeTrue(), string(attribute))
-			Expect(bindings.Bound("default", unique.Make(it.Name), attribute, deviceID("gpu-0"), deviceID("gpu-3"))).To(BeTrue(), string(attribute))
+			for _, deviceID := range deviceIDs {
+				Expect(bindings.HasBindings("default", unique.Make(it.Name), attribute, deviceID)).To(BeTrue(), string(attribute))
+				Expect(bindings.Bound("default", unique.Make(it.Name), attribute, deviceIDs[0], deviceID)).To(BeTrue(), string(attribute))
+			}
 		}
 	})
 	It("should advertise every scraped instance type with its full device count", func() {
@@ -122,9 +151,9 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		for name, metadata := range drametadata.GPUMetadataByInstanceType {
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
-			Expect(resources[name].ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
+			Expect(resources[name].Set.ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
 			// Device names must be unique within a pool.
-			names := lo.Map(resources[name].ResourceSliceTemplates[0].Devices, func(d cloudprovider.Device, _ int) string {
+			names := lo.Map(resources[name].Set.ResourceSliceTemplates[0].Devices, func(d cloudprovider.Device, _ int) string {
 				return d.Name.Value()
 			})
 			Expect(lo.Uniq(names)).To(HaveLen(len(names)), name)
@@ -134,7 +163,7 @@ var _ = Describe("NVIDIA DRA Provider", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.48xlarge"},
 		}, nil)
-		templates := resources["g6.48xlarge"].ResourceSliceTemplates
+		templates := resources["g6.48xlarge"].Set.ResourceSliceTemplates
 		Expect(templates).To(HaveLen(1))
 		Expect(templates[0].SharedCounters).To(BeEmpty())
 		for _, device := range templates[0].Devices {
