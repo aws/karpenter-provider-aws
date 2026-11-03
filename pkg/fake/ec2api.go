@@ -130,7 +130,6 @@ func (e *EC2API) Reset() {
 	e.RunInstancesBehavior.Reset()
 }
 
-// nolint: gocyclo
 func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
 	return e.CreateFleetBehavior.Invoke(input, func(input *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
 		if input.DryRun != nil && *input.DryRun {
@@ -352,7 +351,6 @@ func (e *EC2API) DescribeInstances(_ context.Context, input *ec2.DescribeInstanc
 	})
 }
 
-//nolint:gocyclo
 func filterInstances(instances []ec2types.Instance, filters []ec2types.Filter) []ec2types.Instance {
 	var ret []ec2types.Instance
 	for _, instance := range instances {

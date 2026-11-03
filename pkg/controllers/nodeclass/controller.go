@@ -122,7 +122,7 @@ func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
-//nolint:gocyclo,staticcheck
+//nolint:staticcheck
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 

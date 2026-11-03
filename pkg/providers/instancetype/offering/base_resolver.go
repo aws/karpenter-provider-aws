@@ -50,7 +50,6 @@ type BaseResolver struct {
 	GetOverlayPrice                func(ctx context.Context, instanceTypeName string) (float64, bool)
 }
 
-//nolint:gocyclo
 func (r *BaseResolver) ResolveOfferings(
 	ctx context.Context,
 	it *cloudprovider.InstanceType,

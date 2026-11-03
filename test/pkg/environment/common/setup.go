@@ -81,7 +81,6 @@ var (
 	}
 )
 
-// nolint:gocyclo
 func (env *Environment) BeforeEach() {
 	debug.BeforeEach(env.Context, env.Config, env.Client)
 

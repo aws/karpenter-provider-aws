@@ -58,7 +58,6 @@ func RegisterTests() bool {
 	return true
 }
 
-//nolint:gocyclo
 func registerConsolidation() bool {
 	return DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy options.MinValuesPolicy) {
 		BeforeEach(func() {

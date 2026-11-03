@@ -68,7 +68,6 @@ func NewController(kubeClient client.Client, clk clock.Clock, cloudProvider clou
 	}
 }
 
-//nolint:gocyclo
 func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "node.instancestatus")
 
