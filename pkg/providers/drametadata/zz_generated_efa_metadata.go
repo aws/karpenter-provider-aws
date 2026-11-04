@@ -328,6 +328,73 @@ var EFAMetadataByInstanceType = map[string]*DeviceMetadata{
 			},
 		},
 	},
+	"g7.12xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa3")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+				},
+			},
+		},
+	},
+	"g7.24xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa3")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:44")},
+				},
+			},
+		},
+	},
+	"g7.48xlarge": {
+		Count: 2,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/numaNode":                {IntValue: intPtr(0)},
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa3")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:44")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/numaNode":                {IntValue: intPtr(1)},
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa3")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:a1")},
+				},
+			},
+		},
+	},
+	"g7.8xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"dra.net/pciDevice":               {StringValue: strPtr("Elastic Fabric Adapter (EFA)")},
+					"dra.net/pciSubsystem":            {StringValue: strPtr("efa3")},
+					"dra.net/pciVendor":               {StringValue: strPtr("Amazon.com, Inc.")},
+					"dra.net/rdma":                    {BoolValue: boolPtr(true)},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+				},
+			},
+		},
+	},
 	"gr6.8xlarge": {
 		Count: 1,
 		Devices: []DRADevice{
