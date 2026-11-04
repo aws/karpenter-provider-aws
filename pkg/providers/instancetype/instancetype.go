@@ -113,6 +113,7 @@ type DefaultProvider struct {
 	discoveredCapacityCache *cache.Cache
 	cm                      *pretty.ChangeMonitor
 
+	pricingProvider        pricing.Provider
 	placementGroupProvider placementgroup.Provider
 	offeringProvider       *offering.DefaultProvider
 	celEnv                 *kubeletcel.CELEnvironment
@@ -143,6 +144,7 @@ func NewDefaultProvider(
 		instanceTypesCache:      instanceTypesCache,
 		discoveredCapacityCache: discoveredCapacityCache,
 		cm:                      pretty.NewChangeMonitor(),
+		pricingProvider:         pricingProvider,
 		placementGroupProvider:  placementGroupProvider,
 		celEnv:                  celEnv,
 		offeringProvider: offering.NewDefaultProvider(
@@ -553,7 +555,8 @@ func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudpr
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {
 		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
-		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
+		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg,
+			compatibility.WithWindowsSupport(p.pricingProvider.SupportsWindows)) {
 			compatible = append(compatible, it)
 		}
 	}
