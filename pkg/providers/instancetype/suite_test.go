@@ -2479,6 +2479,56 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(zones).To(HaveLen(2))
 			Expect(zones.UnsortedList()).To(ConsistOf([]string{"test-zone-1b", "test-zone-1c"}))
 		})
+		// Based on the reproduction in https://github.com/aws/karpenter-provider-aws/pull/9000
+		It("should show an unavailable offering to every EC2NodeClass after an ICE", func() {
+			// Same zones, different subnets, so each EC2NodeClass gets its own offering cache entry for m5.large.
+			// The subnet IDs differ in more than their last character: hashstructure's SlicesAsSets hashing
+			// gives ["subnet-a-1a", "subnet-a-1b"] and ["subnet-b-1a", "subnet-b-1b"] the same hash.
+			nodeClassWithSubnets := func(subnetA, subnetB string) *v1.EC2NodeClass {
+				nc := test.EC2NodeClass(v1.EC2NodeClass{
+					// Without selector terms, test.EC2NodeClass replaces the subnets below with its defaults
+					Spec: v1.EC2NodeClassSpec{
+						SubnetSelectorTerms: []v1.SubnetSelectorTerm{{ID: subnetA}, {ID: subnetB}},
+					},
+					Status: v1.EC2NodeClassStatus{
+						InstanceProfile: "test-profile",
+						SecurityGroups:  nodeClass.Status.SecurityGroups,
+						Subnets: []v1.Subnet{
+							{ID: subnetA, Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+							{ID: subnetB, Zone: "test-zone-1b", ZoneID: "tstz1-1b"},
+						},
+					},
+				})
+				nc.StatusConditions().SetTrue(status.ConditionReady)
+				return nc
+			}
+			nodeClassA := nodeClassWithSubnets("subnet-07a1c9e3", "subnet-0d42b6f8")
+			nodeClassB := nodeClassWithSubnets("subnet-0b93e271", "subnet-05c8a4d0")
+			onDemandIn1a := func(nc *v1.EC2NodeClass) *corecloudprovider.Offering {
+				its, err := awsEnv.InstanceTypesProvider.List(ctx, nc)
+				Expect(err).ToNot(HaveOccurred())
+				m5, ok := lo.Find(its, func(it *corecloudprovider.InstanceType) bool {
+					return it.Name == string(ec2types.InstanceTypeM5Large)
+				})
+				Expect(ok).To(BeTrue())
+				ofs := m5.Offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{
+					corev1.LabelTopologyZone:    "test-zone-1a",
+					karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
+				}))
+				Expect(ofs).To(HaveLen(1))
+				return ofs[0]
+			}
+
+			// Both EC2NodeClasses cache m5.large as available in test-zone-1a
+			Expect(onDemandIn1a(nodeClassA).Available).To(BeTrue())
+			Expect(onDemandIn1a(nodeClassB).Available).To(BeTrue())
+
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "InsufficientInstanceCapacity"})
+
+			// Resolving nodeClassA first must not hide the ICE from nodeClassB
+			Expect(onDemandIn1a(nodeClassA).Available).To(BeFalse())
+			Expect(onDemandIn1a(nodeClassB).Available).To(BeFalse())
+		})
 	})
 	Context("CapacityType", func() {
 		It("should default to on-demand", func() {

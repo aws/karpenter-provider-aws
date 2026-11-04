@@ -44,7 +44,7 @@ import (
 type BaseResolver struct {
 	PricingProvider                pricing.Provider
 	UnavailableOfferings           *awscache.UnavailableOfferings
-	LastUnavailableOfferingsSeqNum *sync.Map // instance type -> seqNum
+	LastUnavailableOfferingsSeqNum *sync.Map // offering cache key -> seqNum
 	Cache                          *cache.Cache
 	ZonalshiftProvider             arczonalshiftProvider.Provider
 	GetOverlayPrice                func(ctx context.Context, instanceTypeName string) (float64, bool)
@@ -72,12 +72,12 @@ func (r *BaseResolver) ResolveOfferings(
 	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
-	lastSeqNum, ok := r.LastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
+	cacheKey := keyBuilder.cacheKeyFromInstanceType(it)
+	lastSeqNum, ok := r.LastUnavailableOfferingsSeqNum.Load(cacheKey)
 	if !ok {
 		lastSeqNum = 0
 	}
 	seqNum := r.UnavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	cacheKey := keyBuilder.cacheKeyFromInstanceType(it)
 	if ofs, ok := r.Cache.Get(cacheKey); ok && lastSeqNum == seqNum {
 		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
 	} else {
@@ -145,7 +145,7 @@ func (r *BaseResolver) ResolveOfferings(
 			}
 		}
 		r.Cache.SetDefault(cacheKey, cachedOfferings)
-		r.LastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
+		r.LastUnavailableOfferingsSeqNum.Store(cacheKey, seqNum)
 		offerings = append(offerings, cachedOfferings...)
 	}
 	return offerings
