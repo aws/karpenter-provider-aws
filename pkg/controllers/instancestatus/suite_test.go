@@ -166,6 +166,34 @@ var _ = Describe("InstanceStatus", func() {
 		Entry("both, using the system reason and the earliest impairment", lo.ToPtr(time.Date(2026, time.October, 12, 11, 59, 0, 0, time.UTC)), lo.ToPtr(time.Date(2026, time.October, 12, 11, 58, 0, 0, time.UTC)), instancestatusprovider.ReasonSystemReachabilityFailed,
 			time.Date(2026, time.October, 12, 11, 58, 0, 0, time.UTC), "EC2 reports failing reachability checks: InstanceStatus, SystemStatus"),
 	)
+	It("should set EC2StatusReady=False with EBSReachabilityFailed when only EBS is impaired", func() {
+		ebsImpairedSince := time.Date(2026, time.October, 12, 11, 59, 0, 0, time.UTC)
+		awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+			InstanceStatuses: []ec2types.InstanceStatus{{
+				InstanceId: lo.ToPtr(instanceID),
+				InstanceStatus: &ec2types.InstanceStatusSummary{
+					Status:  ec2types.SummaryStatusOk,
+					Details: []ec2types.InstanceStatusDetails{{Name: ec2types.StatusNameReachability, Status: ec2types.StatusTypePassed}},
+				},
+				SystemStatus: &ec2types.InstanceStatusSummary{
+					Status:  ec2types.SummaryStatusOk,
+					Details: []ec2types.InstanceStatusDetails{{Name: ec2types.StatusNameReachability, Status: ec2types.StatusTypePassed}},
+				},
+				AttachedEbsStatus: &ec2types.EbsStatusSummary{
+					Status: ec2types.SummaryStatusImpaired,
+					Details: []ec2types.EbsStatusDetails{{
+						Name:          ec2types.StatusNameReachability,
+						Status:        ec2types.StatusTypeFailed,
+						ImpairedSince: &ebsImpairedSince,
+					}},
+				},
+			}},
+		})
+		ExpectApplied(ctx, env.Client, nodeClaim, node)
+		ExpectSingletonReconciled(ctx, controller)
+		expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonEBSReachabilityFailed, ebsImpairedSince)
+		Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), instancestatusprovider.ConditionTypeEC2StatusReady).Message).To(Equal("EC2 reports failing reachability checks: EBSStatus"))
+	})
 	It("should use the observation time when EC2 does not report when the impairment began", func() {
 		awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 			InstanceStatuses: []ec2types.InstanceStatus{{

@@ -59,6 +59,7 @@ var (
 	categoryToKind = map[instancestatus.Category]messages.Kind{
 		instancestatus.InstanceStatus: messages.InstanceStatusKind,
 		instancestatus.SystemStatus:   messages.SystemStatusKind,
+		instancestatus.EBSStatus:      messages.EBSStatusKind,
 		instancestatus.EventStatus:    messages.EventStatusKind,
 	}
 )
@@ -98,7 +99,7 @@ func NewInstanceStatusController(
 func (c *InstanceStatusController) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, "interruption.instancestatus")
 
-	categories := []instancestatus.Category{instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EventStatus}
+	categories := []instancestatus.Category{instancestatus.InstanceStatus, instancestatus.SystemStatus, instancestatus.EBSStatus, instancestatus.EventStatus}
 	if coreoptions.FromContext(ctx).FeatureGates.NodeRepair && !coreoptions.FromContext(ctx).LegacyNodeRepair {
 		categories = []instancestatus.Category{instancestatus.EventStatus}
 	}

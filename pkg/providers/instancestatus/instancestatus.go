@@ -33,6 +33,7 @@ type Category string
 const (
 	InstanceStatus = Category("InstanceStatus")
 	SystemStatus   = Category("SystemStatus")
+	EBSStatus      = Category("EBSStatus")
 	// EventStatus surfaces scheduled maintenance events. These are also consumed via EventBridge
 	// in the Interruption controller when an SQS queue is configured. The handling of maintenance events is
 	// currently primitive where we treat all events as instance degradation with an involuntary replacement.
@@ -43,6 +44,7 @@ const (
 	ConditionTypeEC2StatusReady      corev1.NodeConditionType = "EC2StatusReady"
 	ReasonInstanceReachabilityFailed string                   = "InstanceReachabilityFailed"
 	ReasonSystemReachabilityFailed   string                   = "SystemReachabilityFailed"
+	ReasonEBSReachabilityFailed      string                   = "EBSReachabilityFailed"
 	ReasonNoImpairmentReported       string                   = "NoImpairmentReported"
 )
 
@@ -52,11 +54,11 @@ var (
 	// instanceStatusFilters are the server-side filters used to scope DescribeInstanceStatus calls.
 	// We use separate filter sets because DescribeInstanceStatus ANDs filters across different
 	// filter names, and we need to OR across instance status failures, system status failures,
-	// and scheduled maintenance events.
-	// EBS status check failures are ignored for now.
+	// EBS status failures, and scheduled maintenance events.
 	instanceStatusFilters = map[Category][]ec2types.Filter{
 		InstanceStatus: {{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
 		SystemStatus:   {{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		EBSStatus:      {{Name: lo.ToPtr("attached-ebs-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
 		EventStatus: {{Name: lo.ToPtr("event.code"), Values: []string{
 			string(ec2types.EventCodeInstanceReboot),
 			string(ec2types.EventCodeSystemReboot),
@@ -160,6 +162,11 @@ func (p DefaultProvider) newHealthStatus(statusChecks ec2types.InstanceStatus) H
 			return p.newDetails(details, SystemStatus)
 		})...)
 	}
+	if statusChecks.AttachedEbsStatus != nil {
+		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.AttachedEbsStatus.Details, func(details ec2types.EbsStatusDetails, _ int) Details {
+			return p.newDetails(details, EBSStatus)
+		})...)
+	}
 	healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.Events, func(details ec2types.InstanceStatusEvent, _ int) Details {
 		return p.newDetails(details, EventStatus)
 	})...)
@@ -173,6 +180,14 @@ func (p DefaultProvider) newDetails(details any, category Category) Details {
 			Name:          string(ec2Details.Name),
 			Status:        ec2Details.Status,
 			ImpairedSince: lo.FromPtr(ec2Details.ImpairedSince),
+		}
+	}
+	if ebsDetails, ok := details.(ec2types.EbsStatusDetails); ok {
+		return Details{
+			Category:      category,
+			Name:          string(ebsDetails.Name),
+			Status:        ebsDetails.Status,
+			ImpairedSince: lo.FromPtr(ebsDetails.ImpairedSince),
 		}
 	}
 	ec2Events := details.(ec2types.InstanceStatusEvent)
