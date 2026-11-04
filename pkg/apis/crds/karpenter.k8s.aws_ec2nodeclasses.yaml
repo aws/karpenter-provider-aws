@@ -106,6 +106,7 @@ spec:
                         description: |-
                           Name is the ami name in EC2.
                           This value is the name field, which is different from the name tag.
+                        minLength: 1
                         type: string
                       owner:
                         description: |-
@@ -114,6 +115,7 @@ spec:
                         type: string
                       ssmParameter:
                         description: SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+                        minLength: 1
                         type: string
                       tags:
                         additionalProperties:
@@ -122,6 +124,7 @@ spec:
                           Tags is a map of key/value tags used to select amis.
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
+                        minProperties: 1
                         type: object
                         x-kubernetes-validations:
                           - message: empty tag keys or values aren't supported
@@ -284,6 +287,7 @@ spec:
                           Tags is a map of key/value tags used to select capacity reservations.
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
+                        minProperties: 1
                         type: object
                         x-kubernetes-validations:
                           - message: empty tag keys or values aren't supported
@@ -559,6 +563,7 @@ spec:
                         description: |-
                           Name is the security group name in EC2.
                           This value is the name field, which is different from the name tag.
+                        minLength: 1
                         type: string
                       tags:
                         additionalProperties:
@@ -567,6 +572,7 @@ spec:
                           Tags is a map of key/value tags used to select security groups.
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
+                        minProperties: 1
                         type: object
                         x-kubernetes-validations:
                           - message: empty tag keys or values aren't supported
@@ -601,6 +607,7 @@ spec:
                           Tags is a map of key/value tags used to select subnets
                           Specifying '*' for a value selects all values for a given tag key.
                         maxProperties: 20
+                        minProperties: 1
                         type: object
                         x-kubernetes-validations:
                           - message: empty tag keys or values aren't supported
