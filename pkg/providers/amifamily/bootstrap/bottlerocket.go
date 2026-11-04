@@ -39,6 +39,10 @@ func (b Bottlerocket) Script(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
+	// Karpenter nodes don't join Auto Scaling groups, so should-wait would block kubelet.
+	if s.Settings.Autoscaling.ShouldWait != nil {
+		s.Settings.Autoscaling.ShouldWait = aws.Bool(false)
+	}
 	// Karpenter will overwrite settings present inside custom UserData
 	// based on other fields specified in the NodePool
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
