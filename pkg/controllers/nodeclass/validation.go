@@ -732,8 +732,8 @@ func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.Parsed
 
 // validateKubeletFieldsSupported rejects kubelet config the NodeClass' AMI family won't fully apply.
 // Only families that render the raw config through (AL2023) honor every valid kubelet field; the rest
-// apply just the subset Karpenter maps to bootstrap, so any other field -- plus podsPerCore on families
-// that have no setting for it (Bottlerocket) -- would be dropped silently, launching a node without the
+// apply just the subset Karpenter maps to bootstrap, so any other field -- plus managed fields the
+// family explicitly declares unsupported -- would be dropped silently, launching a node without the
 // configuration the user set. Custom is exempt: it owns its userdata and ignores kubelet config entirely,
 // so there's nothing for Karpenter to guarantee.
 //
@@ -752,6 +752,14 @@ func validateKubeletFieldsSupported(nodeClass *v1.EC2NodeClass, parsed *v1.Parse
 	// podsPerCore is a field Karpenter maps, but some families have no setting to render it into.
 	if parsed != nil && parsed.PodsPerCore != nil && !flags.PodsPerCoreEnabled {
 		unsupported.Insert("podsPerCore")
+	}
+	// Check managed fields that the AMI family explicitly declares unsupported. These are fields
+	// Karpenter maps into ParsedKubeletConfig but the family's bootstrap doesn't apply, so
+	// setting them would be silently dropped.
+	for _, field := range flags.UnsupportedManagedFields {
+		if _, ok := nodeClass.Spec.Kubelet[field]; ok {
+			unsupported.Insert(field)
+		}
 	}
 	if unsupported.Len() > 0 {
 		messages = append(messages, fmt.Sprintf("spec.kubelet has fields not applied by the %s AMI family that would be silently dropped: %s",

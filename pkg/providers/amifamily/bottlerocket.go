@@ -213,5 +213,8 @@ func (b Bottlerocket) FeatureFlags() FeatureFlags {
 		UsesENILimitedMemoryOverhead: false,
 		PodsPerCoreEnabled:           false,
 		SupportsENILimitedPodDensity: true,
+		// Bottlerocket has no setting for podsPerCore in its TOML-based kubernetes settings.
+		// https://github.com/bottlerocket-os/bottlerocket/issues/1721
+		UnsupportedManagedFields: []string{"podsPerCore"},
 	}
 }

@@ -22,6 +22,14 @@ import (
 )
 
 var _ = Describe("Bottlerocket", func() {
+	Describe("FeatureFlags", func() {
+		It("should declare podsPerCore as an unsupported managed field", func() {
+			b := Bottlerocket{}
+			flags := b.FeatureFlags()
+			Expect(flags.UnsupportedManagedFields).To(ContainElement("podsPerCore"))
+			Expect(flags.PodsPerCoreEnabled).To(BeFalse())
+		})
+	})
 	Describe("resolveAMIVersion", func() {
 		It("should resolve version from alias", func() {
 			b := Bottlerocket{
