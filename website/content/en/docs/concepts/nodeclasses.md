@@ -1384,13 +1384,17 @@ spec:
     "memory.available" = "20%"
 ```
 
-This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your public key file):
+This example adds SSH keys to allow remote login to the node (replace *my-authorized_keys* with your actual public key content):
 
 {{% alert title="Note" color="primary" %}}
 Instead of using SSH as set up in this example, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell access to Karpenter nodes.
 See [Node NotReady]({{< ref "../troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Also, **my-authorized_key** key is the public key. See [Retrieve the public key material](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/describe-keys.html#retrieving-the-public-key).
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+If you need to include external file contents in `userData`, use an external templating tool (e.g., Helm, kustomize) to inject the content before applying the manifest. Karpenter does not support templating directives like `{{ insertFile }}` in `userData`.
 {{% /alert %}}
 
 ```yaml
@@ -1406,7 +1410,7 @@ spec:
     mkdir -p ~ec2-user/.ssh/
     touch ~ec2-user/.ssh/authorized_keys
     cat >> ~ec2-user/.ssh/authorized_keys <<EOF
-    {{ insertFile "../my-authorized_keys" | indent 4  }}
+    ssh-rsa AAAA... user@example.com
     EOF
     chmod -R go-w ~ec2-user/.ssh/authorized_keys
     chown -R ec2-user ~ec2-user/.ssh
