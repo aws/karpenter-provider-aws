@@ -221,6 +221,10 @@ func (p *DefaultProvider) buildInstanceTypes(ctx context.Context, nodeClass Node
 	if err != nil {
 		return nil, err
 	}
+	// Collect the set of architectures supported by the NodeClass AMIs so we can skip instance types
+	// that would have no bootable image. This prevents the scheduler from selecting an instance type
+	// (e.g. arm64) when the NodeClass only has AMIs for a different architecture (e.g. amd64).
+	amiArchitectures := AMIArchitectures(nodeClass.AMIs())
 	// Return resolution failure (e.g. a kubelet CEL expression that can't be evaluated for this instance type),
 	// but skip the instance types the resolver excluded - those are a deliberate choice not to offer an
 	// instance type, not a failure to resolve one.
@@ -233,6 +237,13 @@ func (p *DefaultProvider) buildInstanceTypes(ctx context.Context, nodeClass Node
 		// A nil instance type with no error is the Resolver declining to offer this one; skip it.
 		if it == nil {
 			continue
+		}
+		// Filter out instance types whose architecture doesn't match any available AMI.
+		if len(amiArchitectures) > 0 {
+			itArch := it.Requirements.Get(corev1.LabelArchStable)
+			if itArch == nil || !amiArchitectures.HasAny(itArch.Values()...) {
+				continue
+			}
 		}
 		instanceTypes = append(instanceTypes, it)
 	}
@@ -550,14 +561,42 @@ func (p *DefaultProvider) FilterForNodeClass(ctx context.Context, its []*cloudpr
 	if nodeClass.PlacementGroupSelector() != nil {
 		pg, _ = p.placementGroupProvider.Get(ctx, nodeClass)
 	}
+	// Collect the set of architectures supported by the NodeClass AMIs. Instance types whose
+	// architecture doesn't match any available AMI are filtered out so the scheduler never picks
+	// an instance type that has no bootable image.
+	amiArchitectures := AMIArchitectures(nodeClass.AMIs())
 	compatible := []*cloudprovider.InstanceType{}
 	for _, it := range its {
 		info, found := p.instanceTypesInfo[ec2types.InstanceType(it.Name)]
-		if found && compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
-			compatible = append(compatible, it)
+		if !found || !compatibility.IsCompatibleWithNodeClass(info, nodeClass, pg) {
+			continue
 		}
+		// If AMIs specify architecture requirements, only keep instance types whose architecture
+		// is supported by at least one AMI.
+		if len(amiArchitectures) > 0 {
+			itArch := it.Requirements.Get(corev1.LabelArchStable)
+			if itArch == nil || !amiArchitectures.HasAny(itArch.Values()...) {
+				continue
+			}
+		}
+		compatible = append(compatible, it)
 	}
 	return compatible
+}
+
+// AMIArchitectures returns the set of Kubernetes architectures (e.g. amd64, arm64) present
+// across the given AMIs by inspecting their requirements. An empty set means no architecture
+// information was found, in which case callers should not filter on architecture.
+func AMIArchitectures(amis []v1.AMI) sets.Set[string] {
+	architectures := sets.New[string]()
+	for _, ami := range amis {
+		for _, req := range ami.Requirements {
+			if req.Key == corev1.LabelArchStable && req.Operator == corev1.NodeSelectorOpIn {
+				architectures.Insert(req.Values...)
+			}
+		}
+	}
+	return architectures
 }
 
 func (p *DefaultProvider) Reset() {
