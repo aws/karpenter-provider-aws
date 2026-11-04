@@ -78,6 +78,14 @@ type AMI struct {
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
 	Requirements []corev1.NodeSelectorRequirement `json:"requirements"`
+	// RootDeviceName is the device name of the AMI's root volume (e.g. /dev/xvda)
+	// +optional
+	RootDeviceName string `json:"rootDeviceName,omitempty"`
+	// RootDeviceVolumeSize is the size of the AMI's root snapshot in GiB.
+	// This is used as a floor when applying default block device mappings
+	// so that the root volume is always at least as large as the snapshot.
+	// +optional
+	RootDeviceVolumeSize *int32 `json:"rootDeviceVolumeSize,omitempty"`
 }
 
 type CapacityReservation struct {
