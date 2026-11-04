@@ -1,0 +1,550 @@
+# Generated -- do not hand-edit. Regenerate with:
+#
+#   helm template nvidia-dra oci://registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu \
+#     --version 0.5.0 --namespace kube-system \
+#     --set gpuResourcesEnabledOverride=true \
+#     --set resources.computeDomains.enabled=false \
+#     --set-json 'kubeletPlugin.affinity={"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.k8s.aws/instance-gpu-manufacturer","operator":"In","values":["nvidia"]}]}]}}}'
+#
+# Three deviations from the chart defaults, each load-bearing for the e2e suite:
+#   * gpuResourcesEnabledOverride -- the chart refuses to publish GPUs otherwise, since it can't
+#     coexist with the standard device plugin. Nothing installs that plugin in this suite.
+#   * computeDomains disabled -- IMEX/multi-node NVLink is out of scope, and dropping it also drops a
+#     CRD the chart ships outside templates/ (which this manifest could not carry).
+#   * kubeletPlugin.affinity -- the default requires Node Feature Discovery labels. Karpenter already
+#     labels its own nodes with instance-gpu-manufacturer, so the plugin can target that instead of
+#     the suite having to install NFD.
+#
+# Pulling from an OCI registry makes helm write a "Pulled:/Digest:" preamble to stdout ahead of the
+# manifest. Drop it, along with the "---" that follows -- it is not YAML and would be applied as an
+# object.
+# Source: dra-driver-nvidia-gpu/templates/rbac-compute-domain-daemon.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: compute-domain-daemon-service-account
+  namespace: kube-system
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-controller.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nvidia-dra-dra-driver-nvidia-gpu-service-account-controller
+  namespace: kube-system
+  labels:
+    helm.sh/chart: dra-driver-nvidia-gpu-0.5.0
+    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dra-driver-nvidia-gpu
+    app.kubernetes.io/instance: nvidia-dra
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-kubeletplugin.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nvidia-dra-dra-driver-nvidia-gpu-service-account-kubeletplugin
+  namespace: kube-system
+  labels:
+    helm.sh/chart: dra-driver-nvidia-gpu-0.5.0
+    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dra-driver-nvidia-gpu
+    app.kubernetes.io/instance: nvidia-dra
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-compute-domain-daemon.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: compute-domain-daemon-role
+rules:
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomains", "computedomains/status"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomaincliques"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch", "patch"]
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-controller.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dra-driver-nvidia-gpu-clusterrole-controller
+rules:
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomains"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomains/status"]
+  verbs: ["update"]
+- apiGroups: ["resource.k8s.io"]
+  resources: ["resourceclaimtemplates"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "create", "update"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-kubeletplugin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: dra-driver-nvidia-gpu-clusterrole-kubeletplugin
+rules:
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomains"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["resource.k8s.io"]
+  resources: ["resourceclaims"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["resource.k8s.io"]
+  resources: ["resourceslices"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-compute-domain-daemon.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: compute-domain-daemon-role-binding
+subjects:
+- kind: ServiceAccount
+  name: compute-domain-daemon-service-account
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: compute-domain-daemon-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-controller.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dra-driver-nvidia-gpu-clusterrole-binding-controller-kube-system
+subjects:
+  - kind: ServiceAccount
+    name: nvidia-dra-dra-driver-nvidia-gpu-service-account-controller
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: dra-driver-nvidia-gpu-clusterrole-controller
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-kubeletplugin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dra-driver-nvidia-gpu-clusterrole-binding-kubeletplugin
+subjects:
+  - kind: ServiceAccount
+    name: nvidia-dra-dra-driver-nvidia-gpu-service-account-kubeletplugin
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: dra-driver-nvidia-gpu-clusterrole-kubeletplugin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-controller.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dra-driver-nvidia-gpu-role-controller
+  namespace: kube-system
+rules:
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomaincliques"]
+  verbs: ["get", "list", "watch", "update"]
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-kubeletplugin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dra-driver-nvidia-gpu-role-kubeletplugin
+  namespace: kube-system
+rules:
+- apiGroups: ["resource.nvidia.com"]
+  resources: ["computedomaincliques"]
+  verbs: ["get"]
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-controller.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dra-driver-nvidia-gpu-role-binding-controller
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: nvidia-dra-dra-driver-nvidia-gpu-service-account-controller
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: dra-driver-nvidia-gpu-role-controller
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: dra-driver-nvidia-gpu/templates/rbac-kubeletplugin.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dra-driver-nvidia-gpu-role-binding-kubeletplugin
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: nvidia-dra-dra-driver-nvidia-gpu-service-account-kubeletplugin
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: dra-driver-nvidia-gpu-role-kubeletplugin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Source: dra-driver-nvidia-gpu/templates/kubeletplugin.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: dra-driver-nvidia-gpu-kubelet-plugin
+  namespace: kube-system
+  labels:
+    helm.sh/chart: dra-driver-nvidia-gpu-0.5.0
+    app.kubernetes.io/version: "0.5.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: dra-driver-nvidia-gpu
+    app.kubernetes.io/instance: nvidia-dra
+spec:
+  selector:
+    matchLabels:
+      dra-driver-nvidia-gpu-component: kubelet-plugin
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 100%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dra-driver-nvidia-gpu
+        app.kubernetes.io/instance: nvidia-dra
+        dra-driver-nvidia-gpu-component: kubelet-plugin
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: nvidia-dra-dra-driver-nvidia-gpu-service-account-kubeletplugin
+      securityContext:
+        {}
+      initContainers:
+      - name: init-container
+        image: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu:v0.5.0
+        securityContext:
+          privileged: true
+        command: [bash, /usr/bin/kubelet-plugin-prestart.sh]
+        env:
+        - name: NVIDIA_DRIVER_ROOT
+          value: "/"
+        # Use runc: explicit "void"; otherwise we inherit "all".
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: void
+        - name: KUBELET_REGISTRAR_DIRECTORY_PATH
+          value: "/var/lib/kubelet/plugins_registry"
+        - name: KUBELET_PLUGINS_DIRECTORY_PATH
+          value: "/var/lib/kubelet/plugins"
+        volumeMounts:
+        - name: driver-root-parent
+          mountPath: /driver-root-parent
+          readOnly: true
+      containers:
+      - name: gpus
+        securityContext:
+          privileged: true
+        image: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu:v0.5.0
+        imagePullPolicy: IfNotPresent
+        command: ["bash", "-c"]
+        args:
+        - |-
+          # Conditionally mask the params file to prevent this container from
+          # recreating any missing GPU device nodes. This is necessary, for
+          # example, when running under nvkind to limit the set GPUs governed
+          # by the plugin even though it has cgroup access to all of them.
+          if [ "${MASK_NVIDIA_DRIVER_PARAMS}" = "true" ]; then
+            cp /proc/driver/nvidia/params /root/gpu-params
+            sed -i 's/^ModifyDeviceFiles: 1$/ModifyDeviceFiles: 0/' /root/gpu-params
+            mount --bind /root/gpu-params /proc/driver/nvidia/params
+          fi
+          gpu-kubelet-plugin -v $(LOG_VERBOSITY)
+        resources:
+          {}
+        
+        startupProbe:
+          grpc:
+            port: 51516
+            service: liveness
+          failureThreshold: 600
+          periodSeconds: 1
+          timeoutSeconds: 10
+        livenessProbe:
+          grpc:
+            port: 51516
+            service: liveness
+          failureThreshold: 3
+          periodSeconds: 30
+          timeoutSeconds: 10
+        env:
+        # HTTP_ENDPOINT and METRICS_PATH are used to configure the metrics HTTP server.
+        - name: HTTP_ENDPOINT
+          value: ":8080"
+        - name: METRICS_PATH
+          value: "/metrics"
+        # LOG_VERBOSITY is the source of truth for this program's klog
+        # configuration. Currently injected via CLI argument (see above) because
+        # klog's verbosity for now cannot be sanely set from an environment
+        # variable.
+        - name: LOG_VERBOSITY
+          value: "4"
+        - name: MASK_NVIDIA_DRIVER_PARAMS
+          value: ""
+        - name: NVIDIA_DRIVER_ROOT
+          value: "/"
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: void
+        - name: CDI_ROOT
+          value: /var/run/cdi
+        - name: NVIDIA_MIG_CONFIG_DEVICES
+          value: all
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SERVICE_ACCOUNT_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: IMAGE_NAME
+          value: registry.k8s.io/dra-driver-nvidia/dra-driver-nvidia-gpu:v0.5.0
+        - name: IMAGE_PULL_POLICY
+          value: "IfNotPresent"
+        - name: KUBELET_REGISTRAR_DIRECTORY_PATH
+          value: "/var/lib/kubelet/plugins_registry"
+        - name: KUBELET_PLUGINS_DIRECTORY_PATH
+          value: "/var/lib/kubelet/plugins"
+        - name: HEALTHCHECK_PORT
+          value: "51516"
+        volumeMounts:
+        - name: plugins-registry
+          mountPath: "/var/lib/kubelet/plugins_registry"
+        - name: plugins
+          mountPath: "/var/lib/kubelet/plugins"
+          mountPropagation: Bidirectional
+        - name: cdi
+          mountPath: /var/run/cdi
+        - name: driver-root
+          mountPath: /driver-root
+          mountPropagation: HostToContainer
+      volumes:
+      - name: plugins-registry
+        hostPath:
+          path: "/var/lib/kubelet/plugins_registry"
+      - name: plugins
+        hostPath:
+          path: "/var/lib/kubelet/plugins"
+      - name: cdi
+        hostPath:
+          path: /var/run/cdi
+      - name: driver-root-parent
+        hostPath:
+          # If nvidiaDriverRoot == "/" then its parent is itself. Otherwise, get
+          # its parent by removing any trailing slashes as well as the last path
+          # element with sprig template function `dir`. Examples: /a/b/ -> /a,
+          # /a/b/c -> /a/b.
+          path: "/"
+          type: DirectoryOrCreate
+      - name: driver-root
+        hostPath:
+          path: /
+          type: DirectoryOrCreate
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: karpenter.k8s.aws/instance-gpu-manufacturer
+                operator: In
+                values:
+                - nvidia
+      tolerations:
+        - effect: NoSchedule
+          key: nvidia.com/gpu
+          operator: Exists
+
+---
+# Source: dra-driver-nvidia-gpu/templates/controller.yaml
+# Copyright The Kubernetes Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: dra-driver-nvidia-gpu/templates/kubeletplugin.yaml
+# Copyright The Kubernetes Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: dra-driver-nvidia-gpu/templates/validation.yaml
+# Copyright The Kubernetes Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: dra-driver-nvidia-gpu/templates/webhook-deployment.yaml
+# Copyright The Kubernetes Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+# Source: dra-driver-nvidia-gpu/templates/deviceclass-gpu.yaml
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: gpu.nvidia.com
+spec:
+  selectors:
+  - cel:
+      expression: "device.driver == 'gpu.nvidia.com' && device.attributes['gpu.nvidia.com'].type == 'gpu'"
+  extendedResourceName: nvidia.com/gpu
+
+---
+# Source: dra-driver-nvidia-gpu/templates/deviceclass-mig.yaml
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: mig.nvidia.com
+spec:
+  selectors:
+  - cel:
+      expression: "device.driver == 'gpu.nvidia.com' && device.attributes['gpu.nvidia.com'].type == 'mig'"
+
+---
+# Source: dra-driver-nvidia-gpu/templates/deviceclass-vfio-gpu.yaml
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: vfio.gpu.nvidia.com
+spec:
+  selectors:
+  - cel:
+      expression: "device.driver == 'gpu.nvidia.com' && device.attributes['gpu.nvidia.com'].type == 'vfio'"
+---
+# Source: dra-driver-nvidia-gpu/templates/validatingadmissionpolicy.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: resourceslices-policy-dra-driver-nvidia-gpu
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   ["resource.k8s.io"]
+      apiVersions: ["v1", "v1beta1", "v1beta2"]
+      operations:  ["CREATE", "UPDATE", "DELETE"]
+      resources:   ["resourceslices"]
+  matchConditions:
+  - name: isRestrictedUser
+    expression: >-
+      request.userInfo.username == "system:serviceaccount:kube-system:nvidia-dra-dra-driver-nvidia-gpu-service-account"
+  variables:
+  - name: userNodeName
+    expression: >-
+      request.userInfo.extra[?'authentication.kubernetes.io/node-name'][0].orValue('')
+  - name: objectNodeName
+    expression: >-
+      (request.operation == "DELETE" ? oldObject : object).spec.?nodeName.orValue("")
+  - name: nodeSelectorValue
+    expression: >-
+      (request.operation == "DELETE" ? oldObject : object).spec.?nodeSelector.orValue(null)
+  - name: allNodesValue
+    expression: >-
+      (request.operation == "DELETE" ? oldObject : object).spec.?allNodes.orValue(false)
+  validations:
+  - expression: variables.userNodeName != ""
+    message: >-
+      no node association found for user, this user must run in a pod on a node and ServiceAccountTokenPodNodeInfo must be enabled
+  - expression: variables.userNodeName == variables.objectNodeName || variables.allNodesValue == true || variables.nodeSelectorValue != null
+    messageExpression: >-
+      "this user running on node '"+variables.userNodeName+"' may not modify cluster or node resourceslices"
+
+---
+# Source: dra-driver-nvidia-gpu/templates/validatingadmissionpolicybinding.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: resourceslices-policy-dra-driver-nvidia-gpu
+spec:
+  policyName: resourceslices-policy-dra-driver-nvidia-gpu
+  validationActions: [Deny]
+  # All ResourceSlices are matched.
