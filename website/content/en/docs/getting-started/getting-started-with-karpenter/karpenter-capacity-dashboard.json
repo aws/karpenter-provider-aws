@@ -1590,14 +1590,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "definition": "label_values(karpenter_nodes_allocatable, nodepool)",
+          "definition": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, nodepool)",
           "hide": 0,
           "includeAll": true,
           "multi": true,
           "name": "nodepool",
           "options": [],
           "query": {
-            "query": "label_values(karpenter_nodes_allocatable, nodepool)",
+            "query": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, nodepool)",
             "refId": "StandardVariableQuery"
           },
           "refresh": 2,
@@ -1620,14 +1620,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "definition": "label_values(karpenter_nodes_allocatable, zone)",
+          "definition": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, zone)",
           "hide": 0,
           "includeAll": true,
           "multi": true,
           "name": "zone",
           "options": [],
           "query": {
-            "query": "label_values(karpenter_nodes_allocatable, zone)",
+            "query": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, zone)",
             "refId": "StandardVariableQuery"
           },
           "refresh": 2,
@@ -1650,14 +1650,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "definition": "label_values(karpenter_nodes_allocatable, arch)",
+          "definition": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, arch)",
           "hide": 0,
           "includeAll": true,
           "multi": true,
           "name": "arch",
           "options": [],
           "query": {
-            "query": "label_values(karpenter_nodes_allocatable, arch)",
+            "query": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, arch)",
             "refId": "StandardVariableQuery"
           },
           "refresh": 2,
@@ -1680,14 +1680,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "definition": "label_values(karpenter_nodes_allocatable, capacity_type)",
+          "definition": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, capacity_type)",
           "hide": 0,
           "includeAll": true,
           "multi": true,
           "name": "capacity_type",
           "options": [],
           "query": {
-            "query": "label_values(karpenter_nodes_allocatable, capacity_type)",
+            "query": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, capacity_type)",
             "refId": "StandardVariableQuery"
           },
           "refresh": 2,
@@ -1710,14 +1710,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "definition": "label_values(karpenter_nodes_allocatable, instance_type)",
+          "definition": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, instance_type)",
           "hide": 0,
           "includeAll": true,
           "multi": true,
           "name": "instance_type",
           "options": [],
           "query": {
-            "query": "label_values(karpenter_nodes_allocatable, instance_type)",
+            "query": "label_values(karpenter_nodes_allocatable{job=\"karpenter\"}, instance_type)",
             "refId": "StandardVariableQuery"
           },
           "refresh": 2,
