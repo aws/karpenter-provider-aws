@@ -76,14 +76,20 @@ type Environment struct {
 	ARCZONALSHIFTAPI *servicearczonalshift.Client
 	TimeStreamAPI    sdk.TimestreamWriteAPI
 
-	SQSProvider        sqs.Provider
-	ZonalShiftProvider arczonalshift.Provider
+	SQSProvider              sqs.Provider
+	NoInterruptionQueueCause string
+	ZonalShiftProvider       arczonalshift.Provider
 
 	ClusterName       string
 	ClusterEndpoint   string
 	InterruptionQueue string
 	PrivateCluster    bool
 	ZoneInfo          []ZoneInfo
+	EBSCSIDriver      EBSCSIDriver
+
+	RevalidateNodeClass func(*v1.EC2NodeClass)
+	SubnetIDs           []string
+	SecurityGroupIDs    []string
 }
 
 type ZoneInfo struct {
@@ -111,6 +117,9 @@ func NewEnvironment(t *testing.T) *Environment {
 
 		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
 		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
+		EBSCSIDriver:    DefaultEBSCSIDriver,
+
+		NoInterruptionQueueCause: "INTERRUPTION_QUEUE is not set",
 	}
 
 	if _, awsEnv.PrivateCluster = os.LookupEnv("PRIVATE_CLUSTER"); awsEnv.PrivateCluster {
@@ -176,4 +185,12 @@ func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {
 	}
 	nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 	return nodeClass
+}
+
+func (env *Environment) MutateNodeClassForRevalidation(nodeClass *v1.EC2NodeClass) {
+	if env.RevalidateNodeClass != nil {
+		env.RevalidateNodeClass(nodeClass)
+		return
+	}
+	nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit = lo.ToPtr(lo.FromPtr(nodeClass.Spec.MetadataOptions.HTTPPutResponseHopLimit) + 1)
 }

@@ -411,9 +411,13 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 		return nil, fmt.Errorf("target capacity specification is required")
 	}
 
-	var fleetInstances []ec2types.CreateFleetInstance
-	for range lo.FromPtr(input.TargetCapacitySpecification.TotalTargetCapacity) {
-		ltConfig := input.LaunchTemplateConfigs[0]
+	// Like the real CreateFleet API, consider the overrides of every launch template config, not just the first
+	type ltOverride struct {
+		lt       lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData]
+		override ec2types.FleetLaunchTemplateOverridesRequest
+	}
+	var ltOverrides []ltOverride
+	for _, ltConfig := range input.LaunchTemplateConfigs {
 		ltID := lo.FromPtr(ltConfig.LaunchTemplateSpecification.LaunchTemplateId)
 		if ltConfig.LaunchTemplateSpecification.LaunchTemplateName != nil {
 			raw, ok := c.launchTemplateNameToID.Load(lo.FromPtr(ltConfig.LaunchTemplateSpecification.LaunchTemplateName))
@@ -429,8 +433,19 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 			return nil, fmt.Errorf("launch template not found")
 		}
 		lt := raw.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
+		for _, override := range ltConfig.Overrides {
+			ltOverrides = append(ltOverrides, ltOverride{lt: lt, override: override})
+		}
+	}
 
-		selectedOverride := lo.MinBy(ltConfig.Overrides, func(a, b ec2types.FleetLaunchTemplateOverridesRequest) bool {
+	if len(ltOverrides) == 0 {
+		return nil, fmt.Errorf("at least one launch template override is required")
+	}
+
+	var fleetInstances []ec2types.CreateFleetInstance
+	for range lo.FromPtr(input.TargetCapacitySpecification.TotalTargetCapacity) {
+		selected := lo.MinBy(ltOverrides, func(selectedA, selectedB ltOverride) bool {
+			a, b := selectedA.override, selectedB.override
 			var capacityType string
 			switch input.TargetCapacitySpecification.DefaultTargetCapacityType {
 			case ec2types.DefaultTargetCapacityTypeSpot:
@@ -460,6 +475,7 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 			}
 			return aScore < bScore
 		})
+		lt, selectedOverride := selected.lt, selected.override
 		instanceTags, _ := lo.Find(lt.B.TagSpecifications, func(t ec2types.LaunchTemplateTagSpecificationRequest) bool {
 			return t.ResourceType == ec2types.ResourceTypeInstance
 		})
@@ -619,7 +635,7 @@ func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _
 					AvailabilityZone:    subnet.AvailabilityZone,
 					BlockDeviceMappings: nil, // For now, we don't support blockDeviceMapping overrides
 					ImageId:             selectedOverride.ImageId,
-					InstanceType:        lt.B.InstanceType,
+					InstanceType:        selectedOverride.InstanceType,
 					MaxPrice:            selectedOverride.MaxPrice,
 					Placement:           nil,
 					Priority:            selectedOverride.Priority,

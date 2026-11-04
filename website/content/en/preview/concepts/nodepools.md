@@ -197,6 +197,7 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node can be initialized.
 These taints must be cleared before pods can be deployed to a node.
+Startup taints are applied only when the node registers. Karpenter doesn't re-apply them after it [reboots a node in place]({{<ref "./disruption#repair-actions" >}}).
 
 ## spec.template.spec.expireAfter
 

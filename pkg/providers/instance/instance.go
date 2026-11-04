@@ -50,7 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -114,9 +114,19 @@ type DefaultProvider struct {
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
 	allocationStrategyProvider  AllocationStrategyProvider
+	efaProvider                 efa.Provider
 }
 
 type DefaultProviderOpts = option.Function[DefaultProvider]
+
+// WithEFAProvider decides whether instances are launched with EFA interfaces with p instead of efa.DefaultProvider.
+// Pass the same Provider to the launch template resolver (amifamily.WithEFAProvider) so the EFA count recorded on the
+// instance agrees with the interfaces the launch template attaches.
+func WithEFAProvider(p efa.Provider) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.efaProvider = p
+	}
+}
 
 // WithAllocationStrategyProvider chooses CreateFleet allocation strategies with p instead of
 // DefaultAllocationStrategyProvider.
@@ -153,6 +163,7 @@ func NewDefaultProvider(
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
 		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
+		efaProvider:                 efa.DefaultProvider{},
 	}
 	for _, opt := range opts {
 		opt(provider)
@@ -779,16 +790,16 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	panic("reservation ID doesn't exist for reserved launch")
 }
 
-// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim requirements
+// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and
+// whether the EFA provider enables EFA for the NodeClaim. When EFA is on, every EFA interface the instance type supports
+// is attached.
 func (p *DefaultProvider) getEFACountForInstance(
 	instanceType string,
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
-	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
-	if !requested && nodeClass.NetworkInterfaces() == nil {
+	if !p.efaProvider.Enabled(nodeClaim, nodeClass) && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {

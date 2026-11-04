@@ -18,37 +18,34 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/suites/legacyrepair"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var env *aws.Environment
-var nodeClass *v1.EC2NodeClass
-var nodePool *karpv1.NodePool
-
 func TestLegacyRepair(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
+		legacyrepair.Env = aws.NewEnvironment(t)
 		// Set once for the suite: each spec's BeforeEach persists the current settings, so AfterEach keeps the override
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "LEGACY_NODE_REPAIR", Value: "true"})
+		legacyrepair.Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "LEGACY_NODE_REPAIR", Value: "true"})
 	})
 	AfterSuite(func() {
-		env.ExpectSettingsRemoved(corev1.EnvVar{Name: "LEGACY_NODE_REPAIR"})
-		env.Stop()
+		legacyrepair.Env.ExpectSettingsRemoved(corev1.EnvVar{Name: "LEGACY_NODE_REPAIR"})
+		legacyrepair.Env.Stop()
 	})
 	RunSpecs(t, "LegacyRepair")
 }
 
 var _ = BeforeEach(func() {
-	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
+	legacyrepair.Env.BeforeEach()
+	legacyrepair.NodeClass = legacyrepair.Env.DefaultEC2NodeClass()
+	legacyrepair.NodePool = legacyrepair.Env.DefaultNodePool(legacyrepair.NodeClass)
 })
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() { legacyrepair.Env.Cleanup() })
+var _ = AfterEach(func() { legacyrepair.Env.AfterEach() })
+
+var _ = legacyrepair.RegisterTests()
