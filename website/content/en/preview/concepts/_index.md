@@ -88,6 +88,8 @@ Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/au
 
 * **Quick node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups. This enables it to retry in milliseconds instead of minutes when capacity is unavailable. It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.
 
+**Running Karpenter alongside Cluster Autoscaler:** Karpenter and Cluster Autoscaler can coexist on the same cluster. Karpenter will manage nodes it provisions (identified by the `karpenter.sh/nodepool` label), while Cluster Autoscaler continues to manage nodes in existing managed node groups. To prevent conflicts, ensure that Karpenter NodePools and Cluster Autoscaler node groups do not overlap in their scheduling scope — use taints, labels, or node affinity to direct workloads to the appropriate provisioner. For a step-by-step migration, see [Migrating from Cluster Autoscaler]({{<ref "../getting-started/migrating-from-cas" >}}).
+
 ## Application Developer
 
 As someone deploying pods that might be evaluated by Karpenter, you should know how to request the properties that your pods need of its compute resources. Karpenter's job is to efficiently assess and choose compute assets based on requests from pod deployments. These can include basic Kubernetes features or features that are specific to the cloud provider (such as AWS).
