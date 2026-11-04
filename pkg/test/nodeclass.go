@@ -130,10 +130,6 @@ type TestNodeClass struct {
 	v1.EC2NodeClass
 }
 
-func (t *TestNodeClass) InstanceProfileTags(clusterName, clusterNameTagKey string) map[string]string {
-	return nil
-}
-
 // MustMakeKubeletConfiguration constructs a KubeletConfiguration map from an arbitrary
 // struct or map by marshaling to JSON and back. This is intended for use in tests, where
 // constructing the open map from typed fields is more ergonomic.

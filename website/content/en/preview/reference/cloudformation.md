@@ -40,6 +40,14 @@ That name would then be appended to any name below where `${ClusterName}` is inc
 Leave `${ClusterNameTagKey}` as the default `eks:eks-cluster-name` when running on EKS. Only override it if you run Karpenter outside of EKS and have set the controller's `--cluster-name-tag-key` flag (env `CLUSTER_NAME_TAG_KEY`) to a matching value. The CloudFormation parameter and the controller flag must always agree, otherwise the IAM conditions below will not match the tags Karpenter applies and node provisioning will fail.
 {{% /alert %}}
 
+{{% alert title="Do not change this on an existing cluster" color="danger" %}}
+Only set `--cluster-name-tag-key` when installing Karpenter on a new cluster. Do not change it after Karpenter has already launched resources with a different key. Karpenter discovers its instances and launch templates by this tag, and it does not retag resources it has already tagged, so any existing resources become invisible to it:
+
+* Existing NodeClaims can be garbage collected (and their instances terminated) whenever their Node is not `Ready`, because Karpenter can no longer find the backing instance.
+* Instances whose NodeClaim is gone are no longer garbage collected, and leak.
+* Existing launch templates are no longer cleaned up when their EC2NodeClass is deleted, and leak.
+{{% /alert %}}
+
 * Partition: Any time an ARN is used, it includes the [partition name](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/partitions.html) to identify where the object is found. In most cases, that partition name is `aws`. However, it could also be `aws-cn` (for China Regions) or `aws-us-gov` (for AWS GovCloud US Regions).
 
 ## Node Authorization

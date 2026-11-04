@@ -224,6 +224,23 @@ var _ = Describe("Options", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(opts.ClusterNameTagKey).To(Equal("eks:eks-cluster-name"))
 		})
+		DescribeTable("should fail when cluster-name-tag-key is reserved or managed by Karpenter",
+			func(key string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-name-tag-key", key)
+				Expect(err).To(HaveOccurred())
+			},
+			Entry("aws: prefix", "aws:cluster-name"),
+			Entry("AWS: prefix", "AWS:cluster-name"),
+			Entry("Name", "Name"),
+			Entry("karpenter.sh/nodepool", "karpenter.sh/nodepool"),
+			Entry("karpenter.sh/nodeclaim", "karpenter.sh/nodeclaim"),
+			Entry("karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/ec2nodeclass"),
+			Entry("kubernetes.io/cluster/<name>", "kubernetes.io/cluster/test-cluster"),
+		)
+		It("should succeed when cluster-name-tag-key is the default key set explicitly", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-name-tag-key", "eks:eks-cluster-name")
+			Expect(err).ToNot(HaveOccurred())
+		})
 		It("should fail when vmMemoryOverheadPercent is negative", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--vm-memory-overhead-percent", "-0.01")
 			Expect(err).To(HaveOccurred())
