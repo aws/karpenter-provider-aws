@@ -103,10 +103,11 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 }
 
 func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id string) error {
+	opts := options.FromContext(ctx)
 	tags := map[string]string{
-		v1.NameTagKey:           nc.Status.NodeName,
-		v1.NodeClaimTagKey:      nc.Name,
-		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
+		v1.NameTagKey:          nc.Status.NodeName,
+		v1.NodeClaimTagKey:     nc.Name,
+		opts.ClusterNameTagKey: opts.ClusterName,
 	}
 
 	// Remove tags which have been already populated
