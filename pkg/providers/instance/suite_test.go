@@ -231,7 +231,7 @@ var _ = Describe("InstanceProvider", func() {
 			reqs := scheduling.NewRequirements(o.Requirements.Values()...)
 			delete(reqs, karpv1.CapacityTypeLabelKey)
 			reqs.Add(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, onDemandAlt))
-			return &corecloudprovider.Offering{Requirements: reqs, Price: o.Price, Available: true}, true
+			return &corecloudprovider.Offering{Requirements: reqs, Price: o.Price, Available: true, Compatible: true}, true
 		})
 		Expect(lo.Uniq(lo.Map(altOfferings, func(o *corecloudprovider.Offering, _ int) string { return o.Zone() }))).To(ConsistOf(zones))
 		alt := &corecloudprovider.InstanceType{Name: it.Name, Requirements: it.Requirements, Offerings: altOfferings, Capacity: it.Capacity, Overhead: it.Overhead}
