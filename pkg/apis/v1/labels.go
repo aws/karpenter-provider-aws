@@ -83,7 +83,7 @@ var (
 		"x86_64":                 karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64: karpv1.ArchitectureArm64,
 	}
-	WellKnownArchitectures = sets.NewString(
+	WellKnownArchitectures = sets.New[string](
 		karpv1.ArchitectureAmd64,
 		karpv1.ArchitectureArm64,
 	)

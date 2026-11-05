@@ -661,7 +661,7 @@ func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector
 
 	Eventually(func(g Gomega) {
 		pods := env.Monitor.RunningPods(selector)
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		for _, pod := range pods {
 			nodeNames.Insert(pod.Spec.NodeName)
 		}
