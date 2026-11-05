@@ -90,5 +90,4 @@ added, including `karpenter.k8s.aws/instance-tenancy` (#8218), `karpenter.k8s.aw
 `karpenter.k8s.aws/placement-group-id` (#9030). Compatibility change 1 isn't specific to this label: registering
 any label as well-known constrains NodePools that already set it by hand. The only NodePools that stop launching
 are ones that set `"false"`, or set `"true"` without offering NVIDIA instance types; both already contradict what
-the GPU Operator, AL2023 and Bottlerocket set. The release notes will call out NodePools that set the label by
-hand.
+the GPU Operator, AL2023 and Bottlerocket set. The upgrade guide calls out NodePools that set the label by hand.
