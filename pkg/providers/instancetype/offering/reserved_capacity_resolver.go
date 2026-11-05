@@ -103,6 +103,8 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 			// stalling. Genuine unavailability (ICE'd, expiring, incompatible) still sets Available=false.
 			Available: isCompatibleWithNodeClass && itZones.Has(reservation.AvailabilityZone) && reservation.State != v1.CapacityReservationStateExpiring && !isZonalShifted &&
 				!r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), reservation.AvailabilityZone, nil, karpv1.CapacityTypeReserved, awscache.WithReservationID(reservation.ID)),
+			// Only NodeClass incompatibility is permanent; an expiring, zonally shifted, or ICE'd reservation is transient.
+			Incompatible:        !isCompatibleWithNodeClass,
 			ReservationCapacity: reservationCapacity,
 		}
 		if zoneFound {

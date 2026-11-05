@@ -137,6 +137,10 @@ func (r *BaseResolver) ResolveOfferings(
 					),
 					Price:     price,
 					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
+					// Only NodeClass incompatibility is permanent; ICE, a zonal shift and a missing price may all recover, so
+					// they leave Incompatible false. A zone the type isn't offered in (or has no subnet in) also leaves it
+					// false: that zone is already outside the instance type's zone requirement, so nothing waits on it.
+					Incompatible: !isCompatibleWithNodeClass,
 				}
 				if zonefound {
 					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))

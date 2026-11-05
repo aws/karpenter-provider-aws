@@ -51,7 +51,7 @@ require (
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730
-	sigs.k8s.io/karpenter v1.15.1-0.20261110002142-d9c8e7cf2445
+	sigs.k8s.io/karpenter v1.15.1-0.20261110190205-f68d4e38ef84
 	sigs.k8s.io/yaml v1.6.0
 )
 

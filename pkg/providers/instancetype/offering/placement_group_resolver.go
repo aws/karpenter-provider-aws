@@ -59,6 +59,7 @@ func (r *PlacementGroupResolver) ResolveOfferings(
 				Requirements:        reqs,
 				Price:               offering.Price,
 				Available:           offering.Available,
+				Incompatible:        offering.Incompatible,
 				ReservationCapacity: offering.ReservationCapacity,
 				CapacityOverride:    offering.CapacityOverride,
 				OverheadOverride:    offering.OverheadOverride,
