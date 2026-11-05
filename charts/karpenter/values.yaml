@@ -12,6 +12,12 @@ additionalAnnotations: {}
 imagePullPolicy: IfNotPresent
 # -- Image pull secrets for Docker images.
 imagePullSecrets: []
+# -- Auto-mount the ServiceAccount token into the controller pod.
+# Karpenter needs this token to reach the Kubernetes API via in-cluster config.
+# IRSA / EKS Pod Identity only covers the AWS API, not the Kubernetes API.
+# Set to false only if you project the token yourself via extraVolumes and
+# controller.extraVolumeMounts.
+automountServiceAccountToken: true
 service:
   # -- Additional annotations for the Service.
   annotations: {}
