@@ -175,6 +175,11 @@ type EC2NodeClassSpec struct {
 	// CPUOptions defines the CPU options for the instance.
 	// +optional
 	CPUOptions *CPUOptions `json:"cpuOptions,omitempty"`
+	// NetworkPerformanceOptions configures EC2 bandwidth weighting for the instance.
+	// When set, Karpenter filters instance types to only those whose
+	// NetworkInfo.BandwidthWeightings from DescribeInstanceTypes includes the requested value.
+	// +optional
+	NetworkPerformanceOptions *NetworkPerformanceOptions `json:"networkPerformanceOptions,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -346,6 +351,16 @@ type CPUOptions struct {
 	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	NestedVirtualization *string `json:"nestedVirtualization,omitempty"`
+}
+
+// NetworkPerformanceOptions contains parameters for configuring EC2 bandwidth weighting.
+type NetworkPerformanceOptions struct {
+	// BandwidthWeighting shifts the instance's baseline bandwidth between networking and EBS.
+	// vpc-1 favors networking; ebs-1 favors EBS. Leave unset for the default split.
+	// Can only be set at launch; changing it replaces nodes.
+	// +kubebuilder:validation:Enum:={vpc-1,ebs-1}
+	// +optional
+	BandwidthWeighting *string `json:"bandwidthWeighting,omitempty"`
 }
 
 // ConnectionTracking configures idle connection tracking timeouts on ENIs
@@ -617,6 +632,10 @@ func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 
 func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
 	return in.Spec.EnclaveOptions
+}
+
+func (in *EC2NodeClass) NetworkPerformanceOptions() *NetworkPerformanceOptions {
+	return in.Spec.NetworkPerformanceOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
