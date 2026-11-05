@@ -130,8 +130,6 @@ func WithRebootForRepair(enabled bool) Option {
 }
 
 // Create a NodeClaim given the constraints.
-//
-//nolint:gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -604,7 +602,6 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 	return nil, errors.NewNotFound(schema.GroupResource{Group: coreapis.Group, Resource: "nodepools"}, "")
 }
 
-//nolint:gocyclo
 func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1.EC2NodeClass, originalNodeClaim *karpv1.NodeClaim) *karpv1.NodeClaim {
 	nodeClaim := &karpv1.NodeClaim{}
 	labels := map[string]string{}

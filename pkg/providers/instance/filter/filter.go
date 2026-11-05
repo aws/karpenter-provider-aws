@@ -152,7 +152,6 @@ type capacityReservation struct {
 	capacityReservationInterruptible bool
 }
 
-//nolint:gocyclo
 func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.InstanceType) []*capacityReservationTypePartition {
 	partitions := map[capacityReservation]*capacityReservationTypePartition{}
 	for _, t := range v1.CapacityReservationType("").Values() {
@@ -220,7 +219,6 @@ type capacityBlockFilter struct {
 	requirements scheduling.Requirements
 }
 
-//nolint:gocyclo
 func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	if !f.shouldFilter(instanceTypes) {
 		return instanceTypes, nil
@@ -402,7 +400,6 @@ type spotOfferingFilter struct {
 	requirements scheduling.Requirements
 }
 
-//nolint:gocyclo
 func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	if f.requirements.HasMinValues() {
 		return instanceTypes, nil

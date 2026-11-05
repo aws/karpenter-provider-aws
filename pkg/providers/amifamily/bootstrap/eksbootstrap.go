@@ -54,7 +54,6 @@ func (e EKS) Script(_ context.Context) (string, error) {
 	return base64.StdEncoding.EncodeToString([]byte(strings.ReplaceAll(userData, "\r", ""))), nil
 }
 
-//nolint:gocyclo
 func (e EKS) eksBootstrapScript() string {
 	var caBundleArg string
 	if e.CABundle != nil {

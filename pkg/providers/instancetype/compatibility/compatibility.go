@@ -82,7 +82,6 @@ func networkInterfaceCompatibility(networkInterfaces []*amifamily.ResolvedNetwor
 	}
 }
 
-//nolint:gocyclo
 func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
 	if c.networkInterfaces == nil {
 		return true

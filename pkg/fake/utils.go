@@ -131,7 +131,6 @@ func FilterDescribeImages(images []ec2types.Image, filters []ec2types.Filter) []
 	})
 }
 
-//nolint:gocyclo
 func Filter(filters []ec2types.Filter, id, name, owner, state string, tags []ec2types.Tag) bool {
 	return lo.EveryBy(filters, func(filter ec2types.Filter) bool {
 		switch filterName := aws.ToString(filter.Name); {
@@ -164,7 +163,6 @@ func FilterCapacityReservation(filters []ec2types.Filter, id, name, owner, state
 }
 
 // matchTags is a predicate that matches a slice of tags with a tag:<key> or tag-keys filter
-// nolint: gocyclo
 func matchTags(tags []ec2types.Tag, filter ec2types.Filter) bool {
 	if strings.HasPrefix(*filter.Name, "tag:") {
 		_, tagKey, _ := strings.Cut(*filter.Name, ":")

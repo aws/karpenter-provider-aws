@@ -179,8 +179,6 @@ func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.C
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-//
-//nolint:gocyclo
 func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
 	enclaveEnabled := nodeClass.Spec.EnclaveOptions != nil && nodeClass.Spec.EnclaveOptions.Enabled
@@ -357,7 +355,6 @@ func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.Pars
 	return newKubeletConfig
 }
 
-//nolint:gocyclo
 func (r DefaultResolver) resolveLaunchTemplates(
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
