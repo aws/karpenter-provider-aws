@@ -294,7 +294,7 @@ spec:
                     - message: expected at least one, got none, ['tags', 'id', 'instanceMatchCriteria']
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.instanceMatchCriteria))
                     - message: '''id'' is mutually exclusive, cannot be set along with other fields in a capacity reservation selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
+                      rule: '!self.exists(x, has(x.id) && (has(x.tags) || has(x.ownerID) || has(x.instanceMatchCriteria)))'
                 connectionTracking:
                   description: |-
                     ConnectionTracking configures idle connection tracking timeouts for
@@ -579,9 +579,9 @@ spec:
                     - message: expected at least one, got none, ['tags', 'id', 'name']
                       rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))'
+                      rule: '!self.exists(x, has(x.id) && (has(x.tags) || has(x.name)))'
                     - message: '''name'' is mutually exclusive, cannot be set with a combination of other fields in a security group selector term'
-                      rule: '!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))'
+                      rule: '!self.exists(x, has(x.name) && (has(x.tags) || has(x.id)))'
                 subnetSelectorTerms:
                   description: SubnetSelectorTerms is a list of subnet selector terms. The terms are ORed.
                   items:
@@ -613,7 +613,7 @@ spec:
                     - message: expected at least one, got none, ['tags', 'id']
                       rule: self.all(x, has(x.tags) || has(x.id))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in a subnet selector term'
-                      rule: '!self.all(x, has(x.id) && has(x.tags))'
+                      rule: '!self.exists(x, has(x.id) && has(x.tags))'
                 tags:
                   additionalProperties:
                     type: string
