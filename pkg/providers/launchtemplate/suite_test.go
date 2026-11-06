@@ -2944,6 +2944,116 @@ eviction-max-pod-grace-period = 10
 				})
 			})
 		})
+		Context("ENA Express settings", func() {
+			BeforeEach(func() {
+				// The generated test data predates EnaSrdSupported. Mark the fake instance types
+				// as supported so the NodeClass compatibility filter can exercise launch behavior.
+				out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+				Expect(err).ToNot(HaveOccurred())
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: withENAExpressSupport(out.InstanceTypes, func(ec2types.InstanceType) bool { return true }),
+				})
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			})
+			DescribeTable(
+				"should set 'EnaSrdSpecification' based on EC2NodeClass",
+				func(enaExpress *v1.ENAExpress, expected *ec2types.EnaSrdSpecificationRequest) {
+					nodeClass.Spec.ENAExpress = enaExpress
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].EnaSrdSpecification).To(Equal(expected))
+				},
+				Entry("ENAExpress is nil", nil, nil),
+				Entry("ENAExpress is disabled", &v1.ENAExpress{Enabled: false}, nil),
+				Entry("ENAExpress is enabled",
+					&v1.ENAExpress{Enabled: true},
+					&ec2types.EnaSrdSpecificationRequest{
+						EnaSrdEnabled: aws.Bool(true),
+					},
+				),
+				Entry("ENAExpress is enabled with UDP enabled",
+					&v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)},
+					&ec2types.EnaSrdSpecificationRequest{
+						EnaSrdEnabled:          aws.Bool(true),
+						EnaSrdUdpSpecification: &ec2types.EnaSrdUdpSpecificationRequest{EnaSrdUdpEnabled: aws.Bool(true)},
+					},
+				),
+				Entry("ENAExpress is enabled with UDP disabled",
+					&v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(false)},
+					&ec2types.EnaSrdSpecificationRequest{
+						EnaSrdEnabled:          aws.Bool(true),
+						EnaSrdUdpSpecification: &ec2types.EnaSrdUdpSpecificationRequest{EnaSrdUdpEnabled: aws.Bool(false)},
+					},
+				),
+			)
+			Context("propagation across all ENIs", func() {
+				var expected *ec2types.EnaSrdSpecificationRequest
+				BeforeEach(func() {
+					nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}
+					expected = &ec2types.EnaSrdSpecificationRequest{
+						EnaSrdEnabled:          aws.Bool(true),
+						EnaSrdUdpSpecification: &ec2types.EnaSrdUdpSpecificationRequest{EnaSrdUdpEnabled: aws.Bool(true)},
+					}
+				})
+				It("should apply ENAExpress to every EFA ENI in the launch template", func() {
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.PodOptions{
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+						},
+					})
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically(">", 1))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						Expect(lo.FromPtr(ni.InterfaceType)).To(Equal(string(ec2types.NetworkInterfaceTypeEfa)))
+						Expect(ni.EnaSrdSpecification).To(Equal(expected))
+					}
+				})
+				It("should apply ENAExpress to every user-configured NetworkInterface in the launch template except efa-only", func() {
+					nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+						{NetworkCardIndex: 1, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeInterface},
+					}
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					input := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
+					Expect(input.LaunchTemplateData.NetworkInterfaces).To(HaveLen(4))
+					for _, ni := range input.LaunchTemplateData.NetworkInterfaces {
+						if lo.FromPtr(ni.InterfaceType) == string(v1.InterfaceTypeEFAOnly) {
+							Expect(ni.EnaSrdSpecification).To(BeNil())
+						} else {
+							Expect(ni.EnaSrdSpecification).To(Equal(expected))
+						}
+					}
+				})
+			})
+			It("should not provision instance types that don't support ENA Express", func() {
+				out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+				Expect(err).ToNot(HaveOccurred())
+				awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+					InstanceTypes: withENAExpressSupport(out.InstanceTypes, func(ec2types.InstanceType) bool { return false }),
+				})
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+				Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+				nodeClass.Spec.ENAExpress = &v1.ENAExpress{Enabled: true}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+			})
+		})
 	})
 	Context("Network Interfaces", func() {
 		DescribeTable("should configure network interfaces with same configuration as NodeClass",
@@ -3357,6 +3467,18 @@ eviction-max-pod-grace-period = 10
 		})
 	})
 })
+
+// withENAExpressSupport returns copies of the instance types with EnaSrdSupported set. The generated test data predates
+// EnaSrdSupported, and the fake shares NetworkInfo with the default test data, so NetworkInfo is copied rather than
+// mutated in place.
+func withENAExpressSupport(instanceTypes []ec2types.InstanceTypeInfo, supported func(ec2types.InstanceType) bool) []ec2types.InstanceTypeInfo {
+	return lo.Map(instanceTypes, func(info ec2types.InstanceTypeInfo, _ int) ec2types.InstanceTypeInfo {
+		networkInfo := lo.FromPtr(info.NetworkInfo)
+		networkInfo.EnaSrdSupported = lo.ToPtr(supported(info.InstanceType))
+		info.NetworkInfo = &networkInfo
+		return info
+	})
+}
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []ec2types.Tag, expected map[string]string) {

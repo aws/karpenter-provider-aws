@@ -358,6 +358,25 @@ spec:
                 detailedMonitoring:
                   description: DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
                   type: boolean
+                enaExpress:
+                  description: |-
+                    ENAExpress configures ENA Express for ENIs Karpenter provisions in the
+                    launch template. EFA-only interfaces are excluded. See ENAExpress.
+                  properties:
+                    enabled:
+                      description: Enabled indicates whether TCP traffic uses ENA Express.
+                      type: boolean
+                    udpEnabled:
+                      description: |-
+                        UDPEnabled indicates whether UDP traffic also uses ENA Express.
+                        Requires enabled to be true.
+                      type: boolean
+                  required:
+                    - enabled
+                  type: object
+                  x-kubernetes-validations:
+                    - message: udpEnabled requires enabled to be true
+                      rule: '!has(self.udpEnabled) || !self.udpEnabled || self.enabled'
                 enclaveOptions:
                   description: |-
                     EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.

@@ -1342,6 +1342,34 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
+	Context("ENAExpress", func() {
+		DescribeTable("should accept valid ENA Express settings",
+			func(enaExpress *v1.ENAExpress) {
+				nc.Spec.ENAExpress = enaExpress
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			},
+			Entry("when omitted", (*v1.ENAExpress)(nil)),
+			Entry("when enabled", &v1.ENAExpress{Enabled: true}),
+			Entry("when disabled", &v1.ENAExpress{Enabled: false}),
+			Entry("when enabled with UDP enabled", &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}),
+			Entry("when enabled with UDP disabled", &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(false)}),
+			Entry("when disabled with UDP disabled", &v1.ENAExpress{Enabled: false, UDPEnabled: lo.ToPtr(false)}),
+		)
+		It("should fail when udpEnabled is true and enabled is false", func() {
+			nc.Spec.ENAExpress = &v1.ENAExpress{Enabled: false, UDPEnabled: lo.ToPtr(true)}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when enabled is omitted", func() {
+			data, err := json.Marshal(nc)
+			Expect(err).ToNot(HaveOccurred())
+			object := map[string]any{}
+			Expect(json.Unmarshal(data, &object)).To(Succeed())
+			Expect(unstructured.SetNestedMap(object, map[string]any{}, "spec", "enaExpress")).To(Succeed())
+			unstructuredNC := &unstructured.Unstructured{Object: object}
+			unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
+			Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
+		})
+	})
 	Context("Role Immutability", func() {
 		It("should fail if role is not defined", func() {
 			nc.Spec.Role = ""

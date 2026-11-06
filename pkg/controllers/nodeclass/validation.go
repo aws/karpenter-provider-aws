@@ -73,6 +73,7 @@ const (
 	ConditionReasonUserDataTooLarge                = "UserDataSizeLimitExceeded"
 	ConditionReasonConsumableCapacityInvalid       = "NVIDIAConsumableCapacityInvalid"
 	ConditionReasonDRADisabled                     = "DRADisabled"
+	ConditionReasonNoCompatibleInstanceTypes       = "NoCompatibleInstanceTypes"
 )
 
 var ValidationConditionMessages = map[string]string{
@@ -360,6 +361,16 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	instanceTypes, err := v.getPrioritizedInstanceTypes(ctx, nodeClass, nodePools)
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
+	}
+	// NodeClass settings such as enaExpress restrict the instance types the NodeClass can launch, so it's possible that
+	// none are compatible. This isn't cached since instance type availability can change without the NodeClass changing.
+	if len(instanceTypes) == 0 {
+		nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
+			v1.ConditionTypeValidationSucceeded,
+			ConditionReasonNoCompatibleInstanceTypes,
+			"No instance types are compatible with the NodeClass",
+		)
+		return nil, reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	tenancyType := getTenancyType(nodePools)
