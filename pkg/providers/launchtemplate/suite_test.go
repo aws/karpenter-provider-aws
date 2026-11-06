@@ -1498,6 +1498,21 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Entry("kubernetes.io suffix", "foo.kubernetes.io/bar"),
 			Entry("*.k8s.io", "foo.k8s.io/bar"),
 		)
+		DescribeTable(
+			"should pass labels in domains the kubelet is allowed to set",
+			func(label string) {
+				nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
+					label: "foobar",
+				})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				ExpectLaunchTemplatesCreatedWithUserDataContaining(label + "=foobar")
+			},
+			Entry(corev1.LabelNamespaceSuffixNode, corev1.LabelNamespaceSuffixNode+"/bar"),
+			Entry(corev1.LabelNamespaceSuffixKubelet, corev1.LabelNamespaceSuffixKubelet+"/bar"),
+		)
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
@@ -2232,6 +2247,51 @@ eviction-max-pod-grace-period = 10
 						for label, value := range desiredLabels {
 							Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", label, value)))
 						}
+					}
+				})
+				It("should pass the region in the Kubelet flags and leave out the zone and instance type when the NodeClaim does not pin them", func() {
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectParseNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
+							return strings.HasPrefix(flag, "--node-labels")
+						})
+						Expect(ok).To(BeTrue())
+						Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", corev1.LabelTopologyRegion, fake.DefaultRegion)))
+						Expect(labelFlag).ToNot(ContainSubstring(corev1.LabelTopologyZone + "="))
+						Expect(labelFlag).ToNot(ContainSubstring(corev1.LabelInstanceTypeStable + "="))
+					}
+				})
+				It("should pass the zone and instance type in the Kubelet flags when the NodeClaim pins them", func() {
+					nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+						karpv1.NodeSelectorRequirementWithMinValues{
+							Key:      corev1.LabelTopologyZone,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"test-zone-1a"},
+						},
+						karpv1.NodeSelectorRequirementWithMinValues{
+							Key:      corev1.LabelInstanceTypeStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"m5.large"},
+						},
+					)
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectParseNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
+							return strings.HasPrefix(flag, "--node-labels")
+						})
+						Expect(ok).To(BeTrue())
+						Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", corev1.LabelTopologyZone, "test-zone-1a")))
+						Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", corev1.LabelInstanceTypeStable, "m5.large")))
 					}
 				})
 				DescribeTable(
