@@ -257,6 +257,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUManufacturer:              "nvidia",
 			v1.LabelInstanceGPUCount:                     "1",
 			v1.LabelInstanceGPUMemory:                    "16384",
+			v1.LabelNvidiaGPUPresent:                     "true",
 			v1.LabelInstanceLocalNVME:                    "900",
 			// TODO - NVIDIA/GPU instances should not have Neuron/accelerator labels
 			v1.LabelInstanceAcceleratorName:         "inferentia2",
@@ -324,6 +325,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUManufacturer:              "nvidia",
 			v1.LabelInstanceGPUCount:                     "1",
 			v1.LabelInstanceGPUMemory:                    "16384",
+			v1.LabelNvidiaGPUPresent:                     "true",
 			v1.LabelInstanceLocalNVME:                    "900",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
@@ -403,6 +405,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,
 			v1.LabelInstanceGPUMemory,
+			v1.LabelNvidiaGPUPresent,
 			v1.LabelInstanceLocalNVME,
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
@@ -413,6 +416,40 @@ var _ = Describe("InstanceTypeProvider", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should advertise nvidia.com/gpu.present on exactly the instance types with NVIDIA GPU capacity", func() {
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		var nvidia, other int
+		for _, it := range instanceTypes {
+			req := it.Requirements.Get(v1.LabelNvidiaGPUPresent)
+			if gpus, ok := it.Capacity[v1.ResourceNVIDIAGPU]; ok && !gpus.IsZero() {
+				nvidia++
+				Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpIn), it.Name)
+				Expect(req.Values()).To(ConsistOf("true"), it.Name)
+				continue
+			}
+			other++
+			// Registered as DoesNotExist rather than omitted: Requirements.Get on a missing key returns Exists,
+			// which would let a pod requiring the label match an instance type whose node never carries it.
+			Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpDoesNotExist), it.Name)
+		}
+		Expect(nvidia).To(BeNumerically(">", 0))
+		Expect(other).To(BeNumerically(">", 0))
+	})
+	It("should not schedule a pod selecting nvidia.com/gpu.present when no NVIDIA GPU instance type is allowed", func() {
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"m5.large"},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelNvidiaGPUPresent: "true"}})
+		// The control pod proves the NodePool can launch m5.large, so the GPU pod stays pending because of the label.
+		control := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod, control)
+		ExpectScheduled(ctx, env.Client, control)
+		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should not launch AWS Pod ENI on a t3", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)

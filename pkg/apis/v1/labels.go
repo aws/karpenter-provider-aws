@@ -56,6 +56,7 @@ func init() {
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
 		LabelInstanceGPUMemory,
+		LabelNvidiaGPUPresent,
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
@@ -173,6 +174,8 @@ var (
 	LabelPlacementGroupPartition              = apis.Group + "/placement-group-partition"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
+	// LabelNvidiaGPUPresent is set on NVIDIA GPU instance types. See designs/nvidia-gpu-present-label.md.
+	LabelNvidiaGPUPresent = "nvidia.com/gpu.present"
 
 	AnnotationEC2NodeClassHash               = apis.Group + "/ec2nodeclass-hash"
 	AnnotationClusterNameTaggedCompatability = apis.CompatibilityGroup + "/cluster-name-tagged"
