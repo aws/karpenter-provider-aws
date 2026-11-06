@@ -114,8 +114,9 @@ Some features are specific to the AWS provider and are configured separately fro
 `DRANVIDIAGPU` and `DRAEFA` make Karpenter calculate the DRA devices the NVIDIA GPU driver (`gpu.nvidia.com`) and the dranet driver's EFA interfaces (`dra.net`) publish, respectively, so that pods with ResourceClaims for those drivers are accounted for when it sizes new nodes. Each gate is independent of the other, and of the core `--ignore-dra-requests` option: both a driver's gate and `--ignore-dra-requests=false` are needed for Karpenter to contribute that driver's devices. When installing with the Helm chart, set `settings.enableDRA` to enable both gates and set `IGNORE_DRA_REQUESTS=false`. To enable the gates individually, leave `settings.enableDRA` unset and set `settings.awsFeatureGates.draNVIDIAGPU` or `settings.awsFeatureGates.draEFA`. Enabling either one also sets `IGNORE_DRA_REQUESTS=false`, regardless of `settings.ignoreDRARequests`. The chart fails to render if `settings.enableDRA` is combined with `settings.awsFeatureGates.draNVIDIAGPU`, `settings.awsFeatureGates.draEFA`, or `settings.ignoreDRARequests`. With a driver's gate disabled, its claims are only satisfied by devices the driver publishes on nodes that already exist.
 
 `RebootForRepair` makes [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) reboot a node in place for reboot-clearable GPU faults instead of replacing it. It has no effect without the `NodeRepair` feature gate. When it's disabled, those faults are replaced on the same toleration and termination grace period. Enabling it requires the `ec2:RebootInstances` permission on the controller role.
+
 {{% alert title="Warning" color="warning" %}}
-Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "./nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
+Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "../concepts/nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
 {{% /alert %}}
 
 ### Batching Parameters
