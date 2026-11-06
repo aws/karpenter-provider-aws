@@ -164,9 +164,9 @@ spec:
             - name: EKS_CONTROL_PLANE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.vmMemoryOverheadPercent }}
+          {{- if not (kindIs "invalid" .Values.settings.vmMemoryOverheadPercent) }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ tpl (toString .) $ }}"
+              value: "{{ tpl (toString .Values.settings.vmMemoryOverheadPercent) $ }}"
           {{- end }}
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
