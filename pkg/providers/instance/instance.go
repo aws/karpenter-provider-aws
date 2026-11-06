@@ -456,6 +456,11 @@ func (p *DefaultProvider) launchInstance(
 			}
 			return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("launch templates not found when creating fleet request, %w", err), reason, fmt.Sprintf("Launch templates not found when creating fleet request: %s", message))
 		}
+		// When CreateFleet returns an API-level error (e.g. InternalError), the
+		// response body has no per-override errors, so updateUnavailableOfferingsCache
+		// is never reached. Mark every offering that was attempted as unavailable so
+		// the next scheduling cycle can fall back to an alternative capacity type.
+		p.markAllRequestedOfferingsUnavailable(ctx, createFleetInput, capacityType, zonalSubnets, reason)
 		return ec2types.CreateFleetInstance{}, cloudprovider.NewCreateError(fmt.Errorf("creating fleet request, %w", err), reason, fmt.Sprintf("Error creating fleet request: %s", message))
 	}
 	// Resolve PG scope once upfront so updateUnavailableOfferingsCache doesn't need to re-resolve
@@ -748,6 +753,38 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 		p.unavailableOfferings.MarkUnavailable(ctx, instanceType, zone, karpv1.CapacityTypeReserved, map[string]string{
 			"reason": lo.FromPtr(err.ErrorCode),
 		}, opts...)
+	}
+}
+
+// markAllRequestedOfferingsUnavailable marks every (instanceType, zone) combination from the
+// CreateFleet input as unavailable. This is called when CreateFleet fails at the API level
+// (the SDK call itself returns an error) rather than returning per-override errors in the
+// response body. Without this, API-level failures like InternalError leave the offerings
+// cache untouched, preventing capacity-type fallback (e.g. spot to on-demand).
+func (p *DefaultProvider) markAllRequestedOfferingsUnavailable(
+	ctx context.Context,
+	createFleetInput *ec2.CreateFleetInput,
+	capacityType string,
+	zonalSubnets map[string]*subnet.Subnet,
+	reason string,
+) {
+	for _, ltc := range createFleetInput.LaunchTemplateConfigs {
+		for _, override := range ltc.Overrides {
+			zone := aws.ToString(override.AvailabilityZone)
+			var zoneID string
+			if s, ok := zonalSubnets[zone]; ok {
+				zoneID = s.ZoneID
+			}
+			InstanceLaunchFailuresTotal.Inc(map[string]string{
+				zoneLabel:                          zone,
+				zoneIDLabel:                        zoneID,
+				karpentermetrics.CapacityTypeLabel: capacityType,
+				karpentermetrics.ReasonLabel:       reason,
+			})
+			p.unavailableOfferings.MarkUnavailable(ctx, override.InstanceType, zone, capacityType, map[string]string{
+				"reason": reason,
+			})
+		}
 	}
 }
 
