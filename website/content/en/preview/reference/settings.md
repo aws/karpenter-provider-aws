@@ -116,6 +116,10 @@ Some features are specific to the AWS provider and are configured separately fro
 
 `RebootForRepair` makes [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) reboot a node in place for reboot-clearable GPU faults instead of replacing it. It has no effect without the `NodeRepair` feature gate. When it's disabled, those faults are replaced on the same toleration and termination grace period. Enabling it requires the `ec2:RebootInstances` permission on the controller role.
 
+{{% alert title="Warning" color="warning" %}}
+Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "../concepts/nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
+{{% /alert %}}
+
 ### Batching Parameters
 
 The batching parameters control how Karpenter batches an incoming stream of pending pods.  Reducing these values may trade off a slightly faster time from pending pod to node launch, in exchange for launching smaller nodes.  Increasing the values can do the inverse.  Karpenter provides reasonable defaults for these values, but if you have specific knowledge about your workloads you can tweak these parameters to match the expected rate of incoming pods.
