@@ -2413,6 +2413,7 @@ eviction-max-pod-grace-period = 10
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
 				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
 				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
+				Entry("Nitro Enclaves example", lo.ToPtr("al2023_nitro_enclaves_userdata_input.golden"), "al2023_nitro_enclaves_userdata_merged.golden"),
 				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
 			)
 			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
