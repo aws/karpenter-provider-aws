@@ -17,7 +17,6 @@ package v1_test
 import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -64,7 +63,7 @@ var _ = Describe("Hash", func() {
 							KMSKeyID:            lo.ToPtr("fakeKMSKeyID"),
 							SnapshotID:          lo.ToPtr("fakeSnapshot"),
 							Throughput:          lo.ToPtr(int64(0)),
-							VolumeSize:          resource.NewScaledQuantity(2, resource.Giga),
+							VolumeSize:          aws.String("2G"),
 							VolumeType:          lo.ToPtr("standard"),
 						},
 					},
@@ -116,12 +115,28 @@ var _ = Describe("Hash", func() {
 		Entry("Modified SubnetSelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"subnet-test-key": "subnet-test-value"}}}}}),
 		Entry("Modified SecurityGroupSelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"security-group-test-key": "security-group-test-value"}}}}}),
 	)
-	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
-	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should match static hash when updating blockDeviceMapping volumeSize", func() {
-		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = aws.String("10G")
 		Expect(nodeClass.Hash(testCABundle)).To(Equal("10372902467896351912"))
 	})
+	// Hashes were captured on main, where volumeSize was a resource.Quantity hashed as its canonical string. Equivalent
+	// spellings must keep hashing identically so existing NodeClasses don't drift.
+	DescribeTable("should match main's hash for equivalent static volumeSize spellings",
+		func(volumeSize string, expected string) {
+			hashNodeClass := &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
+				Role:                "r",
+				BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeSize: aws.String(volumeSize)}}},
+			}}
+			Expect(hashNodeClass.Hash(nil)).To(Equal(expected))
+		},
+		Entry("1024Gi", "1024Gi", "14360448636435593026"),
+		Entry("1Ti", "1Ti", "14360448636435593026"),
+		Entry("2048Gi", "2048Gi", "5178618128968600456"),
+		Entry("2Ti", "2Ti", "5178618128968600456"),
+		Entry("1000G", "1000G", "9436614410499563993"),
+		Entry("1T", "1T", "9436614410499563993"),
+		Entry("100Gi", "100Gi", "8397403704400447745"),
+	)
 	It("should match static hash for instanceProfile", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
@@ -171,11 +186,9 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPTimeout", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
 	)
-	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
-	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 	It("should change hash blockDeviceMapping volumeSize is updated", func() {
 		hash := nodeClass.Hash(testCABundle)
-		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = aws.String("10G")
 		updatedHash := nodeClass.Hash(testCABundle)
 		Expect(hash).ToNot(Equal(updatedHash))
 	})

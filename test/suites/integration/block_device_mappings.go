@@ -19,7 +19,6 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/test"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -34,7 +33,7 @@ func registerBlockDeviceMappings() bool {
 				{
 					DeviceName: aws.String("/dev/xvda"),
 					EBS: &v1.BlockDevice{
-						VolumeSize:          resources.Quantity("20Gi"),
+						VolumeSize:          aws.String("20Gi"),
 						VolumeType:          aws.String("io2"),
 						IOPS:                aws.Int64(1000),
 						Encrypted:           aws.Bool(true),
