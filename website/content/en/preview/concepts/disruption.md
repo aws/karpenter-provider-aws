@@ -147,6 +147,10 @@ Karpenter records each scoring decision so you can see why an action was or wasn
 
 When a Deployment scales in, the ReplicaSet controller doesn't know which nodes Karpenter wants to consolidate. The alpha `PodDeletionCostManagement` feature gate lets Karpenter steer ReplicaSet scale-down toward those nodes. See [Pod Deletion Cost]({{<ref "pod-deletion-cost.md" >}}).
 
+#### VPA predictions
+
+When Karpenter moves pods that a Vertical Pod Autoscaler manages, VPA sets the recreated pods' requests to its recommendation. The alpha `PredictionEnabled` feature gate lets Karpenter use those recommendations, instead of the pods' current requests, when it decides whether the pods fit on other nodes and how large a replacement node should be. See [VPA Predictions]({{<ref "vpa-predictions.md" >}}).
+
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
@@ -270,6 +274,10 @@ A reboot follows these steps:
 Pods that stay on the node restart in place when it comes back, unless the kubelet stops them first: with a non-zero `shutdownGracePeriod`, the kubelet's graceful node shutdown terminates them and their controllers recreate them. A reboot that keeps the node `NotReady` past a pod's `NoExecute` toleration (300 seconds by default) also evicts it.
 
 While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "./nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
+{{% /alert %}}
 
 Karpenter replaces the node if the reboot fails: if the cloud provider rejects the reboot with an error that retrying can't fix, such as a missing `ec2:RebootInstances` permission (immediately), if it keeps rejecting the reboot with other errors for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
 If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.

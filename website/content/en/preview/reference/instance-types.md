@@ -10117,6 +10117,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10151,6 +10152,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10185,6 +10187,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10219,6 +10222,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10254,6 +10258,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10289,6 +10294,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.16xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10324,6 +10330,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g4dn.metal|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10360,6 +10367,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10394,6 +10402,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10428,6 +10437,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10462,6 +10472,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10497,6 +10508,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10532,6 +10544,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.16xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10567,6 +10580,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10602,6 +10616,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10637,6 +10652,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10670,6 +10686,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10703,6 +10720,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10736,6 +10754,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10769,6 +10788,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.16xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10802,6 +10822,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g5g.metal|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10837,6 +10858,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10871,6 +10893,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10905,6 +10928,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10939,6 +10963,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -10974,6 +10999,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11009,6 +11035,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.16xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11044,6 +11071,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11079,6 +11107,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11115,6 +11144,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11149,6 +11179,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11183,6 +11214,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11217,6 +11249,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11252,6 +11285,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11287,6 +11321,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.16xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11322,6 +11357,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11357,6 +11393,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6e.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11393,6 +11430,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6f.large|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11426,6 +11464,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6f.xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11459,6 +11498,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6f.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11492,6 +11532,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g6f.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11526,6 +11567,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11560,6 +11602,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11594,6 +11637,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11629,6 +11673,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11664,6 +11709,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11699,6 +11745,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11735,6 +11782,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.2xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11769,6 +11817,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11803,6 +11852,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11838,6 +11888,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.12xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11873,6 +11924,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11908,6 +11960,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|g7e.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11944,6 +11997,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|gr6.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -11978,6 +12032,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|gr6.8xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -12014,6 +12069,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|gr6f.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26025,6 +26081,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p3dn.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26061,6 +26118,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p4d.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26097,6 +26155,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p4de.24xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26133,6 +26192,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p5.4xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26168,6 +26228,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p5.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26204,6 +26265,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p5e.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26240,6 +26302,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p5en.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26276,6 +26339,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p6-b200.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -26312,6 +26376,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|p6-b300.48xlarge|
+ |nvidia.com/gpu.present|true|
 #### Resources
  | Resource | Quantity |
  |--|--|

@@ -71,6 +71,7 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | TerminateFirstDrift     | false   | Alpha  | v1.15.x |         |
 | TerminateFirstRepair    | false   | Alpha  | v1.15.x |         |
 | PodDeletionCostManagement | false | Alpha  | v1.15.x |         |
+| PredictionEnabled       | false   | Alpha  | v1.16.x |         |
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.

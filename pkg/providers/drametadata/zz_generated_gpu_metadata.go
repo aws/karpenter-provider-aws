@@ -1350,74 +1350,253 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 			},
 		},
 	},
-	"g6f.2xlarge": {
-		Count: 1,
+	"g7.12xlarge": {
+		Count: 2,
 		Devices: []DRADevice{
 			{
 				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
-					"architecture":                    {StringValue: strPtr("Ada Lovelace")},
-					"brand":                           {StringValue: strPtr("NvidiaVWS")},
-					"cudaComputeCapability":           {VersionValue: strPtr("8.9.0")},
-					"productName":                     {StringValue: strPtr("NVIDIA L4-6Q")},
-					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:30")},
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:36")},
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("6Gi")},
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:38")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
 				},
 			},
 		},
 	},
-	"g6f.4xlarge": {
+	"g7.24xlarge": {
+		Count: 4,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:62")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:64")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:66")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:68")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+		},
+	},
+	"g7.2xlarge": {
 		Count: 1,
 		Devices: []DRADevice{
 			{
 				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
-					"architecture":                    {StringValue: strPtr("Ada Lovelace")},
-					"brand":                           {StringValue: strPtr("NvidiaVWS")},
-					"cudaComputeCapability":           {VersionValue: strPtr("8.9.0")},
-					"productName":                     {StringValue: strPtr("NVIDIA L4-12Q")},
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:2e")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+		},
+	},
+	"g7.48xlarge": {
+		Count: 8,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:56")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:58")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:5a")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:5c")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b3")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b5")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b7")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b9")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+		},
+	},
+	"g7.4xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:32")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("32160Mi")},
+				},
+			},
+		},
+	},
+	"g7.8xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 4500 Blackwell Server Edition")},
 					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:34")},
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("12Gi")},
-				},
-			},
-		},
-	},
-	"g6f.large": {
-		Count: 1,
-		Devices: []DRADevice{
-			{
-				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
-					"architecture":                    {StringValue: strPtr("Ada Lovelace")},
-					"brand":                           {StringValue: strPtr("NvidiaVWS")},
-					"cudaComputeCapability":           {VersionValue: strPtr("8.9.0")},
-					"productName":                     {StringValue: strPtr("NVIDIA L4-3Q")},
-					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:30")},
-					"type":                            {StringValue: strPtr("gpu")},
-				},
-				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("3Gi")},
-				},
-			},
-		},
-	},
-	"g6f.xlarge": {
-		Count: 1,
-		Devices: []DRADevice{
-			{
-				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
-					"architecture":                    {StringValue: strPtr("Ada Lovelace")},
-					"brand":                           {StringValue: strPtr("NvidiaVWS")},
-					"cudaComputeCapability":           {VersionValue: strPtr("8.9.0")},
-					"productName":                     {StringValue: strPtr("NVIDIA L4-3Q")},
-					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:30")},
-					"type":                            {StringValue: strPtr("gpu")},
-				},
-				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("3Gi")},
+					"memory": {Value: resource.MustParse("32160Mi")},
 				},
 			},
 		},
@@ -1454,24 +1633,6 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
 					"memory": {Value: resource.MustParse("23034Mi")},
-				},
-			},
-		},
-	},
-	"gr6f.4xlarge": {
-		Count: 1,
-		Devices: []DRADevice{
-			{
-				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
-					"architecture":                    {StringValue: strPtr("Ada Lovelace")},
-					"brand":                           {StringValue: strPtr("NvidiaVWS")},
-					"cudaComputeCapability":           {VersionValue: strPtr("8.9.0")},
-					"productName":                     {StringValue: strPtr("NVIDIA L4-12Q")},
-					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:34")},
-					"type":                            {StringValue: strPtr("gpu")},
-				},
-				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("12Gi")},
 				},
 			},
 		},
@@ -1598,7 +1759,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1611,7 +1772,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1624,7 +1785,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1637,7 +1798,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1650,7 +1811,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1663,7 +1824,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1676,7 +1837,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 			{
@@ -1689,7 +1850,7 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 					"type":                            {StringValue: strPtr("gpu")},
 				},
 				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
-					"memory": {Value: resource.MustParse("40320Mi")},
+					"memory": {Value: resource.MustParse("40Gi")},
 				},
 			},
 		},
