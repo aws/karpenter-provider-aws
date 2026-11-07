@@ -11,6 +11,10 @@ on:
         description: "Ginkgo focus regex for the spec"
         type: string
         required: true
+      suite:
+        description: "v1 = core's test/suites/performance; v2 = test/suites/performancev2 (core's scenarios through the AWS plugin)"
+        type: string
+        default: "v1"
       region:
         type: string
         default: "us-west-2"
@@ -120,6 +124,7 @@ jobs:
           FOCUS: ${{ inputs.focus }}
           THRESHOLDS: ${{ inputs.thresholds }}
           ENFORCE: ${{ inputs.enforce }}
+          SUITE: ${{ inputs.suite }}
         run: |
           set -euo pipefail
           aws eks update-kubeconfig --name "$CLUSTER_NAME"
@@ -133,6 +138,11 @@ jobs:
           # Without enforce, a core that supports PERF_SOFT_THRESHOLDS records breaches instead of failing on them; an
           # older core ignores it, so the job result is the go test result either way.
           if [[ "$ENFORCE" == "true" ]]; then export PERF_SOFT_THRESHOLDS=false; else export PERF_SOFT_THRESHOLDS=true; fi
+          # v2 levels live in the AWS plugin and gate on their own tiers, so enforce and thresholds only apply to v1
+          if [[ "$SUITE" == "v2" ]]; then
+            make perftests-v2 CLUSTER_NAME="$CLUSTER_NAME" FOCUS="$FOCUS" OUTPUT_DIR="$OUTPUT_DIR" 2>&1 | tee "$OUTPUT_DIR/test.log"
+            exit "${PIPESTATUS[0]}"
+          fi
           # Runs core's test/suites/performance from the sigs.k8s.io/karpenter module, like upstream-e2etests
           make upstream-perftests CLUSTER_NAME="$CLUSTER_NAME" FOCUS="$FOCUS" OUTPUT_DIR="$OUTPUT_DIR" \
             PERF_THRESHOLDS_FILE="$PERF_THRESHOLDS_FILE" 2>&1 | tee "$OUTPUT_DIR/test.log"

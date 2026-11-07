@@ -63,9 +63,12 @@ jobs:
             [wide]="Wide Deployments"
             [do-not-disrupt]="Do Not Disrupt Performance Test"
             [interference]="Self Anti-Affinity Deployment Interference"
+            [v2-pods]="Performance pods "
+            [v2-nodepools]="Performance nodepools "
+            [v2-topology]="Performance topology "
           )
           # Longest specs first so they start before parallel=N runs out of slots
-          ORDER="hostname-xl drift wide do-not-disrupt interference hostname basic"
+          ORDER="hostname-xl drift wide do-not-disrupt interference hostname basic v2-pods v2-topology v2-nodepools"
           PARALLEL="${DISPATCH_PARALLEL:-10}"
           [[ "$PARALLEL" =~ ^[0-9]+$ ]] && (( PARALLEL >= 1 && PARALLEL <= 10 )) || { echo "::error::parallel must be 1-10"; exit 1; }
           specs=()
@@ -76,7 +79,7 @@ jobs:
           [[ ${#specs[@]} -gt 0 ]] || read -r -a specs <<< "$ORDER"
           MATRIX="$(for id in $ORDER; do
             for s in "${specs[@]}"; do
-              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" '{id: $id, focus: $focus}'; fi
+              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" --arg suite "$(if [[ $id == v2-* ]]; then echo v2; else echo v1; fi)" '{id: $id, focus: $focus, suite: $suite}'; fi
             done
           done | jq -cs '{include: .}')"
           echo "matrix: $MATRIX, parallel: $PARALLEL"
@@ -94,6 +97,7 @@ jobs:
     with:
       spec_id: ${{ matrix.id }}
       focus: ${{ matrix.focus }}
+      suite: ${{ matrix.suite }}
       region: ${{ vars.PERF_REGION || 'us-west-2' }}
       thresholds: ${{ inputs.thresholds || 'aws-kwok-4c' }}
       helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false' }}

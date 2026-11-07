@@ -148,6 +148,24 @@ upstream-perftests: tidy download
 		--default-nodeclass="$(TMPFILE)"\
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/perf_nodepool.yaml"
 
+perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
+	mkdir -p "$(OUTPUT_DIR)"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
+		$(if $(PERF_THRESHOLDS_FILE),KARPENTER_PERF_THRESHOLDS="$$(cat $(abspath $(PERF_THRESHOLDS_FILE)))") \
+		go test \
+		-count 1 \
+		-timeout 3h \
+		-v \
+		./suites/performancev2/... \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.fail-on-empty \
+		--ginkgo.timeout=150m \
+		--ginkgo.grace-period=10m \
+		--ginkgo.vv
+
+perf-inventory: ## Print the performancev2 gates, levels and calibration evidence for the AWS plugin
+	go run ./test/suites/performancev2/cmd/inventory
+
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
 		--focus="${FOCUS}" \
@@ -270,7 +288,7 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 perf-inventory e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 

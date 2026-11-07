@@ -155,3 +155,5 @@ require (
 )
 
 replace github.com/google/cel-go v0.31.0 => cel.dev/cel-go v0.31.0
+
+replace sigs.k8s.io/karpenter => github.com/AndrewSirenko/karpenter v0.0.0-20261107113339-c88c73a4d7c2

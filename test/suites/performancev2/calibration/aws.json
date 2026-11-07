@@ -1,0 +1,402 @@
+{
+  "provider": "aws-kwok",
+  "source": "EKS us-east-2, tier-xl provisioned control plane, AWS KWOK controller 8 CPU / 24Gi",
+  "baseline_commit": "0abee51-dirty",
+  "generated": "2026-11-07T12:27:32Z",
+  "phases": {
+    "nodepools/scheduling": {
+      "aws_api_calls": {
+        "n": 3,
+        "median": 12,
+        "min": 12,
+        "max": 13,
+        "cv": 0.038,
+        "suggested_bound": 14.3
+      },
+      "cpu_cores": {
+        "n": 3,
+        "median": 2.648,
+        "min": 2.614,
+        "max": 2.785,
+        "cv": 0.028,
+        "suggested_bound": 3.064
+      },
+      "cpu_util": {
+        "n": 3,
+        "median": 0.907,
+        "min": 0.907,
+        "max": 0.907,
+        "cv": 0,
+        "suggested_bound": 0.816
+      },
+      "heap_mb": {
+        "n": 3,
+        "median": 2669.832,
+        "min": 2319.189,
+        "max": 2743.809,
+        "cv": 0.072,
+        "suggested_bound": 3018.19
+      },
+      "memory_util": {
+        "n": 3,
+        "median": 0.5,
+        "min": 0.5,
+        "max": 0.5,
+        "cv": 0,
+        "suggested_bound": 0.45
+      },
+      "nodes": {
+        "n": 3,
+        "median": 4,
+        "min": 4,
+        "max": 4,
+        "cv": 0,
+        "suggested_bound": 4.4
+      },
+      "pod_ready_seconds_max": {
+        "n": 3,
+        "median": 60,
+        "min": 60,
+        "max": 61,
+        "cv": 0.008,
+        "suggested_bound": 67.1
+      },
+      "pod_ready_seconds_p50": {
+        "n": 3,
+        "median": 60,
+        "min": 60,
+        "max": 60,
+        "cv": 0,
+        "suggested_bound": 66
+      },
+      "pod_ready_seconds_p95": {
+        "n": 3,
+        "median": 60,
+        "min": 60,
+        "max": 61,
+        "cv": 0.008,
+        "suggested_bound": 67.1
+      },
+      "pod_ready_seconds_p99": {
+        "n": 3,
+        "median": 60,
+        "min": 60,
+        "max": 61,
+        "cv": 0.008,
+        "suggested_bound": 67.1
+      },
+      "total_time_seconds": {
+        "n": 3,
+        "median": 60,
+        "min": 60,
+        "max": 61,
+        "cv": 0.008,
+        "suggested_bound": 67.1
+      }
+    },
+    "nodepools/startup": {
+      "heap_mb": {
+        "n": 3,
+        "median": 90.042,
+        "min": 72.161,
+        "max": 143.444,
+        "cv": 0.297,
+        "suggested_bound": 157.788
+      },
+      "nodes": {
+        "n": 3,
+        "median": 4,
+        "min": 4,
+        "max": 4,
+        "cv": 0,
+        "suggested_bound": 4.4
+      },
+      "startup_seconds": {
+        "n": 3,
+        "median": 8.157,
+        "min": 7.337,
+        "max": 21.244,
+        "cv": 0.52,
+        "suggested_bound": 23.368
+      },
+      "total_time_seconds": {
+        "n": 3,
+        "median": 8.157,
+        "min": 7.337,
+        "max": 21.244,
+        "cv": 0.52,
+        "suggested_bound": 23.368
+      }
+    },
+    "pods/consolidation": {
+      "aws_api_calls": {
+        "n": 3,
+        "median": 221,
+        "min": 205,
+        "max": 224,
+        "cv": 0.038,
+        "suggested_bound": 246.4
+      },
+      "cpu_cores": {
+        "n": 3,
+        "median": 0.617,
+        "min": 0.616,
+        "max": 0.637,
+        "cv": 0.015,
+        "suggested_bound": 0.701
+      },
+      "cpu_util": {
+        "n": 3,
+        "median": 0.922,
+        "min": 0.92,
+        "max": 0.93,
+        "cv": 0.005,
+        "suggested_bound": 0.828
+      },
+      "heap_mb": {
+        "n": 3,
+        "median": 192.193,
+        "min": 190.137,
+        "max": 195.443,
+        "cv": 0.011,
+        "suggested_bound": 214.987
+      },
+      "memory_util": {
+        "n": 3,
+        "median": 0.888,
+        "min": 0.885,
+        "max": 0.896,
+        "cv": 0.005,
+        "suggested_bound": 0.797
+      },
+      "nodes": {
+        "n": 3,
+        "median": 125,
+        "min": 117,
+        "max": 126,
+        "cv": 0.033,
+        "suggested_bound": 138.6
+      },
+      "pod_ready_seconds_max": {
+        "n": 3,
+        "median": 31,
+        "min": 31,
+        "max": 32,
+        "cv": 0.015,
+        "suggested_bound": 35.2
+      },
+      "pod_ready_seconds_p95": {
+        "n": 3,
+        "median": 16,
+        "min": 11,
+        "max": 18,
+        "cv": 0.196,
+        "suggested_bound": 19.8
+      },
+      "pod_ready_seconds_p99": {
+        "n": 3,
+        "median": 31,
+        "min": 21,
+        "max": 31,
+        "cv": 0.17,
+        "suggested_bound": 34.1
+      },
+      "pods_disrupted": {
+        "n": 3,
+        "median": 255,
+        "min": 234,
+        "max": 277,
+        "cv": 0.069,
+        "suggested_bound": 304.7
+      },
+      "total_time_seconds": {
+        "n": 3,
+        "median": 1203.752,
+        "min": 1058.757,
+        "max": 1206.68,
+        "cv": 0.06,
+        "suggested_bound": 1327.348
+      }
+    },
+    "pods/scaleOut": {
+      "aws_api_calls": {
+        "n": 3,
+        "median": 13,
+        "min": 12,
+        "max": 13,
+        "cv": 0.037,
+        "suggested_bound": 14.3
+      },
+      "cpu_cores": {
+        "n": 3,
+        "median": 0.485,
+        "min": 0.452,
+        "max": 0.585,
+        "cv": 0.111,
+        "suggested_bound": 0.644
+      },
+      "cpu_util": {
+        "n": 3,
+        "median": 0.796,
+        "min": 0.79,
+        "max": 0.797,
+        "cv": 0.004,
+        "suggested_bound": 0.711
+      },
+      "heap_mb": {
+        "n": 3,
+        "median": 190.768,
+        "min": 185.846,
+        "max": 196.579,
+        "cv": 0.023,
+        "suggested_bound": 216.237
+      },
+      "memory_util": {
+        "n": 3,
+        "median": 0.866,
+        "min": 0.862,
+        "max": 0.869,
+        "cv": 0.003,
+        "suggested_bound": 0.776
+      },
+      "nodes": {
+        "n": 3,
+        "median": 164,
+        "min": 164,
+        "max": 165,
+        "cv": 0.003,
+        "suggested_bound": 181.5
+      },
+      "pod_ready_seconds_max": {
+        "n": 3,
+        "median": 71,
+        "min": 70,
+        "max": 74,
+        "cv": 0.024,
+        "suggested_bound": 81.4
+      },
+      "pod_ready_seconds_p50": {
+        "n": 3,
+        "median": 40,
+        "min": 39,
+        "max": 40,
+        "cv": 0.012,
+        "suggested_bound": 44
+      },
+      "pod_ready_seconds_p95": {
+        "n": 3,
+        "median": 53,
+        "min": 53,
+        "max": 53,
+        "cv": 0,
+        "suggested_bound": 58.3
+      },
+      "pod_ready_seconds_p99": {
+        "n": 3,
+        "median": 70,
+        "min": 69,
+        "max": 70,
+        "cv": 0.007,
+        "suggested_bound": 77
+      },
+      "total_time_seconds": {
+        "n": 3,
+        "median": 74,
+        "min": 73,
+        "max": 77,
+        "cv": 0.023,
+        "suggested_bound": 84.7
+      }
+    },
+    "topology/scaleOut": {
+      "aws_api_calls": {
+        "n": 3,
+        "median": 12,
+        "min": 12,
+        "max": 13,
+        "cv": 0.038,
+        "suggested_bound": 14.3
+      },
+      "cpu_cores": {
+        "n": 3,
+        "median": 1.511,
+        "min": 1.417,
+        "max": 1.586,
+        "cv": 0.046,
+        "suggested_bound": 1.745
+      },
+      "cpu_util": {
+        "n": 3,
+        "median": 0.549,
+        "min": 0.543,
+        "max": 0.551,
+        "cv": 0.006,
+        "suggested_bound": 0.489
+      },
+      "heap_mb": {
+        "n": 3,
+        "median": 407.191,
+        "min": 388.068,
+        "max": 418.352,
+        "cv": 0.031,
+        "suggested_bound": 460.187
+      },
+      "memory_util": {
+        "n": 3,
+        "median": 0.678,
+        "min": 0.673,
+        "max": 0.68,
+        "cv": 0.004,
+        "suggested_bound": 0.606
+      },
+      "nodes": {
+        "n": 3,
+        "median": 623,
+        "min": 618,
+        "max": 624,
+        "cv": 0.004,
+        "suggested_bound": 686.4
+      },
+      "pod_ready_seconds_max": {
+        "n": 3,
+        "median": 59,
+        "min": 58,
+        "max": 59,
+        "cv": 0.008,
+        "suggested_bound": 64.9
+      },
+      "pod_ready_seconds_p50": {
+        "n": 3,
+        "median": 49,
+        "min": 49,
+        "max": 49,
+        "cv": 0,
+        "suggested_bound": 53.9
+      },
+      "pod_ready_seconds_p95": {
+        "n": 3,
+        "median": 54,
+        "min": 54,
+        "max": 55,
+        "cv": 0.009,
+        "suggested_bound": 60.5
+      },
+      "pod_ready_seconds_p99": {
+        "n": 3,
+        "median": 55,
+        "min": 55,
+        "max": 57,
+        "cv": 0.017,
+        "suggested_bound": 62.7
+      },
+      "total_time_seconds": {
+        "n": 3,
+        "median": 59,
+        "min": 59,
+        "max": 59,
+        "cv": 0,
+        "suggested_bound": 64.9
+      }
+    }
+  }
+}
