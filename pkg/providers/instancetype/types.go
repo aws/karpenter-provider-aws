@@ -556,11 +556,36 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
-			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
-				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
-			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-				return blockDeviceMapping.EBS.VolumeSize
+			// Determine root device names to exclude from the ephemeral storage sum.
+			// For AMI families like Bottlerocket, the OS root (/dev/xvda) is separate
+			// from the ephemeral block device (/dev/xvdb) and should not count toward
+			// ephemeral storage capacity.
+			ephemeralDeviceName := amiFamily.EphemeralBlockDevice()
+			rootDeviceNames := map[string]struct{}{}
+			for _, bdm := range amiFamily.DefaultBlockDeviceMappings() {
+				if bdm.DeviceName != nil && *bdm.DeviceName != *ephemeralDeviceName {
+					rootDeviceNames[*bdm.DeviceName] = struct{}{}
+				}
+			}
+			// Sum all non-root block device volumes to account for configurations
+			// where multiple EBS volumes contribute to ephemeral storage (e.g., RAID0
+			// with Bottlerocket). Previously only the single ephemeral block device was
+			// counted, causing under-reporting when additional volumes were configured.
+			totalStorage := resource.Quantity{}
+			found := false
+			for _, bdm := range blockDeviceMappings {
+				if bdm.DeviceName != nil {
+					if _, isRoot := rootDeviceNames[*bdm.DeviceName]; isRoot {
+						continue
+					}
+				}
+				if bdm.EBS != nil && bdm.EBS.VolumeSize != nil {
+					totalStorage.Add(*bdm.EBS.VolumeSize)
+					found = true
+				}
+			}
+			if found {
+				return &totalStorage
 			}
 		}
 	}

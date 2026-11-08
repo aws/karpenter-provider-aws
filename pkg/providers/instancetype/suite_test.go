@@ -2668,6 +2668,86 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
+		It("should sum all non-root block device mapping volumes for Bottlerocket ephemeral storage", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("2Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+						Encrypted:  lo.ToPtr(true),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("18Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+						Encrypted:  lo.ToPtr(true),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvde"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+						Encrypted:  lo.ToPtr(true),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdf"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+						Encrypted:  lo.ToPtr(true),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdg"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+						Encrypted:  lo.ToPtr(true),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// 18Gi + 20Gi + 20Gi + 20Gi = 78Gi (excludes /dev/xvda OS root volume)
+			expected := resource.MustParse("78Gi")
+			Expect(node.Status.Capacity.StorageEphemeral().AsApproximateFloat64()).To(
+				BeNumerically("~", expected.AsApproximateFloat64()))
+		})
+		It("should use single ephemeral block device size when only one non-root volume is configured for Bottlerocket", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("4Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: lo.ToPtr(resource.MustParse("50Gi")),
+						VolumeType: lo.ToPtr("gp3"),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// Only /dev/xvdb counts (50Gi), /dev/xvda is excluded as the OS root
+			expected := resource.MustParse("50Gi")
+			Expect(node.Status.Capacity.StorageEphemeral().AsApproximateFloat64()).To(
+				BeNumerically("~", expected.AsApproximateFloat64()))
+		})
 	})
 	Context("Volume Attachment Limits", func() {
 		DescribeTable("should only launch nodes that can attach every EBS volume a pod uses",
