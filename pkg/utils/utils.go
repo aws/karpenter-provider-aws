@@ -119,7 +119,14 @@ func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterNam
 		v1.EKSClusterNameTagKey:                              clusterName,
 		v1.LabelNodeClass:                                    nodeClass.Name,
 	}
-	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
+	result := lo.Assign(nodeClass.Spec.Tags, staticTags)
+	// If the user explicitly set Name to an empty string in EC2NodeClass tags,
+	// treat this as an opt-out of the automatic Name tag and exclude it from
+	// launch-time tags so the instance is not created with an empty Name tag.
+	if name, ok := nodeClass.Spec.Tags[v1.NameTagKey]; ok && name == "" {
+		delete(result, v1.NameTagKey)
+	}
+	return result, nil
 }
 
 func GetNodeClassHash(nodeClass *v1.EC2NodeClass) string {

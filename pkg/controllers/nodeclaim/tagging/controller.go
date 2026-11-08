@@ -109,6 +109,19 @@ func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id s
 		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 	}
 
+	// If the user explicitly set the Name tag to an empty string in EC2NodeClass,
+	// respect that as an opt-out of automatic Name tagging on instances.
+	if nc.Spec.NodeClassRef != nil {
+		nodeClass := &v1.EC2NodeClass{}
+		if err := c.kubeClient.Get(ctx, client.ObjectKey{Name: nc.Spec.NodeClassRef.Name}, nodeClass); client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("getting node class for tagging, %w", err)
+		} else if err == nil {
+			if name, ok := nodeClass.Spec.Tags[v1.NameTagKey]; ok && name == "" {
+				delete(tags, v1.NameTagKey)
+			}
+		}
+	}
+
 	// Remove tags which have been already populated
 	instance, err := c.instanceProvider.Get(ctx, id, instance.SkipCache)
 	if err != nil {

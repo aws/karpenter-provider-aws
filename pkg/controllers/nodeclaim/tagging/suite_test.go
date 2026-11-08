@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
@@ -236,4 +237,86 @@ var _ = Describe("TaggingController", func() {
 		Entry("with the karpenter.sh/nodeclaim and Name tags", v1.EKSClusterNameTagKey),
 		Entry("with nothing to tag", v1.NodeClaimTagKey, v1.EKSClusterNameTagKey, v1.NameTagKey),
 	)
+
+	It("should not set Name tag when EC2NodeClass opts out with empty Name tag", func() {
+		nodeClass := test.EC2NodeClass(v1.EC2NodeClass{
+			Spec: v1.EC2NodeClassSpec{
+				Tags: map[string]string{
+					v1.NameTagKey: "",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+			Status: karpv1.NodeClaimStatus{
+				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
+				NodeName:   "default",
+			},
+		})
+
+		ExpectApplied(ctx, env.Client, nodeClaim)
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
+		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+		Expect(nodeClaim.Annotations).To(HaveKey(v1.AnnotationInstanceTagged))
+
+		ec2Instance := lo.Must(awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)).(ec2types.Instance)
+		instanceTags := instance.NewInstance(ctx, ec2Instance).Tags
+
+		// Name tag should NOT be set when EC2NodeClass has Name: ""
+		Expect(instanceTags).ToNot(HaveKey(v1.NameTagKey))
+		// Other tags should still be set
+		Expect(instanceTags).To(HaveKeyWithValue(v1.NodeClaimTagKey, nodeClaim.Name))
+		Expect(instanceTags).To(HaveKeyWithValue(v1.EKSClusterNameTagKey, options.FromContext(ctx).ClusterName))
+	})
+
+	It("should set Name tag normally when EC2NodeClass has non-empty Name tag", func() {
+		nodeClass := test.EC2NodeClass(v1.EC2NodeClass{
+			Spec: v1.EC2NodeClassSpec{
+				Tags: map[string]string{
+					v1.NameTagKey: "custom-name",
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+			Status: karpv1.NodeClaimStatus{
+				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
+				NodeName:   "default",
+			},
+		})
+
+		// Add the custom Name tag to the instance (as if applied at launch time)
+		ec2Instance.Tags = append(ec2Instance.Tags, ec2types.Tag{
+			Key:   aws.String(v1.NameTagKey),
+			Value: aws.String("custom-name"),
+		})
+		awsEnv.EC2API.Instances.Store(aws.ToString(ec2Instance.InstanceId), ec2Instance)
+
+		ExpectApplied(ctx, env.Client, nodeClaim)
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
+		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+		Expect(nodeClaim.Annotations).To(HaveKey(v1.AnnotationInstanceTagged))
+
+		ec2Instance := lo.Must(awsEnv.EC2API.Instances.Load(*ec2Instance.InstanceId)).(ec2types.Instance)
+		instanceTags := instance.NewInstance(ctx, ec2Instance).Tags
+
+		// Custom Name tag should be preserved, not overwritten
+		Expect(instanceTags).To(HaveKeyWithValue(v1.NameTagKey, "custom-name"))
+	})
 })
