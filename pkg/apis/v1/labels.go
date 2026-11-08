@@ -65,9 +65,20 @@ func init() {
 		corev1.LabelWindowsBuild,
 		LabelPlacementGroupID,
 		LabelPlacementGroupPartition,
+		LabelAMIFamily,
 	)
 
 	karpv1.WellKnownValuesForRequirements[LabelInstanceTenancy] = sets.New(string(ec2types.TenancyDedicated), string(ec2types.TenancyDefault))
+	karpv1.WellKnownValuesForRequirements[LabelAMIFamily] = sets.New(
+		AMIFamilyAL2,
+		AMIFamilyAL2023,
+		AMIFamilyBottlerocket,
+		AMIFamilyUbuntu,
+		AMIFamilyWindows2019,
+		AMIFamilyWindows2022,
+		AMIFamilyWindows2025,
+		AMIFamilyCustom,
+	)
 
 	karpv1.WellKnownResources.Insert(
 		ResourceAWSPodENI,
@@ -172,6 +183,7 @@ var (
 	LabelInstanceTenancy                      = apis.Group + "/instance-tenancy"
 	LabelPlacementGroupID                     = apis.Group + "/placement-group-id"
 	LabelPlacementGroupPartition              = apis.Group + "/placement-group-partition"
+	LabelAMIFamily                            = apis.Group + "/ami-family"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 	// LabelNvidiaGPUPresent is set on NVIDIA GPU instance types. See designs/nvidia-gpu-present-label.md.

@@ -650,6 +650,7 @@ func (c *CloudProvider) instanceToNodeClaim(ctx context.Context, i *instance.Ins
 		}); ok && subnet.ZoneID != "" {
 			labels[v1.LabelTopologyZoneID] = subnet.ZoneID
 		}
+		labels[v1.LabelAMIFamily] = nodeClass.AMIFamily()
 	}
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	labels[v1.LabelInstanceTenancy] = i.Tenancy

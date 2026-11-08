@@ -304,7 +304,7 @@ func NewInstanceType(
 	amiFamily := amifamily.GetAMIFamily(amiFamilyType, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         string(info.InstanceType),
-		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, capacityReservations),
+		Requirements: computeRequirements(info, region, offeringZones, subnetZoneInfo, amiFamily, amiFamilyType, capacityReservations),
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, networkInterfaces, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved: kubeReservedResources(cpu(info), lo.Ternary(amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead,
@@ -327,6 +327,7 @@ func computeRequirements(
 	offeringZones []string,
 	subnetZoneInfo []v1.ZoneInfo,
 	amiFamily amifamily.AMIFamily,
+	amiFamilyType string,
 	capacityReservations []v1.CapacityReservation,
 ) scheduling.Requirements {
 	capacityTypes := lo.FilterMap(info.SupportedUsageClasses, func(uc ec2types.UsageClassType, _ int) (string, bool) {
@@ -383,6 +384,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceHypervisor, corev1.NodeSelectorOpIn, string(info.Hypervisor)),
 		scheduling.NewRequirement(v1.LabelInstanceEncryptionInTransitSupported, corev1.NodeSelectorOpIn, fmt.Sprint(aws.ToBool(info.NetworkInfo.EncryptionInTransitSupported))),
 		scheduling.NewRequirement(v1.LabelInstanceTenancy, corev1.NodeSelectorOpIn, string(ec2types.TenancyDefault), string(ec2types.TenancyDedicated)),
+		scheduling.NewRequirement(v1.LabelAMIFamily, corev1.NodeSelectorOpIn, amiFamilyType),
 	)
 
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a

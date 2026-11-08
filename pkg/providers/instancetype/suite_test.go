@@ -264,6 +264,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceAcceleratorManufacturer: "aws",
 			v1.LabelInstanceAcceleratorCount:        "1",
 			v1.LabelTopologyZoneID:                  "tstz1-1a",
+			v1.LabelAMIFamily:                       v1.AMIFamilyAL2023,
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -328,6 +329,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelNvidiaGPUPresent:                     "true",
 			v1.LabelInstanceLocalNVME:                    "900",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
+			v1.LabelAMIFamily:                            v1.AMIFamilyAL2023,
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -387,6 +389,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1.LabelInstanceAcceleratorCount:             "1",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
+			v1.LabelAMIFamily:                            v1.AMIFamilyAL2023,
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
