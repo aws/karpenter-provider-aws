@@ -222,7 +222,11 @@ Karpenter only terminates a node first when a replacement can't be pre-spun:
 * **Static NodePools:** If the NodePool is below its `limits.nodes`, Karpenter pre-spins a replacement. If the NodePool is at its limit, Karpenter terminates the node first and then provisions back up to `replicas`.
 
 Terminate-first disruption still respects [NodePool Disruption Budgets]({{<ref "#nodepool-disruption-budgets" >}}), and the node is drained through the [Termination Controller]({{<ref "#termination-controller" >}}), which respects PDBs and `terminationGracePeriod`.
-Karpenter records these commands as `terminate-first` in the `decision` label of the `karpenter_voluntary_disruption_decisions_total` [metric]({{<ref "../reference/metrics" >}}).
+Karpenter records terminate-first disruption in these [metrics]({{<ref "../reference/metrics" >}}):
+
+* `karpenter_voluntary_disruption_decisions_total` with `decision="terminate-first"` counts decisions across NodePools.
+* `karpenter_voluntary_disruption_decisions_by_nodepool_total` with `decision="terminate-first"` includes the `nodepool` label to identify the affected NodePool.
+* `karpenter_voluntary_disruption_terminate_first_decisions_total` includes the `nodepool`, `reason`, and `terminate_first_reason` labels. Use `terminate_first_reason` to distinguish `no-reserved-capacity` from `static-at-limit`, which explain why Karpenter could not launch the replacement first.
 
 {{% alert title="Warning" color="warning" %}}
 Terminate-first disruption temporarily reduces capacity. The node's pods stay pending from the time the node is drained until its replacement is ready.
