@@ -138,7 +138,8 @@ jobs:
           # Without enforce, a core that supports PERF_SOFT_THRESHOLDS records breaches instead of failing on them; an
           # older core ignores it, so the job result is the go test result either way.
           if [[ "$ENFORCE" == "true" ]]; then export PERF_SOFT_THRESHOLDS=false; else export PERF_SOFT_THRESHOLDS=true; fi
-          # v2 levels live in the AWS plugin and gate on their own tiers, so enforce and thresholds only apply to v1
+          # v2 levels live in the AWS plugin and gate on their own tiers (a Stable breach fails, an Experimental one
+          # warns), so enforce and thresholds only apply to v1
           if [[ "$SUITE" == "v2" ]]; then
             make perftests-v2 CLUSTER_NAME="$CLUSTER_NAME" FOCUS="$FOCUS" OUTPUT_DIR="$OUTPUT_DIR" 2>&1 | tee "$OUTPUT_DIR/test.log"
             exit "${PIPESTATUS[0]}"
@@ -154,7 +155,8 @@ jobs:
           path: ${{ runner.temp }}/perf
           if-no-files-found: warn
       - name: summary
-        if: always()
+        # performancev2 appends its own tables to $GITHUB_STEP_SUMMARY, so copying its perf_summary.md would repeat them
+        if: always() && inputs.suite != 'v2'
         env:
           SPEC_ID: ${{ inputs.spec_id }}
         run: |
