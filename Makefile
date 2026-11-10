@@ -43,10 +43,8 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 TEST_SUITE ?= "..."
 TMPFILE := $(shell mktemp)
 
-# upstream-perftests writes core's per-phase performance reports to OUTPUT_DIR. PERF_THRESHOLDS_FILE optionally
-# points at a KARPENTER_PERF_THRESHOLDS JSON file (e.g. test/pkg/environment/aws/perf_thresholds_kwok_4c.json).
+# perftests-v2 writes performancev2's per-phase reports, summaries and profiles to OUTPUT_DIR
 OUTPUT_DIR ?= $(shell pwd)/test/perf-output
-PERF_THRESHOLDS_FILE ?=
 
 # Filename when building the binary controller only
 GOARCH ?= $(shell go env GOARCH)
@@ -128,30 +126,9 @@ upstream-e2etests: tidy download
 		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
 		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
 
-upstream-perftests: tidy download
-	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
-	mkdir -p "$(OUTPUT_DIR)"
-	cd $(KARPENTER_CORE_DIR) && OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
-		$(if $(PERF_THRESHOLDS_FILE),KARPENTER_PERF_THRESHOLDS="$$(cat $(abspath $(PERF_THRESHOLDS_FILE)))") \
-		go test \
-		-p 1 \
-		-count 1 \
-		-timeout 3h \
-		-v \
-		./test/suites/performance/... \
-		--ginkgo.focus="${FOCUS}" \
-		--ginkgo.skip="${SKIP}" \
-		--ginkgo.fail-on-empty \
-		--ginkgo.timeout=150m \
-		--ginkgo.grace-period=10m \
-		--ginkgo.vv \
-		--default-nodeclass="$(TMPFILE)"\
-		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/perf_nodepool.yaml"
-
 perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
 	mkdir -p "$(OUTPUT_DIR)"
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
-		$(if $(PERF_THRESHOLDS_FILE),KARPENTER_PERF_THRESHOLDS="$$(cat $(abspath $(PERF_THRESHOLDS_FILE)))") \
 		go test \
 		-count 1 \
 		-timeout 3h \

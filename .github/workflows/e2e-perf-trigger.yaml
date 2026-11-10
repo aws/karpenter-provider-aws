@@ -12,31 +12,19 @@ on:
         description: "Max clusters in use at once (1-10)"
         type: string
         default: "10"
-      thresholds:
-        description: "aws-kwok-4c = test/pkg/environment/aws/perf_thresholds_kwok_4c.json (calibrated for a 4 CPU / 8Gi controller); core = the suite's own thresholds"
-        type: choice
-        options:
-          - "aws-kwok-4c"
-          - "core"
-        default: "aws-kwok-4c"
       helm_opts:
-        description: "Extra helm flags for the KWOK controller, for every spec. Empty = per suite: v1 4 CPU / 8Gi (aws-kwok-4c thresholds), v2 8 CPU / 24Gi (the v2 levels' calibration shape)"
+        description: "Extra helm flags for the KWOK controller. The default (8 CPU / 24Gi, request = limit) is the shape the levels were calibrated on"
         type: string
-        default: ""
-      enforce:
-        description: "Fail the run when a threshold is breached (otherwise report only, with a core that supports PERF_SOFT_THRESHOLDS)"
-        type: boolean
-        default: true
+        default: "--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false"
       control_plane_tier:
-        description: "EKS Provisioned Control Plane tier for the per-spec clusters (default = per suite: v1 standard, v2 tier-xl)"
+        description: "EKS Provisioned Control Plane tier for the per-spec clusters. The default is the tier the levels were calibrated on"
         type: choice
         options:
-          - "default"
           - "standard"
           - "tier-xl"
           - "tier-2xl"
           - "tier-4xl"
-        default: "default"
+        default: "tier-xl"
       cleanup:
         description: "Delete each cluster when its spec finishes"
         type: boolean
@@ -57,19 +45,12 @@ jobs:
         run: |
           set -euo pipefail
           declare -A FOCUS=(
-            [basic]="Basic Deployment"
-            [drift]="Drift Performance"
-            [hostname]="Host Name Spreading Deployment Reg"
-            [hostname-xl]="Host Name Spreading Deployment XL"
-            [wide]="Wide Deployments"
-            [do-not-disrupt]="Do Not Disrupt Performance Test"
-            [interference]="Self Anti-Affinity Deployment Interference"
-            [v2-pods]="Performance pods "
-            [v2-nodepools]="Performance nodepools "
-            [v2-topology]="Performance topology "
+            [pods]="Performance pods "
+            [nodepools]="Performance nodepools "
+            [topology]="Performance topology "
           )
           # Longest specs first so they start before parallel=N runs out of slots
-          ORDER="hostname-xl drift wide do-not-disrupt interference hostname basic v2-pods v2-topology v2-nodepools"
+          ORDER="pods topology nodepools"
           PARALLEL="${DISPATCH_PARALLEL:-10}"
           [[ "$PARALLEL" =~ ^[0-9]+$ ]] && (( PARALLEL >= 1 && PARALLEL <= 10 )) || { echo "::error::parallel must be 1-10"; exit 1; }
           specs=()
@@ -80,7 +61,7 @@ jobs:
           [[ ${#specs[@]} -gt 0 ]] || read -r -a specs <<< "$ORDER"
           MATRIX="$(for id in $ORDER; do
             for s in "${specs[@]}"; do
-              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" --arg suite "$(if [[ $id == v2-* ]]; then echo v2; else echo v1; fi)" '{id: $id, focus: $focus, suite: $suite}'; fi
+              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" '{id: $id, focus: $focus}'; fi
             done
           done | jq -cs '{include: .}')"
           echo "matrix: $MATRIX, parallel: $PARALLEL"
@@ -98,13 +79,8 @@ jobs:
     with:
       spec_id: ${{ matrix.id }}
       focus: ${{ matrix.focus }}
-      suite: ${{ matrix.suite }}
       region: ${{ vars.PERF_REGION || 'us-west-2' }}
-      thresholds: ${{ inputs.thresholds || 'aws-kwok-4c' }}
-      # v1 specs default to the 4 CPU / 8Gi controller the aws-kwok-4c thresholds were calibrated on; v2 specs to the
-      # 8 CPU / 24Gi controller and tier-xl control plane the v2 levels were calibrated on
-      helm_opts: ${{ inputs.helm_opts || (matrix.suite == 'v2' && '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false' || '--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false') }}
-      enforce: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce }}
-      control_plane_tier: ${{ (inputs.control_plane_tier != 'default' && inputs.control_plane_tier) || vars.PERF_CONTROL_PLANE_TIER || (matrix.suite == 'v2' && 'tier-xl' || 'standard') }}
+      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false' }}
+      control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'tier-xl' }}
       # Always delete scheduled clusters; a manual run can keep them for debugging
       cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}
