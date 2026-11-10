@@ -20,22 +20,23 @@ on:
           - "core"
         default: "aws-kwok-4c"
       helm_opts:
-        description: "Extra helm flags for the KWOK controller. The default (4 CPU / 8Gi, request = limit) matches the aws-kwok-4c thresholds"
+        description: "Extra helm flags for the KWOK controller, for every spec. Empty = per suite: v1 4 CPU / 8Gi (aws-kwok-4c thresholds), v2 8 CPU / 24Gi (calibration/aws.json)"
         type: string
-        default: "--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false"
+        default: ""
       enforce:
         description: "Fail the run when a threshold is breached (otherwise report only, with a core that supports PERF_SOFT_THRESHOLDS)"
         type: boolean
         default: true
       control_plane_tier:
-        description: "EKS Provisioned Control Plane tier for the per-spec clusters"
+        description: "EKS Provisioned Control Plane tier for the per-spec clusters (default = per suite: v1 standard, v2 tier-xl)"
         type: choice
         options:
+          - "default"
           - "standard"
           - "tier-xl"
           - "tier-2xl"
           - "tier-4xl"
-        default: "standard"
+        default: "default"
       cleanup:
         description: "Delete each cluster when its spec finishes"
         type: boolean
@@ -100,8 +101,10 @@ jobs:
       suite: ${{ matrix.suite }}
       region: ${{ vars.PERF_REGION || 'us-west-2' }}
       thresholds: ${{ inputs.thresholds || 'aws-kwok-4c' }}
-      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false' }}
+      # v1 specs default to the 4 CPU / 8Gi controller the aws-kwok-4c thresholds were calibrated on; v2 specs to the
+      # 8 CPU / 24Gi controller and tier-xl control plane that calibration/aws.json was calibrated on
+      helm_opts: ${{ inputs.helm_opts || (matrix.suite == 'v2' && '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false' || '--set controller.resources.requests.cpu=4 --set controller.resources.limits.cpu=4 --set controller.resources.requests.memory=8Gi --set controller.resources.limits.memory=8Gi --set settings.featureGates.nodeRepair=false') }}
       enforce: ${{ github.event_name != 'workflow_dispatch' || inputs.enforce }}
-      control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'standard' }}
+      control_plane_tier: ${{ (inputs.control_plane_tier != 'default' && inputs.control_plane_tier) || vars.PERF_CONTROL_PLANE_TIER || (matrix.suite == 'v2' && 'tier-xl' || 'standard') }}
       # Always delete scheduled clusters; a manual run can keep them for debugging
       cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}

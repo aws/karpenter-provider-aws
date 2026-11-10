@@ -37,9 +37,9 @@ import (
 var awsCalibration []byte
 
 // AWSAPICalls counts the controller's real AWS API calls in a phase. The KWOK controller fakes launches, so these
-// are the describe, SSM and pricing calls that caching is meant to keep flat. In calibration/aws.json every scale-out
-// phase made 12-13 calls in about a minute whatever its work, so the count is mostly periodic refreshes and grows with
-// phase length; a per-pod or per-NodeClaim call would still stand out.
+// are the describe, SSM and pricing calls that caching is meant to keep flat. In calibration/aws.json the count is
+// mostly periodic calls (DescribeInstanceStatus, SQS ReceiveMessage) and grows with phase length: topology/scaleOut made
+// 13 calls in all 5 baselines, while pods/scaleOut varied 5-13. A per-pod or per-NodeClaim call would still stand out.
 var AWSAPICalls = perf.Metric{Name: "aws_api_calls", Kind: perf.KindResource, Unit: "calls", Upper: true,
 	Measures: "AWS SDK requests the leader made during the phase (aws_sdk_go_request_total delta, all services).",
 	OnBreach: "More AWS calls for the same work: a cache that stopped hitting (instance types, subnets, AMIs, pricing) or a new call per pod or NodeClaim. The report's counters split it by service and action.",
@@ -85,8 +85,8 @@ func AWS(c env.Clients) *perf.Provider {
 			np.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("Never")
 			return np
 		},
-		// pods/consolidation waits 20m for consolidation to settle and stops quietly at the deadline; two of the three
-		// calibration runs ended there (1204s and 1207s), so the scenarios get 1.5x the time.
+		// pods/consolidation waits 20m for consolidation to settle and stops quietly at the deadline. AWS runs take up to
+		// 1449s (calibration/aws.json), so the scenarios get 1.5x the time.
 		TimeoutScale: 1.5,
 		Metrics:      []perf.Metric{AWSAPICalls},
 		Capture:      []string{"aws_sdk_go_"},
@@ -96,31 +96,35 @@ func AWS(c env.Clients) *perf.Provider {
 	}
 }
 
-// Levels are the AWS gates. calibration/aws.json has 3 baselines and no planted regressions, so no gate can be Stable
-// yet (Stable needs a catch). Every bound is Experimental, at the larger of 1.2x the baseline max and median + 2.33 sd,
-// like core's kwok levels. The baselines ran an 8 CPU / 24Gi controller on a tier-xl control plane in us-east-2, while
-// e2e-perf-trigger defaults to 4 CPU / 8Gi on a standard tier in us-west-2, so expect warnings until a calibration run
-// on the CI shape. pods/consolidation is measured only: its baselines were cut off by the 20m wait TimeoutScale now
-// extends, so they don't describe a settled run. Wall-clock consolidation time stays ungated as in core.
+// Levels are the AWS gates, from calibration/aws.json: 5 baselines on EKS 1.36, tier-xl, us-west-2, with an 8 CPU / 24Gi
+// controller (requests = limits) on its own pair of m6i.4xlarge nodes, so a restarted controller isn't left Pending on
+// CPU. There are no planted-regression runs yet, so no gate can be Stable (Stable needs a catch). Every bound is
+// Experimental, at the larger of 1.2x the baseline max and median + 2.33 sd, like core's kwok levels; counts and
+// seconds are rounded up. e2e-perf-trigger's defaults match this shape.
+//
+// Measured, not gated:
+//   - pods/consolidation: settles in 941-1449 s; pod_ready there covers only the evicted pods, most Ready within the
+//     second at 1 s resolution (p95 0-1 s, CV 67-82%), and wall-clock consolidation time stays ungated as in core.
+//   - pods/scaleOut pod_ready max (CV 22%) and aws_api_calls (CV 43%), and nodepools/scheduling aws_api_calls (CV 20%).
+//   - nodepools/startup cpu_cores and aws_api_calls: the startup phase takes a single scrape, so they would read 0.
 func Levels() perf.Levels {
 	return perf.Levels{
 		"pods/scaleOut": {
-			perf.PodReady.P95.Experimental(63.6), perf.PodReady.P99.Experimental(84), perf.PodReady.Max.Experimental(88.8),
-			perf.Nodes.Experimental(198), perf.HeapMB.Experimental(235.9), perf.CPUCores.Experimental(0.702),
-			AWSAPICalls.Experimental(15.6),
+			perf.PodReady.P95.Experimental(52), perf.PodReady.P99.Experimental(63),
+			perf.Nodes.Experimental(185), perf.HeapMB.Experimental(306.2), perf.CPUCores.Experimental(0.948),
 		},
 		"pods/consolidation": {},
 		"nodepools/scheduling": {
-			perf.TotalTimeSeconds.Experimental(73.2), perf.PodReady.P95.Experimental(73.2),
-			perf.HeapMB.Experimental(3292.6), perf.CPUCores.Experimental(3.342), AWSAPICalls.Experimental(15.6),
+			perf.TotalTimeSeconds.Experimental(88), perf.PodReady.P95.Experimental(88),
+			perf.HeapMB.Experimental(3281.8), perf.CPUCores.Experimental(3.467),
 		},
 		"nodepools/startup": {
-			perf.StartupSeconds.Experimental(25.5), perf.HeapMB.Experimental(172.1),
+			perf.StartupSeconds.Experimental(16.2), perf.HeapMB.Experimental(116.7),
 		},
 		"topology/scaleOut": {
-			perf.PodReady.P95.Experimental(66), perf.PodReady.P99.Experimental(68.4), perf.PodReady.Max.Experimental(70.8),
-			perf.Nodes.Experimental(748.8), perf.HeapMB.Experimental(502), perf.CPUCores.Experimental(1.903),
-			AWSAPICalls.Experimental(15.6),
+			perf.PodReady.P95.Experimental(87), perf.PodReady.P99.Experimental(102), perf.PodReady.Max.Experimental(104),
+			perf.Nodes.Experimental(675), perf.HeapMB.Experimental(565.6), perf.CPUCores.Experimental(1.949),
+			AWSAPICalls.Experimental(16),
 		},
 	}
 }
