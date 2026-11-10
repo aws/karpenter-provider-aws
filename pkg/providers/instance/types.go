@@ -146,11 +146,11 @@ func NewInstanceFromFleet(
 		LaunchTime:   time.Now(), // estimate the launch time since we just launched
 		State:        ec2types.InstanceStateNamePending,
 		ID:           out.InstanceIds[0],
-		ImageID:      lo.FromPtr(fleetOverrides(out.LaunchTemplateAndOverrides).ImageId),
+		ImageID:      lo.FromPtr(out.LaunchTemplateAndOverrides.Overrides.ImageId),
 		Type:         out.InstanceType,
-		Zone:         lo.FromPtr(fleetOverrides(out.LaunchTemplateAndOverrides).AvailabilityZone),
+		Zone:         lo.FromPtr(out.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
 		CapacityType: capacityType,
-		SubnetID:     lo.FromPtr(fleetOverrides(out.LaunchTemplateAndOverrides).SubnetId),
+		SubnetID:     lo.FromPtr(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
 		Tenancy:      tenancyType,
 	}))

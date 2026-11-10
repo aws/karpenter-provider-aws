@@ -192,7 +192,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass
 	if capacityType == karpv1.CapacityTypeReserved {
 		capacityReservationDetails := p.getCapacityReservationDetailsForInstance(
 			string(fleetInstance.InstanceType),
-			lo.FromPtr(fleetOverrides(fleetInstance.LaunchTemplateAndOverrides).AvailabilityZone),
+			*fleetInstance.LaunchTemplateAndOverrides.Overrides.AvailabilityZone,
 			instanceTypes,
 		)
 		opts = append(opts, WithCapacityReservationDetails(capacityReservationDetails))
@@ -906,9 +906,9 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 	}), nil
 }
 
-// fleetOverrides returns the launch template overrides from a CreateFleet instance or error. They are optional in the
-// response: EC2 omits them for errors that aren't tied to a single pool (e.g. InternalError), and the CreateFleet
-// batcher synthesizes errors without them on partial fulfillment.
+// fleetOverrides returns the launch template overrides from a CreateFleet error. They are optional on errors: EC2 omits
+// them for errors that aren't tied to a single pool (e.g. InternalError), and the CreateFleet batcher synthesizes errors
+// without them on partial fulfillment. Launched instances always carry them, so instances are read directly.
 func fleetOverrides(ltao *ec2types.LaunchTemplateAndOverridesResponse) ec2types.FleetLaunchTemplateOverrides {
 	return lo.FromPtr(lo.FromPtr(ltao).Overrides)
 }

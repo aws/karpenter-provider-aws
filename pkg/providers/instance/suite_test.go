@@ -361,6 +361,14 @@ var _ = Describe("InstanceProvider", func() {
 			Instances: []ec2types.CreateFleetInstance{{
 				InstanceIds:  []string{"i-0123456789abcdef0"},
 				InstanceType: "m5.large",
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2types.FleetLaunchTemplateOverrides{
+						InstanceType:     "m5.large",
+						AvailabilityZone: lo.ToPtr("test-zone-1b"),
+						SubnetId:         lo.ToPtr("subnet-test2"),
+						ImageId:          lo.ToPtr("ami-123"),
+					},
+				},
 			}},
 		})
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -369,7 +377,7 @@ var _ = Describe("InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(instance.ID).To(Equal("i-0123456789abcdef0"))
-		Expect(instance.Zone).To(BeEmpty())
+		Expect(instance.Zone).To(Equal("test-zone-1b"))
 
 		// The well-formed ICE error in the same response must still be recorded
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
