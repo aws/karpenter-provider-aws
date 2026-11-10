@@ -15,7 +15,6 @@ limitations under the License.
 package performancev2
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 
@@ -33,13 +32,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
-//go:embed calibration/aws.json
-var awsCalibration []byte
-
-// AWSAPICalls counts the controller's real AWS API calls in a phase. The KWOK controller fakes launches, so these
-// are the describe, SSM and pricing calls that caching is meant to keep flat. In calibration/aws.json the count is
-// mostly periodic calls (DescribeInstanceStatus, SQS ReceiveMessage) and grows with phase length: topology/scaleOut made
-// 13 calls in all 5 baselines, while pods/scaleOut varied 5-13. A per-pod or per-NodeClaim call would still stand out.
+// AWSAPICalls counts the controller's real AWS API calls in a phase (launches are faked).
 var AWSAPICalls = perf.Metric{Name: "aws_api_calls", Kind: perf.KindResource, Unit: "calls", Upper: true,
 	Measures: "AWS SDK requests the leader made during the phase (aws_sdk_go_request_total delta, all services).",
 	OnBreach: "More AWS calls for the same work: a cache that stopped hitting (instance types, subnets, AMIs, pricing) or a new call per pod or NodeClaim. The report's counters split it by service and action.",
@@ -85,28 +78,17 @@ func AWS(c env.Clients) *perf.Provider {
 			np.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("Never")
 			return np
 		},
-		// pods/consolidation waits 20m for consolidation to settle and stops quietly at the deadline. AWS runs take up to
-		// 1449s (calibration/aws.json), so the scenarios get 1.5x the time.
+		// Real AWS consolidation can outlast the scenarios' 20m wait.
 		TimeoutScale: 1.5,
 		Metrics:      []perf.Metric{AWSAPICalls},
 		Capture:      []string{"aws_sdk_go_"},
 		ReproEnv:     []string{"CLUSTER_NAME", "KARPENTER_NAMESPACE"},
-		Calibration:  perf.MustLoadCalibration(awsCalibration),
 		Levels:       Levels(),
 	}
 }
 
-// Levels are the AWS gates, from calibration/aws.json: 5 baselines on EKS 1.36, tier-xl, us-west-2, with an 8 CPU / 24Gi
-// controller (requests = limits) on its own pair of m6i.4xlarge nodes, so a restarted controller isn't left Pending on
-// CPU. There are no planted-regression runs yet, so no gate can be Stable (Stable needs a catch). Every bound is
-// Experimental, at the larger of 1.2x the baseline max and median + 2.33 sd, like core's kwok levels; counts and
-// seconds are rounded up. e2e-perf-trigger's defaults match this shape.
-//
-// Measured, not gated:
-//   - pods/consolidation: settles in 941-1449 s; pod_ready there covers only the evicted pods, most Ready within the
-//     second at 1 s resolution (p95 0-1 s, CV 67-82%), and wall-clock consolidation time stays ungated as in core.
-//   - pods/scaleOut pod_ready max (CV 22%) and aws_api_calls (CV 43%), and nodepools/scheduling aws_api_calls (CV 20%).
-//   - nodepools/startup cpu_cores and aws_api_calls: the startup phase takes a single scrape, so they would read 0.
+// Levels are Experimental bounds from 5 EKS baselines (tier-xl, 8 CPU / 24Gi controller): the larger of 1.2x the max
+// and median + 2.33 sd. Unlisted metrics, pods/consolidation and the noisy ones are measured only.
 func Levels() perf.Levels {
 	return perf.Levels{
 		"pods/scaleOut": {

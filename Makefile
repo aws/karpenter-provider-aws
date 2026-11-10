@@ -163,7 +163,7 @@ perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS
 		--ginkgo.grace-period=10m \
 		--ginkgo.vv
 
-perf-inventory: ## Print the performancev2 gates, levels and calibration evidence for the AWS plugin
+perf-inventory: ## Print the performancev2 gates and levels for the AWS plugin
 	go run ./test/suites/performancev2/cmd/inventory
 
 perf-verify: perf-inventory ## Check the performancev2 plugin's seams and levels without a cluster
