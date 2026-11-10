@@ -310,6 +310,71 @@ var _ = Describe("InstanceProvider", func() {
 		// Expect that an event is fired for Spot SLR not being created
 		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
 	})
+	DescribeTable("should not panic when CreateFleet errors are missing launch template overrides",
+		func(output *ec2.CreateFleetOutput) {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.CreateFleetBehavior.Output.Set(output)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(HaveOccurred())
+			Expect(instance).To(BeNil())
+		},
+		Entry("nil LaunchTemplateAndOverrides", &ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{{
+				ErrorCode:    lo.ToPtr("InternalError"),
+				ErrorMessage: lo.ToPtr("An internal error has occurred"),
+			}},
+		}),
+		Entry("nil Overrides", &ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{{
+				ErrorCode:                  lo.ToPtr("InsufficientInstanceCapacity"),
+				ErrorMessage:               lo.ToPtr("There is no Spot capacity available that matches your request."),
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{},
+			}},
+		}),
+		Entry("an empty response", &ec2.CreateFleetOutput{}),
+	)
+	It("should still mark offerings unavailable and launch when one CreateFleet error is missing overrides", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			FleetId: lo.ToPtr("fleet-id"),
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("InternalError"),
+					ErrorMessage: lo.ToPtr("An internal error has occurred"),
+				},
+				{
+					ErrorCode:    lo.ToPtr("InsufficientInstanceCapacity"),
+					ErrorMessage: lo.ToPtr("There is no Spot capacity available that matches your request."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+			Instances: []ec2types.CreateFleetInstance{{
+				InstanceIds:  []string{"i-0123456789abcdef0"},
+				InstanceType: "m5.large",
+			}},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(instance.ID).To(Equal("i-0123456789abcdef0"))
+		Expect(instance.Zone).To(BeEmpty())
+
+		// The well-formed ICE error in the same response must still be recorded
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
+	})
 	It("should return an ICE error when max fleet count is reached", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
