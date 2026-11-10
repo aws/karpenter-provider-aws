@@ -1835,7 +1835,7 @@ Adding, removing, or changing `enclaveOptions` participates in EC2NodeClass drif
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-Karpenter does not install the Nitro Enclaves CLI or device plugin, configure the allocator, or reserve enclave CPU, memory, or hugepages. Configure these on the node and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet; see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) for details. For AL2023 user data that installs the CLI and configures the allocator, see the [Nitro Enclaves user data example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml).
+Karpenter does not install the Nitro Enclaves CLI or device plugin, configure the allocator, or reserve enclave CPU, memory, or hugepages. Configure these on the node and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet; see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) for details.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
