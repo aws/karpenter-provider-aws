@@ -451,8 +451,11 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Maximum:=300
 	// +optional
 	VolumeInitializationRate *int32 `json:"volumeInitializationRate,omitempty"`
-	// VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
-	// a volume size. The following are the supported volumes sizes for each volume
+	// VolumeSize is a quantity in `Gi`, `G`, `Ti`, or `T`, or a CEL expression evaluated per instance type
+	// to compute the volume size. Expressions may reference instance_type, vcpus, memory_mib, default_enis,
+	// ips_per_eni, and max_pods, and require the NodeClassCEL feature gate. Numeric expression results are
+	// interpreted as GiB, truncated to a whole number, and must be between 1 and 59000. You must specify
+	// either a snapshot ID or a volume size. The following are the supported volume sizes for each volume
 	// type:
 	//
 	//    * gp2 and gp3: 1-16,384
@@ -464,17 +467,24 @@ type BlockDevice struct {
 	//    * standard: 1-1,024
 	// + TODO: Add the CEL resources.quantity type after k8s 1.29
 	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
-	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
-	// +kubebuilder:validation:Schemaless
-	// +kubebuilder:validation:Type:=string
+	// +kubebuilder:validation:XValidation:message="volumeSize must be a quantity in Gi, G, Ti, or T, or a CEL expression referencing an instance type variable",rule="self.matches('^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|5[0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-3][0-9]{3}|64000)G|([1-9]|[1-4][0-9]|5[0-8])Ti|([1-9]|[1-5][0-9]|6[0-4])T)$') || self.matches('instance_type|vcpus|memory_mib|default_enis|ips_per_eni|max_pods')"
+	// +kubebuilder:validation:MaxLength:=512
 	// +optional
-	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
+	VolumeSize *string `json:"volumeSize,omitempty"`
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.
 	// +kubebuilder:validation:Enum:={standard,io1,io2,gp2,sc1,st1,gp3}
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
+}
+
+func (in *BlockDevice) HasVolumeSizeExpression() bool {
+	if in == nil || in.VolumeSize == nil {
+		return false
+	}
+	_, err := resource.ParseQuantity(*in.VolumeSize)
+	return err != nil
 }
 
 type EnclaveOptions struct {
@@ -552,7 +562,7 @@ const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
-		in.Spec,
+		in.specWithNormalizedVolumeSizes(),
 		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
 		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
 		// doesn't trigger drift.
@@ -564,6 +574,25 @@ func (in *EC2NodeClass) Hash(caBundle *string) string {
 		IgnoreZeroValue: true,
 		ZeroNil:         true,
 	})))
+}
+
+// specWithNormalizedVolumeSizes returns the spec with every static volumeSize rewritten to its canonical quantity form.
+// volumeSize used to be a resource.Quantity, which hashed as its canonical string, so "1024Gi" and "1Ti" hashed
+// identically. Normalizing keeps the hash of existing static values unchanged, so they don't drift.
+func (in *EC2NodeClass) specWithNormalizedVolumeSizes() EC2NodeClassSpec {
+	if !lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool { return bdm != nil && bdm.EBS != nil && bdm.EBS.VolumeSize != nil }) {
+		return in.Spec
+	}
+	spec := *in.Spec.DeepCopy()
+	for _, bdm := range spec.BlockDeviceMappings {
+		if bdm == nil || bdm.EBS == nil || bdm.EBS.VolumeSize == nil {
+			continue
+		}
+		if q, err := resource.ParseQuantity(*bdm.EBS.VolumeSize); err == nil {
+			bdm.EBS.VolumeSize = lo.ToPtr(q.String())
+		}
+	}
+	return spec
 }
 
 func (in *EC2NodeClass) LegacyInstanceProfileName(clusterName, region string) string {
@@ -584,6 +613,13 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) m
 		EKSClusterNameTagKey:   clusterName,
 		LabelNodeClass:         in.Name,
 		v1.LabelTopologyRegion: region,
+	})
+}
+
+// HasVolumeSizeExpressions returns true if any blockDeviceMappings entry sizes its volume with a CEL expression.
+func (in *EC2NodeClass) HasVolumeSizeExpressions() bool {
+	return lo.ContainsBy(in.Spec.BlockDeviceMappings, func(bdm *BlockDeviceMapping) bool {
+		return bdm != nil && bdm.EBS.HasVolumeSizeExpression()
 	})
 }
 

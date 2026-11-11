@@ -422,10 +422,11 @@ func blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []ec2type
 }
 
 // volumeSize returns a GiB scaled value from a resource quantity or nil if the resource quantity passed in is nil
-func volumeSize(quantity *resource.Quantity) *int32 {
-	if quantity == nil {
+func volumeSize(volumeSize *string) *int32 {
+	if volumeSize == nil {
 		return nil
 	}
+	quantity := resource.MustParse(*volumeSize)
 	// Converts the value to Gi and rounds up the value to the nearest Gi
 	return lo.ToPtr(int32(math.Ceil(quantity.AsApproximateFloat64() / math.Pow(2, 30))))
 }

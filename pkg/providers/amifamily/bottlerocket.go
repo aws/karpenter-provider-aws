@@ -33,7 +33,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Bottlerocket struct {
@@ -185,7 +184,7 @@ func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	xvdaEBS := DefaultEBS
 	// The root volume must be at least as large as the AMI's root snapshot.
 	// https://github.com/bottlerocket-os/bottlerocket/commit/a02834b6ac
-	xvdaEBS.VolumeSize = lo.ToPtr(resource.MustParse("6Gi"))
+	xvdaEBS.VolumeSize = aws.String("6Gi")
 	return []*v1.BlockDeviceMapping{
 		{
 			DeviceName: aws.String("/dev/xvda"),
