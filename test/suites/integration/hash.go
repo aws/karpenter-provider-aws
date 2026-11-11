@@ -37,7 +37,7 @@ func registerHash() bool {
 				hash, found := nc.Annotations[v1.AnnotationEC2NodeClassHash]
 				g.Expect(found).To(BeTrue())
 				g.Expect(hash).To(Equal(nc.Hash(lo.ToPtr(Env.ExpectCABundle()))))
-			})
+			}).Should(Succeed())
 		})
 	})
 }
