@@ -15,8 +15,9 @@ on:
         type: string
         default: "us-west-2"
       k8s_version:
+        description: "The levels were calibrated on 1.36"
         type: string
-        default: "1.37"
+        default: "1.36"
       control_plane_tier:
         type: string
         default: "tier-xl"
@@ -31,20 +32,14 @@ jobs:
   run-perf:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials
-      statuses: write # ./.github/actions/commit-status/start
     name: perf-${{ inputs.spec_id }}
     runs-on: ubuntu-latest
-    # Cluster setup and cleanup, plus perftests-v2's 3h go test timeout
-    timeout-minutes: 240
+    # Cluster and node group setup, the 150m ginkgo timeout plus its 10m grace period, and cleanup
+    timeout-minutes: 270
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.git_ref }}
-      - if: always() && github.event_name == 'workflow_run'
-        uses: ./.github/actions/commit-status/start
-        with:
-          name: ${{ github.workflow }} / perf (${{ inputs.spec_id }})
-          git_ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/install-deps
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -84,6 +79,8 @@ jobs:
           cleanup: ${{ inputs.cleanup }}
           # The KWOK controller is built from git_ref below, so no snapshot chart is needed
           install_karpenter: 'false'
+          # The same zones every night, so offerings and topology domains don't change between runs
+          availability_zones: ${{ inputs.region }}a ${{ inputs.region }}b ${{ inputs.region }}c
       - name: set control plane tier ${{ inputs.control_plane_tier }}
         if: inputs.control_plane_tier != 'standard'
         env:
@@ -97,6 +94,40 @@ jobs:
           done
           [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
           aws eks wait cluster-active --name "$CLUSTER_NAME"
+      - name: create the controller node group
+        env:
+          ACCOUNT_ID: ${{ vars.CI_ACCOUNT_ID }}
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          REGION: ${{ inputs.region }}
+        run: |
+          set -euo pipefail
+          # The levels were calibrated with the controller alone on 2x m6i.4xlarge: the system pool's 2x c5.4xlarge
+          # can't fit the 24Gi controller next to kwok-controller and Prometheus, and nodepools/startup needs a second
+          # node for the replacement pod while the old one terminates. The taint keeps everything else off.
+          cat <<EOF > perf-nodegroup.yaml
+          apiVersion: eksctl.io/v1alpha5
+          kind: ClusterConfig
+          metadata:
+            name: $CLUSTER_NAME
+            region: $REGION
+          managedNodeGroups:
+            - name: perf-controller
+              instanceType: m6i.4xlarge
+              amiFamily: AmazonLinux2023
+              desiredCapacity: 2
+              minSize: 2
+              maxSize: 2
+              disableIMDSv1: true
+              labels:
+                perf-controller: "true"
+              taints:
+                - key: perf-controller
+                  value: "true"
+                  effect: NoSchedule
+              iam:
+                instanceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+          EOF
+          eksctl create nodegroup -f perf-nodegroup.yaml
       - name: install karpenter (KWOK)
         uses: ./.github/actions/e2e/install-karpenter-kwok
         with:
@@ -123,7 +154,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: perf-results-${{ inputs.spec_id }}
+          name: perf-results-${{ inputs.spec_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/perf
           if-no-files-found: warn
       - name: dump logs on failure
@@ -145,8 +176,3 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
           eksctl_version: v0.217.0
           private_cluster: false
-      - if: always() && github.event_name == 'workflow_run'
-        uses: ./.github/actions/commit-status/end
-        with:
-          name: ${{ github.workflow }} / perf (${{ inputs.spec_id }})
-          git_ref: ${{ inputs.git_ref }}

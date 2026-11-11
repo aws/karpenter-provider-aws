@@ -88,9 +88,10 @@ karpenter_build_info{commit="abc123",version="v1"} 1
 # TYPE aws_sdk_go_request_total counter
 aws_sdk_go_request_total{action="DescribeInstanceTypes",code="200",service="EC2"} %d
 aws_sdk_go_request_total{action="GetParameter",code="200",service="SSM"} %d
+aws_sdk_go_request_total{action="ReceiveMessage",code="200",service="SQS"} %d
 # TYPE go_goroutines gauge
 go_goroutines 40
-`, n, ec2PerScrape*n, n)
+`, n, ec2PerScrape*n, n, 100*n)
 }
 
 const ns = "kube-system"
@@ -148,8 +149,9 @@ var _ = perf.Suite(func() *perf.Provider {
 	ssm := rep.Counter("aws_sdk_go_request_total", map[string]string{"service": "SSM"})
 	Expect(ec2).To(BeNumerically(">=", 2*ec2PerScrape), "a delta over at least 3 scrapes")
 	Expect(ssm * ec2PerScrape).To(Equal(ec2))
+	Expect(rep.Counter("aws_sdk_go_request_total", map[string]string{"service": "SQS"})).To(BeNumerically(">", 0))
 	calls := float64(ec2 + ssm)
-	Expect(performancev2.AWSAPICalls.Value(rep)).To(Equal(calls), "aws_api_calls sums every service")
+	Expect(performancev2.AWSAPICalls.Value(rep)).To(Equal(calls), "aws_api_calls sums every service but the pollers")
 	Expect(rep.Gates).To(ContainElement(SatisfyAll(
 		HaveField("Metric", "aws_api_calls"), HaveField("Value", calls), HaveField("Passed", false), HaveField("Tier", perf.TierExperimental))))
 	Expect(rep.Gates).To(ContainElement(SatisfyAll(HaveField("Metric", "heap_mb"), HaveField("Value", 100.0), HaveField("Passed", true))))

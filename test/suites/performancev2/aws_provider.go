@@ -32,11 +32,24 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
-// AWSAPICalls counts the controller's real AWS API calls in a phase (launches are faked).
+// pollers are fixed-rate calls that scale with phase length, not work, so AWSAPICalls leaves them out.
+var pollers = []map[string]string{
+	{"service": "SQS", "action": "ReceiveMessage"},
+	{"service": "EC2", "action": "DescribeInstanceStatus"},
+}
+
+// AWSAPICalls counts the AWS calls that reach AWS during a phase, other than pollers. kwok/ec2 answers launch calls
+// (CreateFleet, CreateTags, DescribeInstances, TerminateInstances, launch templates) in memory, so they aren't counted.
 var AWSAPICalls = perf.Metric{Name: "aws_api_calls", Kind: perf.KindResource, Unit: "calls", Upper: true,
-	Measures: "AWS SDK requests the leader made during the phase (aws_sdk_go_request_total delta, all services).",
-	OnBreach: "More AWS calls for the same work: a cache that stopped hitting (instance types, subnets, AMIs, pricing) or a new call per pod or NodeClaim. The report's counters split it by service and action.",
-	Value:    func(r *perf.Result) float64 { return float64(r.Counter("aws_sdk_go_request_total", nil)) }}
+	Measures: "AWS SDK requests that reached AWS during the phase (aws_sdk_go_request_total delta), less the SQS ReceiveMessage and DescribeInstanceStatus pollers. Launch calls are faked by kwok/ec2 and not counted.",
+	OnBreach: "A real AWS call moved onto a per-pod or per-NodeClaim path (e.g. DescribeSubnets, SSM or IAM on launch), or a controller started calling AWS more often. The report's counters split it by service and action.",
+	Value: func(r *perf.Result) float64 {
+		n := r.Counter("aws_sdk_go_request_total", nil)
+		for _, l := range pollers {
+			n -= r.Counter("aws_sdk_go_request_total", l)
+		}
+		return float64(n)
+	}}
 
 // AWS is the AWS provider's KWOK controller (./kwok): the real AWS provider against real instance types,
 // pricing, subnets and AMIs, with launches faked. It needs CLUSTER_NAME for the EC2NodeClass selectors, and reads
@@ -88,7 +101,8 @@ func AWS(c env.Clients) *perf.Provider {
 }
 
 // Levels are Experimental bounds from 5 EKS baselines (tier-xl, 8 CPU / 24Gi controller): the larger of 1.2x the max
-// and median + 2.33 sd. Unlisted metrics, pods/consolidation and the noisy ones are measured only.
+// and median + 2.33 sd, except aws_api_calls (3 in every baseline), set by hand above one extra nodeclass reconcile.
+// Unlisted metrics, pods/consolidation and the noisy ones are measured only.
 func Levels() perf.Levels {
 	return perf.Levels{
 		"pods/scaleOut": {
@@ -106,7 +120,7 @@ func Levels() perf.Levels {
 		"topology/scaleOut": {
 			perf.PodReady.P95.Experimental(87), perf.PodReady.P99.Experimental(102), perf.PodReady.Max.Experimental(104),
 			perf.Nodes.Experimental(675), perf.HeapMB.Experimental(565.6), perf.CPUCores.Experimental(1.949),
-			AWSAPICalls.Experimental(16),
+			AWSAPICalls.Experimental(10),
 		},
 	}
 }

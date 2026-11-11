@@ -50,6 +50,9 @@ inputs:
   install_karpenter:
     description: "Whether to install the Karpenter snapshot chart. Valid values are 'true' or 'false'"
     default: 'true'
+  availability_zones:
+    description: "Space-separated availability zones for the cluster. Empty lets eksctl pick"
+    default: ''
   codebuild_role:
     description: "Codebuild Role that must be given an access entry in case of private cluster"
 runs:
@@ -94,6 +97,7 @@ runs:
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       GIT_REF:  ${{ inputs.git_ref }}
       ENABLE_LOCAL_ZONES: ${{ inputs.enable_local_zones }}
+      AVAILABILITY_ZONES: ${{ inputs.availability_zones }}
       CLEANUP: ${{ inputs.cleanup }}
       CODEBUILD_ROLE: ${{ inputs.codebuild_role }}
     run: |
@@ -209,6 +213,10 @@ runs:
           ebsCSIController: true
       $POD_IDENTITY
       EOF
+
+      for zone in $AVAILABILITY_ZONES; do
+        yq -i ".availabilityZones += [\"$zone\"]" clusterconfig.yaml
+      done
 
       if [[ $ENABLE_LOCAL_ZONES == "true" ]]; then
         local_zones=$(AWS_REGION=$REGION aws ec2 describe-availability-zones | yq '.AvailabilityZones | filter(.ZoneType == "local-zone") | [.[].ZoneName] | join(" ")')

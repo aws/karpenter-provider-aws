@@ -13,9 +13,9 @@ on:
         type: string
         default: "10"
       helm_opts:
-        description: "Extra helm flags for the KWOK controller. The default (8 CPU / 24Gi, request = limit) is the shape the levels were calibrated on"
+        description: "Extra helm flags for the KWOK controller. The default (8 CPU / 24Gi, request = limit, on the perf-controller node group) is the shape the levels were calibrated on"
         type: string
-        default: "--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false"
+        default: "--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false --set-string nodeSelector.perf-controller=true --set tolerations[0].key=CriticalAddonsOnly --set tolerations[0].operator=Exists --set tolerations[1].key=perf-controller --set tolerations[1].operator=Exists"
       control_plane_tier:
         description: "EKS Provisioned Control Plane tier for the per-spec clusters. The default is the tier the levels were calibrated on"
         type: choice
@@ -52,7 +52,9 @@ jobs:
           # Longest specs first so they start before parallel=N runs out of slots
           ORDER="pods topology nodepools"
           PARALLEL="${DISPATCH_PARALLEL:-10}"
-          [[ "$PARALLEL" =~ ^[0-9]+$ ]] && (( PARALLEL >= 1 && PARALLEL <= 10 )) || { echo "::error::parallel must be 1-10"; exit 1; }
+          if ! [[ "$PARALLEL" =~ ^[0-9]+$ ]] || (( PARALLEL < 1 || PARALLEL > 10 )); then
+            echo "::error::parallel must be 1-10"; exit 1
+          fi
           specs=()
           for tok in $DISPATCH_SPECS; do
             [[ -n "${FOCUS[$tok]+x}" ]] || { echo "::error::unknown spec id '$tok'; valid: $ORDER"; exit 1; }
@@ -69,7 +71,6 @@ jobs:
   perf:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials
-      statuses: write # ./.github/actions/commit-status/start
     needs: [args]
     strategy:
       fail-fast: false
@@ -80,7 +81,7 @@ jobs:
       spec_id: ${{ matrix.id }}
       focus: ${{ matrix.focus }}
       region: ${{ vars.PERF_REGION || 'us-west-2' }}
-      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false' }}
+      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false --set-string nodeSelector.perf-controller=true --set tolerations[0].key=CriticalAddonsOnly --set tolerations[0].operator=Exists --set tolerations[1].key=perf-controller --set tolerations[1].operator=Exists' }}
       control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'tier-xl' }}
       # Always delete scheduled clusters; a manual run can keep them for debugging
       cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}
