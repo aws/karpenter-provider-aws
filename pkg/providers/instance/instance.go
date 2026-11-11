@@ -644,7 +644,8 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	for _, err := range errs {
 		// CreateFleet errors carry the zone name but not the zone ID, so resolve it from
 		// the subnets the launch was built from.
-		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+		zone := aws.ToString(overrides.AvailabilityZone)
 		var zoneID string
 		if s, ok := zonalSubnets[zone]; ok {
 			zoneID = s.ZoneID
@@ -657,7 +658,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 			karpentermetrics.ReasonLabel:       reason,
 		})
 
-		if subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
+		if subnet := lo.FromPtr(overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
 			p.unavailableOfferings.MarkSubnetUnavailable(subnet)
 			// When a Subnet is ICEd we update the subnet provider's availableIPAddressCache to ensure
 			// this subnet is sorted last for future launches
@@ -667,9 +668,10 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
-			if awserrors.IsUnfulfillableCapacity(err) {
-				instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
-				zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+			overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+			instanceType, zone := overrides.InstanceType, aws.ToString(overrides.AvailabilityZone)
+			// Without an instance type and zone there is no offering to scope the ICE to
+			if awserrors.IsUnfulfillableCapacity(err) && instanceType != "" && zone != "" {
 				unavailableReason := map[string]string{
 					"reason": lo.FromPtr(err.ErrorCode),
 				}
@@ -718,8 +720,11 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 		if awserrors.IsSpreadPlacementGroupLimitError(err) {
 			continue
 		}
-		instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
-		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+		instanceType, zone := overrides.InstanceType, aws.ToString(overrides.AvailabilityZone)
+		if instanceType == "" || zone == "" {
+			continue
+		}
 		resID := reservedOfferingID(instanceType, zone, instanceTypes)
 		if awserrors.IsReservationCapacityExceeded(err) {
 			// A full reservation is out of capacity, not unhealthy, so we don't mark it ICE-unavailable (that would wrongly
@@ -899,6 +904,13 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 		inst := NewInstance(ctx, i)
 		return inst.ID, inst
 	}), nil
+}
+
+// fleetOverrides returns the launch template overrides from a CreateFleet error. They are optional on errors: EC2 omits
+// them for errors that aren't tied to a single pool (e.g. InternalError), and the CreateFleet batcher synthesizes errors
+// without them on partial fulfillment. Launched instances always carry them, so instances are read directly.
+func fleetOverrides(ltao *ec2types.LaunchTemplateAndOverridesResponse) ec2types.FleetLaunchTemplateOverrides {
+	return lo.FromPtr(lo.FromPtr(ltao).Overrides)
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {
