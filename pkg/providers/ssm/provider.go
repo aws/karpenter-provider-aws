@@ -52,6 +52,7 @@ func (p *DefaultProvider) Get(ctx context.Context, parameter Parameter) (string,
 	}
 	result, err := p.ssmapi.GetParameter(ctx, parameter.GetParameterInput())
 	if err != nil {
+		log.FromContext(ctx).WithValues("parameter", parameter.Name, "error", err).V(1).Info("failed to get ssm parameter")
 		return "", serrors.Wrap(fmt.Errorf("getting ssm parameter, %w", err), "parameter", parameter.Name)
 	}
 	p.cache.Set(parameter.CacheKey(), CacheEntry{
