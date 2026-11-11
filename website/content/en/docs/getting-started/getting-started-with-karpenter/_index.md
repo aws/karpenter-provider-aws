@@ -26,9 +26,11 @@ Follow the clean-up instructions to reduce any charges.
 
 Karpenter is installed in clusters with a Helm chart.
 
-Karpenter requires cloud provider permissions to provision nodes. With managed node groups, this guide uses
-[EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to grant them.
-With Fargate, it uses [IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+Karpenter requires cloud provider permissions to provision nodes. With managed
+node groups, this guide uses
+[EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html)
+to grant them. With Fargate, it uses
+[IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 Install these tools before proceeding:
 
@@ -299,7 +301,8 @@ com.amazonaws.<region>.ec2
 com.amazonaws.<region>.ecr.api
 com.amazonaws.<region>.ecr.dkr
 com.amazonaws.<region>.s3 – For pulling container images
-com.amazonaws.<region>.sts – For IAM roles for service accounts
+com.amazonaws.<region>.sts – For IAM roles for service accounts (Fargate)
+com.amazonaws.<region>.eks-auth – For eks pod identity
 com.amazonaws.<region>.ssm - For resolving default AMIs
 com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
 com.amazonaws.<region>.eks - For Karpenter to discover the cluster endpoint
