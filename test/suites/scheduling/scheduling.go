@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	schedulinglabels "github.com/aws/karpenter-provider-aws/pkg/test/scheduling"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -105,23 +106,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 
 		Context("Labels", func() {
 			It("should support well-known labels for instance type selection", func() {
-				nodeSelector := map[string]string{
-					// Well Known
-					karpv1.NodePoolLabelKey:        NodePool.Name,
-					corev1.LabelInstanceTypeStable: "c5.large",
-					// Well Known to AWS
-					v1.LabelInstanceHypervisor:                "nitro",
-					v1.LabelInstanceCategory:                  "c",
-					v1.LabelInstanceGeneration:                "5",
-					v1.LabelInstanceFamily:                    "c5",
-					v1.LabelInstanceSize:                      "large",
-					v1.LabelInstanceCPU:                       "2",
-					v1.LabelInstanceCPUManufacturer:           "intel",
-					v1.LabelInstanceCPUSustainedClockSpeedMhz: "3400",
-					v1.LabelInstanceMemory:                    "4096",
-					v1.LabelInstanceEBSBandwidth:              "4750",
-					v1.LabelInstanceNetworkBandwidth:          "750",
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["instance-type"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -138,13 +123,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			It("should support well-known labels for zone id selection", func() {
 				selectors.Insert(v1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
 				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-					NodeRequirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelTopologyZoneID,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{Env.DiscoveredSubnetInfo()[0].ZoneID},
-						},
-					},
+					NodeRequirements: schedulinglabels.Requirements(Env.DiscoveredSubnetInfo()[0].ZoneID)["zone-id"],
 				}})
 				Env.ExpectCreated(NodeClass, NodePool, deployment)
 				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
@@ -153,20 +132,8 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			It("should support well-known labels for local NVME storage", func() {
 				selectors.Insert(v1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
 				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-					NodePreferences: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceLocalNVME,
-							Operator: corev1.NodeSelectorOpGt,
-							Values:   []string{"0"},
-						},
-					},
-					NodeRequirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceLocalNVME,
-							Operator: corev1.NodeSelectorOpGt,
-							Values:   []string{"0"},
-						},
-					},
+					NodePreferences:  schedulinglabels.Requirements("")["local-nvme"],
+					NodeRequirements: schedulinglabels.Requirements("")["local-nvme"],
 				}})
 				Env.ExpectCreated(NodeClass, NodePool, deployment)
 				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
@@ -175,36 +142,15 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			It("should support well-known labels for encryption in transit", func() {
 				selectors.Insert(v1.LabelInstanceEncryptionInTransitSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
 				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-					NodePreferences: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceEncryptionInTransitSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
-					NodeRequirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceEncryptionInTransitSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
+					NodePreferences:  schedulinglabels.Requirements("")["encryption-in-transit"],
+					NodeRequirements: schedulinglabels.Requirements("")["encryption-in-transit"],
 				}})
 				Env.ExpectCreated(NodeClass, NodePool, deployment)
 				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 				Env.ExpectCreatedNodeCount("==", 1)
 			})
 			It("should support well-known deprecated labels", func() {
-				nodeSelector := map[string]string{
-					// Deprecated Labels
-					corev1.LabelFailureDomainBetaRegion: Env.Region,
-					corev1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", Env.Region),
-					"topology.ebs.csi.aws.com/zone":     fmt.Sprintf("%sa", Env.Region),
-
-					"beta.kubernetes.io/arch": "amd64",
-					"beta.kubernetes.io/os":   "linux",
-					corev1.LabelInstanceType:  "c5.large",
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["deprecated"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -219,15 +165,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				Env.ExpectCreatedNodeCount("==", 1)
 			})
 			It("should support well-known labels for topology and architecture", func() {
-				nodeSelector := map[string]string{
-					// Well Known
-					karpv1.NodePoolLabelKey:     NodePool.Name,
-					corev1.LabelTopologyRegion:  Env.Region,
-					corev1.LabelTopologyZone:    fmt.Sprintf("%sa", Env.Region),
-					corev1.LabelOSStable:        "linux",
-					corev1.LabelArchStable:      "amd64",
-					karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["topology"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -242,13 +180,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				Env.ExpectCreatedNodeCount("==", 1)
 			})
 			It("should support well-known labels for a gpu (nvidia)", func() {
-				nodeSelector := map[string]string{
-					v1.LabelInstanceGPUName:         "t4",
-					v1.LabelInstanceGPUMemory:       "16384",
-					v1.LabelInstanceGPUManufacturer: "nvidia",
-					v1.LabelInstanceGPUCount:        "1",
-					v1.LabelNvidiaGPUPresent:        "true",
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["nvidia"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -263,11 +195,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				Env.ExpectCreatedNodeCount("==", 1)
 			})
 			It("should support well-known labels for an accelerator (inferentia2)", func() {
-				nodeSelector := map[string]string{
-					v1.LabelInstanceAcceleratorName:         "inferentia",
-					v1.LabelInstanceAcceleratorManufacturer: "aws",
-					v1.LabelInstanceAcceleratorCount:        "1",
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["inferentia"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -292,11 +220,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Env.ExpectWindowsIPAMDisabled()
 				})
 
-				nodeSelector := map[string]string{
-					// Well Known
-					corev1.LabelWindowsBuild: v1.Windows2022Build,
-					corev1.LabelOSStable:     string(corev1.Windows), // Specify the OS to enable vpc-resource-controller to inject the PrivateIPv4Address resource
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["windows"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -353,9 +277,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				Entry("kops.k8s.io", "kops.k8s.io"),
 			)
 			It("should support well-known labels for capacity tenancy", func() {
-				nodeSelector := map[string]string{
-					v1.LabelInstanceTenancy: string(ec2types.CapacityReservationTenancyDedicated),
-				}
+				nodeSelector := schedulinglabels.Selectors(NodePool.Name, Env.Region)["tenancy"]
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
 					return corev1.NodeSelectorRequirement{Key: key, Operator: corev1.NodeSelectorOpIn, Values: []string{value}}
@@ -633,10 +555,11 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			It("should provision a flex node for a pod", func() {
 				selectors.Insert(v1.LabelInstanceCapabilityFlex)
 				pod := test.Pod()
+				flexRequirement := schedulinglabels.Requirements("")["flex"][0]
 				nodePoolWithMinValues := test.ReplaceRequirements(NodePool, karpv1.NodeSelectorRequirementWithMinValues{
-					Key:      v1.LabelInstanceCapabilityFlex,
-					Operator: corev1.NodeSelectorOpIn,
-					Values:   []string{"true"},
+					Key:      flexRequirement.Key,
+					Operator: flexRequirement.Operator,
+					Values:   flexRequirement.Values,
 				})
 				Env.ExpectCreated(NodeClass, nodePoolWithMinValues, pod)
 				Env.EventuallyExpectHealthy(pod)
