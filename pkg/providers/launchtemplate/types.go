@@ -140,6 +140,12 @@ func (b *CreateLaunchTemplateInputBuilder) Build(ctx context.Context) *ec2.Creat
 			EnclaveOptions: &ec2types.LaunchTemplateEnclaveOptionsRequest{
 				Enabled: lo.ToPtr(b.options.EnclaveEnabled),
 			},
+			// Disable EC2 Simplified Automatic Recovery so that failed instances are
+			// replaced by Karpenter rather than held in a recovering state by EC2.
+			// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-recover.html
+			MaintenanceOptions: &ec2types.LaunchTemplateInstanceMaintenanceOptionsRequest{
+				AutoRecovery: ec2types.LaunchTemplateAutoRecoveryStateDisabled,
+			},
 		},
 		TagSpecifications: []ec2types.TagSpecification{
 			{

@@ -2769,6 +2769,19 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
+	Context("Maintenance Options", func() {
+		It("should disable automatic recovery on all launch templates", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.MaintenanceOptions).ToNot(BeNil())
+				Expect(ltInput.LaunchTemplateData.MaintenanceOptions.AutoRecovery).To(Equal(ec2types.LaunchTemplateAutoRecoveryStateDisabled))
+			})
+		})
+	})
 	Context("Instance Metadata", func() {
 		It("should set the default instance metadata settings on instances", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
