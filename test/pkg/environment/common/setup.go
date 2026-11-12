@@ -26,11 +26,13 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
+	autoscalingv1beta1 "sigs.k8s.io/karpenter/pkg/apis/autoscaling/v1beta1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -49,22 +51,33 @@ const TestingFinalizer = "testing/finalizer"
 
 var (
 	CleanableObjects = []client.Object{
-		&corev1.Pod{},
+		// apps
+		&appsv1.DaemonSet{},
 		&appsv1.Deployment{},
 		&appsv1.StatefulSet{},
-		&appsv1.DaemonSet{},
-		&policyv1.PodDisruptionBudget{},
-		&corev1.PersistentVolumeClaim{},
-		&corev1.PersistentVolume{},
-		&storagev1.StorageClass{},
-		&karpv1.NodePool{},
+		// autoscaling.x-k8s.io
+		&autoscalingv1beta1.CapacityBuffer{},
+		// core
 		&corev1.LimitRange{},
-		&schedulingv1.PriorityClass{},
 		&corev1.Node{},
-		&karpv1.NodeClaim{},
+		&corev1.PersistentVolume{},
+		&corev1.PersistentVolumeClaim{},
+		&corev1.Pod{},
+		&corev1.PodTemplate{},
+		// karpenter.k8s.aws
 		&v1.EC2NodeClass{},
-		&v1beta1.SecurityGroupPolicy{},
+		// karpenter.sh
+		&karpv1.NodeClaim{},
+		&karpv1.NodePool{},
 		&v1alpha1.NodeOverlay{},
+		// policy
+		&policyv1.PodDisruptionBudget{},
+		// scheduling.k8s.io
+		&schedulingv1.PriorityClass{},
+		// storage.k8s.io
+		&storagev1.StorageClass{},
+		// vpcresources.k8s.aws
+		&v1beta1.SecurityGroupPolicy{},
 	}
 )
 
@@ -99,7 +112,11 @@ func (env *Environment) ExpectCleanCluster() {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
-		Expect(env.Client.List(env.Context, metaList, client.Limit(1))).To(Succeed())
+		if err := env.Client.List(env.Context, metaList, client.Limit(1)); meta.IsNoMatchError(err) {
+			continue
+		} else {
+			Expect(err).ToNot(HaveOccurred())
+		}
 		Expect(metaList.Items).To(HaveLen(0), fmt.Sprintf("expected no %s to exist", gvk.Kind))
 	}
 }
@@ -126,7 +143,11 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				// This only gets the metadata for the objects since we don't need all the details of the objects
 				metaList := &metav1.PartialObjectMetadataList{}
 				metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
-				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+				if err := env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel})); meta.IsNoMatchError(err) {
+					return
+				} else {
+					g.Expect(err).ToNot(HaveOccurred())
+				}
 				// Limit the concurrency of these calls to 50 workers per object so that we try to limit how aggressively we
 				// are deleting so that we avoid getting client-side throttled
 				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {

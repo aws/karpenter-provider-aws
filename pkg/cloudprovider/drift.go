@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -41,12 +42,12 @@ const (
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
-func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	// First check if the node class is statically drifted to save on API calls.
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
-	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, nodeClass)
+	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
@@ -65,7 +66,10 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	capacityReservationsDrifted := c.isCapacityReservationDrifted(instance, nodeClass)
+	capacityReservationsDrifted, err := c.isCapacityReservationDrifted(ctx, nodeClaim.Status.ProviderID, instance, nodeClass)
+	if err != nil {
+		return "", fmt.Errorf("calculating capacity reservation drift, %w", err)
+	}
 	placementGroupDrifted := c.isPlacementGroupDrifted(ctx, nodeClaim, nodeClass)
 	drifted := lo.FindOrElse([]cloudprovider.DriftReason{
 		securitygroupDrifted,
@@ -78,17 +82,11 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 	return drifted, nil
 }
 
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodePool *karpv1.NodePool,
-	nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	instanceTypeName := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
+	nodeInstanceType, err := c.instanceTypeProvider.Get(ctx, nodeClass, ec2types.InstanceType(instanceTypeName))
 	if err != nil {
-		return "", fmt.Errorf("getting instanceTypes, %w", err)
-	}
-	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
-		return instType.Name == nodeClaim.Labels[corev1.LabelInstanceTypeStable]
-	})
-	if !found {
-		return "", serrors.Wrap(fmt.Errorf("finding node instance type"), "instance-type", nodeClaim.Labels[corev1.LabelInstanceTypeStable])
+		return "", serrors.Wrap(fmt.Errorf("getting node instance type, %w", err), "instance-type", instanceTypeName)
 	}
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
@@ -137,16 +135,28 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 }
 
 // Checks if capacity reservations are drifted, by comparing the capacity reservations persisted to the NodeClass to
-// the instance's capacity reservation.
+// the instance's capacity reservation. When stale instance information isn't useful enough to determine drift, we
+// skip the cache and fallback to the EC2 API.
 // NOTE: We handle drift dynamically for capacity reservations rather than relying on the offerings inducing drift since
 // a reserved instance may fall back to on-demand. Relying on offerings could result in drift occurring before fallback
 // would cancel it out.
-func (c *CloudProvider) isCapacityReservationDrifted(instance *instance.Instance, nodeClass *v1.EC2NodeClass) cloudprovider.DriftReason {
-	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
-	if instance.CapacityReservationDetails != nil && !capacityReservationIDs.Has(instance.CapacityReservationDetails.ID) {
-		return CapacityReservationDrift
+func (c *CloudProvider) isCapacityReservationDrifted(ctx context.Context, providerID string, i *instance.Instance, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	if i.CapacityReservationDetails == nil {
+		return "", nil
 	}
-	return ""
+	capacityReservationIDs := sets.New(lo.Map(nodeClass.Status.CapacityReservations, func(cr v1.CapacityReservation, _ int) string { return cr.ID })...)
+	if capacityReservationIDs.Has(i.CapacityReservationDetails.ID) {
+		return "", nil
+	}
+	// skip the instance type cache to get up-to-date instance info
+	i, err := c.getInstance(ctx, providerID, instance.SkipCache)
+	if err != nil {
+		return "", err
+	}
+	if i.CapacityReservationDetails != nil && !capacityReservationIDs.Has(i.CapacityReservationDetails.ID) {
+		return CapacityReservationDrift, nil
+	}
+	return "", nil
 }
 
 // isPlacementGroupDrifted checks if the node's placement group ID label no longer matches the EC2NodeClass's
@@ -179,13 +189,13 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *karpv1.NodeClaim, node
 	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")
 }
 
-func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {
+func (c *CloudProvider) getInstance(ctx context.Context, providerID string, options ...instance.Options) (*instance.Instance, error) {
 	// Get InstanceID to fetch from EC2
 	instanceID, err := utils.ParseInstanceID(providerID)
 	if err != nil {
 		return nil, err
 	}
-	instance, err := c.instanceProvider.Get(ctx, instanceID)
+	instance, err := c.instanceProvider.Get(ctx, instanceID, options...)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
 	}

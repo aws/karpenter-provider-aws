@@ -154,6 +154,7 @@ Resources:
               ],
               "Action": [
                 "ec2:TerminateInstances",
+                "ec2:RebootInstances",
                 "ec2:DeleteLaunchTemplate"
               ],
               "Condition": {
@@ -314,7 +315,7 @@ Resources:
                 "StringEquals": {
                   "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
                 }
-              } 
+              }
             }
           ]
         }

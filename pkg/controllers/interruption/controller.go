@@ -26,6 +26,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/clock"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -37,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 )
 
@@ -54,20 +54,20 @@ type Controller struct {
 
 func NewController(
 	kubeClient client.Client,
+	clk clock.Clock,
 	cloudProvider cloudprovider.CloudProvider,
 	recorder events.Recorder,
 	sqsProvider sqs.Provider,
 	sqsAPI *sqsapi.Client,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
-	capacityReservationProvider capacityreservation.Provider,
 ) *Controller {
 	return &Controller{
 		InterruptionHandler: InterruptionHandler{
-			kubeClient:                  kubeClient,
-			cloudProvider:               cloudProvider,
-			recorder:                    recorder,
-			unavailableOfferingsCache:   unavailableOfferingsCache,
-			capacityReservationProvider: capacityReservationProvider,
+			kubeClient:                kubeClient,
+			clk:                       clk,
+			cloudProvider:             cloudProvider,
+			recorder:                  recorder,
+			unavailableOfferingsCache: unavailableOfferingsCache,
 		},
 		sqsProvider: sqsProvider,
 		sqsAPI:      sqsAPI,

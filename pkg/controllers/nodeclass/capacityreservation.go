@@ -22,6 +22,7 @@ import (
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/singleton"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/utils/clock"
@@ -56,7 +57,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 	}
 	if len(reservations) == 0 {
 		nc.Status.CapacityReservations = nil
-		nc.StatusConditions().SetTrue(v1.ConditionTypeCapacityReservationsReady)
+		nc.StatusConditions(status.WithClock(c.clk)).SetTrue(v1.ConditionTypeCapacityReservationsReady)
 		return reconcile.Result{RequeueAfter: capacityReservationPollPeriod}, nil
 	}
 
@@ -84,7 +85,7 @@ func (c *CapacityReservation) Reconcile(ctx context.Context, nc *v1.EC2NodeClass
 			"total-count", len(reservations),
 		).Error(multierr.Combine(errors...), "failed to parse discovered capacity reservations")
 	}
-	nc.StatusConditions().SetTrue(v1.ConditionTypeCapacityReservationsReady)
+	nc.StatusConditions(status.WithClock(c.clk)).SetTrue(v1.ConditionTypeCapacityReservationsReady)
 	return reconcile.Result{RequeueAfter: c.requeueAfter(reservations...)}, nil
 }
 

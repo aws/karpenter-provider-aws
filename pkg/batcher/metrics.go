@@ -27,6 +27,11 @@ const (
 	batcherNameLabel = "batcher"
 )
 
+var BatcherDim = opmetrics.Label{
+	Name: batcherNameLabel,
+	Help: "The name of the request batcher the metric was recorded for, e.g. `create_fleet`, `terminate_instances`.",
+}
+
 // SizeBuckets returns a []float64 of default threshold values for size histograms.
 // Each returned slice is new and may be modified without impacting other bucket definitions.
 func SizeBuckets() []float64 {
@@ -41,12 +46,12 @@ var (
 		Name:      "batch_time_seconds",
 		Help:      "Duration of the batching window per batcher",
 		Buckets:   metrics.DurationBuckets(),
-	}, []string{batcherNameLabel})
+	}, []opmetrics.Label{BatcherDim}, opmetrics.Beta)
 	BatchSize = opmetrics.NewPrometheusHistogram(crmetrics.Registry, prometheus.HistogramOpts{
 		Namespace: metrics.Namespace,
 		Subsystem: batcherSubsystem,
 		Name:      "batch_size",
 		Help:      "Size of the request batch per batcher",
 		Buckets:   SizeBuckets(),
-	}, []string{batcherNameLabel})
+	}, []opmetrics.Label{BatcherDim}, opmetrics.Beta)
 )

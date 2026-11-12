@@ -32,9 +32,11 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
@@ -82,7 +84,6 @@ type Environment struct {
 	LaunchTemplateCache                  *cache.Cache
 	SubnetCache                          *cache.Cache
 	AvailableIPAdressCache               *cache.Cache
-	AssociatePublicIPAddressCache        *cache.Cache
 	SecurityGroupCache                   *cache.Cache
 	InstanceProfileCache                 *cache.Cache
 	RoleCache                            *cache.Cache
@@ -112,11 +113,12 @@ type Environment struct {
 	LaunchTemplateProvider      *launchtemplate.DefaultProvider
 	SSMProvider                 *ssmp.DefaultProvider
 	ZonalShiftProvider          *arczonalshift.DefaultProvider
+	CELEnvironment              *kubeletcel.CELEnvironment
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// Mock
-	clock := &clock.FakeClock{}
+	clock := clock.NewFakeClock(time.Now())
 	store := nodeoverlay.NewInstanceTypeStore()
 
 	// API
@@ -138,7 +140,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	availableIPAdressCache := cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval)
-	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	roleCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -155,7 +156,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 	// Providers
 	pricingProvider := pricing.NewDefaultProvider(fakePricingAPI, ec2api, fake.DefaultRegion, false)
-	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache, associatePublicIPAddressCache)
+	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache, availableIPAdressCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, eksapi)
 	// Ensure we're able to hydrate the version before starting any reliant controllers.
@@ -166,11 +167,23 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
 	amiProvider := amifamily.NewDefaultProvider(clock, versionProvider, ssmProvider, ec2api, amiCache)
 	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache, placementGroupAvailabilityCache)
-	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion)
-	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion)
+	// instanceTypesProvider is forward-declared so the resolver's ENI lookup can source live EC2 network
+	// info rather than the static vpclimits table. The closure is only invoked at launch template
+	// resolution time, after assignment below.
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	var instanceTypesProvider *instancetype.DefaultProvider
+	// The instance provider and the launch template resolver share one efa.Provider so their EFA counts agree.
+	efaProvider := efa.DefaultProvider{}
+	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, func(name string) (amifamily.ENILimits, bool) {
+		if instanceTypesProvider == nil {
+			return amifamily.ENILimits{}, false
+		}
+		return instanceTypesProvider.ENILimits(name)
+	}, celEnv, amifamily.WithEFAProvider(efaProvider))
+	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, celEnv)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")
-	instanceTypesProvider := instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider)
+	instanceTypesProvider = instancetype.NewDefaultProvider(instanceTypeCache, offeringCache, discoveredCapacityCache, ec2api, subnetProvider, pricingProvider, capacityReservationProvider, placementGroupProvider, unavailableOfferingsCache, instanceTypesResolver, zonalshiftProvider, env.Client, celEnv)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
@@ -206,6 +219,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		placementGroupProvider,
 		zonalshiftProvider,
 		instanceCache,
+		instance.WithEFAProvider(efaProvider),
 	)
 
 	return &Environment{
@@ -229,7 +243,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		LaunchTemplateCache:                  launchTemplateCache,
 		SubnetCache:                          subnetCache,
 		AvailableIPAdressCache:               availableIPAdressCache,
-		AssociatePublicIPAddressCache:        associatePublicIPAddressCache,
 		SecurityGroupCache:                   securityGroupCache,
 		InstanceProfileCache:                 instanceProfileCache,
 		RoleCache:                            roleCache,
@@ -259,11 +272,12 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		VersionProvider:             versionProvider,
 		SSMProvider:                 ssmProvider,
 		ZonalShiftProvider:          zonalshiftProvider,
+		CELEnvironment:              celEnv,
 	}
 }
 
 func (env *Environment) Reset() {
-	env.Clock.SetTime(time.Time{})
+	env.Clock.SetTime(time.Now())
 	env.EC2API.Reset()
 	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()
@@ -281,7 +295,6 @@ func (env *Environment) Reset() {
 	env.OfferingCache.Flush()
 	env.LaunchTemplateCache.Flush()
 	env.SubnetCache.Flush()
-	env.AssociatePublicIPAddressCache.Flush()
 	env.AvailableIPAdressCache.Flush()
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()

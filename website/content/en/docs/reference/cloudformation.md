@@ -17,7 +17,7 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION="1.12.0"
+export KARPENTER_VERSION="1.15.1"
 curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
@@ -265,7 +265,7 @@ Likewise, `RequestTag/eks:eks-cluster-name` must be set to `${ClusterName}`, if 
 
 #### AllowScopedDeletion
 
-The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set. These tags must be present on all resources that Karpenter is going to delete. This ensures that Karpenter can only delete instances and launch templates that are associated with it.
+The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set. These tags must be present on all resources that Karpenter is going to delete. This ensures that Karpenter can only delete instances and launch templates that are associated with it. The same scoping applies to [RebootInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RebootInstances.html), which Karpenter uses to reboot a node in place when node repair selects a reboot (only with the `RebootForRepair` AWS feature gate enabled), so it can only reboot instances that are associated with it.
 
 ```json
 {
@@ -277,6 +277,7 @@ The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.
   ],
   "Action": [
     "ec2:TerminateInstances",
+    "ec2:RebootInstances",
     "ec2:DeleteLaunchTemplate"
   ],
   "Condition": {
@@ -511,7 +512,7 @@ For the cluster that will be created (`arn:${AWS::Partition}:eks:${AWS::Region}:
   ],
   "Condition": {
     "StringEquals": {
-      "aws:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
+      "arc-zonal-shift:ResourceIdentifier": "arn:${AWS::Partition}:eks:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}"
     }
   }
 }
@@ -535,7 +536,7 @@ ResourceDiscoveryPolicy:
 
 #### AllowRegionalReadActions
 
-The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeAvailabilityZones](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeAvailabilityZones.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
+The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
 This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
 
 ```json

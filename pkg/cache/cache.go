@@ -14,7 +14,13 @@ limitations under the License.
 
 package cache
 
-import "time"
+import (
+	"fmt"
+	"math/rand/v2"
+	"time"
+
+	"github.com/patrickmn/go-cache"
+)
 
 const (
 	// DefaultTTL restricts QPS to AWS APIs to this interval for verifying setup
@@ -39,8 +45,6 @@ const (
 	InstanceProfileTTL = 15 * time.Minute
 	// AvailableIPAddressTTL is time to drop AvailableIPAddress data if it is not updated within the TTL
 	AvailableIPAddressTTL = 5 * time.Minute
-	// AvailableIPAddressTTL is time to drop AssociatePublicIPAddressTTL data if it is not updated within the TTL
-	AssociatePublicIPAddressTTL = 5 * time.Minute
 	// SSMGetParametersByPathTTL is the time to drop SSM Parameters by path data. This only queries EKS Optimized AMI
 	// releases, so we should expect this to be updated relatively infrequently.
 	SSMCacheTTL = 24 * time.Hour
@@ -53,6 +57,8 @@ const (
 	RecreationTTL = 1 * time.Minute
 	// ProtectedProfilesTTL is the duration to keep profiles as protected before nodeclass garbagecollector considers deletion
 	ProtectedProfilesTTL = 1 * time.Hour
+	// OverlayPricedTypesTTL is the duration for checking overlays
+	OverlayPricedTypesTTL = 5 * time.Minute
 )
 
 const (
@@ -63,3 +69,20 @@ const (
 	// that become available after they get evicted from the cache
 	UnavailableOfferingsCleanupInterval = time.Second * 10
 )
+
+// newJitteredCache returns a go-cache whose default TTL is randomly offset
+// within ±jitter of ttl, so caches created together don't all expire in
+// lockstep (thundering herd on the AWS APIs they front). go-cache exposes no
+// setter for an existing cache's default TTL, so jitter is applied at
+// construction. jitter <= 0 disables jitter.
+//
+//nolint:gosec
+func NewJitteredCache(ttl, jitter, cleanupInterval time.Duration) *cache.Cache {
+	if jitter >= ttl {
+		panic(fmt.Sprintf("cache jitter (%s) must be less than ttl (%s)", jitter, ttl))
+	}
+	if jitter > 0 {
+		ttl += rand.N(2*jitter) - jitter
+	}
+	return cache.New(ttl, cleanupInterval)
+}

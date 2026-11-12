@@ -45,6 +45,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -130,7 +131,8 @@ below are the resources available with some assumptions and after the instance o
 	for _, region := range []string{"us-east-1", "us-east-2", "us-west-2"} {
 		cfg := lo.Must(config.LoadDefaultConfig(ctx, config.WithRegion(region)))
 		ec2api := ec2.NewFromConfig(cfg)
-		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
+		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval))
+		celEnv := lo.Must(kubeletcel.NewEnvironment())
 		instanceTypeProvider := instancetype.NewDefaultProvider(
 			cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
 			cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
@@ -148,8 +150,11 @@ below are the resources available with some assumptions and after the instance o
 			awscache.NewUnavailableOfferings(),
 			instancetype.NewDefaultResolver(
 				region,
+				celEnv,
 			),
 			arczonalshift.NewNoopProvider(),
+			nil,
+			celEnv,
 		)
 		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
 			log.Fatalf("updating instance types, %s", err)

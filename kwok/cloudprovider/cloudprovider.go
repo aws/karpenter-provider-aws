@@ -46,6 +46,7 @@ func New(
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
 	instanceTypeStore *nodeoverlay.InstanceTypeStore,
+	opts ...cloudprovider.Option,
 ) *CloudProvider {
 	return &CloudProvider{
 		CloudProvider: cloudprovider.New(
@@ -59,6 +60,7 @@ func New(
 			placementGroupProvider,
 			instanceTypeStore,
 			lo.ToPtr(""),
+			opts...,
 		),
 	}
 }

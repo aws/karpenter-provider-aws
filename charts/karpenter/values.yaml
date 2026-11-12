@@ -126,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.12.0
+    tag: 1.15.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:8128bc8cdd0cc8ca2d2cf68ec61033eceb8cfb24834a08ab278784924013cfd0
+    digest: sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -213,12 +213,31 @@ settings:
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved.
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.
   reservedENIs: "0"
-  # -- Ignore pods' DRA requests during scheduling simulations.
-  ignoreDRARequests: true
+  # -- enableDRA is ALPHA and is disabled by default.
+  # Setting this to true will enable every AWS DRA driver feature gate (awsFeatureGates.draNVIDIAGPU and
+  # awsFeatureGates.draEFA) and set ignoreDRARequests to false. It can't be combined with any of those values.
+  enableDRA: false
+  # -- (bool) Ignore pods' DRA requests during scheduling simulations. Enabling either AWS DRA feature gate
+  # (awsFeatureGates.draNVIDIAGPU or awsFeatureGates.draEFA) overrides this to false. Can't be combined with enableDRA.
+  # @default -- `true`
+  ignoreDRARequests: null
+  # -- Run the legacy node repair controller instead of node repair as a disruption method. Only takes effect with
+  # featureGates.nodeRepair, and can't be combined with featureGates.terminateFirstRepair, which the legacy controller
+  # doesn't support. The legacy node repair controller is planned for deprecation.
+  legacyNodeRepair: false
   # -- Disable cluster state metrics and events.
   disableClusterStateObservability: false
   # -- Disable dry run validation for EC2NodeClasses.
   disableDryRun: false
+  # -- How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of
+  # DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.
+  amiRefreshInterval: 1m
+  # -- How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of
+  # DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.
+  subnetRefreshInterval: 1m
+  # -- How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of
+  # DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m.
+  securityGroupRefreshInterval: 1m
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features.
   featureGates:
@@ -237,3 +256,38 @@ settings:
     # -- staticCapacity is ALPHA and is disabled by default.
     # Setting this to true will enable static capacity provisioning.
     staticCapacity: false
+    # -- capacityBuffer is ALPHA and is disabled by default.
+    # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
+    capacityBuffer: false
+    # -- predictionEnabled is ALPHA and is disabled by default.
+    # Setting this to true will enable Karpenter to size nodes using VPA predictions during provisioning and disruption.
+    predictionEnabled: false
+    # -- terminateFirstDrift is ALPHA and is disabled by default.
+    # Setting this to true lets drift terminate a node before launching its replacement on a capacity-constrained NodePool.
+    terminateFirstDrift: false
+    # -- terminateFirstRepair is ALPHA and is disabled by default.
+    # Setting this to true lets repair terminate an unhealthy node before launching its replacement on a capacity-constrained NodePool.
+    terminateFirstRepair: false
+    # -- podDeletionCostManagement is ALPHA and is disabled by default.
+    # Setting this to true will enable Karpenter to manage pod-deletion-cost annotations on ReplicaSet pods on its nodes,
+    # so that ReplicaSet scale-down prefers to remove pods from nodes Karpenter wants to consolidate.
+    podDeletionCostManagement: false
+  # -- AWS-specific Feature Gate configuration values.
+  awsFeatureGates:
+    # -- nodeClassCEL is ALPHA and is disabled by default.
+    # Setting this to true will enable CEL expressions in EC2NodeClass spec.kubelet (maxPods, kubeReserved, and systemReserved).
+    nodeClassCEL: false
+    # -- (bool) draNVIDIAGPU is ALPHA and is disabled by default.
+    # Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU driver publishes,
+    # so it can account for gpu.nvidia.com claims when it sizes new nodes. Can't be combined with settings.enableDRA.
+    # @default -- `false`
+    draNVIDIAGPU: null
+    # -- (bool) draEFA is ALPHA and is disabled by default.
+    # Setting this to true will make Karpenter calculate the DRA devices the dranet driver publishes for
+    # EFA interfaces, so it can account for dra.net claims when it sizes new nodes. Can't be combined with settings.enableDRA.
+    # @default -- `false`
+    draEFA: null
+    # -- rebootForRepair is ALPHA and is disabled by default. It has no effect without the nodeRepair feature gate.
+    # Setting this to true will make node repair reboot a node in place for reboot-clearable GPU faults instead of
+    # replacing it. Requires the ec2:RebootInstances permission.
+    rebootForRepair: false

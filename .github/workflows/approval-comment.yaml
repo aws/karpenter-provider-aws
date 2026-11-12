@@ -1,25 +1,16 @@
 name: ApprovalComment
+# Producer for the commands that build and publish the pull request's own code. /karpenter preview is
+# deliberately NOT here - it has its own producer (PreviewComment) so that asking for a docs preview
+# cannot reach the snapshot or E2E pipelines. See .github/workflows/approval-metadata.yaml
 on:
   pull_request_review:
     types: [submitted]
+# The membership check and artifact upload in approval-metadata.yaml need no GITHUB_TOKEN scopes
+permissions: {}
 jobs:
   approval-comment:
-    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-      - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
-        env:
-          REVIEW_BODY: ${{ github.event.review.body }}
-          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT_ID: ${{ github.event.review.commit_id }}
-        run: |
-          mkdir -p /tmp/artifacts
-          { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
-          cat /tmp/artifacts/metadata.txt
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: artifacts
-          path: /tmp/artifacts
+    if: |
+      startsWith(github.event.review.body, '/karpenter snapshot') ||
+      startsWith(github.event.review.body, '/karpenter scale') ||
+      startsWith(github.event.review.body, '/karpenter versionCompatibility')
+    uses: ./.github/workflows/approval-metadata.yaml

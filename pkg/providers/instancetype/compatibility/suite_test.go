@@ -146,6 +146,63 @@ var _ = Describe("CompatibilityTest", func() {
 				&placementgroup.PlacementGroup{Strategy: placementgroup.StrategySpread}, false),
 		)
 	})
+	Context("NestedVirtualizationCompatibility", func() {
+		DescribeTable("should gate instance types on ProcessorInfo.SupportedFeatures when nestedVirtualization is enabled",
+			func(nestedVirt *string, supportedFeatures []ec2types.SupportedAdditionalProcessorFeature, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.ProcessorInfo.SupportedFeatures = supportedFeatures
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				if nestedVirt != nil {
+					nc.cpuOptions = &v1.CPUOptions{NestedVirtualization: nestedVirt}
+				}
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil CPUOptions passes regardless of features", nil, nil, true),
+			Entry("nestedVirtualization=enabled + feature present", lo.ToPtr("enabled"), []ec2types.SupportedAdditionalProcessorFeature{ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization}, true),
+			Entry("nestedVirtualization=enabled + feature absent", lo.ToPtr("enabled"), nil, false),
+			Entry("nestedVirtualization=disabled passes regardless", lo.ToPtr("disabled"), nil, true),
+		)
+	})
+
+	Context("NitroEnclavesCompatibility", func() {
+		DescribeTable("should gate instance types on NitroEnclavesSupport when enclaves are enabled",
+			func(enclaveOptions *v1.EnclaveOptions, support ec2types.NitroEnclavesSupport, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.NitroEnclavesSupport = support
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				nc.enclaveOptions = enclaveOptions
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil EnclaveOptions passes regardless of support", nil, ec2types.NitroEnclavesSupportUnsupported, true),
+			Entry("enabled + supported", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupportSupported, true),
+			Entry("enabled + unsupported", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupportUnsupported, false),
+			Entry("enabled + unset support", &v1.EnclaveOptions{Enabled: true}, ec2types.NitroEnclavesSupport(""), false),
+			Entry("disabled passes regardless", &v1.EnclaveOptions{Enabled: false}, ec2types.NitroEnclavesSupportUnsupported, true),
+		)
+	})
+
+	Context("ConnectionTrackingCompatibility", func() {
+		DescribeTable("should filter non-Nitro instances when ConnectionTracking is set",
+			func(hypervisor ec2types.InstanceTypeHypervisor, connTrack *v1.ConnectionTracking, expected bool) {
+				info := makeInstanceTypeInfo("", nil)
+				info.Hypervisor = hypervisor
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				nc.connectionTracking = connTrack
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nitro instance with connection tracking", ec2types.InstanceTypeHypervisor("nitro"),
+				&v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}, true),
+			Entry("non-nitro instance with connection tracking", ec2types.InstanceTypeHypervisor("xen"),
+				&v1.ConnectionTracking{TCPEstablishedTimeout: lo.ToPtr(int32(300))}, false),
+			Entry("non-nitro instance without connection tracking", ec2types.InstanceTypeHypervisor("xen"),
+				nil, true),
+			Entry("nitro instance without connection tracking", ec2types.InstanceTypeHypervisor("nitro"),
+				nil, true),
+		)
+	})
 })
 
 func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
@@ -156,8 +213,11 @@ func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface
 }
 
 type mockNodeClass struct {
-	amiFamily         string
-	networkInterfaces []*v1.NetworkInterface
+	amiFamily          string
+	networkInterfaces  []*v1.NetworkInterface
+	cpuOptions         *v1.CPUOptions
+	enclaveOptions     *v1.EnclaveOptions
+	connectionTracking *v1.ConnectionTracking
 }
 
 func (m mockNodeClass) AMIFamily() string {
@@ -166,6 +226,18 @@ func (m mockNodeClass) AMIFamily() string {
 
 func (m *mockNodeClass) NetworkInterfaces() []*v1.NetworkInterface {
 	return m.networkInterfaces
+}
+
+func (m *mockNodeClass) CPUOptions() *v1.CPUOptions {
+	return m.cpuOptions
+}
+
+func (m *mockNodeClass) EnclaveOptions() *v1.EnclaveOptions {
+	return m.enclaveOptions
+}
+
+func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
+	return m.connectionTracking
 }
 
 func makeInstanceTypeInfo(instanceType string, networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {

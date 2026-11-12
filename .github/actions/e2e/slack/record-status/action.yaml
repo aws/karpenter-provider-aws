@@ -1,0 +1,26 @@
+name: SlackRecordStatus
+description: 'Records a suite pass/fail as an artifact so the matrix run can post a single summary'
+inputs:
+  suite:
+    description: "Suite that's running"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - id: record
+      shell: bash
+      env:
+        SUITE: ${{ inputs.suite }}
+      run: |
+        mkdir -p suite-status
+        STATUS="failure"
+        if [[ "${{ job.status }}" == "success" ]]; then
+          STATUS="success"
+        fi
+        # Filename is the lowercased suite name; contents are success|failure
+        echo "$STATUS" > "suite-status/${SUITE,,}"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: e2e-status-${{ inputs.suite }}
+        path: suite-status/
+        retention-days: 1

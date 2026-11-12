@@ -12,15 +12,22 @@ jobs:
     if: github.repository == 'aws/karpenter-provider-aws'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
-      - uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}'
           aws-region: ${{ vars.READONLY_REGION }}
       - run: make docgen
+      # Fail if a generated reference drifts from what its generator produces, so a
+      # hand-edited or stale page can't merge. Scoped to the metrics and annotations pages
+      # because instance-types.md tracks live AWS pricing and legitimately changes run-to-run.
+      - name: Verify metrics.md is up to date
+        run: git diff --exit-code -- website/content/en/preview/reference/metrics.md
+      - name: Verify annotations.md is up to date
+        run: git diff --exit-code -- website/content/en/preview/reference/annotations.md
       - run: make codegen
         env:
           ENABLE_GIT_PUSH: false

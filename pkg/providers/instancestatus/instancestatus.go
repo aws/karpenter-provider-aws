@@ -17,12 +17,12 @@ package instancestatus
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/clock"
 
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
@@ -37,8 +37,13 @@ const (
 	// in the Interruption controller when an SQS queue is configured. The handling of maintenance events is
 	// currently primitive where we treat all events as instance degradation with an involuntary replacement.
 	EventStatus = Category("EventStatus")
-	// EBSStatus check failures are currently ignored until we can differentiate which volumes affect the node vs pods w/ PVCs
-	EBSStatus = Category("EBSStatus")
+)
+
+const (
+	ConditionTypeEC2StatusReady      corev1.NodeConditionType = "EC2StatusReady"
+	ReasonInstanceReachabilityFailed string                   = "InstanceReachabilityFailed"
+	ReasonSystemReachabilityFailed   string                   = "SystemReachabilityFailed"
+	ReasonNoImpairmentReported       string                   = "NoImpairmentReported"
 )
 
 var (
@@ -49,10 +54,10 @@ var (
 	// filter names, and we need to OR across instance status failures, system status failures,
 	// and scheduled maintenance events.
 	// EBS status check failures are ignored for now.
-	instanceStatusFilters = [][]ec2types.Filter{
-		{{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
-		{{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
-		{{Name: lo.ToPtr("event.code"), Values: []string{
+	instanceStatusFilters = map[Category][]ec2types.Filter{
+		InstanceStatus: {{Name: lo.ToPtr("instance-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		SystemStatus:   {{Name: lo.ToPtr("system-status.status"), Values: []string{string(ec2types.SummaryStatusImpaired)}}},
+		EventStatus: {{Name: lo.ToPtr("event.code"), Values: []string{
 			string(ec2types.EventCodeInstanceReboot),
 			string(ec2types.EventCodeSystemReboot),
 			string(ec2types.EventCodeSystemMaintenance),
@@ -63,7 +68,7 @@ var (
 )
 
 type Provider interface {
-	List(context.Context) ([]HealthStatus, error)
+	List(context.Context, ...Category) ([]HealthStatus, error)
 }
 
 type DefaultProvider struct {
@@ -73,7 +78,6 @@ type DefaultProvider struct {
 
 type HealthStatus struct {
 	InstanceID    string
-	Overall       ec2types.SummaryStatus
 	ImpairedSince time.Time
 	Details       []Details
 }
@@ -92,17 +96,23 @@ func NewDefaultProvider(ec2API sdk.EC2API, clk clock.Clock) *DefaultProvider {
 	}
 }
 
-func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
+// List returns instances that fail the given categories' status checks, with only the failed details of those categories.
+// Failures are returned as soon as EC2 reports them; callers decide how long a failure must persist before acting on it.
+func (p DefaultProvider) List(ctx context.Context, categories ...Category) ([]HealthStatus, error) {
 	seen := map[string]struct{}{}
 	var statuses []ec2types.InstanceStatus
-	for _, filters := range instanceStatusFilters {
+	for _, category := range categories {
+		filters, ok := instanceStatusFilters[category]
+		if !ok {
+			panic(fmt.Sprintf("unsupported EC2 instance status category %q", category))
+		}
 		pager := ec2.NewDescribeInstanceStatusPaginator(p.ec2api, &ec2.DescribeInstanceStatusInput{
 			Filters: filters,
 		})
 		for pager.HasMorePages() {
 			out, err := pager.NextPage(ctx)
 			if err != nil {
-				return nil, fmt.Errorf("failed describing ec2 instance status checks, %w", err)
+				return nil, fmt.Errorf("failed describing ec2 %s checks, %w", category, err)
 			}
 			for _, s := range out.InstanceStatuses {
 				if _, ok := seen[*s.InstanceId]; !ok {
@@ -118,35 +128,27 @@ func (p DefaultProvider) List(ctx context.Context) ([]HealthStatus, error) {
 		healthStatus := p.newHealthStatus(statusChecks)
 		// Filter out statuses that we do not consider unhealthy or do not want to handle right now
 		healthStatus.Details = lo.Filter(healthStatus.Details, func(details Details, _ int) bool {
-			if details.Status != ec2types.StatusTypeFailed {
-				return false
-			}
-			// Do not evaluate against the unhealthy threshold when its a scheduled maintenance event.
-			// Scheduled maintenance events often have a future scheduled time which makes a threshold
-			// difficult to utilize. We take the stance that if there is a scheduled maintenance event,
-			// then there is something wrong with the underlying host that warrants vacating immediately.
-			// This matches how we process scheduled maintenance events from EventBridge.
-			if details.Category == EventStatus {
-				return true
-			}
-			return p.clk.Since(details.ImpairedSince) >= UnhealthyThreshold
+			return details.Status == ec2types.StatusTypeFailed && lo.Contains(categories, details.Category)
 		})
 		if len(healthStatus.Details) == 0 {
 			continue
 		}
-		healthStatus.ImpairedSince = slices.MinFunc(healthStatus.Details, func(a, b Details) int {
-			return a.ImpairedSince.Compare(b.ImpairedSince)
-		}).ImpairedSince
+		healthStatus.ImpairedSince = EarliestImpairedSince(healthStatus.Details)
 		healthStatuses = append(healthStatuses, healthStatus)
 	}
 	return healthStatuses, nil
+}
+
+// EarliestImpairedSince returns the earliest ImpairedSince reported for the details, or the zero time when EC2 reported none.
+func EarliestImpairedSince(details []Details) time.Time {
+	impairedSince := lo.FilterMap(details, func(d Details, _ int) (time.Time, bool) { return d.ImpairedSince, !d.ImpairedSince.IsZero() })
+	return lo.MinBy(impairedSince, func(a, b time.Time) bool { return a.Before(b) })
 }
 
 // newHealthStatus constructs a more consumable version of Health Status Details from the different status checks
 func (p DefaultProvider) newHealthStatus(statusChecks ec2types.InstanceStatus) HealthStatus {
 	healthStatus := HealthStatus{
 		InstanceID: *statusChecks.InstanceId,
-		Overall:    ec2types.SummaryStatusImpaired,
 	}
 	if statusChecks.InstanceStatus != nil {
 		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.InstanceStatus.Details, func(details ec2types.InstanceStatusDetails, _ int) Details {
@@ -156,11 +158,6 @@ func (p DefaultProvider) newHealthStatus(statusChecks ec2types.InstanceStatus) H
 	if statusChecks.SystemStatus != nil {
 		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.SystemStatus.Details, func(details ec2types.InstanceStatusDetails, _ int) Details {
 			return p.newDetails(details, SystemStatus)
-		})...)
-	}
-	if statusChecks.AttachedEbsStatus != nil {
-		healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.AttachedEbsStatus.Details, func(details ec2types.EbsStatusDetails, _ int) Details {
-			return p.newDetails(details, EBSStatus)
 		})...)
 	}
 	healthStatus.Details = append(healthStatus.Details, lo.Map(statusChecks.Events, func(details ec2types.InstanceStatusEvent, _ int) Details {
@@ -178,20 +175,12 @@ func (p DefaultProvider) newDetails(details any, category Category) Details {
 			ImpairedSince: lo.FromPtr(ec2Details.ImpairedSince),
 		}
 	}
-	if ec2Events, ok := details.(ec2types.InstanceStatusEvent); ok {
-		return Details{
-			Category: category,
-			Name:     string(ec2Events.Code),
-			// treat all scheduled maintenance events as failures
-			Status:        ec2types.StatusTypeFailed,
-			ImpairedSince: p.clk.Now(),
-		}
-	}
-	ebsDetails := details.(ec2types.EbsStatusDetails)
+	ec2Events := details.(ec2types.InstanceStatusEvent)
 	return Details{
-		Category:      category,
-		Name:          string(ebsDetails.Name),
-		Status:        ebsDetails.Status,
-		ImpairedSince: lo.FromPtr(ebsDetails.ImpairedSince),
+		Category: category,
+		Name:     string(ec2Events.Code),
+		// treat all scheduled maintenance events as failures
+		Status:        ec2types.StatusTypeFailed,
+		ImpairedSince: p.clk.Now(),
 	}
 }

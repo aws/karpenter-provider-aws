@@ -15,13 +15,14 @@ limitations under the License.
 package events
 
 import (
-	corev1 "k8s.io/api/core/v1"
+	"fmt"
 
-	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	corev1 "k8s.io/api/core/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func NodePoolFailedToResolveNodeClass(nodePool *v1.NodePool) events.Event {
+func NodePoolFailedToResolveNodeClass(nodePool *karpv1.NodePool) events.Event {
 	return events.Event{
 		InvolvedObject: nodePool,
 		Type:           corev1.EventTypeWarning,
@@ -30,11 +31,33 @@ func NodePoolFailedToResolveNodeClass(nodePool *v1.NodePool) events.Event {
 	}
 }
 
-func NodeClaimFailedToResolveNodeClass(nodeClaim *v1.NodeClaim) events.Event {
+func NodeClaimFailedToResolveNodeClass(nodeClaim *karpv1.NodeClaim) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           corev1.EventTypeWarning,
 		Message:        "Failed resolving NodeClass",
 		DedupeValues:   []string{string(nodeClaim.UID)},
+	}
+}
+
+// NodePoolZonalShiftDetected is emitted when a zone the NodePool can provision into becomes shifted away from.
+func NodePoolZonalShiftDetected(nodePool *karpv1.NodePool, zoneName, zoneID string) events.Event {
+	return events.Event{
+		InvolvedObject: nodePool,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "ZonalShiftActive",
+		Message:        fmt.Sprintf("Zonal shift detected: offerings in zone %s (%s) are unavailable for this NodePool", zoneName, zoneID),
+		DedupeValues:   []string{string(nodePool.UID), zoneID},
+	}
+}
+
+// NodePoolZonalShiftCleared is emitted when a previously shifted zone the NodePool can provision into is restored.
+func NodePoolZonalShiftCleared(nodePool *karpv1.NodePool, zoneName, zoneID string) events.Event {
+	return events.Event{
+		InvolvedObject: nodePool,
+		Type:           corev1.EventTypeNormal,
+		Reason:         "ZonalShiftCleared",
+		Message:        fmt.Sprintf("Zonal shift cleared: offerings in zone %s (%s) are restored for this NodePool", zoneName, zoneID),
+		DedupeValues:   []string{string(nodePool.UID), zoneID},
 	}
 }

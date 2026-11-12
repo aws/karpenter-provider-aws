@@ -16,11 +16,19 @@ helm upgrade --install karpenter "${CHART}" \
   $ADDITIONAL_FLAGS \
   --set settings.clusterName="$CLUSTER_NAME" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \
+  --set settings.enableZonalShift=true \
   --set settings.featureGates.spotToSpotConsolidation=true \
   --set settings.featureGates.nodeRepair=true \
   --set settings.featureGates.reservedCapacity=true \
   --set settings.featureGates.nodeOverlay=true \
   --set settings.featureGates.staticCapacity=true \
+  --set settings.featureGates.capacityBuffer=true \
+  --set settings.featureGates.predictionEnabled=true \
+  --set settings.awsFeatureGates.nodeClassCEL=true \
+  --set settings.awsFeatureGates.draNVIDIAGPU=true \
+  --set settings.awsFeatureGates.draEFA=true \
+  --set settings.awsFeatureGates.rebootForRepair=true \
+  --set settings.ignoreDRARequests=false \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
   --set controller.resources.limits.cpu=5 \

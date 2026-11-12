@@ -329,16 +329,12 @@ var _ = Describe("MetricsController", func() {
 			Expect(reservedAvailability).To(HaveLen(3))
 			Expect(reservedAvailability).To(ContainElements(lo.Tuple2[string, string]{A: "m5.large", B: "test-zone-1a"}, lo.Tuple2[string, string]{A: "m5.large", B: "test-zone-1b"}, lo.Tuple2[string, string]{A: "m5.metal", B: "test-zone-1a"}))
 
-			// If the availability of the reservation is set to 0, the availability should change to 0
-			// But the other reservations should still have availability of 1
+			// Running a reservation out of capacity does not change its availability: capacity and health are decoupled,
+			// so a full-but-healthy reservation stays Available=1 (its zero remaining capacity is tracked separately).
 			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-foo", 0)
 			ExpectSingletonReconciled(ctx, controller)
 
 			for _, elem := range nodeClass.Status.CapacityReservations {
-				expectedValue := 1
-				if elem.AvailabilityZone == "test-zone-1a" && elem.InstanceType == "m5.large" {
-					expectedValue = 0
-				}
 				metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_available", map[string]string{
 					"instance_type": elem.InstanceType,
 					"capacity_type": karpv1.CapacityTypeReserved,
@@ -346,7 +342,7 @@ var _ = Describe("MetricsController", func() {
 				})
 				Expect(ok).To(BeTrue())
 				Expect(metric).To(Not(BeNil()))
-				Expect(aws.ToFloat64(metric.GetGauge().Value)).To(Equal(float64(expectedValue)))
+				Expect(aws.ToFloat64(metric.GetGauge().Value)).To(Equal(float64(1)))
 			}
 
 			copiedReservationStatus := append([]v1.CapacityReservation{}, nodeClass.Status.CapacityReservations...)
