@@ -126,9 +126,8 @@ Each LTS release declares a supported Kubernetes version range at release time. 
 
 When we introduce a breaking change, we do so only as described in this document.
 
-Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/) in its stable release versions, while in
-major version zero (`0.y.z`) [anything may change at any time](https://semver.org/#spec-item-4).
-However, to further protect users during this phase we will only introduce breaking changes in minor releases (releases that increment y in x.y.z).
+Karpenter follows [Semantic Versioning 2.0.0](https://semver.org/) in its stable release versions.
+We will only introduce breaking changes in minor releases (releases that increment y in x.y.z).
 Note this does not mean every minor upgrade has a breaking change as we will also increment the
 minor version when we release a new feature.
 
@@ -138,7 +137,6 @@ Users should therefore check to see if there is a breaking change every time the
 
 When there is a breaking change we will:
 
-* Increment the minor version when in major version 0
 * Add a permanent separate section named `upgrading to x.y.z+` under [release upgrade notes](#release-upgrade-notes)
   clearly explaining the breaking change and what needs to be done on the user side to ensure a safe upgrade
 * Add the sentence “This is a breaking change, please refer to the above link for upgrade instructions” to the top of the release notes and in all our announcements
