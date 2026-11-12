@@ -1528,10 +1528,10 @@
               "renameByName": {
                 "Time": "",
                 "Time 1": "",
-                "Value": "CPU Utilization",
+                "Value": "CPU Request Utilization",
                 "Value #Allocatable": "",
-                "Value #CPU Utilization": "CPU Utilization",
-                "Value #Memory Utilization": "Memory Utilization",
+                "Value #CPU Utilization": "CPU Request Utilization",
+                "Value #Memory Utilization": "Memory Request Utilization",
                 "Value #Pod CPU": "",
                 "Value #Pod Count": "Pods",
                 "Value #Uptime": "Uptime",
