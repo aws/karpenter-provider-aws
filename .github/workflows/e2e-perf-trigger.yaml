@@ -1,0 +1,87 @@
+name: E2EPerfTrigger
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Space-separated spec ids (empty = all)"
+        type: string
+        default: ""
+      parallel:
+        description: "Max clusters in use at once (1-10)"
+        type: string
+        default: "10"
+      helm_opts:
+        description: "Extra helm flags for the KWOK controller. The default (8 CPU / 24Gi, request = limit, on the perf-controller node group) is the shape the levels were calibrated on"
+        type: string
+        default: "--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false --set-string nodeSelector.perf-controller=true --set tolerations[0].key=CriticalAddonsOnly --set tolerations[0].operator=Exists --set tolerations[1].key=perf-controller --set tolerations[1].operator=Exists"
+      control_plane_tier:
+        description: "EKS Provisioned Control Plane tier for the per-spec clusters. The default is the tier the levels were calibrated on"
+        type: choice
+        options:
+          - "standard"
+          - "tier-xl"
+          - "tier-2xl"
+          - "tier-4xl"
+        default: "tier-xl"
+      cleanup:
+        description: "Delete each cluster when its spec finishes"
+        type: boolean
+        default: true
+permissions: {}
+jobs:
+  args:
+    if: github.repository == 'aws/karpenter-provider-aws' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      MATRIX: ${{ steps.parse.outputs.MATRIX }}
+      PARALLEL: ${{ steps.parse.outputs.PARALLEL }}
+    steps:
+      - id: parse
+        env:
+          DISPATCH_SPECS: ${{ inputs.specs }}
+          DISPATCH_PARALLEL: ${{ inputs.parallel }}
+        run: |
+          set -euo pipefail
+          declare -A FOCUS=(
+            [pods]="Performance pods "
+            [nodepools]="Performance nodepools "
+            [topology]="Performance topology "
+          )
+          # Longest specs first so they start before parallel=N runs out of slots
+          ORDER="pods topology nodepools"
+          PARALLEL="${DISPATCH_PARALLEL:-10}"
+          if ! [[ "$PARALLEL" =~ ^[0-9]+$ ]] || (( PARALLEL < 1 || PARALLEL > 10 )); then
+            echo "::error::parallel must be 1-10"; exit 1
+          fi
+          specs=()
+          for tok in $DISPATCH_SPECS; do
+            [[ -n "${FOCUS[$tok]+x}" ]] || { echo "::error::unknown spec id '$tok'; valid: $ORDER"; exit 1; }
+            specs+=("$tok")
+          done
+          [[ ${#specs[@]} -gt 0 ]] || read -r -a specs <<< "$ORDER"
+          MATRIX="$(for id in $ORDER; do
+            for s in "${specs[@]}"; do
+              if [[ "$s" == "$id" ]]; then jq -cn --arg id "$id" --arg focus "${FOCUS[$id]}" '{id: $id, focus: $focus}'; fi
+            done
+          done | jq -cs '{include: .}')"
+          echo "matrix: $MATRIX, parallel: $PARALLEL"
+          { echo "MATRIX=$MATRIX"; echo "PARALLEL=$PARALLEL"; } >> "$GITHUB_OUTPUT"
+  perf:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials
+    needs: [args]
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.args.outputs.PARALLEL) }}
+      matrix: ${{ fromJSON(needs.args.outputs.MATRIX) }}
+    uses: ./.github/workflows/e2e-perf.yaml
+    with:
+      spec_id: ${{ matrix.id }}
+      focus: ${{ matrix.focus }}
+      region: ${{ vars.PERF_REGION || 'us-west-2' }}
+      helm_opts: ${{ inputs.helm_opts || '--set controller.resources.requests.cpu=8 --set controller.resources.limits.cpu=8 --set controller.resources.requests.memory=24Gi --set controller.resources.limits.memory=24Gi --set settings.featureGates.nodeRepair=false --set-string nodeSelector.perf-controller=true --set tolerations[0].key=CriticalAddonsOnly --set tolerations[0].operator=Exists --set tolerations[1].key=perf-controller --set tolerations[1].operator=Exists' }}
+      control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'tier-xl' }}
+      # Always delete scheduled clusters; a manual run can keep them for debugging
+      cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}

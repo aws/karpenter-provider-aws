@@ -552,8 +552,8 @@ spec:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
 
-Karpenter pre-spins replacements for drifted nodes in static NodePools, so `limits.nodes` must leave headroom above `replicas`.
-If `limits.nodes` is equal to `replicas`, drifted nodes can't be replaced unless you enable the `TerminateFirstDrift` feature gate. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
+Karpenter pre-spins replacements for drifted and unhealthy nodes in static NodePools. If you set `limits.nodes`, leave headroom above `replicas` for these replacements. A node that is being replaced counts toward `limits.nodes` until it's gone, and so does its replacement.
+When the NodePool reaches its limit, drifted and unhealthy nodes can't be replaced unless you enable the `TerminateFirstDrift` or `TerminateFirstRepair` feature gate, respectively. Headroom doesn't help when every offering the NodePool can use is a full capacity reservation. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
 This doesn't affect [expiration]({{<ref "./disruption#expiration" >}}): Karpenter terminates expired nodes without pre-spinning a replacement, and then provisions back up to `replicas`.
 
 ### Cilium Startup Taint

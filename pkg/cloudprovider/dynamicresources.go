@@ -23,6 +23,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 )
 
@@ -33,8 +34,9 @@ func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass 
 	}
 
 	// Each driver is gated separately. A disabled driver contributes nothing: a nil map reads as the
-	// zero DynamicResources for every instance type.
-	var nvidiaResources, efaResources map[string]cloudprovider.DynamicResources
+	// zero Resources for every instance type.
+	var nvidiaResources map[string]nvidiadra.Resources
+	var efaResources map[string]efadra.Resources
 	if gates.DRANVIDIAGPU {
 		consumableCapacity, _ := nvidiadra.ParseConsumableCapacity(nodeClass.Annotations[v1.AnnotationNVIDIAConsumableCapacity])
 		// NVIDIA GPU driver: DRA metadata keyed by instance type name.
@@ -46,16 +48,21 @@ func (c *CloudProvider) populateDynamicResources(ctx context.Context, nodeClass 
 	}
 
 	for _, it := range instanceTypes {
-		// Additional DRA drivers would append their contribution here.
-		contributions := []cloudprovider.DynamicResources{nvidiaResources[it.Name], efaResources[it.Name]}
-
-		var resources cloudprovider.DynamicResources
-		for _, contribution := range contributions {
-			resources.ResourceSliceTemplates = append(resources.ResourceSliceTemplates, contribution.ResourceSliceTemplates...)
-			resources.AttributeBindings = append(resources.AttributeBindings, contribution.AttributeBindings...)
+		// One unscoped set per driver: every offering publishes every driver's devices. Additional DRA
+		// drivers would append their contribution here.
+		var sets []*cloudprovider.DynamicResources
+		var bindings []*cloudprovider.AttributeBinding
+		if r, ok := nvidiaResources[it.Name]; ok {
+			sets = append(sets, r.Set)
+			bindings = append(bindings, r.AttributeBindings...)
 		}
-		if len(resources.ResourceSliceTemplates) > 0 {
-			it.DynamicResources = resources
+		if r, ok := efaResources[it.Name]; ok {
+			sets = append(sets, r.Set)
+			bindings = append(bindings, r.AttributeBindings...)
+		}
+		if len(sets) > 0 {
+			it.DynamicResources = sets
+			it.AttributeBindings = bindings
 		}
 	}
 }

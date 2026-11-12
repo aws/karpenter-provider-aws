@@ -596,6 +596,10 @@ func RegisterTests() bool {
 				Env.EventuallyExpectDrifted(nc)
 			})
 			It("should terminate the drifted nodeclaim before launching its replacement when the reservation is full", func() {
+				// Specs turn this gate on only when they need it, because it also changes drift for static NodePools at their node limit
+				featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+				Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstDrift=true"})
+
 				capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 				DeferCleanup(func() {
 					aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)
@@ -620,6 +624,10 @@ func RegisterTests() bool {
 			// limits.nodes above replicas leaves headroom, but a reserved-only static pool can't launch a replacement while
 			// its reservation is full, so static drift must terminate first rather than retry a replacement that never launches
 			It("should terminate the drifted static nodeclaim before launching its replacement when the reservation is full", func() {
+				// Specs turn this gate on only when they need it, because it also changes drift for static NodePools at their node limit
+				featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+				Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstDrift=true"})
+
 				capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 				DeferCleanup(func() {
 					aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)

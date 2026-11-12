@@ -847,6 +847,13 @@ How many seconds of work has been done that is in progress and hasn't been obser
   - `controller` — The name of the controller that emitted the metric.
   - `scheduling_id` — A unique identifier for a scheduling simulation run.
 
+### `karpenter_scheduler_topology_build_duration_seconds`
+Duration of building the cluster topology used by scheduling simulations in seconds.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `controller` — The name of the controller that emitted the metric.
+
 ### `karpenter_scheduler_scheduling_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)

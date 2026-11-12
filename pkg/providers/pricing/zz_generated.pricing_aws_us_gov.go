@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-08-24T13:29:56Z for us-east-1
+// generated at 2026-11-09T13:19:00Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -521,6 +521,8 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"p5en.48xlarge": 75.955200,
 		// p6-b200 family
 		"p6-b200.48xlarge": 136.719360,
+		// p6-b300 family
+		"p6-b300.48xlarge": 170.900000,
 		// r3 family
 		"r3.2xlarge": 0.798000, "r3.4xlarge": 1.596000, "r3.8xlarge": 3.192000, "r3.large": 0.200000,
 		"r3.xlarge": 0.399000,
@@ -637,6 +639,8 @@ var InitialOnDemandPricesUSGov = map[string]map[ec2types.InstanceType]float64{
 		"u7in-16tb.224xlarge": 216.283840,
 		// u7in-24tb family
 		"u7in-24tb.224xlarge": 324.443680,
+		// u7in-32tb family
+		"u7in-32tb.224xlarge": 432.605840,
 		// x1 family
 		"x1.16xlarge": 8.003000, "x1.32xlarge": 16.006000,
 		// x1e family
