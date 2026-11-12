@@ -121,6 +121,9 @@ spec:
                   divisor: 1m
                   resource: requests.cpu
           {{- if .Values.controller.memoryLimit }}
+          {{- if and (kindIs "string" .Values.controller.memoryLimit) (not (regexMatch "^-?[0-9]+$" .Values.controller.memoryLimit)) }}
+          {{- fail "controller.memoryLimit must be a number of bytes such as 1073741824, or -1 to disable GOMEMLIMIT" }}
+          {{- end }}
             - name: MEMORY_LIMIT
               value: {{ .Values.controller.memoryLimit | int64 | quote }}
           {{- else }}
