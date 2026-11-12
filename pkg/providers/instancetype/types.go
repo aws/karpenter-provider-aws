@@ -562,6 +562,14 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
 			}
+			// When using a custom AMI with a standard AMI family, the root device name may differ from
+			// the AMI family's expected device name (e.g., /dev/sda1 instead of AL2's /dev/xvda).
+			// Fall back to the first user-specified block device mapping that has a volume size.
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
+				return bdm.EBS != nil && bdm.EBS.VolumeSize != nil
+			}); ok {
+				return blockDeviceMapping.EBS.VolumeSize
+			}
 		}
 	}
 	//Return the ephemeralBlockDevice size if defined in ami
