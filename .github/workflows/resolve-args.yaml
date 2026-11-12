@@ -2,6 +2,9 @@ name: ResolveArgs
 on:
   workflow_call:
     inputs:
+      runs_on:
+        type: string
+        default: "ubuntu-latest"
       allowed_comment:
         type: string
         required: true
@@ -12,7 +15,7 @@ on:
         value: ${{ jobs.resolve.outputs.GIT_REF }}
 jobs:
   resolve:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs_on || 'ubuntu-latest' }}
     outputs:
       SHOULD_RUN: ${{ steps.resolve-step.outputs.SHOULD_RUN }}
       GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
