@@ -1601,6 +1601,257 @@ var GPUMetadataByInstanceType = map[string]*DeviceMetadata{
 			},
 		},
 	},
+	"g7e.12xlarge": {
+		Count: 2,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
+	"g7e.24xlarge": {
+		Count: 4,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:44")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:44")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:55")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:55")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
+	"g7e.2xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
+	"g7e.48xlarge": {
+		Count: 8,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:84")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:84")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:95")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:95")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:a6")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:a6")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b7")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:b7")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
+	"g7e.4xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
+	"g7e.8xlarge": {
+		Count: 1,
+		Devices: []DRADevice{
+			{
+				Attributes: map[resourcev1.QualifiedName]resourcev1.DeviceAttribute{
+					"architecture":                    {StringValue: strPtr("Blackwell")},
+					"brand":                           {StringValue: strPtr("Nvidia")},
+					"cudaComputeCapability":           {VersionValue: strPtr("12.0.0")},
+					"productName":                     {StringValue: strPtr("NVIDIA RTX PRO 6000 Blackwell Server Edition")},
+					"resource.kubernetes.io/pcieRoot": {StringValue: strPtr("pci0000:24")},
+					"type":                            {StringValue: strPtr("gpu")},
+				},
+				Capacity: map[resourcev1.QualifiedName]resourcev1.DeviceCapacity{
+					"memory": {Value: resource.MustParse("95Gi")},
+				},
+			},
+		},
+	},
 	"gr6.4xlarge": {
 		Count: 1,
 		Devices: []DRADevice{

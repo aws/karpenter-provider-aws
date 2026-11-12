@@ -68,7 +68,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
 		aggregatedInput := prepareAggregatedInput(inputs)
 
-		missingInstanceIDs := sets.NewString(lo.Map(aggregatedInput.InstanceIds, func(i string, _ int) string { return i })...)
+		missingInstanceIDs := sets.New[string](lo.Map(aggregatedInput.InstanceIds, func(i string, _ int) string { return i })...)
 		paginator := ec2.NewDescribeInstancesPaginator(ec2api, aggregatedInput)
 
 		for paginator.HasMorePages() {
