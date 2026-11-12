@@ -15,7 +15,7 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automated method](#automated-graceful-methods) at a time, first doing [Node Repair]({{<ref "#node-auto-repair" >}}) (when enabled), then Drift, then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [disruption budgets]({{<ref "#nodepool-disruption-budgets" >}}) to control the speed at which these disruptions begin.
 1. Identify a list of prioritized candidates for the disruption method.
-   * If there are [pods that cannot be evicted](#pod-level-controls) on the node, Karpenter will ignore the node and try disrupting it later.
+   * If there are [pods that cannot be evicted](#pod-level-controls) on the node, Karpenter will ignore the node and try disrupting it later. Exceptions: [Node Auto Repair]({{<ref "#node-auto-repair" >}}), and [Drift]({{<ref "#drift" >}}) when the NodeClaim has a [`terminationGracePeriod`](#terminationgraceperiod), still select the node.
    * If there are no disruptable nodes, continue to the next disruption method.
 2. For each disruptable node:
    1. Check if disrupting it would violate its NodePool's disruption budget.
@@ -196,12 +196,12 @@ Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.15.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})
 
-Karpenter normally pre-spins a replacement before it terminates a disrupted node.
-Some NodePools can't do that because the capacity the replacement needs is held by the node being replaced:
-* **Full capacity reservations:** A node launched into an [ODCR or Capacity Block]({{<ref "../tasks/odcrs" >}}) that has no free capacity can't be replaced within the same reservation until the node releases its slot.
-* **Static NodePools at their node limit:** A [static NodePool]({{<ref "./nodepools#specreplicas" >}}) whose `limits.nodes` is equal to its `replicas` can't launch a replacement without exceeding the limit.
+Karpenter normally pre-spins a replacement before it terminates a drifted or unhealthy node.
+Some nodes can't be replaced that way, because the capacity the replacement needs is held by the node being replaced:
+* **Full capacity reservations:** A node launched into an [ODCR or Capacity Block]({{<ref "../tasks/odcrs" >}}) that has no free capacity can't be replaced within the same reservation until the node releases its slot. This only matters for pods that can't use any other capacity.
+* **Static NodePools at their node limit:** A [static NodePool]({{<ref "./nodepools#specreplicas" >}}) can't launch a replacement that would exceed its `limits.nodes`. A node that is being replaced counts toward `limits.nodes` until it's gone, and so does its replacement. So a NodePool whose `limits.nodes` leaves some headroom above `replicas` can still reach its limit partway through a rollout.
 
-Without terminate-first disruption, Karpenter can't disrupt these nodes, and a drifted node stays on its old configuration (for example, an out-of-date AMI). The node emits `DisruptionBlocked` events.
+Without terminate-first disruption, Karpenter can't disrupt these nodes, and a drifted node stays on its old configuration (for example, an out-of-date AMI). The node and its NodeClaim emit `DisruptionBlocked` events. The exception is a static NodePool whose reservations are full: Karpenter keeps creating a replacement, which fails to launch with an insufficient capacity error, and doesn't emit `DisruptionBlocked`.
 With terminate-first disruption enabled, Karpenter deletes the node first, waits for it to terminate, and then launches a replacement into the freed capacity.
 
 Terminate-first disruption is enabled per disruption method through feature gates:
@@ -211,20 +211,33 @@ Terminate-first disruption is enabled per disruption method through feature gate
 | `TerminateFirstDrift` | [Drift]({{<ref "#drift" >}}) |
 | `TerminateFirstRepair` | [Node Auto Repair]({{<ref "#node-auto-repair" >}}) |
 
-`TerminateFirstRepair` only takes effect when the `NodeRepair` feature gate is also enabled.
+`TerminateFirstRepair` has no effect unless the `NodeRepair` feature gate is also enabled, and has no effect with `--legacy-node-repair`.
+
+Feature gates apply to every NodePool in the cluster. For example, enabling `TerminateFirstDrift` for one NodePool in a full reservation also changes how drift works for every static NodePool that is at its limit or whose reservations are full.
 
 Karpenter only terminates a node first when a replacement can't be pre-spun:
-* **Dynamic NodePools:** Karpenter first simulates rescheduling the node's pods as usual. If the pods can run elsewhere, such as on existing nodes, in a different reservation that has capacity, or in a lower-[weight]({{<ref "./nodepools#specweight" >}}) on-demand or spot NodePool, Karpenter pre-spins a replacement. If they can't, and the node is in a capacity reservation, Karpenter simulates again with the node's reservation slot released. If the released slot is enough to reschedule all of the node's pods, Karpenter terminates the node first. Otherwise, the node is blocked from disruption as before.
-* **Static NodePools:** If the NodePool is below its `limits.nodes`, Karpenter pre-spins a replacement. If the NodePool is at its limit, Karpenter terminates the node first and then provisions back up to `replicas`.
+* **Dynamic NodePools:** Karpenter first simulates rescheduling the node's pods as usual. If the pods fit on existing nodes, Karpenter deletes the node without launching a replacement. If they need new capacity that Karpenter can launch, such as on-demand or spot capacity in the same NodePool, a different reservation that has capacity, or a lower-[weight]({{<ref "./nodepools#specweight" >}}) NodePool, Karpenter pre-spins a replacement. If they can't, and the node is in a capacity reservation, Karpenter simulates again with the node's reservation slot released. If the released slot is enough to reschedule all of the node's pods, Karpenter terminates the node first. Otherwise, the node is blocked from disruption as before.
+  Known issue: on-demand or spot offerings that Karpenter has recently marked unavailable after an insufficient capacity error don't count as a place the pods can run, so a node can be terminated first while that capacity is only temporarily unavailable ([kubernetes-sigs/karpenter#3415](https://github.com/kubernetes-sigs/karpenter/issues/3415)).
+* **Static NodePools:** Karpenter terminates the node first if the NodePool is at its `limits.nodes`, or if every offering the NodePool can use is a capacity reservation that can't take a new instance and the node holds a slot in one of those reservations. The second case applies even below `limits.nodes`; other nodes in such a NodePool stay blocked. Otherwise, Karpenter pre-spins a replacement. After terminating the node, Karpenter provisions back up to `replicas`. A NodePool that isn't `Ready` or is being deleted stays blocked.
 
 Terminate-first disruption still respects [NodePool Disruption Budgets]({{<ref "#nodepool-disruption-budgets" >}}), and the node is drained through the [Termination Controller]({{<ref "#termination-controller" >}}), which respects PDBs and `terminationGracePeriod`.
-Karpenter records these commands as `terminate-first` in the `decision` label of the `karpenter_voluntary_disruption_decisions_total` [metric]({{<ref "../reference/metrics" >}}).
+Karpenter records each terminate-first command in these [metrics]({{<ref "../reference/metrics" >}}):
+* `karpenter_voluntary_disruption_decisions_total` and `karpenter_voluntary_disruption_decisions_by_nodepool_total`, with `decision="terminate-first"`.
+* `karpenter_voluntary_disruption_terminate_first_decisions_total`, labeled by `nodepool`, `reason` (`drifted` or `unhealthy`), and `terminate_first_reason`. `terminate_first_reason` says why the replacement couldn't be launched first: `static-at-limit` when a static NodePool is at its `limits.nodes`, and `no-reserved-capacity` when the capacity reservations are full.
 
 {{% alert title="Warning" color="warning" %}}
-Terminate-first disruption temporarily reduces capacity. The node's pods stay pending from the time the node is drained until its replacement is ready.
-Use [PodDisruptionBudgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) and [NodePool Disruption Budgets]({{<ref "#nodepool-disruption-budgets" >}}) to limit how many nodes are terminated at once.
+Terminate-first disruption reduces capacity, and not always briefly. Each of the node's pods is pending from the moment it's evicted until the replacement is ready. Consider these risks before you enable it:
 
-Karpenter assumes that it can relaunch into the slot the terminated node frees. Anything else that launches into the same capacity reservation can claim the freed slot first, for example another Karpenter installation, an Auto Scaling group, or a manual launch. With an `open` reservation, any matching instance launched in the account can consume the slot. The node's pods then stay pending until capacity frees up in the reservation, which can cause an unbounded availability outage. Don't enable terminate-first disruption unless this Karpenter installation is the only thing that launches into its capacity reservations.
+* **A drift drain can wait forever.** An evicted pod often can't run anywhere until the node is gone, so a PodDisruptionBudget can run out of allowed evictions partway through the drain. For example, two replicas are on the node and the PDB has `maxUnavailable: 1`, or two nodes that run replicas of the same Deployments are terminated first at the same time. The drain then never finishes, and the pods already evicted stay pending. Drift has no drain deadline of its own, so only the NodeClaim's [`terminationGracePeriod`](#terminationgraceperiod) ends it. Set `terminationGracePeriod` on NodePools that use terminate-first drift, preferably when you create the NodePool. Changing it on an existing NodePool drifts the NodePool's nodes, and those nodes drain with their old value, which is no limit. To add it to an existing NodePool, first add a `Drifted` budget of `nodes: "0"`, and remove that budget when you're ready to watch the rollout. Node Auto Repair doesn't have this problem, because each repair policy bounds the drain.
+* **Karpenter doesn't hold the freed slot.** Karpenter doesn't create the replacement until the node is gone, so anything that can use the reservation can claim the freed slot first. That includes pending pods of other workloads or other NodePools in this cluster, another Karpenter installation, an Auto Scaling group, a manual launch, and instances in other accounts that the reservation is shared with. With an `open` reservation, any matching instance launched in the account can consume the slot. The node's pods then stay pending until capacity frees up in the reservation, which can cause an unbounded availability outage. Don't enable terminate-first disruption unless the node's own workloads are the only thing that launches into its capacity reservations.
+* **Failed replacements don't stop the rollout.** With replace-first, if a replacement never becomes ready, the old node keeps running. With terminate-first, the old node is already gone, and Karpenter can keep terminating more nodes first, at the pace the budget allows, while earlier replacements still aren't ready. A bad AMI or EC2NodeClass change can cause this. [NodePool Disruption Budgets]({{<ref "#nodepool-disruption-budgets" >}}) limit how many nodes are disrupted at once, not how many replacements are missing: nodes that aren't initialized yet, and nodes whose instance is already terminating, don't count against the budget. To limit the impact:
+  * Use a small `Drifted` or `Unhealthy` budget, such as `nodes: "1"`.
+  * Test AMI and EC2NodeClass changes first on a NodePool that pre-spins replacements and has its own EC2NodeClass.
+  * [Pin `amiSelectorTerms`]({{<ref "../tasks/managing-amis#pinning-amis" >}}) for NodePools that use terminate-first, so new AMIs don't roll out to them on their own.
+
+  [PodDisruptionBudgets](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) don't help here: they limit how many of an app's pods are evicted at once, not how many nodes are disrupted.
+
+To stop a rollout, add a `Drifted` budget of `nodes: "0"` to the NodePool. It stops new drift disruptions, including terminate-first ones, but not drains that have already started. An `Unhealthy` budget of `nodes: "0"` does the same for Node Auto Repair, except for nodes that never finished initializing. Changing a budget doesn't drift nodes.
 {{% /alert %}}
 
 ### Node Auto Repair
@@ -232,20 +245,24 @@ Karpenter assumes that it can relaunch into the slot the terminated node frees. 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.1.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})
 
 Node Auto Repair automatically identifies and repairs unhealthy nodes in your cluster, either by replacing them or by [rebooting them in place](#repair-actions). Nodes can experience various types of failures affecting their hardware, file systems, or container environments. These failures are surfaced through node status conditions, set either by the kubelet or by a node diagnostic agent such as the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html). When a node reports one of the [monitored conditions](#monitored-node-conditions) for longer than that condition's toleration duration, Karpenter repairs it.
+Karpenter only repairs nodes owned by a NodePool. Karpenter never repairs a NodeClaim without a NodePool, and emits a `DisruptionBlocked` event on every such NodeClaim, healthy or not. [Legacy Node Repair](#legacy-node-repair) still repairs these NodeClaims.
 
 To enable Node Auto Repair:
   1. Ensure you have a [Node Monitoring Agent](https://docs.aws.amazon.com/en_us/eks/latest/userguide/node-health.html) deployed or any agent that will add status conditions to nodes that are supported (e.g., Node Problem Detector)
   2. Enable the feature flag: `NodeRepair=true`. See [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 Node repair is a graceful disruption method, and it follows the same [standard disruption process](#disruption-controller) as Drift and Consolidation:
-* **Pre-spin:** For a replacement, Karpenter launches a replacement node, waits for it to become ready, and only then terminates the unhealthy node. If the node's pods can't be rescheduled, Karpenter emits a `DisruptionBlocked` event on the node and retries later.
-* **Budgets:** Repair is rate limited by [NodePool Disruption Budgets](#nodepool-disruption-budgets) under the `Unhealthy` reason. Unlike other reasons, nodes that are `NotReady` do not count against the `Unhealthy` budget, so a wave of unhealthy nodes does not block the repairs that would fix them. Only nodes that are already being deleted or [rebooted](#repair-actions) count against it.
+* **Pre-spin:** For a replacement, Karpenter simulates rescheduling the node's pods and launches only the replacement nodes the pods need. It waits for them to become ready, and only then terminates the unhealthy node. If the pods fit on other nodes, Karpenter launches no replacement and just deletes the node. If the node's pods can't be rescheduled, Karpenter emits a `DisruptionBlocked` event on the node and its NodeClaim and retries later.
+* **Budgets:** Repair is rate limited by [NodePool Disruption Budgets](#nodepool-disruption-budgets) under the `Unhealthy` reason. Budgets without `reasons` apply to `Unhealthy` too, so a `nodes: "0"` budget without `reasons` pauses repair while it's active. Unlike other reasons, nodes that are `NotReady` don't use up the `Unhealthy` budget, so they don't block their own repair. Only nodes that are already being deleted or [rebooted](#repair-actions) count against it. Karpenter repairs nodes that never finished initializing without checking budgets. The 20% threshold below still applies to all of these nodes.
 * **Drain:** Karpenter drains the node through the [Termination Controller]({{<ref "#termination-controller" >}}), which respects PDBs. Each [monitored condition](#monitored-node-conditions) has a termination grace period that bounds the drain. Karpenter uses the shorter of that period and the NodeClaim's [`terminationGracePeriod`](#terminationgraceperiod). A termination grace period of `0` means Karpenter skips the drain. Pods with blocking PDBs or the `karpenter.sh/do-not-disrupt` annotation don't stop Karpenter from selecting a node for repair, and can't delay its drain past the termination grace period.
 * **Ordering:** When several nodes are eligible, Karpenter repairs the node that has been unhealthy past its toleration duration the longest.
 
-Karpenter includes safety mechanisms to prevent cascading failures. If more than 20% of the nodes in a NodePool report a monitored condition, Karpenter stops repairing that NodePool, because the failure is likely correlated (for example, a bad AMI or an Availability Zone outage) and replacing nodes would not fix it. Karpenter emits a `NodeRepairBlocked` warning event on the node, NodeClaim, and NodePool while repair is blocked. The 20% threshold counts a node as unhealthy as soon as it reports a monitored condition, before its toleration duration elapses.
+Karpenter includes safety mechanisms to prevent cascading failures. If more than 20% of the nodes in a NodePool report a monitored condition, Karpenter stops repairing that NodePool, because the failure is likely correlated (for example, a bad AMI or an Availability Zone outage) and replacing nodes would not fix it. Karpenter emits a `NodeRepairBlocked` warning event on the node, NodeClaim, and NodePool while repair is blocked.
+* The threshold rounds up to a whole node, so one unhealthy node never stops repair. For example, a NodePool with 3 nodes stops repairing at 2 unhealthy nodes, and a NodePool with 10 nodes at 3.
+* The threshold counts a node as unhealthy as soon as it reports a monitored condition's type and status, before its toleration duration elapses and whatever the condition's reason.
+* The threshold counts every node in the NodePool, including nodes with the [`karpenter.sh/do-not-repair`](#node-level-controls) annotation. Keeping several unhealthy nodes around for debugging can stop repair for the rest of the NodePool.
 
-If a replacement can't be pre-spun, for example because the node is in a full capacity reservation or its static NodePool is at its node limit, repair is blocked unless you enable the `TerminateFirstRepair` feature gate. See [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}).
+If a replacement can't be pre-spun, repair is blocked unless you enable the `TerminateFirstRepair` feature gate. This happens when the node is in a full capacity reservation and its pods can't run anywhere else, or when its static NodePool is at its node limit or its reservations are full. See [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}).
 
 To opt a node out of repair, annotate it with `karpenter.sh/do-not-repair: "true"`. See [Node-Level Controls]({{<ref "#node-level-controls" >}}).
 
@@ -270,6 +287,10 @@ A reboot follows these steps:
 Pods that stay on the node restart in place when it comes back, unless the kubelet stops them first: with a non-zero `shutdownGracePeriod`, the kubelet's graceful node shutdown terminates them and their controllers recreate them. A reboot that keeps the node `NotReady` past a pod's `NoExecute` toleration (300 seconds by default) also evicts it.
 
 While a node is rebooting, other disruption methods don't select it, and it counts against the [disruption budgets](#nodepool-disruption-budgets) for every reason. Karpenter treats the node as uninitialized from the reboot until it becomes `Ready` again and its resources are re-registered.
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter doesn't re-apply the NodePool's [startup taints]({{<ref "./nodepools#spectemplatespecstartuptaints" >}}) after a reboot, so initialization doesn't wait for the components they gate.
+{{% /alert %}}
 
 Karpenter replaces the node if the reboot fails: if the cloud provider rejects the reboot with an error that retrying can't fix, such as a missing `ec2:RebootInstances` permission (immediately), if it keeps rejecting the reboot with other errors for 5 minutes after the drain finishes, or if the node doesn't come back with a new boot ID and `Ready` within 20 minutes of the reboot. The replacement isn't pre-spun, because the node has already been drained.
 If Karpenter has already rebooted a node twice in the last 24 hours, it replaces the node instead of rebooting it again: a fault that keeps coming back after a reboot usually isn't one a reboot clears, so further reboots would only delay the repair while disrupting the node's workloads each time. Karpenter keeps this count in memory, so a controller restart resets it.
@@ -427,9 +448,9 @@ You can rate limit Karpenter's disruption through the NodePool's `spec.disruptio
 Karpenter allows specifying if a budget applies to any of `Drifted`, `Underutilized`, `Empty`, or `Unhealthy` ([Node Auto Repair]({{<ref "#node-auto-repair" >}})). When a budget has no reasons, it's assumed that it applies to all reasons. When calculating allowed disruptions for a given reason, Karpenter will take the minimum of the budgets that have listed the reason or have left reasons undefined.
 
 #### Nodes
-When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted and nodes that are NotReady. For the `Unhealthy` reason, NotReady nodes are not subtracted, since they are the nodes that repair replaces. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
+When calculating if a budget will block nodes from disruption, Karpenter lists the total number of initialized nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted or [rebooted](#repair-actions) and nodes that are NotReady. Nodes that aren't initialized yet, and nodes whose instance is already terminating, aren't counted at all. For the `Unhealthy` reason, NotReady nodes are not subtracted, since they are the nodes that repair replaces. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
 
-If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting - total_notready`. If otherwise defined as a non-percentage value, Karpenter will simply use that number as a static ceiling `non_percentage_value - total_deleting - total_notready`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
+If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting - total_notready`. If otherwise defined as a non-percentage value, Karpenter will simply use that number as a static ceiling `non_percentage_value - total_deleting - total_notready`. For the `Unhealthy` reason, Karpenter leaves out `- total_notready`. For example, in a NodePool with 10 nodes, 2 of them NotReady, and a `10%` budget, Karpenter allows `roundup(10 * 0.1) - 0 = 1` repair, but no other disruptions. Because the percentage rounds up, any non-zero percentage allows at least one disruption in a NodePool with nodes, before subtracting. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
 
 For example, the following NodePool with three budgets defines the following requirements:
 - The first budget will only allow 20% of nodes owned by that NodePool to be disrupted if it's empty or drifted. For instance, if there were 19 nodes owned by the NodePool, 4 empty or drifted nodes could be disrupted, rounding up from `19 * .2 = 3.8`.
@@ -497,6 +518,10 @@ In this scenario, Karpenter cannot voluntary disrupt the node because:
 2. Pod B is blocked by PDB-3's requirement for 100% availability
 
 As seen in this example, the more PDBs there are affecting a Node, the more difficult it will be for Karpenter to find an opportunity to perform voluntary disruption actions.
+
+{{% alert title="Note" color="primary" %}}
+Exceptions: [Node Auto Repair]({{<ref "#node-auto-repair" >}}), and [Drift]({{<ref "#drift" >}}) when the NodeClaim has a [`terminationGracePeriod`](#terminationgraceperiod), select a node even if it has pods with blocking PDBs or the `karpenter.sh/do-not-disrupt` annotation. The Termination Controller evicts PDB-protected pods through the eviction API, which respects PDBs, and doesn't evict pods with `karpenter.sh/do-not-disrupt`. Pods still on the node are deleted early enough to finish terminating by the drain deadline. A [repair reboot](#repair-actions) leaves them on the node instead.
+{{% /alert %}}
 
 Secondly, you can block Karpenter from voluntarily disrupting and draining pods by adding the `karpenter.sh/do-not-disrupt` annotation to the pod.
 This annotation supports two formats:
@@ -611,6 +636,7 @@ metadata:
 
 To block Karpenter from repairing a node, set the `karpenter.sh/do-not-repair: "true"` annotation on the node.
 This is useful when you want to keep an unhealthy node around to debug it.
+Annotated nodes still count toward Node Auto Repair's [20% threshold](#node-auto-repair), so keeping several of them around can stop repair for the rest of their NodePool.
 The `karpenter.sh/do-not-repair` annotation only affects Node Auto Repair; the node can still be disrupted by other methods.
 When `karpenter.sh/do-not-repair` blocks Node Auto Repair on a node, Karpenter emits a `DisruptionBlocked` event on the node and its NodeClaim.
 Karpenter emits this event only after a [monitored condition](#monitored-node-conditions) has persisted on the node for longer than its toleration duration.
@@ -636,4 +662,20 @@ spec:
   disruption:
     budgets:
       - nodes: "0"
+```
+
+Since [Node Auto Repair]({{<ref "#node-auto-repair" >}}) is a voluntary disruption method, this also stops Karpenter from repairing these nodes, except for nodes that never finished initializing. To stop other disruption but keep repairing nodes, list the reasons:
+
+```yaml
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    budgets:
+      - nodes: "0"
+        reasons: ["Empty", "Drifted", "Underutilized"]
+      - nodes: "10%"
+        reasons: ["Unhealthy"]
 ```

@@ -403,7 +403,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod1)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts1 := sets.NewString()
+			lts1 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts1.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
@@ -419,7 +419,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod2)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts2 := sets.NewString()
+			lts2 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts2.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
