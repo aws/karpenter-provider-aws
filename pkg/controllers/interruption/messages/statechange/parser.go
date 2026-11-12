@@ -24,7 +24,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 )
 
-var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "terminated")
+var acceptedStates = sets.New[string]("stopping", "stopped", "shutting-down", "terminated")
 
 type Parser struct{}
 
