@@ -6158,6 +6158,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|168490Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c8gb.48xlarge`
 #### Labels
  | Label | Value |
@@ -6215,6 +6216,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|356820Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## c8gd Family
 ### `c8gd.medium`
 #### Labels
@@ -6851,6 +6853,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|168490Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c8gn.48xlarge`
 #### Labels
  | Label | Value |
@@ -6908,6 +6911,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|356820Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## c8i Family
 ### `c8i.large`
 #### Labels
@@ -7784,6 +7788,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|346715Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c8ib.96xlarge`
 #### Labels
  | Label | Value |
@@ -7841,6 +7846,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|718756Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## c8id Family
 ### `c8id.large`
 #### Labels
@@ -8770,7 +8776,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8789,6 +8795,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1040Mi|
  |pods|40|
+ |vpc.amazonaws.com/pod-eni|4|
 ### `c9g.large`
 #### Labels
  | Label | Value |
@@ -8797,7 +8804,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8816,6 +8823,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2725Mi|
  |pods|59|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `c9g.xlarge`
 #### Labels
  | Label | Value |
@@ -8824,7 +8832,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8843,6 +8851,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5865Mi|
  |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `c9g.2xlarge`
 #### Labels
  | Label | Value |
@@ -8851,7 +8860,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8870,6 +8879,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13443Mi|
  |pods|118|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `c9g.4xlarge`
 #### Labels
  | Label | Value |
@@ -8878,7 +8888,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8897,6 +8907,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|25562Mi|
  |pods|394|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `c9g.8xlarge`
 #### Labels
  | Label | Value |
@@ -8905,7 +8916,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8924,6 +8935,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|54794Mi|
  |pods|492|
+ |vpc.amazonaws.com/pod-eni|52|
 ### `c9g.12xlarge`
 #### Labels
  | Label | Value |
@@ -8932,7 +8944,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8951,6 +8963,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|84027Mi|
  |pods|590|
+ |vpc.amazonaws.com/pod-eni|50|
 ### `c9g.16xlarge`
 #### Labels
  | Label | Value |
@@ -8959,7 +8972,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -8978,6 +8991,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|109717Mi|
  |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
 ### `c9g.24xlarge`
 #### Labels
  | Label | Value |
@@ -8986,7 +9000,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -9005,6 +9019,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|164794Mi|
  |pods|1514|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c9g.48xlarge`
 #### Labels
  | Label | Value |
@@ -9013,7 +9028,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -9033,6 +9048,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|346656Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c9g.metal-48xl`
 #### Labels
  | Label | Value |
@@ -9041,7 +9057,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9g|
@@ -9061,6 +9077,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|346656Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ## c9gd Family
 ### `c9gd.medium`
 #### Labels
@@ -9070,7 +9087,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9090,6 +9107,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1040Mi|
  |pods|40|
+ |vpc.amazonaws.com/pod-eni|4|
 ### `c9gd.large`
 #### Labels
  | Label | Value |
@@ -9098,7 +9116,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9118,6 +9136,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2725Mi|
  |pods|59|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `c9gd.xlarge`
 #### Labels
  | Label | Value |
@@ -9126,7 +9145,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9146,6 +9165,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5865Mi|
  |pods|118|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `c9gd.2xlarge`
 #### Labels
  | Label | Value |
@@ -9154,7 +9174,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9174,6 +9194,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13443Mi|
  |pods|118|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `c9gd.4xlarge`
 #### Labels
  | Label | Value |
@@ -9182,7 +9203,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9202,6 +9223,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|25562Mi|
  |pods|394|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `c9gd.8xlarge`
 #### Labels
  | Label | Value |
@@ -9210,7 +9232,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9230,6 +9252,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|54794Mi|
  |pods|492|
+ |vpc.amazonaws.com/pod-eni|52|
 ### `c9gd.12xlarge`
 #### Labels
  | Label | Value |
@@ -9238,7 +9261,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9258,6 +9281,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|84027Mi|
  |pods|590|
+ |vpc.amazonaws.com/pod-eni|50|
 ### `c9gd.16xlarge`
 #### Labels
  | Label | Value |
@@ -9266,7 +9290,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9286,6 +9310,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|109717Mi|
  |pods|1010|
+ |vpc.amazonaws.com/pod-eni|106|
 ### `c9gd.24xlarge`
 #### Labels
  | Label | Value |
@@ -9294,7 +9319,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9314,6 +9339,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|164794Mi|
  |pods|1514|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c9gd.48xlarge`
 #### Labels
  | Label | Value |
@@ -9322,7 +9348,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9343,6 +9369,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|346656Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `c9gd.metal-48xl`
 #### Labels
  | Label | Value |
@@ -9351,7 +9378,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c9gd|
@@ -9372,6 +9399,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|346656Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -11493,7 +11521,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|440|
  |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-network-bandwidth|60000|
+ |karpenter.k8s.aws/instance-network-bandwidth|40000|
  |karpenter.k8s.aws/instance-size|2xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -11527,7 +11555,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|875|
  |karpenter.k8s.aws/instance-memory|65536|
- |karpenter.k8s.aws/instance-network-bandwidth|60000|
+ |karpenter.k8s.aws/instance-network-bandwidth|80000|
  |karpenter.k8s.aws/instance-size|4xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -11561,7 +11589,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|930|
  |karpenter.k8s.aws/instance-memory|131072|
- |karpenter.k8s.aws/instance-network-bandwidth|80000|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
  |karpenter.k8s.aws/instance-size|8xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -12304,6 +12332,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|118649Mi|
  |pods|198|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|118|
 ### `hpc7g.8xlarge`
 #### Labels
  | Label | Value |
@@ -12332,6 +12361,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|118649Mi|
  |pods|198|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|118|
 ### `hpc7g.16xlarge`
 #### Labels
  | Label | Value |
@@ -12360,6 +12390,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|118649Mi|
  |pods|198|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|118|
 ## hpc8a Family
 ### `hpc8a.96xlarge`
 #### Labels
@@ -13101,6 +13132,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `i4i.xlarge`
 #### Labels
  | Label | Value |
@@ -13373,7 +13405,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13402,7 +13434,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13431,7 +13463,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13460,7 +13492,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13489,7 +13521,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13518,7 +13550,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13547,7 +13579,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13576,7 +13608,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13606,7 +13638,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13635,7 +13667,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13665,7 +13697,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2400|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7i|
@@ -13696,7 +13728,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13725,7 +13757,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13754,7 +13786,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13783,7 +13815,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13812,7 +13844,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13841,7 +13873,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13870,7 +13902,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|22500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13899,7 +13931,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13928,7 +13960,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13957,7 +13989,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -13975,8 +14007,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
- |pods|737|
+ |memory|1450210Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `i7ie.metal-48xl`
@@ -13987,7 +14019,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3600|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3200|
  |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i7ie|
@@ -14005,8 +14037,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
- |pods|737|
+ |memory|1450210Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## i8g Family
@@ -14619,8 +14651,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1441527Mi|
- |pods|1178|
+ |memory|1447995Mi|
+ |pods|590|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|98|
 ### `i8ge.metal-48xl`
@@ -14649,8 +14681,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1441527Mi|
- |pods|1178|
+ |memory|1447995Mi|
+ |pods|590|
  |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|98|
 ## im4gn Family
@@ -21961,6 +21993,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|350352Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8gb.48xlarge`
 #### Labels
  | Label | Value |
@@ -22018,6 +22051,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|720545Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8gd Family
 ### `m8gd.medium`
 #### Labels
@@ -22654,6 +22688,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|350352Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8gn.48xlarge`
 #### Labels
  | Label | Value |
@@ -22711,6 +22746,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|720545Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8i Family
 ### `m8i.large`
 #### Labels
@@ -23587,6 +23623,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|710440Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8ib.96xlarge`
 #### Labels
  | Label | Value |
@@ -23644,6 +23681,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446206Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8id Family
 ### `m8id.large`
 #### Labels
@@ -24347,6 +24385,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|710440Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8idb.96xlarge`
 #### Labels
  | Label | Value |
@@ -24406,6 +24445,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446206Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8idn Family
 ### `m8idn.large`
 #### Labels
@@ -24727,6 +24767,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|710440Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8idn.96xlarge`
 #### Labels
  | Label | Value |
@@ -24786,6 +24827,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446206Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8in Family
 ### `m8in.large`
 #### Labels
@@ -25096,6 +25138,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|710440Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `m8in.96xlarge`
 #### Labels
  | Label | Value |
@@ -25153,6 +25196,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446206Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## m8ine Family
 ### `m8ine.large`
 #### Labels
@@ -25331,7 +25375,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25359,7 +25403,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25387,7 +25431,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25415,7 +25459,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25443,7 +25487,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25471,7 +25515,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25499,7 +25543,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25527,7 +25571,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25555,7 +25599,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25583,7 +25627,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25612,7 +25656,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9g|
@@ -25642,7 +25686,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25671,7 +25715,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25700,7 +25744,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25729,7 +25773,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25758,7 +25802,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25787,7 +25831,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25816,7 +25860,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25845,7 +25889,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25874,7 +25918,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25903,7 +25947,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -25933,7 +25977,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
- |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|2800|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
  |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m9gd|
@@ -32706,6 +32750,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|714077Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8gb.48xlarge`
 #### Labels
  | Label | Value |
@@ -32763,6 +32808,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1447995Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## r8gd Family
 ### `r8gd.medium`
 #### Labels
@@ -33399,6 +33445,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|714077Mi|
  |pods|1178|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8gn.48xlarge`
 #### Labels
  | Label | Value |
@@ -33456,6 +33503,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1447995Mi|
  |pods|590|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## r8i Family
 ### `r8i.large`
 #### Labels
@@ -34332,6 +34380,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1437890Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8ib.96xlarge`
 #### Labels
  | Label | Value |
@@ -34389,6 +34438,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|2901105Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## r8id Family
 ### `r8id.large`
 #### Labels
@@ -35092,6 +35142,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1437890Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8idb.96xlarge`
 #### Labels
  | Label | Value |
@@ -35151,6 +35202,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|2901105Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## r8idn Family
 ### `r8idn.large`
 #### Labels
@@ -35472,6 +35524,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1437890Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8idn.96xlarge`
 #### Labels
  | Label | Value |
@@ -35531,6 +35584,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|2901105Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
 ## r8in Family
 ### `r8in.large`
 #### Labels
@@ -35841,6 +35895,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1437890Mi|
  |pods|1514|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|98|
 ### `r8in.96xlarge`
 #### Labels
  | Label | Value |
@@ -35898,6 +35953,596 @@ below are the resources available with some assumptions and after the instance o
  |memory|2901105Mi|
  |pods|758|
  |vpc.amazonaws.com/efa|2|
+ |vpc.amazonaws.com/pod-eni|98|
+## r9g Family
+### `r9g.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|6723Mi|
+ |pods|40|
+### `r9g.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14092Mi|
+ |pods|59|
+### `r9g.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|28598Mi|
+ |pods|118|
+### `r9g.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|58908Mi|
+ |pods|118|
+### `r9g.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|116493Mi|
+ |pods|394|
+### `r9g.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|236657Mi|
+ |pods|492|
+### `r9g.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|356820Mi|
+ |pods|590|
+### `r9g.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|473442Mi|
+ |pods|1010|
+### `r9g.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|710381Mi|
+ |pods|1514|
+### `r9g.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437831Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+### `r9g.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9g|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9g.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437831Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+## r9gd Family
+### `r9gd.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|1|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|59|
+ |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|940m|
+ |ephemeral-storage|17Gi|
+ |memory|6723Mi|
+ |pods|40|
+### `r9gd.large`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|118|
+ |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-size|large|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.large|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|14092Mi|
+ |pods|59|
+### `r9gd.xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|4|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|237|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-size|xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|3920m|
+ |ephemeral-storage|17Gi|
+ |memory|28598Mi|
+ |pods|118|
+### `r9gd.2xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|8|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|474|
+ |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-size|2xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.2xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|7910m|
+ |ephemeral-storage|17Gi|
+ |memory|58908Mi|
+ |pods|118|
+### `r9gd.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|950|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|116493Mi|
+ |pods|394|
+### `r9gd.8xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|32|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|1900|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-size|8xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.8xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|31850m|
+ |ephemeral-storage|17Gi|
+ |memory|236657Mi|
+ |pods|492|
+### `r9gd.12xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|48|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|18000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|2850|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-size|12xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.12xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|47810m|
+ |ephemeral-storage|17Gi|
+ |memory|356820Mi|
+ |pods|590|
+### `r9gd.16xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|24000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-size|16xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.16xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|473442Mi|
+ |pods|1010|
+### `r9gd.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|36000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|5700|
+ |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|710381Mi|
+ |pods|1514|
+### `r9gd.48xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|48xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.48xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437831Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
+### `r9gd.metal-48xl`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|192|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3300|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|72000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r9gd|
+ |karpenter.k8s.aws/instance-generation|9|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|11400|
+ |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-size|metal-48xl|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r9gd.metal-48xl|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|191450m|
+ |ephemeral-storage|17Gi|
+ |memory|1437831Mi|
+ |pods|1514|
+ |vpc.amazonaws.com/efa|1|
 ## t1 Family
 ### `t1.micro`
 #### Labels
@@ -36670,6 +37315,111 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
+## t8i Family
+### `t8i.nano`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|t|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|t8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|512|
+ |karpenter.k8s.aws/instance-size|nano|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|t8i.nano|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|74Mi|
+ |pods|4|
+### `t8i.micro`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|t|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|t8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|1024|
+ |karpenter.k8s.aws/instance-size|micro|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|t8i.micro|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|548Mi|
+ |pods|4|
+### `t8i.small`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|t|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|t8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|2048|
+ |karpenter.k8s.aws/instance-size|small|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|t8i.small|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|1418Mi|
+ |pods|11|
+### `t8i.medium`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-category|t|
+ |karpenter.k8s.aws/instance-cpu|2|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-cpu-sustained-clock-speed-mhz|3900|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|t8i|
+ |karpenter.k8s.aws/instance-generation|8|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-size|medium|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|t8i.medium|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|1930m|
+ |ephemeral-storage|17Gi|
+ |memory|3246Mi|
+ |pods|17|
 ## trn1 Family
 ### `trn1.2xlarge`
 #### Labels

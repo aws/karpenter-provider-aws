@@ -57,9 +57,11 @@ import (
 	"github.com/aws/karpenter-provider-aws/kwok/strategy"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
@@ -102,6 +104,7 @@ type Operator struct {
 	PlacementGroupProvider      placementgroup.Provider
 	EC2API                      *kwokec2.Client
 	ZonalShiftProvider          zonalshiftprovider.Provider
+	CELEnvironment              *kubeletcel.CELEnvironment
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -146,7 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval
 	subnetIPCacheTTL := max(awscache.AvailableIPAddressTTL, subnetRefreshInterval+(awscache.AvailableIPAddressTTL-awscache.DefaultTTL))
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(subnetRefreshInterval, awscache.DefaultCleanupInterval), cache.New(subnetIPCacheTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(options.FromContext(ctx).SecurityGroupRefreshInterval, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(
 		iam.NewFromConfig(cfg),
 		cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval),
@@ -172,7 +175,17 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval),
 	)
-	amiResolver := amifamily.NewDefaultResolver(cfg.Region)
+	// celEnv is the single shared CEL environment (and compilation cache) for kubelet expressionevaluation
+	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	// The instance provider and the launch template resolver share one efa.Provider so their EFA counts agree.
+	efaProvider := efa.DefaultProvider{}
+	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
+		limits, ok := instancetype.Limits[name]
+		if !ok {
+			return amifamily.ENILimits{}, false
+		}
+		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
+	}, celEnv, amifamily.WithEFAProvider(efaProvider))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -203,9 +216,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		capacityReservationProvider,
 		placementGroupProvider,
 		unavailableOfferingsCache,
-		instancetype.NewDefaultResolver(cfg.Region),
+		instancetype.NewDefaultResolver(cfg.Region, celEnv),
 		zsProvider,
 		nil,
+		celEnv,
 	)
 	// Ensure we're able to hydrate instance types before starting any reliant controllers.
 	// Instance type updates are hydrated asynchronously after this by controllers.
@@ -223,14 +237,12 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		placementGroupProvider,
 		zsProvider,
 		// Instance cache entries never expire. The cache is actively refreshed by the garbage
-		// collection controller's List() every 2 minutes, and entries are explicitly removed
-		// when Get() returns NotFound from EC2. NoExpiration ensures cached instances in zonally
-		// shifted AZs remain available for the zonal shift guards in Get(), Delete(), and
-		// CreateTags(), even if List() cannot return instances from the impaired AZ.
-		// TODO: Add a cache garbage collector that reconciles entries against EC2 and the API
-		// server, evicting entries for instances that no longer exist in either. Note: removing
-		// NodeClaim finalizers to bypass Karpenter's lifecycle management is not supported.
+		// collection controller's List() every 2 minutes, and stale entries are evicted by
+		// List() for instances no longer returned by EC2. NoExpiration ensures cached instances
+		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
+		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
+		instance.WithEFAProvider(efaProvider),
 	)
 
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
@@ -260,6 +272,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		PlacementGroupProvider:      placementGroupProvider,
 		EC2API:                      ec2api,
 		ZonalShiftProvider:          zsProvider,
+		CELEnvironment:              celEnv,
 	}
 }
 
@@ -358,7 +371,10 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
 	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, err := eksAPI.DescribeCluster(ctx, &inputDC)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster for zonal shift enablement, %w", err)
+	}
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)

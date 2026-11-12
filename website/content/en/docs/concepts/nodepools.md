@@ -20,7 +20,7 @@ Here are things you should know about NodePools:
 * Each NodePool that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the NodePool that is not tolerated by a Pod, Karpenter won't use that NodePool to provision the pod.
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
+* It is recommended to create NodePools that are either mutually exclusive, so that no Pod matches multiple NodePools, or [weighted](#specweight), so that the preferred NodePool is explicit. If multiple NodePools are matched, Karpenter will launch the node from the NodePool with the highest weight, falling back to lower-weight NodePools if it can't be used (for example, if its limits have been reached). If you need a specific NodePool to be preferred over another, give it a higher weight.
 
 
 {{% alert title="Note" color="primary" %}}
@@ -129,6 +129,7 @@ spec:
 
     # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
+    # Optional, defaults to '0s'
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
     # Budgets control the speed Karpenter can scale down nodes.
@@ -194,8 +195,9 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 ## spec.template.spec.startupTaints
 
-Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized.
+Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node can be initialized.
 These taints must be cleared before pods can be deployed to a node.
+Startup taints are applied only when the node registers. Karpenter doesn't re-apply them after it [reboots a node in place]({{<ref "./disruption#repair-actions" >}}).
 
 ## spec.template.spec.expireAfter
 
@@ -277,6 +279,7 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 If a NodePool is compatible with multiple capacity types, Karpenter will prioritize `reserved` capacity, followed by `spot`, then finally `on-demand`.
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
 If there are no other possible offerings available for a higher priority capacity type, Karpenter will attempt to fallback to a lower priority capacity type, generally within milliseconds.
+Karpenter will only fall back to capacity types that the NodePool allows. For example, a NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity when no `spot` offerings are available, but a NodePool that only allows `spot` will never launch `on-demand` capacity; pods will remain pending until a `spot` offering can be launched.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
@@ -299,8 +302,8 @@ There is currently a limit of 100 on the total number of requirements on both th
 
 Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. Depending on the policy configured via the flag `--min-values-policy` or environment variable `MIN_VALUES_POLICY`, if Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will either fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether (when policy is set to `Strict`) or relax `minValues` until they can be met (when policy is set to `BestEffort`).
 
-For spot instances, you should specify `karpenter.sh/capacity-type: spot` in your requirements. For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
-i.e at least 2 unique instance categories from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] are required for scheduling the pods.
+For spot instances, you should specify `karpenter.sh/capacity-type: spot` in your requirements. For example, the below spec enforces `minValues` to various keys where it is defined:
+at least 2 unique instance categories from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], and 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] are required for scheduling the pods.
 
 ```yaml
 spec:
@@ -477,7 +480,10 @@ NodePools have the following status conditions:
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | NodeClassReady      | Underlying nodeClass is ready                                                                                                                     |
 | ValidationSucceeded | NodePool CRD validation succeeded                                                                                                                 |
+| NodeRegistrationHealthy | Indicates whether a misconfiguration is preventing launched nodes from registering successfully and requires manual investigation.                |
 | Ready               | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
+
+The `NodeRegistrationHealthy` condition is informational and does not affect the top-level `Ready` condition.
 
 If a NodePool is not ready, it will not be considered for scheduling.
 
@@ -545,6 +551,10 @@ spec:
     budgets:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
+
+Karpenter pre-spins replacements for drifted and unhealthy nodes in static NodePools. If you set `limits.nodes`, leave headroom above `replicas` for these replacements. A node that is being replaced counts toward `limits.nodes` until it's gone, and so does its replacement.
+When the NodePool reaches its limit, drifted and unhealthy nodes can't be replaced unless you enable the `TerminateFirstDrift` or `TerminateFirstRepair` feature gate, respectively. Headroom doesn't help when every offering the NodePool can use is a full capacity reservation. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
+This doesn't affect [expiration]({{<ref "./disruption#expiration" >}}): Karpenter terminates expired nodes without pre-spinning a replacement, and then provisions back up to `replicas`.
 
 ### Cilium Startup Taint
 

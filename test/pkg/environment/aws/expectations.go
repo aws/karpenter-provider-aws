@@ -35,17 +35,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
+	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
+	"github.com/samber/lo/mutable"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,6 +63,7 @@ const (
 
 func (env *Environment) ExpectWindowsIPAMEnabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=true")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "true",
 	})
@@ -68,6 +71,7 @@ func (env *Environment) ExpectWindowsIPAMEnabled() {
 
 func (env *Environment) ExpectWindowsIPAMDisabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=false")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "false",
 	})
@@ -78,7 +82,11 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 }
 
 func (env *Environment) ExpectIPv6ClusterDNS() string {
+	GinkgoHelper()
 	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:kube-dns-service] cluster %s has no kube-system/kube-dns Service", env.ClusterName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
@@ -116,7 +124,33 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 	Expect(err).ToNot(HaveOccurred())
 	experiment, err := env.FISAPI.StartExperiment(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
 	Expect(err).ToNot(HaveOccurred())
+	env.expectExperimentActionsStarted(experiment.Experiment)
 	return experiment.Experiment
+}
+
+func (env *Environment) expectExperimentActionsStarted(experiment *fistypes.Experiment) {
+	GinkgoHelper()
+	var failed *fistypes.ExperimentActionState
+	Eventually(func(g Gomega) {
+		out, err := env.FISAPI.GetExperiment(env.Context, &fis.GetExperimentInput{Id: experiment.Id})
+		g.Expect(err).ToNot(HaveOccurred())
+		for _, a := range out.Experiment.Actions {
+			if a.State != nil && a.State.Status == fistypes.ExperimentActionStatusFailed {
+				failed = a.State
+				return
+			}
+			g.Expect(a.State).ToNot(BeNil())
+			g.Expect(a.State.Status).To(BeElementOf(fistypes.ExperimentActionStatusRunning, fistypes.ExperimentActionStatusCompleted))
+		}
+	}).WithTimeout(time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+	if failed == nil {
+		return
+	}
+	env.ExpectExperimentTemplateDeleted(lo.FromPtr(experiment.ExperimentTemplateId))
+	if env.ExternalController != nil && strings.Contains(lo.FromPtr(failed.Reason), "Not enough privileges") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] %s denied the FIS experiment on its instances: %s", env.ExternalController.Name, lo.FromPtr(failed.Reason)))
+	}
+	Fail(fmt.Sprintf("FIS experiment %s failed: %s", lo.FromPtr(experiment.Id), lo.FromPtr(failed.Reason)))
 }
 
 func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
@@ -168,6 +202,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 		Force:       aws.Bool(true),
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
 }
 
@@ -177,7 +212,15 @@ func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
+}
+
+func skipIfProtectedInstance(err error) {
+	GinkgoHelper()
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "UnauthorizedOperation" && strings.Contains(apiErr.ErrorMessage(), "resource-based policy") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] instance is protected by a resource-based policy: %s", strings.SplitN(apiErr.ErrorMessage(), " Encoded", 2)[0]))
+	}
 }
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
@@ -236,9 +279,25 @@ func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest 
 	return siro.SpotInstanceRequests[0]
 }
 
-// GetSubnets returns all subnets matching the label selector
-// mapped from AZ -> {subnet-ids...}
-func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+func (env *Environment) DiscoveryTags() map[string]string {
+	return map[string]string{"karpenter.sh/discovery": env.ClusterName}
+}
+
+func (env *Environment) subnetDiscoveryFilters() []ec2types.Filter {
+	if len(env.SubnetIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("subnet-id"), Values: env.SubnetIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func (env *Environment) securityGroupDiscoveryFilters() []ec2types.Filter {
+	if len(env.SecurityGroupIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("group-id"), Values: env.SecurityGroupIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func tagFilters(tags map[string]string) []ec2types.Filter {
 	var filters []ec2types.Filter
 	for key, val := range tags {
 		filters = append(filters, ec2types.Filter{
@@ -246,6 +305,20 @@ func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
 			Values: []string{val},
 		})
 	}
+	return filters
+}
+
+// GetSubnets returns all subnets matching the label selector
+// mapped from AZ -> {subnet-ids...}
+func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+	return env.getSubnets(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnets() map[string][]string {
+	return env.getSubnets(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnets(filters []ec2types.Filter) map[string][]string {
 	subnets := map[string][]string{}
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -275,13 +348,14 @@ type SubnetInfo struct {
 
 // GetSubnetInfo returns all subnets matching the label selector
 func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSubnetInfo(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnetInfo() []SubnetInfo {
+	return env.getSubnetInfo(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnetInfo(filters []ec2types.Filter) []SubnetInfo {
 	var subnetInfo []SubnetInfo
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -318,13 +392,14 @@ type SecurityGroup struct {
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
 func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGroup {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSecurityGroups(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSecurityGroups() []SecurityGroup {
+	return env.getSecurityGroups(env.securityGroupDiscoveryFilters())
+}
+
+func (env *Environment) getSecurityGroups(filters []ec2types.Filter) []SecurityGroup {
 	var securityGroups []SecurityGroup
 	input := &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
@@ -350,6 +425,9 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 
 func (env *Environment) ExpectMessagesCreated(msgs ...any) {
 	GinkgoHelper()
+	if env.SQSProvider == nil {
+		Skip("[unsupported:interruption-queue] " + env.NoInterruptionQueueCause)
+	}
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
@@ -542,6 +620,9 @@ func (env *Environment) ExpectSpotInterruptionRole() *iamtypes.Role {
 	out, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 		RoleName: aws.String(fisRoleName),
 	})
+	if awserrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:fis] IAM role %s does not exist", fisRoleName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	return out.Role
 }
@@ -600,25 +681,18 @@ func ignoreAlreadyContainsRole(err error) error {
 	return err
 }
 
-func ExpectInterruptibleCapacityReservationCreated(
+// ExpectInterruptibleCapacityAllocationCreated allocates interruptible capacity from the source reservation and returns the
+// ID of the resulting interruptible reservation.
+func ExpectInterruptibleCapacityAllocationCreated(
 	ctx context.Context,
 	ec2api *ec2.Client,
-	instanceType ec2types.InstanceType,
-	zone string,
-	totalCapacity int32,
+	sourceReservationID string,
 	interruptibleCapacity int32,
-	tags map[string]string,
-) (string, string) {
+) string {
 	GinkgoHelper()
-	odcrID := ExpectCapacityReservationCreated(ctx, ec2api, instanceType, zone, totalCapacity, nil, tags)
-
 	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
-		CapacityReservationId: &odcrID,
+		CapacityReservationId: &sourceReservationID,
 		InstanceCount:         lo.ToPtr(interruptibleCapacity),
-		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
-			ResourceType: ec2types.ResourceTypeCapacityReservation,
-			Tags:         utils.EC2MergeTags(tags),
-		}}, nil),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -626,7 +700,7 @@ func ExpectInterruptibleCapacityReservationCreated(
 	var out *ec2.DescribeCapacityReservationsOutput
 	Eventually(func(g Gomega) {
 		out, err = ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
-			CapacityReservationIds: []string{odcrID},
+			CapacityReservationIds: []string{sourceReservationID},
 		})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(Not(BeNil()))
@@ -634,7 +708,7 @@ func ExpectInterruptibleCapacityReservationCreated(
 		Expect(out.CapacityReservations[0].InterruptibleCapacityAllocation).To(Not(BeNil()))
 	}).WithTimeout(15 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
 
-	return odcrID, *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
+	return *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
 }
 
 func ExpectModifyInterruptibleCapacity(
@@ -658,6 +732,10 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 	interrutibleReservationID string,
 ) {
 	GinkgoHelper()
+	// the reservations were never created if the BeforeAll failed
+	if sourceReservationId == "" {
+		return
+	}
 	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
 		CapacityReservationId: lo.ToPtr(sourceReservationId),
 		TargetInstanceCount:   aws.Int32(0),
@@ -684,39 +762,111 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &sourceReservationId,
 		})
-		Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).ToNot(HaveOccurred())
 	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 }
 
-func ExpectCapacityReservationCreated(
-	ctx context.Context,
-	ec2api *ec2.Client,
-	instanceType ec2types.InstanceType,
-	zone string,
-	capacity int32,
-	endDate *time.Time,
-	tags map[string]string,
-) string {
+// capacityReservationFamilies are the instance families E2E capacity reservations are drawn from. Each contributes its large
+// and xlarge sizes, and all of them satisfy the default NodePool's requirements.
+var capacityReservationFamilies = []string{
+	"m5", "m5a", "m6i", "m6a", "m7i", "m7a", "m6g", "m7g",
+	"c5", "c6i", "c6a", "c7i", "c7g",
+	"r5", "r6i",
+}
+
+type CapacityReservation struct {
+	ID           string
+	InstanceType string
+	Zone         string
+}
+
+// ExpectCapacityReservationCreated creates a targeted ODCR for a random instance type and zone. Creating an ODCR for any
+// single offering is frequently ICE'd, so offerings are tried in a random order, which also keeps concurrent suites from
+// contending for the same one.
+func (env *Environment) ExpectCapacityReservationCreated(capacity int32) CapacityReservation {
 	GinkgoHelper()
-	out, err := ec2api.CreateCapacityReservation(ctx, &ec2.CreateCapacityReservationInput{
+	type offering struct{ instanceType, zone string }
+	var offerings []offering
+	for _, family := range capacityReservationFamilies {
+		for _, size := range []string{"large", "xlarge"} {
+			for _, zone := range env.capacityReservationZones() {
+				offerings = append(offerings, offering{instanceType: fmt.Sprintf("%s.%s", family, size), zone: zone})
+			}
+		}
+	}
+	mutable.Shuffle(offerings)
+	for _, o := range offerings {
+		cr, err := env.tryCreateCapacityReservation(o.instanceType, o.zone, capacity)
+		Expect(err).ToNot(HaveOccurred())
+		if cr != nil {
+			return *cr
+		}
+	}
+	Fail("failed to create a capacity reservation, all offerings had insufficient capacity")
+	return CapacityReservation{}
+}
+
+// ExpectCapacityReservationPairCreated creates ODCRs for the large and xlarge sizes of a random instance family in the same
+// zone, for tests that rely on the large being the cheaper of the two.
+func (env *Environment) ExpectCapacityReservationPairCreated(largeCapacity, xlargeCapacity int32) (CapacityReservation, CapacityReservation) {
+	GinkgoHelper()
+	type offering struct{ family, zone string }
+	var offerings []offering
+	for _, family := range capacityReservationFamilies {
+		for _, zone := range env.capacityReservationZones() {
+			offerings = append(offerings, offering{family: family, zone: zone})
+		}
+	}
+	mutable.Shuffle(offerings)
+	for _, o := range offerings {
+		large, err := env.tryCreateCapacityReservation(o.family+".large", o.zone, largeCapacity)
+		Expect(err).ToNot(HaveOccurred())
+		if large == nil {
+			continue
+		}
+		xlarge, err := env.tryCreateCapacityReservation(o.family+".xlarge", o.zone, xlargeCapacity)
+		if err != nil || xlarge == nil {
+			ExpectCapacityReservationsCanceled(env.Context, env.EC2API, large.ID)
+		}
+		Expect(err).ToNot(HaveOccurred())
+		if xlarge != nil {
+			return *large, *xlarge
+		}
+	}
+	Fail("failed to create a pair of capacity reservations, all offerings had insufficient capacity")
+	return CapacityReservation{}, CapacityReservation{}
+}
+
+// capacityReservationZones returns the availability zones covered by the cluster's discovery subnets
+func (env *Environment) capacityReservationZones() []string {
+	return lo.Uniq(lo.FilterMap(env.DiscoveredSubnetInfo(), func(s SubnetInfo, _ int) (string, bool) {
+		return s.Zone, s.ZoneType == "availability-zone"
+	}))
+}
+
+// tryCreateCapacityReservation returns a nil reservation if the offering can't currently be reserved
+func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, capacity int32) (*CapacityReservation, error) {
+	out, err := env.EC2API.CreateCapacityReservation(env.Context, &ec2.CreateCapacityReservationInput{
 		InstanceCount:         lo.ToPtr(capacity),
-		InstanceType:          lo.ToPtr(string(instanceType)),
+		InstanceType:          lo.ToPtr(instanceType),
 		InstancePlatform:      ec2types.CapacityReservationInstancePlatformLinuxUnix,
 		AvailabilityZone:      lo.ToPtr(zone),
-		EndDate:               endDate,
 		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
-		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
-			ResourceType: ec2types.ResourceTypeCapacityReservation,
-			Tags:         utils.EC2MergeTags(tags),
-		}}, nil),
 	})
-	Expect(err).ToNot(HaveOccurred())
-	return *out.CapacityReservation.CapacityReservationId
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && lo.Contains([]string{"InsufficientInstanceCapacity", "Unsupported"}, apiErr.ErrorCode()) {
+		GinkgoWriter.Printf("Skipping capacity reservation for %s in %s: %s\n", instanceType, zone, apiErr.ErrorCode())
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	By(fmt.Sprintf("created capacity reservation %s for %s in %s", *out.CapacityReservation.CapacityReservationId, instanceType, zone))
+	return &CapacityReservation{ID: *out.CapacityReservation.CapacityReservationId, InstanceType: instanceType, Zone: zone}, nil
 }
 
 func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
 	GinkgoHelper()
-	for _, id := range reservationIDs {
+	for _, id := range lo.Compact(reservationIDs) {
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &id,
 		})
@@ -938,4 +1088,24 @@ func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name s
 		GroupName: lo.ToPtr(name),
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (env *Environment) EventuallyExpectClusterToZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeTrue())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectClusterToNotHaveZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting no zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeFalse())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
 }

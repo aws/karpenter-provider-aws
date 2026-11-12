@@ -53,6 +53,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
@@ -94,9 +95,10 @@ func NewController(
 	validationCache *cache.Cache,
 	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
+	celEnv *kubeletcel.CELEnvironment,
 	disableDryRun bool,
 ) *Controller {
-	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, disableDryRun)
+	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, celEnv, disableDryRun)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -120,7 +122,7 @@ func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
-//nolint:gocyclo
+//nolint:gocyclo,staticcheck
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 
@@ -211,6 +213,7 @@ func (c *Controller) cleanupManagedInstanceProfiles(ctx context.Context, nodeCla
 	return c.cleanupLegacyInstanceProfile(ctx, nodeClass)
 }
 
+//nolint:staticcheck
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {

@@ -41,6 +41,7 @@ func (r *PlacementGroupResolver) ResolveOfferings(
 	_ sets.Set[string],
 	_ sets.Set[string],
 	pg *placementgroup.PlacementGroup,
+	_ *ResolveContext,
 ) cloudprovider.Offerings {
 	if pg == nil || pg.Strategy != placementgroup.StrategyPartition {
 		return offerings

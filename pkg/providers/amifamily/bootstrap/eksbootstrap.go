@@ -72,7 +72,9 @@ func (e EKS) eksBootstrapScript() string {
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		fmt.Fprintf(&userData, " \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0])
 	}
-	if e.KubeletConfig != nil && e.KubeletConfig.MaxPods != nil {
+	// Keyed off the resolved value so this stays consistent with kubeletExtraArgs: --use-max-pods
+	// false is only correct when a --max-pods flag is actually emitted alongside it.
+	if _, ok := e.KubeletConfig.MaxPodsValue(); ok {
 		userData.WriteString(" \\\n--use-max-pods false")
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {

@@ -37,27 +37,30 @@ type Filter interface {
 	Name() string
 }
 
-// CompatibleAvailableFilter removes instance types which do not have any compatible, available offerings. Other filters
-// should not be used without first using this filter.
-func CompatibleAvailableFilter(requirements scheduling.Requirements, requests corev1.ResourceList) Filter {
-	return compatibleAvailableFilter{
+// CompatibleLaunchableFilter removes instance types which do not have any compatible, launchable offerings. Other
+// filters should not be used without first using this filter. It gates on launchability (not merely availability)
+// because availability and reservation capacity are decoupled: a full reservation is Available=true but can't be
+// launched into, so a NodeClaim whose only compatible offerings are full reservations must be rejected here rather than
+// falling through the chain to a getCapacityType default of on-demand (which may not be in its requirements).
+func CompatibleLaunchableFilter(requirements scheduling.Requirements, requests corev1.ResourceList) Filter {
+	return compatibleLaunchableFilter{
 		requirements: requirements,
 		requests:     requests,
 	}
 }
 
-type compatibleAvailableFilter struct {
+type compatibleLaunchableFilter struct {
 	requirements scheduling.Requirements
 	requests     corev1.ResourceList
 }
 
-func (f compatibleAvailableFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
+func (f compatibleLaunchableFilter) FilterReject(instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, []*cloudprovider.InstanceType) {
 	return lo.FilterReject(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
 		if !f.requirements.IsCompatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 			return false
 		}
 		// Mirror the scheduler's fits() logic: within an allocatable group, the requests must fit
-		// AND a compatible available offering must exist. Offerings with CapacityOverride or
+		// AND a compatible launchable offering must exist. Offerings with CapacityOverride or
 		// OverheadOverride produce distinct allocatable groups; i.Allocatable() only returns the
 		// base group and would incorrectly reject instance types the scheduler has already deemed
 		// valid.
@@ -65,7 +68,7 @@ func (f compatibleAvailableFilter) FilterReject(instanceTypes []*cloudprovider.I
 			if !resources.Fits(f.requests, group.Allocatable) {
 				continue
 			}
-			if group.Offerings.HasCompatible(f.requirements) {
+			if group.Offerings.Launchable().HasCompatible(f.requirements) {
 				return true
 			}
 		}
@@ -73,8 +76,8 @@ func (f compatibleAvailableFilter) FilterReject(instanceTypes []*cloudprovider.I
 	})
 }
 
-func (compatibleAvailableFilter) Name() string {
-	return "compatible-available-filter"
+func (compatibleLaunchableFilter) Name() string {
+	return "compatible-launchable-filter"
 }
 
 // CapacityReservationTypeFilter creates a Filter which ensures there aren't instance types with offerings from multiple
@@ -167,7 +170,8 @@ func (f capacityReservationTypeFilter) Partition(instanceTypes []*cloudprovider.
 		}
 	}
 	for _, it := range instanceTypes {
-		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
+		// A full reservation's near-zero price would otherwise let it win partition selection, then ICE on launch.
+		for _, o := range it.Offerings.Compatible(f.requirements).Launchable() {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
 				continue
 			}
@@ -228,7 +232,7 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
 				continue
 			}
-			if !o.Available || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
+			if !o.Launchable() || !f.requirements.IsCompatible(o.Requirements, scheduling.AllowUndefinedWellKnownLabels) {
 				continue
 			}
 			if o.Requirements.Get(v1.LabelCapacityReservationType).Any() != string(v1.CapacityReservationTypeCapacityBlock) {
@@ -245,6 +249,14 @@ func (f capacityBlockFilter) FilterReject(instanceTypes []*cloudprovider.Instanc
 			it.Offerings = []*cloudprovider.Offering{selectedOffering}
 			selectedInstanceType = it
 		}
+	}
+	// No launchable capacity block was found. Don't reject everything: a NodeClaim compatible with both a capacity block
+	// and on-demand/spot should still launch on-demand/spot rather than be blocked. Pass the instance types through
+	// unchanged and let getCapacityType pick the fallback. A reserved-only NodeClaim with no launchable offering has
+	// already been removed by CompatibleLaunchableFilter, so this can't launch a non-reserved node for a reserved-only
+	// request.
+	if selectedInstanceType == nil {
+		return instanceTypes, nil
 	}
 	return []*cloudprovider.InstanceType{selectedInstanceType}, lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
 		return it.Name == selectedInstanceType.Name
@@ -297,6 +309,12 @@ func (f reservedOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Inst
 		zonalOfferings := map[string]*cloudprovider.Offering{}
 		for _, o := range it.Offerings.Available().Compatible(f.requirements) {
 			if o.CapacityType() != karpv1.CapacityTypeReserved {
+				continue
+			}
+			// Skip full reservations (Available but ReservationCapacity=0) so we don't select one and ICE. Spelled out
+			// rather than Launchable() because the numeric ReservationCapacity is needed just below to pick the
+			// max-capacity offering per zone.
+			if o.ReservationCapacity == 0 {
 				continue
 			}
 			if current, ok := zonalOfferings[o.Zone()]; !ok || o.ReservationCapacity > current.ReservationCapacity {
@@ -389,7 +407,7 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 	if f.requirements.HasMinValues() {
 		return instanceTypes, nil
 	}
-	if req := f.requirements.Get(karpv1.CapacityTypeLabelKey); !req.Has(karpv1.CapacityTypeOnDemand) || !req.Has(karpv1.CapacityTypeSpot) {
+	if req := f.requirements.Get(karpv1.CapacityTypeLabelKey); !cloudprovider.HasCapacityTypeClass(req, cloudprovider.CapacityTypeClassOnDemand) || !req.Has(karpv1.CapacityTypeSpot) {
 		return instanceTypes, nil
 	}
 
@@ -398,7 +416,7 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 	hasODOfferings := false
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Compatible(f.requirements).Available() {
-			if ct := o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(); ct == karpv1.CapacityTypeOnDemand {
+			if ct := o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any(); isOnDemandClass(ct) {
 				hasODOfferings = true
 				if o.Price < cheapestOnDemand {
 					cheapestOnDemand = o.Price
@@ -435,4 +453,9 @@ func (f spotOfferingFilter) FilterReject(instanceTypes []*cloudprovider.Instance
 
 func (spotOfferingFilter) Name() string {
 	return "spot-offering-filter"
+}
+
+func isOnDemandClass(capacityType string) bool {
+	class, ok := cloudprovider.CapacityTypeClassOf(capacityType)
+	return ok && class == cloudprovider.CapacityTypeClassOnDemand
 }

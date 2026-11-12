@@ -54,6 +54,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -97,8 +98,8 @@ var _ = BeforeSuite(func() {
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
-	controller = interruption.NewController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache, awsEnv.CapacityReservationProvider)
-	instanceStatusController = interruption.NewInstanceStatusController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
+	controller = interruption.NewController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache)
+	instanceStatusController = interruption.NewInstanceStatusController(env.Client, awsEnv.Clock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -293,13 +294,13 @@ var _ = Describe("InterruptionHandling", func() {
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
 			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
-		It("should mark the capacity reservation as unavailable when getting an interruption warning", func() {
-			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-56fac701cc1951b03", 10)
-
+		It("should mark the reserved offering unavailable when getting a capacity reservation interruption warning", func() {
 			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						karpv1.NodePoolLabelKey:         "default",
+						corev1.LabelInstanceTypeStable:  "m5.large",
+						corev1.LabelTopologyZone:        "coretest-zone-1a",
 						v1.LabelCapacityReservationID:   "cr-56fac701cc1951b03",
 						v1.LabelCapacityReservationType: "default",
 					},
@@ -316,7 +317,15 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
-			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount("cr-56fac701cc1951b03")).To(Equal(0))
+			// A reservation interruption is a non-capacity unavailability: it marks the reserved offering in the shared
+			// UnavailableOfferings cache (driving Available=false), rather than zeroing the reservation manager's count.
+			// The entry is scoped to the interrupted reservation ID...
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeReserved, awscache.WithReservationID("cr-56fac701cc1951b03"))).To(BeTrue())
+			// ...so another reservation sharing the same instance type + zone is NOT poisoned by this interruption.
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeReserved, awscache.WithReservationID("cr-other"))).To(BeFalse())
+			// ...and the SPOT capacity type for this instance type + zone is likewise untouched: a reserved-offering
+			// interruption must not spill over into the spot ICE cache.
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeFalse())
 		})
 		It("should forcefully terminate the NodeClaim when an instance is unhealthy due to EC2 system status checks", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
@@ -510,6 +519,93 @@ var _ = Describe("InterruptionHandling", func() {
 			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(nodeClaim.Annotations[karpv1.NodeClaimTerminationTimestampAnnotationKey]).To(Equal(originalTimestamp))
 			Expect(nodeClaim.ResourceVersion).To(Equal(originalResourceVersion))
+		})
+		It("should not terminate the NodeClaim before a status check failure exceeds the unhealthy threshold", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(instancestatus.UnhealthyThreshold - time.Second)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectExists(ctx, env.Client, nodeClaim)
+		})
+		It("should leave status check failures to Node Repair but still handle scheduled maintenance events when NodeRepair is enabled", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			impairedNodeClaim, impairedNode := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{karpv1.NodePoolLabelKey: "default"}},
+				Status:     karpv1.NodeClaimStatus{ProviderID: fake.RandomProviderID()},
+			})
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(impairedNodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						Events: []ec2types.InstanceStatusEvent{
+							{
+								Code: ec2types.EventCodeInstanceRetirement,
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node, impairedNodeClaim, impairedNode)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectExists(ctx, env.Client, impairedNodeClaim)
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+		})
+		It("should still terminate the NodeClaim for status check failures with legacy node repair", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}, LegacyNodeRepair: lo.ToPtr(true)}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
 		It("should delete the NodeClaim when an instance has a scheduled maintenance event", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))

@@ -35,6 +35,8 @@ jobs:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
+      actions: read # e2e-matrix.yaml summary job (download-artifact)
+      contents: read # e2e-matrix.yaml summary job (checkout)
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml

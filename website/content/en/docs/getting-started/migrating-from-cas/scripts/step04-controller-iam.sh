@@ -48,7 +48,10 @@ cat << EOF > controller-policy.json
             "Sid": "Karpenter"
         },
         {
-            "Action": "ec2:TerminateInstances",
+            "Action": [
+                "ec2:TerminateInstances",
+                "ec2:RebootInstances"
+            ],
             "Condition": {
                 "StringLike": {
                     "ec2:ResourceTag/karpenter.sh/nodepool": "*"

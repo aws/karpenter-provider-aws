@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	karpopts "sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
@@ -156,6 +157,26 @@ func NewInstanceFromFleet(
 	return resolved
 }
 
+// AllocationStrategyProvider chooses the CreateFleet allocation strategies for a launch.
+type AllocationStrategyProvider interface {
+	// OnDemandAllocationStrategy returns the allocation strategy for an on-demand class launch. nodeClaim may be nil.
+	OnDemandAllocationStrategy(ctx context.Context, nodeClaim *karpv1.NodeClaim, capacityType string, overlay bool) ec2types.FleetOnDemandAllocationStrategy
+	// SpotAllocationStrategy returns the allocation strategy for a spot launch. nodeClaim may be nil.
+	SpotAllocationStrategy(ctx context.Context, nodeClaim *karpv1.NodeClaim, overlay bool) ec2types.SpotAllocationStrategy
+}
+
+// DefaultAllocationStrategyProvider uses lowest-price for on-demand and price-capacity-optimized for spot, or their
+// prioritized variants when NodeOverlay prices are in use.
+type DefaultAllocationStrategyProvider struct{}
+
+func (DefaultAllocationStrategyProvider) OnDemandAllocationStrategy(_ context.Context, _ *karpv1.NodeClaim, _ string, overlay bool) ec2types.FleetOnDemandAllocationStrategy {
+	return lo.Ternary(overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice)
+}
+
+func (DefaultAllocationStrategyProvider) SpotAllocationStrategy(_ context.Context, _ *karpv1.NodeClaim, overlay bool) ec2types.SpotAllocationStrategy {
+	return lo.Ternary(overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized)
+}
+
 type CreateFleetInputBuilder struct {
 	capacityType          string
 	tagSpecifications     []ec2types.TagSpecification
@@ -165,6 +186,7 @@ type CreateFleetInputBuilder struct {
 	capacityReservationType          v1.CapacityReservationType
 	capacityReservationInterruptible bool
 	overlay                          bool
+	allocationStrategyProvider       AllocationStrategyProvider
 }
 
 func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) *CreateFleetInputBuilder {
@@ -178,9 +200,18 @@ func NewCreateFleetInputBuilder(capacityType string, tags map[string]string, lau
 		tagSpecifications: lo.Map(taggedResources, func(resource ec2types.ResourceType, _ int) ec2types.TagSpecification {
 			return ec2types.TagSpecification{ResourceType: resource, Tags: utils.EC2MergeTags(tags)}
 		}),
-		launchTemplateConfigs: launchTemplateConfigs,
-		overlay:               false,
+		launchTemplateConfigs:      launchTemplateConfigs,
+		overlay:                    false,
+		allocationStrategyProvider: DefaultAllocationStrategyProvider{},
 	}
+}
+
+// WithAllocationStrategyProvider chooses the allocation strategies with p instead of DefaultAllocationStrategyProvider.
+func (b *CreateFleetInputBuilder) WithAllocationStrategyProvider(p AllocationStrategyProvider) *CreateFleetInputBuilder {
+	if p != nil {
+		b.allocationStrategyProvider = p
+	}
+	return b
 }
 
 func (b *CreateFleetInputBuilder) WithContextID(contextID string) *CreateFleetInputBuilder {
@@ -215,10 +246,14 @@ func (b *CreateFleetInputBuilder) defaultTargetCapacityType() ec2types.DefaultTa
 	case karpv1.CapacityTypeOnDemand, karpv1.CapacityTypeSpot:
 		return ec2types.DefaultTargetCapacityType(b.capacityType)
 	}
+	if class, ok := cloudprovider.CapacityTypeClassOf(b.capacityType); ok && class == cloudprovider.CapacityTypeClassOnDemand {
+		return ec2types.DefaultTargetCapacityTypeOnDemand
+	}
 	panic(fmt.Sprintf("invalid capacity type %q provided to create fleet input", b.capacityType))
 }
 
-func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
+// Build builds the CreateFleetInput for a NodeClaim's launch. nodeClaim may be nil.
+func (b *CreateFleetInputBuilder) Build(ctx context.Context, nodeClaim *karpv1.NodeClaim) *ec2.CreateFleetInput {
 	input := &ec2.CreateFleetInput{
 		Type:                  ec2types.FleetTypeInstant,
 		Context:               b.contextID,
@@ -231,7 +266,7 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 	}
 	if b.capacityType == karpv1.CapacityTypeSpot {
 		input.SpotOptions = &ec2types.SpotOptionsRequest{
-			AllocationStrategy: lo.Ternary(b.overlay, ec2types.SpotAllocationStrategyCapacityOptimizedPrioritized, ec2types.SpotAllocationStrategyPriceCapacityOptimized),
+			AllocationStrategy: b.allocationStrategyProvider.SpotAllocationStrategy(ctx, nodeClaim, b.overlay),
 		}
 	} else if b.capacityReservationInterruptible {
 		input.ReservedCapacityOptions = &ec2types.ReservedCapacityOptionsRequest{
@@ -241,7 +276,7 @@ func (b *CreateFleetInputBuilder) Build() *ec2.CreateFleetInput {
 		}
 	} else if b.capacityReservationType != v1.CapacityReservationTypeCapacityBlock {
 		input.OnDemandOptions = &ec2types.OnDemandOptionsRequest{
-			AllocationStrategy: lo.Ternary(b.overlay, ec2types.FleetOnDemandAllocationStrategyPrioritized, ec2types.FleetOnDemandAllocationStrategyLowestPrice),
+			AllocationStrategy: b.allocationStrategyProvider.OnDemandAllocationStrategy(ctx, nodeClaim, b.capacityType, b.overlay),
 		}
 	}
 	return input

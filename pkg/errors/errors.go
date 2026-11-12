@@ -32,6 +32,7 @@ const (
 	ServiceLinkedRoleCreationNotPermittedErrorCode = "AuthFailure.ServiceLinkedRoleCreationNotPermitted"
 	InsufficientFreeAddressesInSubnetErrorCode     = "InsufficientFreeAddressesInSubnet"
 	MaxFleetCountExceededErrorCode                 = "MaxFleetCountExceeded"
+	InvalidUserDataMalformedCode                   = "InvalidUserData.Malformed"
 )
 
 var (
@@ -50,6 +51,8 @@ var (
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
+	// returned when launching into an interruptible capacity reservation that is being reclaimed
+	capacityReservationStateUnavailableErrorCode = "InvalidCapacityReservationState.Unavailable"
 
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New(
@@ -60,7 +63,9 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
+		capacityReservationStateUnavailableErrorCode,
 	)
 )
 
@@ -218,8 +223,18 @@ func IsInstanceProfileNotFound(err error) bool {
 	return false
 }
 
-// ToReasonMessage converts an error message from AWS into a well-known condition reason
-// and well-known condition message that can be used for Launch failure classification
+func IsUserDataTooLarge(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok {
+		return apiErr.ErrorCode() == InvalidUserDataMalformedCode && strings.Contains(apiErr.ErrorMessage(), "User data is limited to")
+	}
+	return false
+}
+
+// ToReasonMessage converts an instance launch error into a well-known condition reason
+// and well-known condition message that can be used for launch failure classification
 // nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
@@ -245,6 +260,9 @@ func ToReasonMessage(err error) (string, string) {
 	}
 	if strings.Contains(err.Error(), "InvalidLaunchTemplateId.NotFound") {
 		return "LaunchTemplateNotFound", "Launch template used for instance launch wasn't found"
+	}
+	if strings.Contains(err.Error(), "User data is limited to") {
+		return "UserDataSizeLimitExceeded", "Rendered user data exceeds the EC2 user data size limit"
 	}
 	if strings.Contains(err.Error(), "InvalidAMIID.Malformed") {
 		return "InvalidAMIID", "AMI used for instance launch is invalid"

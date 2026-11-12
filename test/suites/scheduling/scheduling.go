@@ -15,15 +15,18 @@ limitations under the License.
 package scheduling
 
 import (
+	_ "embed"
 	"fmt"
-	"os"
+	"math/rand"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	arczonalshiftservice "github.com/aws/aws-sdk-go-v2/service/arczonalshift"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/awslabs/operatorpkg/object"
+	"github.com/onsi/ginkgo/v2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -44,6 +47,9 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+//go:embed testdata/hugepage_userdata_input.sh
+var hugepageUserData string
+
 var Env *environmentaws.Environment
 var NodeClass *v1.EC2NodeClass
 var NodePool *karpv1.NodePool
@@ -52,6 +58,7 @@ var NodePool *karpv1.NodePool
 func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 	return Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		var selectors sets.Set[string]
+		var ranAllSpecs bool
 
 		BeforeEach(func() {
 			// Make the NodePool requirements fully flexible, so we can match well-known label keys
@@ -69,8 +76,17 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 		})
 		BeforeAll(func() {
 			selectors = sets.New[string]()
+			ranAllSpecs = !specsFiltered()
+		})
+		ReportAfterEach(func(report SpecReport) {
+			if report.State.Is(types.SpecStateSkipped | types.SpecStatePending) {
+				ranAllSpecs = false
+			}
 		})
 		AfterAll(func() {
+			if !ranAllSpecs {
+				return
+			}
 			// Ensure that we're exercising all well known labels
 			Expect(lo.Keys(selectors)).To(ContainElements(append(karpv1.WellKnownLabels.UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 		})
@@ -126,7 +142,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 						{
 							Key:      v1.LabelTopologyZoneID,
 							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName})[0].ZoneID},
+							Values:   []string{Env.DiscoveredSubnetInfo()[0].ZoneID},
 						},
 					},
 				}})
@@ -169,28 +185,6 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{
 						{
 							Key:      v1.LabelInstanceEncryptionInTransitSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
-				}})
-				Env.ExpectCreated(NodeClass, NodePool, deployment)
-				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-				Env.ExpectCreatedNodeCount("==", 1)
-			})
-			It("should support well-known labels for nitro enclaves support", func() {
-				selectors.Insert(v1.LabelInstanceNitroEnclavesSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
-				deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
-					NodePreferences: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceNitroEnclavesSupported,
-							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{"true"},
-						},
-					},
-					NodeRequirements: []corev1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelInstanceNitroEnclavesSupported,
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"true"},
 						},
@@ -253,6 +247,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					v1.LabelInstanceGPUMemory:       "16384",
 					v1.LabelInstanceGPUManufacturer: "nvidia",
 					v1.LabelInstanceGPUCount:        "1",
+					v1.LabelNvidiaGPUPresent:        "true",
 				}
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {
@@ -291,7 +286,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
 			// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
-			It("should support well-known labels for windows-build version", func() {
+			It("should support well-known labels for windows-build version", Label("needs:windows"), func() {
 				Env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					Env.ExpectWindowsIPAMDisabled()
@@ -483,6 +478,97 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
 				// In that case, we still expect to eventually have three nodes.
 				Env.EventuallyExpectNodeCount("==", 3)
+			})
+			It("should provision nodes for a zonal topology spread when a Zonal Shift is active", Label("needs:zonal-shift"), func() {
+				clusterArn := fmt.Sprintf("arn:aws:eks:%s:%s:cluster/%s", Env.Region, Env.ExpectAccountID(), Env.ClusterName)
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
+					return s.Zone
+				})
+				numzones := len(subnetInfo)
+				zoneid := subnetInfo[rand.Intn(len(subnetInfo))].ZoneID //nolint:gosec
+				startzonalshiftresponse, err := Env.ARCZONALSHIFTAPI.StartZonalShift(Env.Context, &arczonalshiftservice.StartZonalShiftInput{
+					ResourceIdentifier: lo.ToPtr(clusterArn),
+					AwayFrom:           lo.ToPtr(zoneid),
+					ExpiresIn:          lo.ToPtr("1h"),
+					Comment:            lo.ToPtr("karpenter e2e test"),
+				})
+				zonalshiftid := startzonalshiftresponse.ZonalShiftId
+				Expect(err).To(BeNil())
+				Env.EventuallyExpectClusterToZonalShift(zoneid)
+
+				// Wait for the in-cluster Karpenter controller to reconcile the shift (polls every 30s)
+				time.Sleep(30 * time.Second)
+
+				// Deploy numzones pods with topology spread requiring one pod per zone (MaxSkew: 1).
+				// With one zone shifted, Karpenter provisions nodes only in numzones-1 zones.
+				// numzones-1 pods get scheduled (one per available zone), and 1 pod stays pending
+				// because it needs the shifted zone to satisfy the topology spread constraint.
+				podLabels := map[string]string{"test": "zonal-spread-with-shift"}
+				deployment := test.Deployment(test.DeploymentOptions{
+					Replicas: int32(numzones), //nolint:gosec
+					PodOptions: test.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: podLabels,
+						},
+						// Request enough memory to steer Karpenter away from the smallest
+						// instance types (e.g. t4g.nano/t4g.micro), whose kubelets can
+						// fail to register and flake this test on the pod-readiness wait.
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+						TopologySpreadConstraints: []corev1.TopologySpreadConstraint{
+							{
+								MaxSkew:           1,
+								TopologyKey:       corev1.LabelTopologyZone,
+								WhenUnsatisfiable: corev1.DoNotSchedule,
+								LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+							},
+						},
+					},
+				})
+
+				Env.ExpectCreated(NodeClass, NodePool, deployment)
+				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones-1)
+				nodes := Env.EventuallyExpectNodeCount("==", numzones-1)
+				// Verify no nodes were provisioned in the shifted zone
+				for _, node := range nodes {
+					Expect(node.Labels).To(HaveKey(v1.LabelTopologyZoneID))
+					Expect(node.Labels[v1.LabelTopologyZoneID]).ToNot(Equal(zoneid))
+				}
+				// Verify the remaining pod is stuck pending
+				Env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(podLabels), 1)
+
+				// Remove the pending pod before canceling the shift. EKS keeps tainting new nodes in the
+				// shifted zone with eks-arc-zonal-shift/impaired-zone for a short period after the ARC
+				// shift is canceled. If the pod is still pending, Karpenter launches a node into that
+				// zone, sees it tainted, and launches a second one, leaving an extra node behind.
+				deployment.Spec.Replicas = lo.ToPtr(int32(numzones - 1)) //nolint:gosec
+				Env.ExpectUpdated(deployment)
+				Env.EventuallyExpectPendingPodCount(labels.SelectorFromSet(podLabels), 0)
+
+				// Cancel the shift so the recovered zone becomes available again
+				_, err = Env.ARCZONALSHIFTAPI.CancelZonalShift(Env.Context, &arczonalshiftservice.CancelZonalShiftInput{
+					ZonalShiftId: zonalshiftid,
+				})
+				Expect(err).To(BeNil())
+				Env.EventuallyExpectClusterToNotHaveZonalShift(zoneid)
+
+				// Wait for EKS to stop tainting nodes in the recovered zone, then scale back up
+				time.Sleep(90 * time.Second)
+				deployment.Spec.Replicas = lo.ToPtr(int32(numzones)) //nolint:gosec
+				Env.ExpectUpdated(deployment)
+
+				Env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), numzones)
+				nodes = Env.EventuallyExpectNodeCount("==", numzones)
+				// Verify the previously-shifted zone is now being used
+				zoneIDs := sets.New[string]()
+				for _, node := range nodes {
+					zoneIDs.Insert(node.Labels[v1.LabelTopologyZoneID])
+				}
+				Expect(zoneIDs.Has(zoneid)).To(BeTrue())
 			})
 			It("should provision a node using a NodePool with higher priority", func() {
 				nodePoolLowPri := test.NodePool(karpv1.NodePool{
@@ -690,7 +776,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 
 			It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
 					return s.Zone
 				})
 				Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
@@ -728,7 +814,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Operator: corev1.NodeSelectorOpExists,
 				})
 
-				subnetInfo := lo.UniqBy(Env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": Env.ClusterName}), func(s environmentaws.SubnetInfo) string {
+				subnetInfo := lo.UniqBy(Env.DiscoveredSubnetInfo(), func(s environmentaws.SubnetInfo) string {
 					return s.Zone
 				})
 				pods := lo.Map(subnetInfo, func(info environmentaws.SubnetInfo, _ int) *corev1.Pod {
@@ -766,38 +852,21 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 		})
 
-		Context("Capacity Reservations", func() {
-			var largeCapacityReservationID, xlargeCapacityReservationID string
+		Context("Capacity Reservations", Label("needs:capacity-reservation"), func() {
+			var largeCapacityReservation, xlargeCapacityReservation environmentaws.CapacityReservation
 			BeforeAll(func() {
-				largeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Large,
-					Env.ZoneInfo[0].Zone,
-					1,
-					nil,
-					nil,
-				)
-				xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Xlarge,
-					Env.ZoneInfo[0].Zone,
-					2,
-					nil,
-					nil,
-				)
+				largeCapacityReservation, xlargeCapacityReservation = Env.ExpectCapacityReservationPairCreated(1, 2)
 			})
 			AfterAll(func() {
-				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, largeCapacityReservationID, xlargeCapacityReservationID)
+				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, largeCapacityReservation.ID, xlargeCapacityReservation.ID)
 			})
 			BeforeEach(func() {
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 					{
-						ID: largeCapacityReservationID,
+						ID: largeCapacityReservation.ID,
 					},
 					{
-						ID: xlargeCapacityReservationID,
+						ID: xlargeCapacityReservation.ID,
 					},
 				}
 				NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
@@ -821,7 +890,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      v1.LabelCapacityReservationID,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{xlargeCapacityReservationID},
+						Values:   []string{xlargeCapacityReservation.ID},
 					}},
 				})
 				Env.ExpectCreated(NodePool, NodeClass, pod)
@@ -831,13 +900,13 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					return req.Key == v1.LabelCapacityReservationID
 				})
 				Expect(ok).To(BeTrue())
-				Expect(req.Values).To(ConsistOf(xlargeCapacityReservationID))
+				Expect(req.Values).To(ConsistOf(xlargeCapacityReservation.ID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 			})
 			// NOTE: We're not exercising capacity blocks because it isn't possible to provision them ad-hoc for the use in an
 			// integration test.
@@ -856,7 +925,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 						{
 							Key:      corev1.LabelInstanceTypeStable,
 							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{string(ec2types.InstanceTypeM5Xlarge)},
+							Values:   []string{xlargeCapacityReservation.InstanceType},
 						},
 					},
 				})
@@ -873,7 +942,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeReserved))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationType, string(v1.CapacityReservationTypeDefault)))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, xlargeCapacityReservation.ID))
 			})
 			It("should fall back when compatible capacity reservations are exhausted", func() {
 				// We create two pods with self anti-affinity and a node selector on a specific instance type. The anti-affinity term
@@ -888,7 +957,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large)},
+						Values:   []string{largeCapacityReservation.InstanceType},
 					}},
 					PodAntiRequirements: []corev1.PodAffinityTerm{{
 						TopologyKey: corev1.LabelHostname,
@@ -906,7 +975,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					})
 					if ok {
 						reservedCount += 1
-						Expect(req.Values).To(ConsistOf(largeCapacityReservationID))
+						Expect(req.Values).To(ConsistOf(largeCapacityReservation.ID))
 					}
 				}
 				Expect(reservedCount).To(Equal(1))
@@ -914,35 +983,20 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			})
 		})
 
-		Context("Interruptible Capacity Resverations", func() {
-			var sourceReservationID, interruptibleReservationID, xlargeReservationID string
+		Context("Interruptible Capacity Resverations", Label("needs:capacity-reservation"), func() {
+			var sourceReservation, xlargeReservation environmentaws.CapacityReservation
+			var interruptibleReservationID string
 			BeforeAll(func() {
-				sourceReservationID, interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Large,
-					Env.ZoneInfo[0].Zone,
-					2,
-					1,
-					nil,
-				)
-				xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
-					Env.Context,
-					Env.EC2API,
-					ec2types.InstanceTypeM5Xlarge,
-					Env.ZoneInfo[0].Zone,
-					1,
-					nil,
-					nil,
-				)
+				sourceReservation, xlargeReservation = Env.ExpectCapacityReservationPairCreated(2, 1)
+				interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityAllocationCreated(Env.Context, Env.EC2API, sourceReservation.ID, 1)
 			})
 			AfterAll(func() {
-				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservationID, interruptibleReservationID)
-				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservationID)
+				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservation.ID, interruptibleReservationID)
+				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservation.ID)
 			})
 			BeforeEach(func() {
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
-					{ID: sourceReservationID}, {ID: interruptibleReservationID},
+					{ID: sourceReservation.ID}, {ID: interruptibleReservationID},
 				}
 				NodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
@@ -978,7 +1032,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					return req.Key == v1.LabelCapacityReservationInterruptible
 				})
 				Expect(ok).To(BeTrue())
-				Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservationID)))
+				Expect(resReq.Values).To(ConsistOf(lo.Ternary(interruptible, interruptibleReservationID, sourceReservation.ID)))
 				Expect(iReq.Values).To(ConsistOf(strconv.FormatBool(interruptible)))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
@@ -993,7 +1047,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large)},
+						Values:   []string{sourceReservation.InstanceType},
 					}},
 				})
 				Env.ExpectCreated(NodePool, NodeClass, pod)
@@ -1004,17 +1058,17 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				})
 				Expect(ok).To(BeTrue())
 				// NodeClaim should have both reservations (but launch with ODCR)
-				Expect(req.Values).To(ConsistOf(sourceReservationID, interruptibleReservationID))
+				Expect(req.Values).To(ConsistOf(sourceReservation.ID, interruptibleReservationID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "false"))
-				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservationID))
+				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, sourceReservation.ID))
 			})
 			It("should prioritize reservation with lower price", func() {
 				Env.ExpectCreated(NodeClass)
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
-					{ID: xlargeReservationID}, {ID: interruptibleReservationID},
+					{ID: xlargeReservation.ID}, {ID: interruptibleReservationID},
 				}
 				Env.ExpectUpdated(NodeClass)
 
@@ -1022,7 +1076,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					NodeRequirements: []corev1.NodeSelectorRequirement{{
 						Key:      corev1.LabelInstanceTypeStable,
 						Operator: corev1.NodeSelectorOpIn,
-						Values:   []string{string(ec2types.InstanceTypeM5Large), string(ec2types.InstanceTypeM5Xlarge)},
+						Values:   []string{sourceReservation.InstanceType, xlargeReservation.InstanceType},
 					}},
 				})
 				Env.ExpectCreated(NodePool, pod)
@@ -1033,11 +1087,11 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 				})
 				Expect(ok).To(BeTrue())
 				// NodeClaim should have both reservations (but launch in IODCR as its cheaper)
-				Expect(req.Values).To(ConsistOf(xlargeReservationID, interruptibleReservationID))
+				Expect(req.Values).To(ConsistOf(xlargeReservation.ID, interruptibleReservationID))
 
 				Env.EventuallyExpectNodeClaimsReady(nc)
 				n := Env.EventuallyExpectNodeCount("==", 1)[0]
-				Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, string(ec2types.InstanceTypeM5Large)))
+				Expect(n.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, sourceReservation.InstanceType))
 				Expect(n.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationInterruptible, "true"))
 			})
 		})
@@ -1337,9 +1391,7 @@ func RegisterNodeOverlayTests() bool {
 				},
 			})
 
-			content, err := os.ReadFile("../scheduling/testdata/hugepage_userdata_input.sh")
-			Expect(err).To(BeNil())
-			NodeClass.Spec.UserData = lo.ToPtr(string(content))
+			NodeClass.Spec.UserData = lo.ToPtr(hugepageUserData)
 
 			Env.ExpectCreated(NodePool, NodeClass, nodeOverlay, pod)
 			Env.EventuallyExpectHealthy(pod)
@@ -1350,6 +1402,11 @@ func RegisterNodeOverlayTests() bool {
 			Expect(instanceType).To(Equal(overlaiedInstanceType))
 		})
 	})
+}
+
+func specsFiltered() bool {
+	config, _ := GinkgoConfiguration()
+	return len(config.FocusStrings) > 0 || len(config.SkipStrings) > 0 || len(config.FocusFiles) > 0 || len(config.SkipFiles) > 0 || config.LabelFilter != ""
 }
 
 func ephemeralInitContainer(requirements corev1.ResourceRequirements) corev1.Container {

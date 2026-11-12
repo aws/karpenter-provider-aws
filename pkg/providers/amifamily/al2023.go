@@ -36,6 +36,15 @@ type AL2023 struct {
 	*Options
 }
 
+// FeatureFlags marks AL2023 as supporting arbitrary kubelet config: nodeadm renders the raw kubelet
+// config map inline (see bootstrap.Nodeadm.generateInlineKubeletConfiguration), so any valid kubelet
+// field reaches the node rather than being dropped to the subset Karpenter maps explicitly.
+func (a AL2023) FeatureFlags() FeatureFlags {
+	flags := a.DefaultFamily.FeatureFlags()
+	flags.SupportsArbitraryKubeletConfig = true
+	return flags
+}
+
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string]Variant{}
 	for arch, variants := range map[string][]Variant{
@@ -79,18 +88,19 @@ func (a AL2023) resolvePath(architecture, variant, k8sVersion, amiVersion string
 	return fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/%s/%s/%s/image_id", k8sVersion, architecture, variant, name)
 }
 
-func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (a AL2023) UserData(kubeletConfig *v1.ParsedKubeletConfig, unparsedKubeletConfig v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Nodeadm{
 		Options: bootstrap.Options{
-			ClusterName:         a.ClusterName,
-			ClusterEndpoint:     a.ClusterEndpoint,
-			ClusterCIDR:         a.ClusterCIDR,
-			KubeletConfig:       kubeletConfig,
-			Taints:              taints,
-			Labels:              labels,
-			CABundle:            caBundle,
-			CustomUserData:      customUserData,
-			InstanceStorePolicy: instanceStorePolicy,
+			ClusterName:           a.ClusterName,
+			ClusterEndpoint:       a.ClusterEndpoint,
+			ClusterCIDR:           a.ClusterCIDR,
+			KubeletConfig:         kubeletConfig,
+			UnparsedKubeletConfig: unparsedKubeletConfig,
+			Taints:                taints,
+			Labels:                labels,
+			CABundle:              caBundle,
+			CustomUserData:        customUserData,
+			InstanceStorePolicy:   instanceStorePolicy,
 		},
 	}
 }

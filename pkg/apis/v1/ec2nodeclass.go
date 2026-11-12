@@ -24,6 +24,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -109,14 +110,17 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass",rule="self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')"
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
-	// Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-	// They are a subset of the upstream types, recognizing not all options may be supported.
-	// Wherever possible, the types and names should reflect the upstream kubelet types.
-	// +kubebuilder:validation:XValidation:message="imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent",rule="has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true"
-	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
-	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
+	// Kubelet configures the kubelet on provisioned nodes. Any field of the upstream
+	// KubeletConfiguration for the Kubernetes version Karpenter was built against may be set;
+	// see the k8s.io/kubelet version in go.mod for the exact set.
+	// Karpenter reads the fields relevant to scheduling (maxPods, podsPerCore, kubeReserved,
+	// systemReserved, evictionHard) and passes all others through to UserData unchanged.
+	// Field names and types are validated by Karpenter, which reports a rejected configuration
+	// on status.conditions as ValidationSucceeded=False rather than failing the apply.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Type=object
 	// +optional
-	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
+	Kubelet KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
@@ -151,6 +155,12 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	// When enabled, instance types are restricted to those that support Nitro Enclaves.
+	// When enclaveOptions is omitted or enabled is false, Nitro Enclaves are disabled.
+	// When enclaveOptions is specified, enabled is required.
+	// +optional
+	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 
 	// ConnectionTracking configures idle connection tracking timeouts for
 	// ENIs Karpenter provisions in the launch template. EFA-only interfaces
@@ -270,74 +280,13 @@ type AMISelectorTerm struct {
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }
 
-// KubeletConfiguration defines args to be used when configuring kubelet on provisioned nodes.
-// They are a subset of the upstream types, recognizing not all options may be supported.
-// Wherever possible, the types and names should reflect the upstream kubelet types.
-// https://pkg.go.dev/k8s.io/kubelet/config/v1beta1#KubeletConfiguration
-// https://github.com/kubernetes/kubernetes/blob/9f82d81e55cafdedab619ea25cabf5d42736dacf/cmd/kubelet/app/options/options.go#L53
-type KubeletConfiguration struct {
-	// clusterDNS is a list of IP addresses for the cluster DNS server.
-	// Note that not all providers may use all addresses.
-	//+optional
-	ClusterDNS []string `json:"clusterDNS,omitempty"`
-	// MaxPods is an override for the maximum number of pods that can run on
-	// a worker node instance.
-	// +kubebuilder:validation:Minimum:=0
-	// +optional
-	MaxPods *int32 `json:"maxPods,omitempty"`
-	// PodsPerCore is an override for the number of pods that can run on a worker node
-	// instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-	// MaxPods is a lower value, that value will be used.
-	// +kubebuilder:validation:Minimum:=0
-	// +optional
-	PodsPerCore *int32 `json:"podsPerCore,omitempty"`
-	// SystemReserved contains resources reserved for OS system daemons and kernel memory.
-	// +kubebuilder:validation:XValidation:message="valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
-	// +kubebuilder:validation:XValidation:message="systemReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
-	// +optional
-	SystemReserved map[string]string `json:"systemReserved,omitempty"`
-	// KubeReserved contains resources reserved for Kubernetes system components.
-	// +kubebuilder:validation:XValidation:message="valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']",rule="self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')"
-	// +kubebuilder:validation:XValidation:message="kubeReserved value cannot be a negative resource quantity",rule="self.all(x, !self[x].startsWith('-'))"
-	// +optional
-	KubeReserved map[string]string `json:"kubeReserved,omitempty"`
-	// EvictionHard is the map of signal names to quantities that define hard eviction thresholds
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionHard map[string]string `json:"evictionHard,omitempty"`
-	// EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionSoft map[string]string `json:"evictionSoft,omitempty"`
-	// EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
-	// +kubebuilder:validation:XValidation:message="valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']",rule="self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])"
-	// +optional
-	EvictionSoftGracePeriod map[string]metav1.Duration `json:"evictionSoftGracePeriod,omitempty"`
-	// EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-	// response to soft eviction thresholds being met.
-	// +optional
-	EvictionMaxPodGracePeriod *int32 `json:"evictionMaxPodGracePeriod,omitempty"`
-	// ImageGCHighThresholdPercent is the percent of disk usage after which image
-	// garbage collection is always run. The percent is calculated by dividing this
-	// field value by 100, so this field must be between 0 and 100, inclusive.
-	// When specified, the value must be greater than ImageGCLowThresholdPercent.
-	// +kubebuilder:validation:Minimum:=0
-	// +kubebuilder:validation:Maximum:=100
-	// +optional
-	ImageGCHighThresholdPercent *int32 `json:"imageGCHighThresholdPercent,omitempty"`
-	// ImageGCLowThresholdPercent is the percent of disk usage before which image
-	// garbage collection is never run. Lowest disk usage to garbage collect to.
-	// The percent is calculated by dividing this field value by 100,
-	// so the field value must be between 0 and 100, inclusive.
-	// When specified, the value must be less than imageGCHighThresholdPercent
-	// +kubebuilder:validation:Minimum:=0
-	// +kubebuilder:validation:Maximum:=100
-	// +optional
-	ImageGCLowThresholdPercent *int32 `json:"imageGCLowThresholdPercent,omitempty"`
-	// CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
-	// +optional
-	CPUCFSQuota *bool `json:"cpuCFSQuota,omitempty"`
-}
+// KubeletConfiguration mirrors the upstream kubelet KubeletConfiguration as an open map.
+//
+// The CRD schema for spec.kubelet is therefore an unconstrained object that the API server
+// can't validate. ValidateKubeletConfig does it instead, from the controller.
+// +kubebuilder:pruning:PreserveUnknownFields
+// +kubebuilder:validation:Type=object
+type KubeletConfiguration map[string]apiextensionsv1.JSON
 
 // MetadataOptions contains parameters for specifying the exposure of the
 // Instance Metadata Service to provisioned EC2 nodes.
@@ -469,14 +418,14 @@ type BlockDevice struct {
 	//
 	// The following are the supported values for each volume type:
 	//
-	//    * gp3: 3,000-16,000 IOPS
+	//    * gp3: 3,000-80,000 IOPS
 	//
 	//    * io1: 100-64,000 IOPS
 	//
-	//    * io2: 100-64,000 IOPS
+	//    * io2: 100-256,000 IOPS
 	//
-	// For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
-	// on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+	// For io1 volumes, we guarantee 64,000 IOPS and for io2 volumes 256,000 IOPS only
+	// for Instances built on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
 	// Other instance families guarantee performance up to 32,000 IOPS.
 	//
 	// This parameter is supported for io1, io2, and gp3 volumes only. This parameter
@@ -489,8 +438,8 @@ type BlockDevice struct {
 	// SnapshotID is the ID of an EBS snapshot
 	// +optional
 	SnapshotID *string `json:"snapshotID,omitempty"`
-	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
-	// Valid Range: Minimum value of 125. Maximum value of 1000.
+	// Throughput to provision for a gp3 volume, with a maximum of 2,000 MiB/s.
+	// Valid Range: Minimum value of 125. Maximum value of 2000.
 	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
 	// VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
@@ -506,16 +455,20 @@ type BlockDevice struct {
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
 	//
-	//    * gp2 and gp3: 1-16,384
+	//    * gp2: 1-16,384
 	//
-	//    * io1 and io2: 4-16,384
+	//    * gp3: 1-65,536
+	//
+	//    * io1: 4-16,384
+	//
+	//    * io2: 4-65,536
 	//
 	//    * st1 and sc1: 125-16,384
 	//
 	//    * standard: 1-1,024
 	// + TODO: Add the CEL resources.quantity type after k8s 1.29
 	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
-	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
+	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-6])Gi|(?:[1-9][0-9]{0,3}|[1-6][0-9]{4}|70[0-2][0-9]{2}|703[0-5][0-9]|7036[0-8])G|(?:[1-9]|[1-5][0-9]|6[0-4])Ti|(?:[1-9]|[1-6][0-9]|70)T)$"
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:Type:=string
 	// +optional
@@ -526,6 +479,12 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Enum:={standard,io1,io2,gp2,sc1,st1,gp3}
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
+}
+
+type EnclaveOptions struct {
+	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	// +required
+	Enabled bool `json:"enabled"`
 }
 
 // InstanceStorePolicy enumerates options for configuring instance store disks.
@@ -592,7 +551,8 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v5"
+// 4. An already-hashed field changes its type, since that changes the hash of an unchanged value
+const EC2NodeClassHashVersion = "v6"
 
 func (in *EC2NodeClass) Hash(caBundle *string) string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]any{
@@ -602,6 +562,7 @@ func (in *EC2NodeClass) Hash(caBundle *string) string {
 		// doesn't trigger drift.
 		in.AMIFamily(),
 		lo.FromPtr(caBundle),
+		in.Spec.Kubelet.String(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
@@ -650,12 +611,16 @@ func (in *EC2NodeClass) PlacementGroupSelector() *PlacementGroupSelector {
 	return in.Spec.PlacementGroupSelector
 }
 
-func (in *EC2NodeClass) KubeletConfiguration() *KubeletConfiguration {
+func (in *EC2NodeClass) KubeletConfiguration() KubeletConfiguration {
 	return in.Spec.Kubelet
 }
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 	return in.Spec.CPUOptions
+}
+
+func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
+	return in.Spec.EnclaveOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

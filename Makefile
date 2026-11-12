@@ -24,6 +24,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.nodeOverlay=true \
 			--set settings.featureGates.staticCapacity=true \
 			--set settings.featureGates.capacityBuffer=true \
+			--set settings.featureGates.predictionEnabled=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace
@@ -41,6 +42,9 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
 TMPFILE := $(shell mktemp)
+
+# perftests-v2 writes performancev2's per-phase reports, summaries and profiles to OUTPUT_DIR
+OUTPUT_DIR ?= $(shell pwd)/test/perf-output
 
 # Filename when building the binary controller only
 GOARCH ?= $(shell go env GOARCH)
@@ -64,6 +68,7 @@ run: ## Run Karpenter controller binary against your local cluster with latest C
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		ENABLE_ZONAL_SHIFT=true \
 		FEATURE_GATES="SpotToSpotConsolidation=true,NodeOverlay=true,StaticCapacity=true" \
+		AWS_FEATURE_GATES="NodeClassCEL=true" \
 		LOG_LEVEL="debug" \
 		go run ./cmd/controller/main.go
 
@@ -89,6 +94,7 @@ e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		ENABLE_ZONAL_SHIFT=true \
 		go test \
 		-p 1 \
 		-count 1 \
@@ -104,17 +110,41 @@ e2etests: ## Run the e2e suite against your local cluster
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
 	cd $(KARPENTER_CORE_DIR) && go test \
+		-p 1 \
 		-count 1 \
 		-timeout 12h \
 		-v \
 		./test/suites/regression/... \
+		./test/suites/disruption/... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=5m \
 		--ginkgo.vv \
 		--default-nodeclass="$(TMPFILE)"\
-		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml"
+		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
+		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
+		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
+
+perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
+	mkdir -p "$(OUTPUT_DIR)"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
+		go test \
+		-count 1 \
+		-timeout 3h \
+		-v \
+		./suites/performancev2 \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.fail-on-empty \
+		--ginkgo.timeout=150m \
+		--ginkgo.grace-period=10m \
+		--ginkgo.vv
+
+perf-inventory: ## Print the performancev2 gates and levels for the AWS plugin
+	go run ./test/suites/performancev2/cmd/inventory
+
+perf-verify: perf-inventory ## Check the performancev2 plugin's seams and levels without a cluster
+	go test -count 1 ./test/suites/performancev2/seams/...
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
@@ -136,7 +166,9 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
-	hack/validation/kubelet.sh
+	# The scripts below rewrite the CRDs they edit in yq's formatting rather than controller-gen's.
+	# ec2nodeclasses.yaml is no longer one of them, so it's passed through yq to keep its formatting stable
+	yq eval --inplace '.' pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	bash -c 'source ./hack/validation/requirements.sh && injectDomainRequirementRestrictions "karpenter.k8s.aws"'
 	bash -c 'source ./hack/validation/labels.sh && injectDomainLabelRestrictions "karpenter.k8s.aws"'
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
@@ -199,6 +231,9 @@ snapshot: ## Builds and publishes snapshot release
 release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
+latest-release: ## Mark the highest stable release as GitHub's Latest release
+	./hack/release/latest.sh
+
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 
@@ -233,7 +268,7 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 perf-inventory perf-verify e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 

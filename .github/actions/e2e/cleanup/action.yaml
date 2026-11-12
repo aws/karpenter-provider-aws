@@ -17,14 +17,14 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.202.0
+    default: v0.217.0
   private_cluster:
     description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
     default: 'false'
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl

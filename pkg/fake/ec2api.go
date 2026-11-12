@@ -56,11 +56,13 @@ type EC2Behavior struct {
 	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
 	DescribeInstanceStatusOutput        AtomicPtr[ec2.DescribeInstanceStatusOutput]
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeInstanceStatusBehavior      MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
 	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
 	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
 	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	RebootInstancesBehavior             MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
 	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
@@ -96,10 +98,12 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeInstanceStatusOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
+	e.DescribeInstanceStatusBehavior.Reset()
 	e.DescribeSubnetsBehavior.Reset()
 	e.DescribeSecurityGroupsBehavior.Reset()
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
+	e.RebootInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
@@ -264,6 +268,13 @@ func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInsta
 			}
 		}
 		return &ec2.TerminateInstancesOutput{TerminatingInstances: instanceStateChanges}, nil
+	})
+}
+
+func (e *EC2API) RebootInstances(_ context.Context, input *ec2.RebootInstancesInput, _ ...func(*ec2.Options)) (*ec2.RebootInstancesOutput, error) {
+	return e.RebootInstancesBehavior.Invoke(input, func(input *ec2.RebootInstancesInput) (*ec2.RebootInstancesOutput, error) {
+		// A reboot preserves the instance, so unlike TerminateInstances the fake leaves e.Instances intact.
+		return &ec2.RebootInstancesOutput{}, nil
 	})
 }
 
@@ -657,12 +668,14 @@ func (e *EC2API) RunInstances(ctx context.Context, input *ec2.RunInstancesInput,
 }
 
 func (e *EC2API) DescribeInstanceStatus(ctx context.Context, input *ec2.DescribeInstanceStatusInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceStatusOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
-	}
-	if !e.DescribeInstanceStatusOutput.IsNil() {
-		return e.DescribeInstanceStatusOutput.Clone(), nil
-	}
-	return &ec2.DescribeInstanceStatusOutput{}, nil
+	return e.DescribeInstanceStatusBehavior.Invoke(input, func(*ec2.DescribeInstanceStatusInput) (*ec2.DescribeInstanceStatusOutput, error) {
+		if !e.NextError.IsNil() {
+			defer e.NextError.Reset()
+			return nil, e.NextError.Get()
+		}
+		if !e.DescribeInstanceStatusOutput.IsNil() {
+			return e.DescribeInstanceStatusOutput.Clone(), nil
+		}
+		return &ec2.DescribeInstanceStatusOutput{}, nil
+	})
 }

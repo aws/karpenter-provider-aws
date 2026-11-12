@@ -27,10 +27,10 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.36"
+    default: "1.37"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.202.0
+    default: v0.217.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"
@@ -39,18 +39,26 @@ inputs:
     default: 'false'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  karpenter_git_ref:
+    description: "The git commit, tag, or branch of the Karpenter to install. Defaults to git_ref. Requires a corresponding Karpenter snapshot release"
   enable_local_zones:
     description: "Whether to include local zones in the VPC created for the cluster."
     default: 'false'
   cleanup:
     description: "Whether to cleanup resources on failure"
     default: 'false'
+  install_karpenter:
+    description: "Whether to install the Karpenter snapshot chart. Valid values are 'true' or 'false'"
+    default: 'true'
+  availability_zones:
+    description: "Space-separated availability zones for the cluster. Empty lets eksctl pick"
+    default: ''
   codebuild_role:
     description: "Codebuild Role that must be given an access entry in case of private cluster"
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
@@ -89,6 +97,7 @@ runs:
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       GIT_REF:  ${{ inputs.git_ref }}
       ENABLE_LOCAL_ZONES: ${{ inputs.enable_local_zones }}
+      AVAILABILITY_ZONES: ${{ inputs.availability_zones }}
       CLEANUP: ${{ inputs.cleanup }}
       CODEBUILD_ROLE: ${{ inputs.codebuild_role }}
     run: |
@@ -98,7 +107,9 @@ runs:
 
       # Disable Pod Identity for Private Clusters
       # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html#pod-id-considerations
-      if [[ "$PRIVATE_CLUSTER" == 'true' ]]; then
+      # and for IPv6: with eks-pod-identity-agent, eksctl (>= v0.207.0) requires a vpc-cni pod identity, which it then
+      # describes with eks:DescribePodIdentityAssociation (not granted to the CI role). IRSA keeps vpc-cni on IRSA too.
+      if [[ "$PRIVATE_CLUSTER" == 'true' ]] || [[ "$IP_FAMILY" == 'IPv6' ]]; then
         KARPENTER_IAM="""
           - metadata:
               name: karpenter
@@ -109,6 +120,7 @@ runs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerEKSIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerInterruptionPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerZonalShiftPolicy-${{ inputs.cluster_name }}"
             permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
             roleOnly: true"""
@@ -123,7 +135,8 @@ runs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerIAMIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerEKSIntegrationPolicy-${{ inputs.cluster_name }}"
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerInterruptionPolicy-${{ inputs.cluster_name }}"
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}""""
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerResourceDiscoveryPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerZonalShiftPolicy-${{ inputs.cluster_name }}""""
         POD_IDENTITY="""- name: eks-pod-identity-agent
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         configurationValues: |
@@ -182,9 +195,14 @@ runs:
             roleOnly: true
         $KARPENTER_IAM
         withOIDC: true
+      zonalShiftConfig:
+        enabled: true
       addons:
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+        # Disable subnet discovery: recent vpc-cni calls ec2:DescribeSubnets (absent from the eksctl IPv6 CNI policy), which blocks IPv6 node bootstrap.
+        configurationValues: |-
+          {"env":{"ENABLE_SUBNET_DISCOVERY":"false"}}
       - name: coredns
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: kube-proxy
@@ -195,6 +213,10 @@ runs:
           ebsCSIController: true
       $POD_IDENTITY
       EOF
+
+      for zone in $AVAILABILITY_ZONES; do
+        yq -i ".availabilityZones += [\"$zone\"]" clusterconfig.yaml
+      done
 
       if [[ $ENABLE_LOCAL_ZONES == "true" ]]; then
         local_zones=$(AWS_REGION=$REGION aws ec2 describe-availability-zones | yq '.AvailabilityZones | filter(.ZoneType == "local-zone") | [.[].ZoneName] | join(" ")')
@@ -265,7 +287,7 @@ runs:
       workspace_id: ${{ inputs.prometheus_workspace_id }}
       git_ref: ${{ inputs.git_ref }}
   - name: install karpenter
-    if: ${{ inputs.private_cluster == 'false' }}
+    if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
     uses: ./.github/actions/e2e/install-karpenter
     with:
       account_id: ${{ inputs.account_id  }}
@@ -275,5 +297,5 @@ runs:
       ecr_region: ${{ inputs.ecr_region }}
       cluster_name: ${{ inputs.cluster_name }}
       k8s_version: ${{ inputs.k8s_version }}
-      git_ref: ${{ inputs.git_ref }}
+      git_ref: ${{ inputs.karpenter_git_ref || inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
