@@ -81,15 +81,15 @@ Since ODCRs are pre-paid, Karpenter will model them as free and consolidate spot
 
 ## Disrupting Nodes in Full Reservations
 
-Karpenter pre-spins a replacement before it disrupts a node.
-When a node's reservation is full and its pods can't run anywhere else, such as a lower-weight on-demand NodePool, Karpenter can't pre-spin a replacement, and [Drift]({{<ref "../concepts/disruption#drift" >}}) and [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) are blocked for that node.
-To replace these nodes in place, enable the `TerminateFirstDrift` and `TerminateFirstRepair` [feature gates]({{<ref "../reference/settings#feature-gates" >}}).
+For [Drift]({{<ref "../concepts/disruption#drift" >}}) and [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}), Karpenter pre-spins a replacement before it terminates a node.
+When a node's reservation is full and its pods can't run anywhere else, such as on on-demand or spot capacity in the same NodePool or in a lower-weight NodePool, Karpenter can't pre-spin a replacement, and Drift and Node Auto Repair are blocked for that node.
+To replace these nodes within the same reservation, enable the `TerminateFirstDrift` and `TerminateFirstRepair` [feature gates]({{<ref "../reference/settings#feature-gates" >}}). `TerminateFirstRepair` has no effect unless `NodeRepair` is enabled, and has no effect with `--legacy-node-repair`.
 Karpenter will then terminate the node first and launch its replacement into the freed reservation slot.
+The gates apply to every NodePool in the cluster, including static NodePools, which also terminate nodes first when they reach their `limits.nodes`.
 See [Terminate-First Disruption]({{<ref "../concepts/disruption#terminate-first-disruption" >}}) for details.
 
 {{% alert title="Warning" color="warning" %}}
-Don't enable terminate-first disruption unless this Karpenter installation is the only thing that launches into its capacity reservations.
-Anything else that launches into the reservation, such as another Karpenter installation, an Auto Scaling group, or a matching instance consuming an `open` reservation, can claim the freed slot first, leaving the terminated node's pods pending indefinitely.
+Terminate-first disruption can leave the node's pods pending for a long time. Read the Warning in [Terminate-First Disruption]({{<ref "../concepts/disruption#terminate-first-disruption" >}}) before you enable it.
 {{% /alert %}}
 
 ## Expiration
