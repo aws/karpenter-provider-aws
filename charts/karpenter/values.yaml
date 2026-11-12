@@ -126,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.15.1
+    tag: 1.15.2
     # -- SHA256 digest of the controller image.
-    digest: sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8
+    digest: sha256:4a7dc37f85ad8987ece1cf5df55e607aa17a879a6faa76f5258c5bf182fbdfff
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -156,7 +156,6 @@ controller:
   # -- Memory limit in bytes passed to the controller as MEMORY_LIMIT (GOMEMLIMIT is set to 90% of it), e.g. 1073741824 for 1Gi.
   # Leave empty to use the container's limits.memory, or set to -1 to disable GOMEMLIMIT.
   memoryLimit: ""
-
   # -- Additional volumeMounts for the controller container.
   extraVolumeMounts: []
   # - name: aws-iam-token
