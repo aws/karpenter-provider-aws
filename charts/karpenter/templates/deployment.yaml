@@ -27,10 +27,10 @@ spec:
       {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.podAnnotations }}
       annotations:
-        {{- with .Values.podAnnotations }}
-          {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -132,7 +132,7 @@ spec:
                   resource: limits.memory
           {{- end }}
             - name: FEATURE_GATES
-              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }},TerminateFirstDrift={{ .Values.settings.featureGates.terminateFirstDrift }},TerminateFirstRepair={{ .Values.settings.featureGates.terminateFirstRepair }},PodDeletionCostManagement={{ .Values.settings.featureGates.podDeletionCostManagement }}"
+              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }},TerminateFirstDrift={{ .Values.settings.featureGates.terminateFirstDrift }},TerminateFirstRepair={{ .Values.settings.featureGates.terminateFirstRepair }},PodDeletionCostManagement={{ .Values.settings.featureGates.podDeletionCostManagement }},PredictionEnabled={{ .Values.settings.featureGates.predictionEnabled }}"
             - name: AWS_FEATURE_GATES
               value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }},DRANVIDIAGPU={{ $dra.draNVIDIAGPU }},DRAEFA={{ $dra.draEFA }},RebootForRepair={{ .Values.settings.awsFeatureGates.rebootForRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
@@ -169,9 +169,9 @@ spec:
             - name: EKS_CONTROL_PLANE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.vmMemoryOverheadPercent }}
+          {{- if not (kindIs "invalid" .Values.settings.vmMemoryOverheadPercent) }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ tpl (toString .) $ }}"
+              value: "{{ tpl (toString .Values.settings.vmMemoryOverheadPercent) $ }}"
           {{- end }}
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE

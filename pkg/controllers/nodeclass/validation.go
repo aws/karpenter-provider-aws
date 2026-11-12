@@ -361,6 +361,9 @@ func (v *Validation) validateCreateLaunchTemplateAuthorization(
 	if err != nil {
 		return nil, reconcile.Result{}, fmt.Errorf("generating options, %w", err)
 	}
+	if len(instanceTypes) == 0 {
+		return nil, reconcile.Result{}, fmt.Errorf("no compatible instance types found for nodeclass and its nodepools")
+	}
 	// pass 1 instance type in EnsureAll to only create 1 launch template
 	tenancyType := getTenancyType(nodePools)
 
@@ -399,7 +402,7 @@ func (v *Validation) validateCreateFleetAuthorization(
 	launchTemplate *launchtemplate.LaunchTemplate,
 ) (result reconcile.Result, err error) {
 	fleetLaunchTemplateConfig := getFleetLaunchTemplateConfig(nodeClass, launchTemplate)
-	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build()
+	createFleetInput := instance.NewCreateFleetInputBuilder(karpv1.CapacityTypeOnDemand, tags, fleetLaunchTemplateConfig).Build(ctx, nil)
 	createFleetInput.DryRun = lo.ToPtr(true)
 	// Adding NopRetryer to avoid aggressive retry when rate limited
 	if _, err := v.ec2api.CreateFleet(ctx, createFleetInput, func(o *ec2.Options) {

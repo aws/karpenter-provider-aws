@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
@@ -171,12 +172,14 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// resolution time, after assignment below.
 	celEnv := lo.Must(kubeletcel.NewEnvironment())
 	var instanceTypesProvider *instancetype.DefaultProvider
+	// The instance provider and the launch template resolver share one efa.Provider so their EFA counts agree.
+	efaProvider := efa.DefaultProvider{}
 	amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, func(name string) (amifamily.ENILimits, bool) {
 		if instanceTypesProvider == nil {
 			return amifamily.ENILimits{}, false
 		}
 		return instanceTypesProvider.ENILimits(name)
-	}, celEnv)
+	}, celEnv, amifamily.WithEFAProvider(efaProvider))
 	instanceTypesResolver := instancetype.NewDefaultResolver(fake.DefaultRegion, celEnv)
 	capacityReservationProvider := capacityreservation.NewProvider(ec2api, clock, capacityReservationCache, capacityReservationAvailabilityCache)
 	zonalshiftProvider := arczonalshift.NewProvider(arczonalshiftapi, clock, "")
@@ -216,6 +219,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		placementGroupProvider,
 		zonalshiftProvider,
 		instanceCache,
+		instance.WithEFAProvider(efaProvider),
 	)
 
 	return &Environment{

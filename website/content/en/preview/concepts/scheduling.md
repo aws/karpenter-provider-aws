@@ -195,12 +195,16 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-manufacturer                    | nvidia               | [AWS Specific] Name of the GPU manufacturer                                                                                                                                                                                               |
 | karpenter.k8s.aws/instance-gpu-count                           | 1                    | [AWS Specific] Number of GPUs on the instance                                                                                                                                                                                             |
 | karpenter.k8s.aws/instance-gpu-memory                          | 16384                | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                                                                                                                   |
+| karpenter.k8s.aws/instance-accelerator-name                    | inferentia2          | [AWS Specific] Name of the inference accelerator on the instance, if available                                                                                                                                                            |
+| karpenter.k8s.aws/instance-accelerator-manufacturer            | aws                  | [AWS Specific] Name of the inference accelerator manufacturer                                                                                                                                                                             |
+| karpenter.k8s.aws/instance-accelerator-count                   | 1                    | [AWS Specific] Number of inference accelerators on the instance                                                                                                                                                                           |
 | karpenter.k8s.aws/instance-local-nvme                          | 900                  | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                                                                                                  |
 | karpenter.k8s.aws/instance-capability-flex                     | true                 | [AWS Specific] Instance with capacity flex                                                                                                                                                                                                |
 | karpenter.k8s.aws/instance-tenancy                             | default              | [AWS Specific] Tenancy types include `default`, and `dedicated`                                                                                                                                                                           |
 | karpenter.k8s.aws/placement-group-id                           | pg-0fa32af67ed0f8da0 | [AWS Specific] The placement group ID.
 | karpenter.k8s.aws/placement-group-partition                    | 7                    | [AWS Specific] The partition number of the partition placement group the instance is in.
 | topology.k8s.aws/zone-id                                       | use1-az1             | [AWS Specific] Globally consistent [zone id](https://docs.aws.amazon.com/global-infrastructure/latest/regions/az-ids.html)                                                                                                                |
+| nvidia.com/gpu.present                                         | true                 | `true` on instance types with an NVIDIA GPU, and not set on other instance types; use `DoesNotExist` to keep pods off NVIDIA GPU nodes. Also set by the NVIDIA GPU Operator, and by AL2023 and Bottlerocket NVIDIA AMIs on Kubernetes 1.35+ |
 
 
 {{% alert title="Note" color="primary" %}}
@@ -528,7 +532,7 @@ The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tre
 
 ## Weighted NodePools
 
-Karpenter allows you to order your NodePools using the `.spec.weight` field so that the Karpenter scheduler will attempt to schedule one NodePool before another.
+Karpenter allows you to order your NodePools using the `.spec.weight` field (range: 1–100) so that the Karpenter scheduler will attempt to schedule one NodePool before another. NodePools with higher weights are preferred first.
 
 ### Savings Plans and Reserved Instances
 

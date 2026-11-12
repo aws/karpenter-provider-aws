@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -56,6 +58,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -99,7 +102,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -254,6 +257,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUManufacturer:              "nvidia",
 			v1.LabelInstanceGPUCount:                     "1",
 			v1.LabelInstanceGPUMemory:                    "16384",
+			v1.LabelNvidiaGPUPresent:                     "true",
 			v1.LabelInstanceLocalNVME:                    "900",
 			// TODO - NVIDIA/GPU instances should not have Neuron/accelerator labels
 			v1.LabelInstanceAcceleratorName:         "inferentia2",
@@ -321,6 +325,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUManufacturer:              "nvidia",
 			v1.LabelInstanceGPUCount:                     "1",
 			v1.LabelInstanceGPUMemory:                    "16384",
+			v1.LabelNvidiaGPUPresent:                     "true",
 			v1.LabelInstanceLocalNVME:                    "900",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
@@ -400,6 +405,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUName,
 			v1.LabelInstanceGPUManufacturer,
 			v1.LabelInstanceGPUMemory,
+			v1.LabelNvidiaGPUPresent,
 			v1.LabelInstanceLocalNVME,
 			v1.LabelPlacementGroupID,
 			v1.LabelPlacementGroupPartition,
@@ -410,6 +416,40 @@ var _ = Describe("InstanceTypeProvider", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: nodeSelector})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should advertise nvidia.com/gpu.present on exactly the instance types with NVIDIA GPU capacity", func() {
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		var nvidia, other int
+		for _, it := range instanceTypes {
+			req := it.Requirements.Get(v1.LabelNvidiaGPUPresent)
+			if gpus, ok := it.Capacity[v1.ResourceNVIDIAGPU]; ok && !gpus.IsZero() {
+				nvidia++
+				Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpIn), it.Name)
+				Expect(req.Values()).To(ConsistOf("true"), it.Name)
+				continue
+			}
+			other++
+			// Registered as DoesNotExist rather than omitted: Requirements.Get on a missing key returns Exists,
+			// which would let a pod requiring the label match an instance type whose node never carries it.
+			Expect(req.Operator()).To(Equal(corev1.NodeSelectorOpDoesNotExist), it.Name)
+		}
+		Expect(nvidia).To(BeNumerically(">", 0))
+		Expect(other).To(BeNumerically(">", 0))
+	})
+	It("should not schedule a pod selecting nvidia.com/gpu.present when no NVIDIA GPU instance type is allowed", func() {
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+			Key:      corev1.LabelInstanceTypeStable,
+			Operator: corev1.NodeSelectorOpIn,
+			Values:   []string{"m5.large"},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelNvidiaGPUPresent: "true"}})
+		// The control pod proves the NodePool can launch m5.large, so the GPU pod stays pending because of the label.
+		control := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod, control)
+		ExpectScheduled(ctx, env.Client, control)
+		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should not launch AWS Pod ENI on a t3", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -760,7 +800,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should launch instances for nvidia.com/gpu resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -793,7 +833,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
@@ -826,7 +866,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should launch trn1 instances for aws.amazon.com/neuron resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
 				Key:      corev1.LabelInstanceTypeStable,
@@ -852,7 +892,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
 	It("should launch inf2 instances for aws.amazon.com/neuroncore resource requests", func() {
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
 
@@ -902,7 +942,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		nodes := sets.NewString()
+		nodes := sets.New[string]()
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "p5.48xlarge"))
@@ -984,6 +1024,93 @@ var _ = Describe("InstanceTypeProvider", func() {
 			)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
+	})
+	Context("Cache", func() {
+		newCountingProvider := func() (*instancetype.DefaultProvider, *countingResolver) {
+			resolver := &countingResolver{Resolver: instancetype.NewDefaultResolver(fake.DefaultRegion, awsEnv.CELEnvironment)}
+			provider := instancetype.NewDefaultProvider(
+				cache.New(awscache.InstanceTypesZonesAndOfferingsTTL, awscache.DefaultCleanupInterval),
+				awsEnv.OfferingCache,
+				awsEnv.DiscoveredCapacityCache,
+				awsEnv.EC2API,
+				awsEnv.SubnetProvider,
+				awsEnv.PricingProvider,
+				awsEnv.CapacityReservationProvider,
+				awsEnv.PlacementGroupProvider,
+				awsEnv.UnavailableOfferingsCache,
+				resolver,
+				awsEnv.ZonalShiftProvider,
+				env.Client,
+				awsEnv.CELEnvironment,
+			)
+			Expect(provider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(provider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+			return provider, resolver
+		}
+		It("should build instance types once when concurrent callers miss the cache", func() {
+			// Baseline: the number of Resolve calls for a single build
+			baseline, baselineResolver := newCountingProvider()
+			_, err := baseline.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			resolvesPerBuild := baselineResolver.calls.Load()
+			Expect(resolvesPerBuild).To(BeNumerically(">", 0))
+
+			provider, resolver := newCountingProvider()
+			const callers = 50
+			results := make([][]*corecloudprovider.InstanceType, callers)
+			errs := make([]error, callers)
+			start := make(chan struct{})
+			wg := sync.WaitGroup{}
+			for i := range callers {
+				wg.Add(1)
+				go func() {
+					defer GinkgoRecover()
+					defer wg.Done()
+					<-start
+					results[i], errs[i] = provider.List(ctx, nodeClass)
+				}()
+			}
+			close(start)
+			wg.Wait()
+			for i := range callers {
+				Expect(errs[i]).ToNot(HaveOccurred())
+				Expect(results[i]).To(HaveLen(len(results[0])))
+			}
+			Expect(resolver.calls.Load()).To(Equal(resolvesPerBuild))
+		})
+	})
+	Context("Additional On-Demand Class Capacity Types", func() {
+		const onDemandAlt = "on-demand-alt"
+		BeforeEach(func() {
+			Expect(corecloudprovider.SetCapacityTypeClassResolver(corecloudprovider.DefaultCapacityTypeClasses.With(corecloudprovider.CapacityTypeClasses{
+				onDemandAlt: corecloudprovider.CapacityTypeClassOnDemand,
+			}))).To(Succeed())
+			DeferCleanup(coretest.ResetCapacityTypeClasses)
+		})
+		It("should allow the capacity type on instance types that support on-demand", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
+			for _, it := range instanceTypes {
+				ct := it.Requirements.Get(karpv1.CapacityTypeLabelKey)
+				Expect(ct.Has(onDemandAlt)).To(Equal(ct.Has(karpv1.CapacityTypeOnDemand)), it.Name)
+			}
+		})
+		It("should leave the capacity type's offerings to additional resolvers", func() {
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			for _, it := range instanceTypes {
+				Expect(lo.Filter(it.Offerings, func(o *corecloudprovider.Offering, _ int) bool { return o.CapacityType() == onDemandAlt })).To(BeEmpty(), it.Name)
+			}
+		})
+		It("should not allow the capacity type unless it's registered", func() {
+			coretest.ResetCapacityTypeClasses()
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			for _, it := range instanceTypes {
+				Expect(it.Requirements.Get(karpv1.CapacityTypeLabelKey).Has(onDemandAlt)).To(BeFalse(), it.Name)
+			}
+		})
 	})
 	Context("Metrics", func() {
 		It("should expose vcpu metrics for instance types", func() {
@@ -2066,7 +2193,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			for _, pod := range pods {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
-			nodeNames := sets.NewString()
+			nodeNames := sets.New[string]()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 			for _, pod := range pods {
 				node := ExpectScheduled(ctx, env.Client, pod)
@@ -2254,7 +2381,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).To(BeNil())
-			instanceTypeNames := sets.NewString()
+			instanceTypeNames := sets.New[string]()
 			for _, it := range instanceTypes {
 				instanceTypeNames.Insert(it.Name)
 				if it.Name == "m5.xlarge" {
@@ -4127,4 +4254,15 @@ func (r *failingResolver) Resolve(ctx context.Context, info ec2types.InstanceTyp
 		return nil, fmt.Errorf("%s", r.failureText)
 	}
 	return r.delegate.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
+}
+
+// countingResolver counts Resolve calls so tests can assert how many times instance types are built
+type countingResolver struct {
+	instancetype.Resolver
+	calls atomic.Int64
+}
+
+func (r *countingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
+	r.calls.Add(1)
+	return r.Resolver.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
 }
