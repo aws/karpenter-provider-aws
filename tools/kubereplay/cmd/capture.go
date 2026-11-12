@@ -43,12 +43,14 @@ var (
 	captureOutput      string
 	captureDuration    time.Duration
 	captureClusterName string
+	captureWindow      time.Duration
 )
 
 func init() {
 	captureCmd.Flags().StringVarP(&captureOutput, "output", "o", "replay.json", "Output file")
 	captureCmd.Flags().DurationVarP(&captureDuration, "duration", "d", time.Hour, "Duration to capture")
 	captureCmd.Flags().StringVar(&captureClusterName, "cluster-name", "", "EKS cluster name (overrides kubeconfig detection)")
+	captureCmd.Flags().DurationVar(&captureWindow, "window", cloudwatch.DefaultWindowSize, "Time window per CloudWatch Logs Insights query. Reduce to 5m if you see a 10,000 result cap warning on busy clusters.")
 }
 
 func runCapture(cmd *cobra.Command, args []string) error {
@@ -71,6 +73,7 @@ func runCapture(cmd *cobra.Command, args []string) error {
 	}
 
 	cwClient := cloudwatch.NewClient(cloudwatchlogs.NewFromConfig(cfg), cluster)
+	cwClient.WindowSize = captureWindow
 	p := parser.NewParser()
 	san := sanitizer.New()
 	replayLog := format.NewReplayLog(cluster)
