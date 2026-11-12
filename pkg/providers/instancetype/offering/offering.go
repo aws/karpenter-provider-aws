@@ -70,6 +70,7 @@ type NodeClass interface {
 	ConnectionTracking() *v1.ConnectionTracking
 	CPUOptions() *v1.CPUOptions
 	EnclaveOptions() *v1.EnclaveOptions
+	NetworkPerformanceOptions() *v1.NetworkPerformanceOptions
 }
 
 type DefaultProvider struct {

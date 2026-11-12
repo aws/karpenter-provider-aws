@@ -110,6 +110,8 @@ var _ = Describe("Hash", func() {
 		Entry("ConnectionTracking UDPStreamTimeout", "13743705849402595405", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPStreamTimeout: lo.ToPtr(int32(120))}}}),
 		Entry("ConnectionTracking UDPTimeout", "17941926745862994490", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{ConnectionTracking: &v1.ConnectionTracking{UDPTimeout: lo.ToPtr(int32(45))}}}),
 		Entry("CPUOptions NestedVirtualization", "6157846767212910604", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{CPUOptions: &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}}}),
+		Entry("NetworkPerformanceOptions BandwidthWeighting vpc-1", "16461194613078283486", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{NetworkPerformanceOptions: &v1.NetworkPerformanceOptions{BandwidthWeighting: lo.ToPtr("vpc-1")}}}),
+		Entry("NetworkPerformanceOptions BandwidthWeighting ebs-1", "5235086293705887890", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{NetworkPerformanceOptions: &v1.NetworkPerformanceOptions{BandwidthWeighting: lo.ToPtr("ebs-1")}}}),
 
 		// Behavior / Dynamic fields, expect same hash as base
 		Entry("Modified AMISelector", staticHash, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"": "ami-test-value"}}}}}),
