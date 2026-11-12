@@ -59,6 +59,7 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs,
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
+			"--cluster-name-tag-key", "rosa:rosa-cluster-name",
 			"--cluster-endpoint", "https://env-cluster",
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
@@ -72,6 +73,7 @@ var _ = Describe("Options", func() {
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:              lo.ToPtr("env-bundle"),
 			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterNameTagKey:            lo.ToPtr("rosa:rosa-cluster-name"),
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
@@ -86,6 +88,7 @@ var _ = Describe("Options", func() {
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
 		os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
 		os.Setenv("CLUSTER_NAME", "env-cluster")
+		os.Setenv("CLUSTER_NAME_TAG_KEY", "rosa:rosa-cluster-name")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
 		os.Setenv("ISOLATED_VPC", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
@@ -104,6 +107,7 @@ var _ = Describe("Options", func() {
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
 			ClusterCABundle:              lo.ToPtr("env-bundle"),
 			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterNameTagKey:            lo.ToPtr("rosa:rosa-cluster-name"),
 			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
 			IsolatedVPC:                  lo.ToPtr(true),
 			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
@@ -211,6 +215,32 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-endpoint", "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when cluster-name-tag-key is empty", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-name-tag-key", "")
+			Expect(err).To(HaveOccurred())
+		})
+		It("should default cluster-name-tag-key when not specified", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.ClusterNameTagKey).To(Equal("eks:eks-cluster-name"))
+		})
+		DescribeTable("should fail when cluster-name-tag-key is reserved or managed by Karpenter",
+			func(key string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-name-tag-key", key)
+				Expect(err).To(HaveOccurred())
+			},
+			Entry("aws: prefix", "aws:cluster-name"),
+			Entry("AWS: prefix", "AWS:cluster-name"),
+			Entry("Name", "Name"),
+			Entry("karpenter.sh/nodepool", "karpenter.sh/nodepool"),
+			Entry("karpenter.sh/nodeclaim", "karpenter.sh/nodeclaim"),
+			Entry("karpenter.k8s.aws/ec2nodeclass", "karpenter.k8s.aws/ec2nodeclass"),
+			Entry("kubernetes.io/cluster/<name>", "kubernetes.io/cluster/test-cluster"),
+		)
+		It("should succeed when cluster-name-tag-key is the default key set explicitly", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-name-tag-key", "eks:eks-cluster-name")
+			Expect(err).ToNot(HaveOccurred())
+		})
 		It("should fail when vmMemoryOverheadPercent is negative", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--vm-memory-overhead-percent", "-0.01")
 			Expect(err).To(HaveOccurred())
@@ -238,6 +268,7 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	GinkgoHelper()
 	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
+	Expect(optsA.ClusterNameTagKey).To(Equal(optsB.ClusterNameTagKey))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))

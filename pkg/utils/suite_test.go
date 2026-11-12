@@ -19,6 +19,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -40,5 +42,37 @@ var _ = Describe("GetNodeClassHash", func() {
 		}
 		hash := utils.GetNodeClassHash(nodeClass)
 		Expect(hash).To(Equal("test-uid-123-5"))
+	})
+})
+
+var _ = Describe("GetTags", func() {
+	var nodeClass *v1.EC2NodeClass
+	var nodeClaim *karpv1.NodeClaim
+	BeforeEach(func() {
+		nodeClass = &v1.EC2NodeClass{ObjectMeta: metav1.ObjectMeta{Name: "test-nodeclass"}}
+		nodeClaim = &karpv1.NodeClaim{ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{karpv1.NodePoolLabelKey: "test-nodepool"},
+		}}
+	})
+	It("should tag resources with the default cluster-name tag key", func() {
+		tags, err := utils.GetTags(nodeClass, nodeClaim, "test-cluster", v1.EKSClusterNameTagKey)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tags).To(HaveKeyWithValue(v1.EKSClusterNameTagKey, "test-cluster"))
+	})
+	It("should tag resources with a custom cluster-name tag key", func() {
+		tags, err := utils.GetTags(nodeClass, nodeClaim, "test-cluster", "rosa:rosa-cluster-name")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(tags).To(HaveKeyWithValue("rosa:rosa-cluster-name", "test-cluster"))
+		Expect(tags).ToNot(HaveKey(v1.EKSClusterNameTagKey))
+	})
+	It("should reject user-supplied tags matching the configured cluster-name tag key", func() {
+		nodeClass.Spec.Tags = map[string]string{"rosa:rosa-cluster-name": "user-value"}
+		_, err := utils.GetTags(nodeClass, nodeClaim, "test-cluster", "rosa:rosa-cluster-name")
+		Expect(err).To(HaveOccurred())
+	})
+	It("should still reject the default eks:eks-cluster-name tag even when a custom key is configured", func() {
+		nodeClass.Spec.Tags = map[string]string{v1.EKSClusterNameTagKey: "user-value"}
+		_, err := utils.GetTags(nodeClass, nodeClaim, "test-cluster", "rosa:rosa-cluster-name")
+		Expect(err).To(HaveOccurred())
 	})
 })
