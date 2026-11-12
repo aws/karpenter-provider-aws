@@ -28,6 +28,10 @@ on:
       cleanup:
         type: boolean
         required: true
+      record_results:
+        description: "Write every phase's results to Timestream (karpenterTesting.perfResults) for the perf dashboard"
+        type: boolean
+        default: false
 jobs:
   run-perf:
     permissions:
@@ -142,8 +146,25 @@ jobs:
         env:
           CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           FOCUS: ${{ inputs.focus }}
+          # The Timestream sink is on only when PERF_TIMESTREAM_TABLE is non-empty. Its dimensions come from these and
+          # from GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT and GITHUB_EVENT_NAME.
+          PERF_TIMESTREAM_TABLE: ${{ inputs.record_results && 'perfResults' || '' }}
+          PERF_TIMESTREAM_REGION: ${{ vars.TIMESTREAM_REGION }}
+          AWS_REGION: ${{ inputs.region }}
+          K8S_VERSION: ${{ inputs.k8s_version }}
+          CP_TIER: ${{ inputs.control_plane_tier }}
+          HELM_OPTS: ${{ inputs.helm_opts }}
         run: |
           set -euo pipefail
+          # The controller's requests/limits from helm_opts (the last --set wins, as in helm); "-" is the chart default
+          resource() {
+            local v
+            v=$(grep -oE "controller\.resources\.$1\.$2=[^ ]+" <<< "$HELM_OPTS" | tail -n 1 | cut -d= -f2 | tr -d '"' || true)
+            echo "${v:--}"
+          }
+          CONTROLLER_SHAPE="cpu=$(resource requests cpu)/$(resource limits cpu),mem=$(resource requests memory)/$(resource limits memory)"
+          export CONTROLLER_SHAPE
+          echo "controller_shape=$CONTROLLER_SHAPE record_results=${PERF_TIMESTREAM_TABLE:+true}"
           aws eks update-kubeconfig --name "$CLUSTER_NAME"
           OUTPUT_DIR="$RUNNER_TEMP/perf"
           mkdir -p "$OUTPUT_DIR"
