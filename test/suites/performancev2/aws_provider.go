@@ -15,9 +15,11 @@ limitations under the License.
 package performancev2
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -53,11 +55,12 @@ var AWSAPICalls = perf.Metric{Name: "aws_api_calls", Kind: perf.KindResource, Un
 
 // AWS is the AWS provider's KWOK controller (./kwok): the real AWS provider against real instance types,
 // pricing, subnets and AMIs, with launches faked. It needs CLUSTER_NAME for the EC2NodeClass selectors, and reads
-// KARPENTER_NAMESPACE like kwok/Makefile (default kube-system).
+// KARPENTER_NAMESPACE like kwok/Makefile (default kube-system). With PERF_TIMESTREAM_TABLE set it also writes every
+// phase's results to Timestream (see TimestreamSink).
 func AWS(c env.Clients) *perf.Provider {
 	cluster := os.Getenv("CLUSTER_NAME")
 	namespace := lo.CoalesceOrEmpty(os.Getenv("KARPENTER_NAMESPACE"), "kube-system")
-	return &perf.Provider{
+	p := &perf.Provider{
 		Name:       "aws-kwok",
 		Summary:    "AWS provider's KWOK controller on EKS: real instance types and AWS APIs, faked launches.",
 		Client:     c.Client,
@@ -98,6 +101,15 @@ func AWS(c env.Clients) *perf.Provider {
 		ReproEnv:     []string{"CLUSTER_NAME", "KARPENTER_NAMESPACE"},
 		Levels:       Levels(),
 	}
+	sink, err := timestreamSinkFromEnv(context.Background(), append(append([]perf.Metric(nil), perf.Metrics...), p.Metrics...))
+	if err != nil {
+		// A broken sink only loses the dashboard's points, so it doesn't fail the run.
+		GinkgoWriter.Printf("perf: Timestream sink disabled: %v\n", err)
+	}
+	if sink != nil {
+		p.Sinks = append(p.Sinks, sink)
+	}
+	return p
 }
 
 // Levels are Experimental bounds from 5 EKS baselines (tier-xl, 8 CPU / 24Gi controller): the larger of 1.2x the max
