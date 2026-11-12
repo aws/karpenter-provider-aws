@@ -101,6 +101,10 @@ func (r *BaseResolver) ResolveOfferings(
 				if capacityType == karpv1.CapacityTypeReserved {
 					continue
 				}
+				// Additional capacity types registered by the cloud provider get their offerings from an additional resolver
+				if _, builtIn := cloudprovider.DefaultCapacityTypeClasses[capacityType]; !builtIn && lo.Contains(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), capacityType) {
+					continue
+				}
 				// Check both the general ICE signal and the PG-scoped signal.
 				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
 				isUnavailable := r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)

@@ -40,6 +40,21 @@ var _ = Describe("EFA DRA Provider", func() {
 	BeforeEach(func() {
 		provider = efadra.NewDefaultProvider()
 	})
+	Describe("DynamicResourcesFor", func() {
+		It("should return false for an instance type with no network device metadata", func() {
+			_, ok := efadra.DynamicResourcesFor("m5.large")
+			Expect(ok).To(BeFalse())
+		})
+		It("should return the same unscoped set and bindings the provider resolves", func() {
+			for name := range drametadata.EFAMetadataByInstanceType {
+				r, ok := efadra.DynamicResourcesFor(name)
+				Expect(ok).To(BeTrue(), name)
+				Expect(r.Set.Requirements).To(BeEmpty(), name)
+				resolved := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{{Name: name}})[name]
+				Expect(r).To(Equal(resolved), name)
+			}
+		})
+	})
 	It("should omit instance types with no network device metadata", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "m5.large"},
@@ -50,10 +65,10 @@ var _ = Describe("EFA DRA Provider", func() {
 		resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 			{Name: "g6.48xlarge"},
 		})
-		Expect(resources["g6.48xlarge"].ResourceSliceTemplates).To(HaveLen(1))
+		Expect(resources["g6.48xlarge"].Set.ResourceSliceTemplates).To(HaveLen(1))
 
 		metadata := drametadata.EFAMetadataByInstanceType["g6.48xlarge"]
-		template := resources["g6.48xlarge"].ResourceSliceTemplates[0]
+		template := resources["g6.48xlarge"].Set.ResourceSliceTemplates[0]
 		Expect(template.Driver.Value()).To(Equal(efadra.DriverName))
 		Expect(template.Devices).To(HaveLen(len(metadata.Devices)))
 
@@ -81,7 +96,7 @@ var _ = Describe("EFA DRA Provider", func() {
 		for name, metadata := range drametadata.EFAMetadataByInstanceType {
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
-			Expect(resources[name].ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
+			Expect(resources[name].Set.ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
 			// The driver's runtime-only attributes sit on devices we don't model, and the allocator
 			// ignores bindings covering fewer than two devices, so there's nothing to bind.
 			Expect(resources[name].AttributeBindings).To(BeEmpty(), name)
@@ -104,7 +119,7 @@ var _ = Describe("EFA DRA Provider", func() {
 		Expect(maxDevices).To(BeNumerically(">", 1),
 			"every EFA type has a single device, so the naming assertion below cannot fail -- add a multi-device type")
 		for name := range drametadata.EFAMetadataByInstanceType {
-			for i, device := range resources[name].ResourceSliceTemplates[0].Devices {
+			for i, device := range resources[name].Set.ResourceSliceTemplates[0].Devices {
 				Expect(device.Name.Value()).To(Equal(fmt.Sprintf("efa-%d", i)), name)
 			}
 		}

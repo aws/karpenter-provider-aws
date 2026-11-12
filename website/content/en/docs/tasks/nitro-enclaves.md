@@ -26,7 +26,7 @@ Common use cases include:
 - Implementing secure key management and cryptographic operations
 - Supporting compliance efforts for workloads with data-isolation requirements, such as PCI DSS or HIPAA-regulated workloads
 
-For more information, see the [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/).
+For more information, see the [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
 Karpenter enables Nitro Enclaves in EC2 launch templates, excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`, and models `NodeOverlay` capacity. You must configure the node, install the Kubernetes device plugin, and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet.
 
@@ -281,7 +281,7 @@ After launch, compare standard `cpu` in the NodeClaim's `.status.allocatable` wi
 
 ## Additional Resources
 
-- [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/)
+- [AWS Nitro Enclaves documentation](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html)
 - [Nitro Enclaves SDK](https://github.com/aws/aws-nitro-enclaves-sdk-c)
 - [AWS Nitro Enclaves Kubernetes device plugin](https://github.com/aws/aws-nitro-enclaves-k8s-device-plugin)
 - [EC2NodeClass reference]({{< relref "../concepts/nodeclasses#specenclaveoptions" >}})

@@ -30,6 +30,7 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -742,6 +743,23 @@ var _ = Describe("InstanceFiltersTest", func() {
 					Expect(o.Requirements.Get("test.karpenter.sh/tag").Any()).To(Equal("kept"))
 				}
 			}
+		})
+		It("should filter expensive spot offerings against an additional on-demand class capacity type", func() {
+			const onDemandAlt = "on-demand-alt"
+			Expect(cloudprovider.SetCapacityTypeClassResolver(cloudprovider.DefaultCapacityTypeClasses.With(cloudprovider.CapacityTypeClasses{
+				onDemandAlt: cloudprovider.CapacityTypeClassOnDemand,
+			}))).To(Succeed())
+			DeferCleanup(coretest.ResetCapacityTypeClasses)
+			f := filter.SpotOfferingFilter(scheduling.NewRequirements(
+				scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, karpv1.CapacityTypeSpot, onDemandAlt),
+			))
+			kept, rejected := f.FilterReject([]*cloudprovider.InstanceType{
+				makeInstanceType("alt-instance", withOfferings(makeOffering(onDemandAlt, true, withPrice(5.0)))),
+				makeInstanceType("cheap-spot-instance", withOfferings(makeOffering(karpv1.CapacityTypeSpot, true, withPrice(1.0)))),
+				makeInstanceType("expensive-spot-instance", withOfferings(makeOffering(karpv1.CapacityTypeSpot, true, withPrice(10.0)))),
+			})
+			expectInstanceTypes(kept, "alt-instance", "cheap-spot-instance")
+			expectInstanceTypes(rejected, "expensive-spot-instance")
 		})
 		It("should reject instance types with no remaining offerings after filtering", func() {
 			f := filter.SpotOfferingFilter(scheduling.NewRequirements(

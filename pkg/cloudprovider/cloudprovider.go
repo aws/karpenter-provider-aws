@@ -18,6 +18,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
 	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -51,6 +52,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -325,7 +327,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeCla
 		}
 		return "", fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
+	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
 		return "", err
 	}
@@ -346,6 +348,15 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 		return legacyRepairPolicies
 	}
 	return []cloudprovider.RepairPolicy{
+		// EC2 DescribeInstanceStatus reachability failures, published by the instancestatus controller
+		{
+			ConditionType:          instancestatus.ConditionTypeEC2StatusReady,
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     instancestatus.UnhealthyThreshold,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
 		// Supported Kubelet Node Conditions
 		//
 		// The AcceleratedHardwareReady catch-all below is the global fallback (empty ReasonRegex); every other policy sets a ReasonRegex.
@@ -379,7 +390,34 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			// RebootForRepair feature gate the node is replaced instead, on the same timing.
 			ConditionType:          "AcceleratedHardwareReady",
 			ConditionStatus:        corev1.ConditionFalse,
-			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|136|140|143|155|156|158).*`,
+			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|119|120|136|140|143|155|156|158).*`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+		},
+		{
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|119|120|136|140|143|155|156|158).*`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+		},
+		{
+			// NMA reports these only after its own window (a hung driver, or a fabric Fabric Manager never trained), and
+			// a reboot clears both: it reloads the driver and restarts Fabric Manager. Without the RebootForRepair
+			// feature gate the node is replaced instead.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+		},
+		{
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
 			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
@@ -388,23 +426,59 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			// Fatal / uncorrectable GPU errors — replace fast, a reboot would only waste time on dead hardware.
 			ConditionType:          "AcceleratedHardwareReady",
 			ConditionStatus:        corev1.ConditionFalse,
-			ReasonRegex:            `.*XID(64|74|79|119|120).*`,
+			ReasonRegex:            `.*XID(64|74|79|142|151).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
 			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
-			// Default fallback (empty ReasonRegex, the only one allowed per policy set): an unrecognized GPU fault gets a
-			// longer 30m confidence delay before we replace, since we can't attribute it to a known reboot/replace family.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `.*XID(64|74|79|142|151).*`,
+			TolerationDuration:     10 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			// DCGM health check failures are not repaired, matching managed node groups. The repair policy schema has no
+			// no-op action, and any reason no policy matches goes to the default fallback, which replaces. So this
+			// policy matches DCGM reasons with a toleration that never elapses, keeping them out of the fallback; its
+			// action never applies. A DCGM reason that names a listed XID is still repaired by the XID policies above.
 			ConditionType:          "AcceleratedHardwareReady",
 			ConditionStatus:        corev1.ConditionFalse,
-			TolerationDuration:     30 * time.Minute,
+			ReasonRegex:            `^DCGM`,
+			TolerationDuration:     time.Duration(math.MaxInt64),
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            `^DCGM`,
+			TolerationDuration:     time.Duration(math.MaxInt64),
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			// Default fallback (empty ReasonRegex, the only one allowed per policy set): an unrecognized GPU fault is
+			// replaced after 10m.
+			ConditionType:          "AcceleratedHardwareReady",
+			ConditionStatus:        corev1.ConditionFalse,
+			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
 			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
 			ConditionType:          "StorageReady",
 			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "StorageReady",
+			ConditionStatus:        corev1.ConditionUnknown,
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
@@ -419,6 +493,14 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
+			ConditionType:          "NetworkingReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
 			ConditionType:          "KernelReady",
 			ConditionStatus:        corev1.ConditionFalse,
 			ReasonRegex:            ".*",
@@ -427,8 +509,24 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			Action:                 cloudprovider.ReplaceNode,
 		},
 		{
+			ConditionType:          "KernelReady",
+			ConditionStatus:        corev1.ConditionUnknown,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
 			ConditionType:          "ContainerRuntimeReady",
 			ConditionStatus:        corev1.ConditionFalse,
+			ReasonRegex:            ".*",
+			TolerationDuration:     30 * time.Minute,
+			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
+			Action:                 cloudprovider.ReplaceNode,
+		},
+		{
+			ConditionType:          "ContainerRuntimeReady",
+			ConditionStatus:        corev1.ConditionUnknown,
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),

@@ -126,9 +126,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 1.15.0
+    tag: 1.15.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:ab0f953e1460c61566d48209b517734ba79fe2105f335af1ff85faa8b6baf157
+    digest: sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -259,6 +259,9 @@ settings:
     # -- capacityBuffer is ALPHA and is disabled by default.
     # Setting this to true will enable CapacityBuffer support for pre-provisioning spare capacity.
     capacityBuffer: false
+    # -- predictionEnabled is ALPHA and is disabled by default.
+    # Setting this to true will enable Karpenter to size nodes using VPA predictions during provisioning and disruption.
+    predictionEnabled: false
     # -- terminateFirstDrift is ALPHA and is disabled by default.
     # Setting this to true lets drift terminate a node before launching its replacement on a capacity-constrained NodePool.
     terminateFirstDrift: false
@@ -272,7 +275,7 @@ settings:
   # -- AWS-specific Feature Gate configuration values.
   awsFeatureGates:
     # -- nodeClassCEL is ALPHA and is disabled by default.
-    # Setting this to true will enable CEL validation on EC2NodeClass resources.
+    # Setting this to true will enable CEL expressions in EC2NodeClass spec.kubelet (maxPods, kubeReserved, and systemReserved).
     nodeClassCEL: false
     # -- (bool) draNVIDIAGPU is ALPHA and is disabled by default.
     # Setting this to true will make Karpenter calculate the DRA devices the NVIDIA GPU driver publishes,

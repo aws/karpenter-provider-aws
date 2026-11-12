@@ -312,6 +312,7 @@ func NewInstanceType(
 			SystemReserved:    systemReservedResources(systemReserved),
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), evictionHard),
 		},
+		VolumeAttachmentLimits: volumeAttachmentLimits(info),
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)))) == nil {
 		it.Capacity[v1.ResourcePrivateIPv4Address] = *privateIPv4Address(string(info.InstanceType))
@@ -334,6 +335,11 @@ func computeRequirements(
 		}
 		return string(uc), true
 	})
+	if lo.Contains(capacityTypes, karpv1.CapacityTypeOnDemand) {
+		// Capacity types the cloud provider registered in the on-demand class are on-demand capacity bought another way,
+		// so they're valid wherever on-demand is. An additional offering resolver supplies their offerings.
+		capacityTypes = append(capacityTypes, lo.Without(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), karpv1.CapacityTypeOnDemand)...)
+	}
 	if len(capacityReservations) != 0 {
 		capacityTypes = append(capacityTypes, karpv1.CapacityTypeReserved)
 	}
@@ -370,6 +376,7 @@ func computeRequirements(
 		scheduling.NewRequirement(v1.LabelInstanceGPUManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceGPUMemory, corev1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1.LabelNvidiaGPUPresent, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorName, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorManufacturer, corev1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
@@ -434,6 +441,9 @@ func computeRequirements(
 		requirements.Get(v1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.ToString(gpu.Manufacturer)))
 		requirements.Get(v1.LabelInstanceGPUCount).Insert(fmt.Sprint(lo.FromPtr(gpu.Count)))
 		requirements.Get(v1.LabelInstanceGPUMemory).Insert(fmt.Sprint(lo.FromPtr(gpu.MemoryInfo.SizeInMiB)))
+		if lowerKabobCase(aws.ToString(gpu.Manufacturer)) == "nvidia" {
+			requirements.Get(v1.LabelNvidiaGPUPresent).Insert("true")
+		}
 	}
 	// Accelerators - excluding Neuron
 	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 && info.NeuronInfo == nil {
@@ -561,6 +571,14 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		return ephemeralBlockDevice.EBS.VolumeSize
 	}
 	return amifamily.DefaultEBS.VolumeSize
+}
+
+// volumeAttachmentLimits returns EC2's maximum EBS attachments for the instance type, less one for the root volume.
+func volumeAttachmentLimits(info ec2types.InstanceTypeInfo) map[string]int {
+	if info.EbsInfo == nil || info.EbsInfo.MaximumEbsAttachments == nil {
+		return nil
+	}
+	return map[string]int{"ebs.csi.aws.com": int(*info.EbsInfo.MaximumEbsAttachments) - 1}
 }
 
 // awsPodENI relies on the VPC resource controller to populate the vpc.amazonaws.com/pod-eni resource

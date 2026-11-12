@@ -60,6 +60,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	zonalshiftprovider "github.com/aws/karpenter-provider-aws/pkg/providers/arczonalshift"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
@@ -197,12 +198,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	// info (DescribeInstanceTypes) rather than the static vpclimits table. The closure captures the
 	// variable by reference and is only invoked at launch template resolution time, after assignment below.
 	var instanceTypeProvider *instancetype.DefaultProvider
+	// The instance provider and the launch template resolver share one efa.Provider so their EFA counts agree.
+	efaProvider := efa.DefaultProvider{}
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
 		if instanceTypeProvider == nil {
 			return amifamily.ENILimits{}, false
 		}
 		return instanceTypeProvider.ENILimits(name)
-	}, celEnv)
+	}, celEnv, amifamily.WithEFAProvider(efaProvider))
 	caBundle := lo.Must(GetCABundle(ctx, operator.GetConfig()))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
@@ -260,6 +263,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
 		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
+		instance.WithEFAProvider(efaProvider),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
 
@@ -388,7 +392,10 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
 	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, err := eksAPI.DescribeCluster(ctx, &inputDC)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster for zonal shift enablement, %w", err)
+	}
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)

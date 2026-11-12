@@ -50,7 +50,7 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	instancefilter "github.com/aws/karpenter-provider-aws/pkg/providers/instance/filter"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
@@ -113,6 +113,27 @@ type DefaultProvider struct {
 	placementGroupProvider      placementgroup.Provider
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
+	allocationStrategyProvider  AllocationStrategyProvider
+	efaProvider                 efa.Provider
+}
+
+type DefaultProviderOpts = option.Function[DefaultProvider]
+
+// WithEFAProvider decides whether instances are launched with EFA interfaces with p instead of efa.DefaultProvider.
+// Pass the same Provider to the launch template resolver (amifamily.WithEFAProvider) so the EFA count recorded on the
+// instance agrees with the interfaces the launch template attaches.
+func WithEFAProvider(p efa.Provider) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.efaProvider = p
+	}
+}
+
+// WithAllocationStrategyProvider chooses CreateFleet allocation strategies with p instead of
+// DefaultAllocationStrategyProvider.
+func WithAllocationStrategyProvider(p AllocationStrategyProvider) DefaultProviderOpts {
+	return func(provider *DefaultProvider) {
+		provider.allocationStrategyProvider = p
+	}
 }
 
 func NewDefaultProvider(
@@ -127,8 +148,9 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	zonalshiftProvider arczonalshift.Provider,
 	instanceCache *cache.Cache,
+	opts ...DefaultProviderOpts,
 ) *DefaultProvider {
-	return &DefaultProvider{
+	provider := &DefaultProvider{
 		region:                      region,
 		recorder:                    recorder,
 		ec2api:                      ec2api,
@@ -140,7 +162,13 @@ func NewDefaultProvider(
 		placementGroupProvider:      placementGroupProvider,
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
+		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
+		efaProvider:                 efa.DefaultProvider{},
 	}
+	for _, opt := range opts {
+		opt(provider)
+	}
+	return provider
 }
 
 func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, tags map[string]string, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
@@ -402,7 +430,7 @@ func (p *DefaultProvider) launchInstance(
 		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 
-	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs)
+	cfiBuilder := NewCreateFleetInputBuilder(capacityType, tags, launchTemplateConfigs).WithAllocationStrategyProvider(p.allocationStrategyProvider)
 	if _, ok := nodeClaim.Annotations[v1alpha1.PriceOverlayAppliedAnnotationKey]; ok {
 		cfiBuilder.WithOverlay()
 	}
@@ -416,7 +444,7 @@ func (p *DefaultProvider) launchInstance(
 		}
 		cfiBuilder.WithCapacityReservationType(*crt, getCapacityReservationInterruptible(instanceTypes))
 	}
-	createFleetInput := cfiBuilder.Build()
+	createFleetInput := cfiBuilder.Build(ctx, nodeClaim)
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
 	p.subnetProvider.UpdateInflightIPs(createFleetInput, createFleetOutput, instanceTypes, lo.Values(zonalSubnets), capacityType)
@@ -466,7 +494,7 @@ func (p *DefaultProvider) launchInstance(
 
 func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []ec2types.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
+	if class, _ := cloudprovider.CapacityTypeClassOf(getCapacityType(nodeClaim, instanceTypes)); class != cloudprovider.CapacityTypeClassOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -616,7 +644,8 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	for _, err := range errs {
 		// CreateFleet errors carry the zone name but not the zone ID, so resolve it from
 		// the subnets the launch was built from.
-		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+		zone := aws.ToString(overrides.AvailabilityZone)
 		var zoneID string
 		if s, ok := zonalSubnets[zone]; ok {
 			zoneID = s.ZoneID
@@ -629,7 +658,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 			karpentermetrics.ReasonLabel:       reason,
 		})
 
-		if subnet := lo.FromPtr(err.LaunchTemplateAndOverrides.Overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
+		if subnet := lo.FromPtr(overrides.SubnetId); awserrors.IsInsufficientFreeAddressesInSubnet(err) && subnet != "" {
 			p.unavailableOfferings.MarkSubnetUnavailable(subnet)
 			// When a Subnet is ICEd we update the subnet provider's availableIPAddressCache to ensure
 			// this subnet is sorted last for future launches
@@ -639,9 +668,10 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 
 	if capacityType != karpv1.CapacityTypeReserved {
 		for _, err := range errs {
-			if awserrors.IsUnfulfillableCapacity(err) {
-				instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
-				zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+			overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+			instanceType, zone := overrides.InstanceType, aws.ToString(overrides.AvailabilityZone)
+			// Without an instance type and zone there is no offering to scope the ICE to
+			if awserrors.IsUnfulfillableCapacity(err) && instanceType != "" && zone != "" {
 				unavailableReason := map[string]string{
 					"reason": lo.FromPtr(err.ErrorCode),
 				}
@@ -690,8 +720,11 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(
 		if awserrors.IsSpreadPlacementGroupLimitError(err) {
 			continue
 		}
-		instanceType := err.LaunchTemplateAndOverrides.Overrides.InstanceType
-		zone := aws.ToString(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
+		overrides := fleetOverrides(err.LaunchTemplateAndOverrides)
+		instanceType, zone := overrides.InstanceType, aws.ToString(overrides.AvailabilityZone)
+		if instanceType == "" || zone == "" {
+			continue
+		}
 		resID := reservedOfferingID(instanceType, zone, instanceTypes)
 		if awserrors.IsReservationCapacityExceeded(err) {
 			// A full reservation is out of capacity, not unhealthy, so we don't mark it ICE-unavailable (that would wrongly
@@ -761,16 +794,16 @@ func (p *DefaultProvider) getCapacityReservationDetailsForInstance(instance, zon
 	panic("reservation ID doesn't exist for reserved launch")
 }
 
-// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and NodeClaim requirements
+// getEFACountForInstance returns the EFA count for a specific instance type based on the NodeClass configurations and
+// whether the EFA provider enables EFA for the NodeClaim. When EFA is on, every EFA interface the instance type supports
+// is attached.
 func (p *DefaultProvider) getEFACountForInstance(
 	instanceType string,
 	instanceTypes []*cloudprovider.InstanceType,
 	nodeClass *v1.EC2NodeClass,
 	nodeClaim *karpv1.NodeClaim,
 ) int {
-	// EFA is requested either as the extended resource or as dra.net devices allocated to the NodeClaim's pods.
-	requested := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA) || efadra.Requested(nodeClaim)
-	if !requested && nodeClass.NetworkInterfaces() == nil {
+	if !p.efaProvider.Enabled(nodeClaim, nodeClass) && nodeClass.NetworkInterfaces() == nil {
 		return 0
 	}
 	for _, it := range instanceTypes {
@@ -808,9 +841,11 @@ func getTenancyType(nodeClaim *karpv1.NodeClaim) string {
 }
 
 // getCapacityType selects the capacity type based on the flexibility of the NodeClaim and the available offerings.
-// Prioritization is as follows: reserved, spot, on-demand.
+// Prioritization is as follows: reserved, spot, additional on-demand class capacity types, on-demand.
 func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
-	for _, capacityType := range []string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot} {
+	additionalOnDemand := lo.Without(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), karpv1.CapacityTypeOnDemand)
+	allowed := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey)
+	for _, capacityType := range append([]string{karpv1.CapacityTypeReserved, karpv1.CapacityTypeSpot}, additionalOnDemand...) {
 		requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 		if !requirements.Get(karpv1.CapacityTypeLabelKey).Has(capacityType) {
 			continue
@@ -822,6 +857,12 @@ func getCapacityType(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider
 			if len(it.Offerings.Compatible(requirements).Launchable()) != 0 {
 				return capacityType
 			}
+		}
+	}
+	// Without a launchable offering, fall back to the on-demand class capacity type the NodeClaim allows.
+	if !allowed.Has(karpv1.CapacityTypeOnDemand) {
+		if capacityType, ok := lo.Find(additionalOnDemand, allowed.Has); ok {
+			return capacityType
 		}
 	}
 	return karpv1.CapacityTypeOnDemand
@@ -863,6 +904,13 @@ func instancesFromOutput(ctx context.Context, out *ec2.DescribeInstancesOutput) 
 		inst := NewInstance(ctx, i)
 		return inst.ID, inst
 	}), nil
+}
+
+// fleetOverrides returns the launch template overrides from a CreateFleet error. They are optional on errors: EC2 omits
+// them for errors that aren't tied to a single pool (e.g. InternalError), and the CreateFleet batcher synthesizes errors
+// without them on partial fulfillment. Launched instances always carry them, so instances are read directly.
+func fleetOverrides(ltao *ec2types.LaunchTemplateAndOverridesResponse) ec2types.FleetLaunchTemplateOverrides {
+	return lo.FromPtr(lo.FromPtr(ltao).Overrides)
 }
 
 func combineFleetErrors(fleetErrs []ec2types.CreateFleetError) (errs error) {

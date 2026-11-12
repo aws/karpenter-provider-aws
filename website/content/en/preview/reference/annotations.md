@@ -182,6 +182,18 @@ Karpenter sets this to the version of the karpenter.sh/nodepool-hash algorithm. 
 Values:
 - `v3` — The current hash version.
 
+### `karpenter.sh/reboot-issued-at`
+
+Type: Annotation
+
+Example: `karpenter.sh/reboot-issued-at: "2026-11-05T02:26:51.650Z"`
+
+Used on: NodeClaim
+
+Stability Level: ALPHA
+
+Karpenter sets this to the time it issued a reboot and bounds recovery from it. Removed when the reboot completes.
+
 ### `karpenter.sh/reboot-pre-boot-id`
 
 Type: Annotation

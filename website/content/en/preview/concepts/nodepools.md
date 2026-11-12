@@ -20,7 +20,7 @@ Here are things you should know about NodePools:
 * Each NodePool that is configured is looped through by Karpenter.
 * If Karpenter encounters a taint in the NodePool that is not tolerated by a Pod, Karpenter won't use that NodePool to provision the pod.
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
-* It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
+* It is recommended to create NodePools that are either mutually exclusive, so that no Pod matches multiple NodePools, or [weighted](#specweight), so that the preferred NodePool is explicit. If multiple NodePools are matched, Karpenter will launch the node from the NodePool with the highest weight, falling back to lower-weight NodePools if it can't be used (for example, if its limits have been reached). If you need a specific NodePool to be preferred over another, give it a higher weight.
 
 
 {{% alert title="Note" color="primary" %}}
@@ -197,6 +197,7 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node can be initialized.
 These taints must be cleared before pods can be deployed to a node.
+Startup taints are applied only when the node registers. Karpenter doesn't re-apply them after it [reboots a node in place]({{<ref "./disruption#repair-actions" >}}).
 
 ## spec.template.spec.expireAfter
 
@@ -278,6 +279,7 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 If a NodePool is compatible with multiple capacity types, Karpenter will prioritize `reserved` capacity, followed by `spot`, then finally `on-demand`.
 If the provider API (e.g. EC2 Fleet's API) indicates capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 3 minutes.
 If there are no other possible offerings available for a higher priority capacity type, Karpenter will attempt to fallback to a lower priority capacity type, generally within milliseconds.
+Karpenter will only fall back to capacity types that the NodePool allows. For example, a NodePool that allows both `spot` and `on-demand` will launch `on-demand` capacity when no `spot` offerings are available, but a NodePool that only allows `spot` will never launch `on-demand` capacity; pods will remain pending until a `spot` offering can be launched.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
@@ -461,6 +463,8 @@ Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca
 
 Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
+The `weight` field accepts values in the range **1–100** (inclusive). NodePools with higher weights are preferred during scheduling — Karpenter will attempt to schedule pods using the highest-weighted NodePool first before falling back to lower-weighted ones. If unset, the weight defaults to `0` (lowest priority).
+
 For more information on weighting NodePools, see the [Weighted NodePools section]({{<ref "scheduling#weighted-nodepools" >}}) in the scheduling docs.
 
 ## status.conditions
@@ -550,8 +554,8 @@ spec:
     - nodes: 20%  # Disruption budget for drift replacement
 ```
 
-Karpenter pre-spins replacements for drifted nodes in static NodePools, so `limits.nodes` must leave headroom above `replicas`.
-If `limits.nodes` is equal to `replicas`, drifted nodes can't be replaced unless you enable the `TerminateFirstDrift` feature gate. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
+Karpenter pre-spins replacements for drifted and unhealthy nodes in static NodePools. If you set `limits.nodes`, leave headroom above `replicas` for these replacements. A node that is being replaced counts toward `limits.nodes` until it's gone, and so does its replacement.
+When the NodePool reaches its limit, drifted and unhealthy nodes can't be replaced unless you enable the `TerminateFirstDrift` or `TerminateFirstRepair` feature gate, respectively. Headroom doesn't help when every offering the NodePool can use is a full capacity reservation. See [Terminate-First Disruption]({{<ref "./disruption#terminate-first-disruption" >}}).
 This doesn't affect [expiration]({{<ref "./disruption#expiration" >}}): Karpenter terminates expired nodes without pre-spinning a replacement, and then provisions back up to `replicas`.
 
 ### Cilium Startup Taint

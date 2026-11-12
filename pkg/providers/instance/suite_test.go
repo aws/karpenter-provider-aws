@@ -39,6 +39,7 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -204,6 +205,50 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1b",
 			test.GetSubnetsFromZone("test-zone-1b", nodeClass.ZoneInfo()), karpv1.CapacityTypeOnDemand)).To(BeTrue())
 	})
+	It("should mark an ICE'd additional on-demand class capacity type unavailable without marking on-demand", func() {
+		const onDemandAlt = "on-demand-alt"
+		Expect(corecloudprovider.SetCapacityTypeClassResolver(corecloudprovider.DefaultCapacityTypeClasses.With(corecloudprovider.CapacityTypeClasses{
+			onDemandAlt: corecloudprovider.CapacityTypeClassOnDemand,
+		}))).To(Succeed())
+		DeferCleanup(coretest.ResetCapacityTypeClasses)
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{onDemandAlt}},
+		}
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+		it, ok := lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool { return i.Name == "m5.xlarge" })
+		Expect(ok).To(BeTrue())
+		// No resolver in this suite adds offerings for the registered type, so give m5.xlarge one per on-demand offering
+		zones := []string{"test-zone-1a", "test-zone-1b", "test-zone-1c"}
+		altOfferings := lo.FilterMap(it.Offerings, func(o *corecloudprovider.Offering, _ int) (*corecloudprovider.Offering, bool) {
+			if o.CapacityType() != karpv1.CapacityTypeOnDemand || !lo.Contains(zones, o.Zone()) {
+				return nil, false
+			}
+			reqs := scheduling.NewRequirements(o.Requirements.Values()...)
+			delete(reqs, karpv1.CapacityTypeLabelKey)
+			reqs.Add(scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, onDemandAlt))
+			return &corecloudprovider.Offering{Requirements: reqs, Price: o.Price, Available: true}, true
+		})
+		Expect(lo.Uniq(lo.Map(altOfferings, func(o *corecloudprovider.Offering, _ int) string { return o.Zone() }))).To(ConsistOf(zones))
+		alt := &corecloudprovider.InstanceType{Name: it.Name, Requirements: it.Requirements, Offerings: altOfferings, Capacity: it.Capacity, Overhead: it.Overhead}
+		// The registered type launches as on-demand, so EC2 reports the ICE against on-demand pools
+		awsEnv.EC2API.InsufficientCapacityPools.Set(lo.Map(zones, func(zone string, _ int) fake.CapacityPool {
+			return fake.CapacityPool{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: zone}
+		}))
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, []*corecloudprovider.InstanceType{alt})
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(instance).To(BeNil())
+		for _, zone := range zones {
+			subnets := test.GetSubnetsFromZone(zone, nodeClass.ZoneInfo())
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, onDemandAlt)).To(BeTrue(), zone)
+			Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", zone, subnets, karpv1.CapacityTypeOnDemand)).To(BeFalse(), zone)
+		}
+	})
 	It("should return an ICE error when spot instances are used and SpotSLR can't be created", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -264,6 +309,79 @@ var _ = Describe("InstanceProvider", func() {
 
 		// Expect that an event is fired for Spot SLR not being created
 		awsEnv.EventRecorder.DetectedEvent(`Attempted to launch a spot instance but failed due to "AuthFailure.ServiceLinkedRoleCreationNotPermitted"`)
+	})
+	DescribeTable("should not panic when CreateFleet errors are missing launch template overrides",
+		func(output *ec2.CreateFleetOutput) {
+			ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.CreateFleetBehavior.Output.Set(output)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+
+			instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+			Expect(err).To(HaveOccurred())
+			Expect(instance).To(BeNil())
+		},
+		Entry("nil LaunchTemplateAndOverrides", &ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{{
+				ErrorCode:    lo.ToPtr("InternalError"),
+				ErrorMessage: lo.ToPtr("An internal error has occurred"),
+			}},
+		}),
+		Entry("nil Overrides", &ec2.CreateFleetOutput{
+			Errors: []ec2types.CreateFleetError{{
+				ErrorCode:                  lo.ToPtr("InsufficientInstanceCapacity"),
+				ErrorMessage:               lo.ToPtr("There is no Spot capacity available that matches your request."),
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{},
+			}},
+		}),
+		Entry("an empty response", &ec2.CreateFleetOutput{}),
+	)
+	It("should still mark offerings unavailable and launch when one CreateFleet error is missing overrides", func() {
+		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		awsEnv.EC2API.CreateFleetBehavior.Output.Set(&ec2.CreateFleetOutput{
+			FleetId: lo.ToPtr("fleet-id"),
+			Errors: []ec2types.CreateFleetError{
+				{
+					ErrorCode:    lo.ToPtr("InternalError"),
+					ErrorMessage: lo.ToPtr("An internal error has occurred"),
+				},
+				{
+					ErrorCode:    lo.ToPtr("InsufficientInstanceCapacity"),
+					ErrorMessage: lo.ToPtr("There is no Spot capacity available that matches your request."),
+					LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+						Overrides: &ec2types.FleetLaunchTemplateOverrides{
+							InstanceType:     "m5.xlarge",
+							AvailabilityZone: lo.ToPtr("test-zone-1a"),
+						},
+					},
+				},
+			},
+			Instances: []ec2types.CreateFleetInstance{{
+				InstanceIds:  []string{"i-0123456789abcdef0"},
+				InstanceType: "m5.large",
+				LaunchTemplateAndOverrides: &ec2types.LaunchTemplateAndOverridesResponse{
+					Overrides: &ec2types.FleetLaunchTemplateOverrides{
+						InstanceType:     "m5.large",
+						AvailabilityZone: lo.ToPtr("test-zone-1b"),
+						SubnetId:         lo.ToPtr("subnet-test2"),
+						ImageId:          lo.ToPtr("ami-123"),
+					},
+				},
+			}},
+		})
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+		Expect(err).ToNot(HaveOccurred())
+
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(instance.ID).To(Equal("i-0123456789abcdef0"))
+		Expect(instance.Zone).To(Equal("test-zone-1b"))
+
+		// The well-formed ICE error in the same response must still be recorded
+		Expect(awsEnv.UnavailableOfferingsCache.IsUnavailable("m5.xlarge", "test-zone-1a",
+			test.GetSubnetsFromZone("test-zone-1a", nodeClass.ZoneInfo()), karpv1.CapacityTypeSpot)).To(BeTrue())
 	})
 	It("should return an ICE error when max fleet count is reached", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
@@ -1013,6 +1131,41 @@ var _ = Describe("InstanceProvider", func() {
 			Expect(createdInstance).ToNot(BeNil())
 			Expect(createdInstance.EFACount).To(Equal(0))
 		})
+		DescribeTable("should decide EFA with the efa.Provider passed with WithEFAProvider",
+			func(enabled bool, requestEFA bool, expected int) {
+				if requestEFA {
+					nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
+				}
+				ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+				nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+				instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+				instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool {
+					return i.Name == "g4dn.8xlarge"
+				})
+
+				provider := instance.NewDefaultProvider(
+					ctx,
+					"",
+					awsEnv.EventRecorder,
+					awsEnv.EC2API,
+					awsEnv.UnavailableOfferingsCache,
+					awsEnv.SubnetProvider,
+					awsEnv.LaunchTemplateProvider,
+					awsEnv.CapacityReservationProvider,
+					awsEnv.PlacementGroupProvider,
+					awsEnv.ZonalShiftProvider,
+					awsEnv.InstanceCache,
+					instance.WithEFAProvider(staticEFAProvider(enabled)),
+				)
+				createdInstance, err := provider.Create(ctx, nodeClass, nodeClaim, nil, instanceTypes)
+				Expect(err).To(BeNil())
+				Expect(createdInstance.EFACount).To(Equal(expected))
+			},
+			// When enabled, every EFA interface the instance type supports is attached, whatever the request.
+			Entry("enabled without an EFA request", true, false, 1),
+			Entry("disabled despite an EFA request", false, true, 0),
+		)
 	})
 	Context("Zonal Shift", func() {
 		var instanceID string
@@ -1234,3 +1387,8 @@ var _ = Describe("InstanceProvider", func() {
 		})
 	})
 })
+
+// staticEFAProvider is an efa.Provider that always returns its own value.
+type staticEFAProvider bool
+
+func (s staticEFAProvider) Enabled(*karpv1.NodeClaim, *v1.EC2NodeClass) bool { return bool(s) }

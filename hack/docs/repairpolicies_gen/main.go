@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -106,6 +107,9 @@ func formatTerminationGracePeriod(tgp *time.Duration) string {
 
 // formatDuration renders whole minutes as "30 minutes" to match the rest of the docs, falling back to Go's format.
 func formatDuration(d time.Duration) string {
+	if d == math.MaxInt64 {
+		return "Never"
+	}
 	if d%time.Minute != 0 {
 		return d.String()
 	}

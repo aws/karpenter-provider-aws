@@ -36,3 +36,8 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
     verbs: ["patch", "update"]
+  {{- if and .Values.settings.featureGates.nodeRepair (not .Values.settings.legacyNodeRepair) }}
+  - apiGroups: [""]
+    resources: ["nodes/status"]
+    verbs: ["patch"]
+  {{- end }}

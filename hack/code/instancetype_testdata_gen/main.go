@@ -194,6 +194,7 @@ func getInstanceTypeInfo(info ec2types.InstanceTypeInfo) string {
 		}
 		fmt.Fprintf(src, "EbsOptimizedSupport: \"%s\",\n", info.EbsInfo.EbsOptimizedSupport)
 		fmt.Fprintf(src, "EncryptionSupport: \"%s\",\n", info.EbsInfo.EncryptionSupport)
+		fmt.Fprintf(src, "MaximumEbsAttachments: aws.Int32(%d),\n", lo.FromPtr(info.EbsInfo.MaximumEbsAttachments))
 		fmt.Fprintf(src, "NvmeSupport: \"%s\",\n", info.EbsInfo.NvmeSupport)
 		fmt.Fprintf(src, "},\n")
 	}
