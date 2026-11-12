@@ -48,6 +48,7 @@ var (
 	)
 	alreadyExistsErrorCodes = sets.New(
 		"EntityAlreadyExists",
+		"InvalidLaunchTemplateName.AlreadyExistsException",
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"

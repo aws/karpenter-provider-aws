@@ -425,6 +425,34 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 			Expect(lts1.Equal(lts2)).To(BeTrue())
 		})
+		It("should create uncached launch templates without a failed DescribeLaunchTemplates call", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			Expect(awsEnv.EC2API.NotFoundDescribeLaunchTemplatesInput.Len()).To(Equal(0))
+		})
+		It("should reuse a launch template that exists in EC2 but not in the cache", func() {
+			labels := map[string]string{"test-group": "uncached-reuse"}
+			podOpts := coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				PodAntiRequirements: []corev1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+					TopologyKey:   corev1.LabelHostname,
+				}},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.LaunchTemplateCache.Flush()
+			pod = coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateFleetBehavior.SuccessfulCalls()).To(BeNumerically("==", 2))
+		})
 		It("should recover from an out-of-sync launch template cache", func() {
 			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(1))})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
