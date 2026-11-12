@@ -31,6 +31,16 @@ func NodePoolFailedToResolveNodeClass(nodePool *karpv1.NodePool) events.Event {
 	}
 }
 
+func NodePoolLikelyIncorrectRequirement(nodePool *karpv1.NodePool, key, hint string) events.Event {
+	return events.Event{
+		InvolvedObject: nodePool,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "LikelyIncorrectRequirement",
+		Message:        fmt.Sprintf("Karpenter doesn't use requirement %q to choose instances, it only sets it as a node label. %s", key, hint),
+		DedupeValues:   []string{string(nodePool.UID), key},
+	}
+}
+
 func NodeClaimFailedToResolveNodeClass(nodeClaim *karpv1.NodeClaim) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClaim,
