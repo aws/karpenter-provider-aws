@@ -120,12 +120,20 @@ spec:
                   containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: 1m
                   resource: requests.cpu
+          {{- if .Values.controller.memoryLimit }}
+          {{- if and (kindIs "string" .Values.controller.memoryLimit) (not (regexMatch "^-?[0-9]+$" .Values.controller.memoryLimit)) }}
+          {{- fail "controller.memoryLimit must be a number of bytes such as 1073741824, or -1 to disable GOMEMLIMIT" }}
+          {{- end }}
+            - name: MEMORY_LIMIT
+              value: {{ .Values.controller.memoryLimit | int64 | quote }}
+          {{- else }}
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
                   containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: "0"
                   resource: limits.memory
+          {{- end }}
             - name: FEATURE_GATES
               value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }},TerminateFirstDrift={{ .Values.settings.featureGates.terminateFirstDrift }},TerminateFirstRepair={{ .Values.settings.featureGates.terminateFirstRepair }},PodDeletionCostManagement={{ .Values.settings.featureGates.podDeletionCostManagement }},PredictionEnabled={{ .Values.settings.featureGates.predictionEnabled }}"
             - name: AWS_FEATURE_GATES
