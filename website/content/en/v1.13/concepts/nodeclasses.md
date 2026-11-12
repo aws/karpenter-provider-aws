@@ -264,7 +264,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 Karpenter provides the ability to specify a few additional Kubelet arguments.
 These are all optional and provide support for additional customization and use cases.
 Adjust these only if you know you need to do so.
-For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
+For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/).
 The implemented fields are a subset of the full list of upstream kubelet configuration arguments.
 
 ```yaml
@@ -564,7 +564,7 @@ max-pods = 110
 
 ### Custom
 
-The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/#kubelet-config-k8s-io-v1-CredentialProviderConfig) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
+The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
 
 ## spec.subnetSelectorTerms
 

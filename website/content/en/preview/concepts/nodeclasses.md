@@ -268,7 +268,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 Karpenter provides the ability to configure the kubelet on provisioned nodes.
 These are all optional and provide support for additional customization and use cases.
 Adjust these only if you know you need to do so.
-For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
+For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/).
 
 Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version is configurable. This version of Karpenter is built against `k8s.io/kubelet` `v0.37.0`, so the fields of the Kubernetes `1.37` `KubeletConfiguration` are accepted. Karpenter doesn't check fields against your nodes' Kubernetes version: a field newer than the kubelet running on the node is accepted by Karpenter but ignored by the kubelet, which only logs a message at startup. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
 `kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
@@ -690,7 +690,7 @@ max-pods = 110
 
 ### Custom
 
-The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/#kubelet-config-k8s-io-v1-CredentialProviderConfig) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
+The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
 
 ## spec.subnetSelectorTerms
 
