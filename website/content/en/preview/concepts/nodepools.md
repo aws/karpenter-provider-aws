@@ -283,6 +283,10 @@ Karpenter will only fall back to capacity types that the NodePool allows. For ex
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
+{{% alert title="Note" color="primary" %}}
+Use `karpenter.sh/capacity-type`, not the managed node group label `eks.amazonaws.com/capacityType`. Karpenter treats `eks.amazonaws.com/capacityType` like any custom label, so it only sets it as a node label and doesn't affect the capacity type nodes launch with. With `In` the node gets one of the listed values; with `NotIn` or `Exists` it gets a random value. Karpenter emits a `LikelyIncorrectRequirement` warning event on the NodePool when a requirement other than `DoesNotExist` uses this key or `eks.amazonaws.com/nodegroup`. To schedule pods onto a NodePool, select on the `karpenter.sh/nodepool` node label from the pod instead.
+{{% /alert %}}
+
 #### Tenancy
 
 - key: `karpenter.k8s.aws/instance-tenancy`

@@ -336,6 +336,60 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
+	Context("Likely Incorrect Requirements", func() {
+		var eventRecorder *coretest.EventRecorder
+		var provider *cloudprovider.CloudProvider
+		BeforeEach(func() {
+			eventRecorder = coretest.NewEventRecorder()
+			provider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, eventRecorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"))
+		})
+		DescribeTable("should warn when a requirement uses a managed node group label",
+			func(key string, operator corev1.NodeSelectorOperator, hint string, values ...string) {
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+					karpv1.NodeSelectorRequirementWithMinValues{Key: key, Operator: operator, Values: values})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				_, err := provider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(1))
+				Expect(eventRecorder.DetectedEvent(fmt.Sprintf("Karpenter doesn't use requirement %q to choose instances, it only sets it as a node label. %s", key, hint))).To(BeTrue())
+			},
+			Entry("eks.amazonaws.com/capacityType In", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpIn,
+				`Use requirement "karpenter.sh/capacity-type" instead`, "ON_DEMAND", "SPOT"),
+			Entry("eks.amazonaws.com/capacityType NotIn", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpNotIn,
+				`Use requirement "karpenter.sh/capacity-type" instead`, "SPOT"),
+			Entry("eks.amazonaws.com/capacityType Exists", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpExists,
+				`Use requirement "karpenter.sh/capacity-type" instead`),
+			Entry("eks.amazonaws.com/nodegroup In", "eks.amazonaws.com/nodegroup", corev1.NodeSelectorOpIn,
+				`To target this NodePool, select on the "karpenter.sh/nodepool" node label from your pods instead`, "my-nodegroup"),
+		)
+		It("should not warn for DoesNotExist on a managed node group label", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/capacityType", Operator: corev1.NodeSelectorOpDoesNotExist},
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/nodegroup", Operator: corev1.NodeSelectorOpDoesNotExist})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(0))
+		})
+		It("should warn even when the NodeClass can't be resolved", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/capacityType", Operator: corev1.NodeSelectorOpIn, Values: []string{"SPOT"}})
+			ExpectApplied(ctx, env.Client, nodePool)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(1))
+		})
+		It("should not warn for karpenter.sh/capacity-type or custom labels", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "example.com/team", Operator: corev1.NodeSelectorOpIn, Values: []string{"a"}})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(0))
+		})
+	})
 	Context("Legacy RepairPolicies", func() {
 		newCloudProvider := func(opts ...cloudprovider.Option) *cloudprovider.CloudProvider {
 			return cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
