@@ -849,7 +849,7 @@ spec:
 
 ## spec.role
 
-`Role` is an optional field and tells Karpenter which IAM identity nodes should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If using the [Karpenter Getting Started Guide]({{<ref "../getting-started/getting-started-with-karpenter" >}}) to deploy Karpenter, you can use the `KarpenterNodeRole-$CLUSTER_NAME` role provisioned by that process.
+`Role` is an optional field and tells Karpenter which IAM identity nodes should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If using the [Karpenter Getting Started Guide]({{<ref "../getting-started/getting-started-with-karpenter" >}}) to deploy Karpenter, you can use the `KarpenterNodeRole-$CLUSTER_NAME` role provisioned by that process. The value can be the role name, a path-qualified name such as `my-path/KarpenterNodeRole-$CLUSTER_NAME`, or the role ARN.
 
 ```yaml
 spec:

@@ -79,7 +79,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 		}
 
 		// If role has changed, create new profile
-		if currentRole != nodeClass.Spec.Role {
+		if currentRole != nodeClass.InstanceProfileRole() {
 			// Generate new profile name
 			newProfileName := nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, ip.region)
 

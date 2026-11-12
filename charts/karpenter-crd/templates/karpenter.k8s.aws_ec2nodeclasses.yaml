@@ -541,7 +541,8 @@ spec:
                       rule: '!(has(self.name) && has(self.id))'
                 role:
                   description: |-
-                    Role is the AWS identity that nodes use.
+                    Role is the IAM role that nodes use, given as a role name (e.g. "KarpenterNodeRole"), a role name with its
+                    IAM path (e.g. "my-path/KarpenterNodeRole"), or a role ARN (e.g. "arn:aws:iam::111122223333:role/KarpenterNodeRole").
                     This field is mutually exclusive from instanceProfile.
                   type: string
                   x-kubernetes-validations:
