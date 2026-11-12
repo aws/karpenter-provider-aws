@@ -320,7 +320,6 @@ func NewInstanceType(
 	return it
 }
 
-//nolint:gocyclo
 func computeRequirements(
 	info ec2types.InstanceTypeInfo,
 	region string,

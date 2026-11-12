@@ -147,7 +147,6 @@ func (c *Client) ReadBackup(ctx context.Context) {
 	close(c.readBackupCompleted)
 }
 
-//nolint:gocyclo
 func (c *Client) backupInstances(ctx context.Context) error {
 	var instances []ec2types.Instance
 	c.instances.Range(func(k, v any) bool {
@@ -294,7 +293,6 @@ func removeNullFields(bytes []byte) []byte {
 	return lo.Must(json.Marshal(mapSlice))
 }
 
-//nolint:gocyclo
 func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	<-c.readBackupCompleted
 	if !c.rateLimiterProvider.DescribeLaunchTemplates().TryAccept() {
@@ -391,7 +389,6 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 	return out, nil
 }
 
-//nolint:gocyclo
 func (c *Client) CreateFleet(ctx context.Context, input *ec2.CreateFleetInput, _ ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error) {
 	<-c.readBackupCompleted
 	if !c.rateLimiterProvider.CreateFleet().TryAccept() {
@@ -764,7 +761,6 @@ func (c *Client) RunInstances(_ context.Context, input *ec2.RunInstancesInput, _
 	panic("implement me")
 }
 
-//nolint:gocyclo
 func (c *Client) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...func(*ec2.Options)) (*ec2.CreateTagsOutput, error) {
 	<-c.readBackupCompleted
 	if !c.rateLimiterProvider.CreateTags().TryAccept() {

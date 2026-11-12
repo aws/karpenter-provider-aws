@@ -235,7 +235,6 @@ func IsUserDataTooLarge(err error) bool {
 
 // ToReasonMessage converts an instance launch error into a well-known condition reason
 // and well-known condition message that can be used for launch failure classification
-// nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {
 		return "SpotSLRCreationFailed", "User does not have sufficient permission to create the Spot ServiceLinkedRole to launch spot instances"

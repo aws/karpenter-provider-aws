@@ -71,7 +71,6 @@ func BenchmarkNotification100(b *testing.B) {
 	benchmarkNotificationController(b, 100)
 }
 
-//nolint:gocyclo
 func benchmarkNotificationController(b *testing.B, messageCount int) {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}

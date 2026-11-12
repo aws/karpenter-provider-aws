@@ -79,7 +79,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return amis, nil
 }
 
-//nolint:gocyclo
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
@@ -169,7 +168,6 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	return queries, nil
 }
 
-//nolint:gocyclo
 func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) (AMIs, error) {
 	queries, err := p.DescribeImageQueries(ctx, nodeClass)
 	if err != nil {

@@ -33,7 +33,6 @@ type Bottlerocket struct {
 	EnableDefaultMountPaths bool
 }
 
-// nolint:gocyclo
 func (b Bottlerocket) Script(ctx context.Context) (string, error) {
 	s, err := NewBottlerocketConfig(ctx, b.CustomUserData)
 	if err != nil {

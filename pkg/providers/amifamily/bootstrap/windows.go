@@ -28,7 +28,6 @@ type Windows struct {
 	Options
 }
 
-// nolint:gocyclo
 func (w Windows) Script(_ context.Context) (string, error) {
 	var userData bytes.Buffer
 	userData.WriteString("<powershell>\n")

@@ -104,8 +104,6 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 
 // syncCapacityType will update the capacity type for the given NodeClaim. This accounts for the fact that capacity
 // reservations will expire, demoting NodeClaims with capacity type "reserved" to "on-demand".
-//
-//nolint:gocyclo
 func (c *Controller) syncCapacityType(ctx context.Context, capacityType string, nc *karpv1.NodeClaim) (bool, error) {
 	// We won't be able to sync deleting NodeClaims, and there's no real need to either as they're already draining.
 	if !nc.DeletionTimestamp.IsZero() {

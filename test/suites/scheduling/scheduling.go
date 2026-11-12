@@ -54,7 +54,6 @@ var Env *environmentaws.Environment
 var NodeClass *v1.EC2NodeClass
 var NodePool *karpv1.NodePool
 
-//nolint:gocyclo
 func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 	return Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		var selectors sets.Set[string]

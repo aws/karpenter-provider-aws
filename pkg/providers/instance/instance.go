@@ -405,7 +405,6 @@ func (p *DefaultProvider) filterInstanceTypes(ctx context.Context, instanceTypes
 	return instanceTypes, nil
 }
 
-//nolint:gocyclo
 func (p *DefaultProvider) launchInstance(
 	ctx context.Context,
 	nodeClass *v1.EC2NodeClass,
@@ -628,7 +627,6 @@ func (p *DefaultProvider) getOverrides(
 	return overrides
 }
 
-//nolint:gocyclo
 func (p *DefaultProvider) updateUnavailableOfferingsCache(
 	ctx context.Context,
 	errs []ec2types.CreateFleetError,

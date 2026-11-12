@@ -72,7 +72,6 @@ var disableProvisioningLimits = karpv1.Limits{
 	corev1.ResourceMemory: resource.MustParse("0Gi"),
 }
 
-//nolint:gocyclo
 func registerDeprovisioning() bool {
 	Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		var nodePool *karpv1.NodePool

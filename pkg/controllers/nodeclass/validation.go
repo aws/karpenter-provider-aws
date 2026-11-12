@@ -128,7 +128,7 @@ func NewValidationReconciler(
 	}
 }
 
-// nolint:gocyclo,staticcheck
+//nolint:staticcheck
 func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
@@ -694,8 +694,6 @@ func getAMICompatibleInstanceTypes(instanceTypes []*cloudprovider.InstanceType, 
 }
 
 // validateKubeletExpressions checks that all CEL expressions in the kubelet configuration compile successfully.
-//
-//nolint:gocyclo
 func validateKubeletExpressions(celEnv *kubeletcel.CELEnvironment, kc *v1.ParsedKubeletConfig) error {
 	// kc is the already-parsed kubelet config; a nil value (empty config or a parse error surfaced by
 	// the structural ValidateKubeletConfig check upstream) means there's nothing left to validate.

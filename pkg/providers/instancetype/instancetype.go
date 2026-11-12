@@ -159,7 +159,6 @@ func NewDefaultProvider(
 	return p
 }
 
-//nolint:gocyclo
 func (p *DefaultProvider) List(ctx context.Context, nodeClass NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypesInfo.RLock()
 	p.muInstanceTypesOfferings.RLock()

@@ -195,8 +195,6 @@ func (p *DefaultProvider) InjectOfferings(
 }
 
 // GetOverlayPrice returns the overlay price for the given instance type if one is defined.
-//
-//nolint:gocyclo
 func (p *DefaultProvider) GetOverlayPrice(ctx context.Context, instanceTypeName string) (float64, bool) {
 	if !options.FromContext(ctx).FeatureGates.NodeOverlay || p.kubeClient == nil {
 		return 0, false
