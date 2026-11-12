@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -37,6 +38,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/logging"
+	"github.com/go-logr/logr"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -122,6 +125,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		}
 		cfg.Region = region.Region
 	}
+	cfg = WithAWSSDKDebugLog(ctx, cfg)
 	ec2api := ec2.NewFromConfig(cfg)
 	eksapi := eks.NewFromConfig(cfg)
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
@@ -304,6 +308,34 @@ func WithUserAgent(cfg aws.Config) aws.Config {
 		awsmiddleware.AddUserAgentKey(userAgent),
 	)
 	return cfg
+}
+
+// WithAWSSDKDebugLog logs AWS SDK requests, responses and retries through the controller logger when AWSSDKDebugLog is set
+func WithAWSSDKDebugLog(ctx context.Context, cfg aws.Config) aws.Config {
+	if !options.FromContext(ctx).AWSSDKDebugLog {
+		return cfg
+	}
+	cfg.ClientLogMode = aws.LogRetries | aws.LogRequestWithBody | aws.LogResponseWithBody
+	cfg.Logger = sdkLogger{logger: log.FromContext(ctx)}
+	return cfg
+}
+
+var sdkLogSecretHeaders = regexp.MustCompile(`(?mi)^(X-Amz-Security-Token|Authorization|X-Aws-Ec2-Metadata-Token):[^\r\n]*`)
+
+type sdkLogger struct {
+	logger logr.Logger
+}
+
+func (l sdkLogger) Logf(classification logging.Classification, format string, v ...any) {
+	msg := sdkLogSecretHeaders.ReplaceAllString(fmt.Sprintf(format, v...), "$1: <redacted>")
+	l.logger.WithName("aws-sdk").Info(msg, "classification", string(classification))
+}
+
+func (l sdkLogger) WithContext(ctx context.Context) logging.Logger {
+	if logger, err := logr.FromContext(ctx); err == nil {
+		return sdkLogger{logger: logger}
+	}
+	return l
 }
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
