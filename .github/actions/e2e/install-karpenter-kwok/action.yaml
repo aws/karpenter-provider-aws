@@ -46,7 +46,10 @@ runs:
       MEMORY_RESOURCES: ${{ inputs.kwok_memory }}
     run: |
       set -euo pipefail
+      # go list -m prints an empty Dir until the module is in the module cache, which a fresh runner doesn't have
+      go mod download sigs.k8s.io/karpenter
       CORE_DIR="$(go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)"
+      [[ -n "$CORE_DIR" ]] || { echo "::error::sigs.k8s.io/karpenter isn't in the module cache"; exit 1; }
       UNINSTALL=false bash "$CORE_DIR/hack/install-kwok.sh"
       # install-kwok.sh tolerates CriticalAddonsOnly with an empty value, but setup-cluster taints its nodes
       # CriticalAddonsOnly=true, so tolerate any value
