@@ -338,9 +338,14 @@ func (o Options) DefaultMetadataOptions() *v1.MetadataOptions {
 // set it. It updates raw alongside the parsed config: nodeadm-based AMI families render the raw
 // map as inline kubelet config, so a default applied only to the parsed struct would be dropped
 // for them. raw is mutated in place, having already been deep-copied from the NodeClass.
-func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.ParsedKubeletConfig, raw v1.KubeletConfiguration) *v1.ParsedKubeletConfig {
+func (r DefaultResolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.ParsedKubeletConfig, raw v1.KubeletConfiguration, amiFamily AMIFamily, userData *string) *v1.ParsedKubeletConfig {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
+	}
+	if _, ok := amiFamily.(*Bottlerocket); ok {
+		if c, err := bootstrap.NewBottlerocketConfig(context.Background(), userData); err == nil && c.Settings.Kubernetes.ClusterDNSIP != nil {
+			return kubeletConfig
+		}
 	}
 	if kubeletConfig != nil && len(kubeletConfig.ClusterDNS) != 0 {
 		return kubeletConfig
@@ -452,7 +457,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 		resolved := &LaunchTemplate{
 			Options: options,
 			UserData: amiFamily.UserData(
-				r.defaultClusterDNS(options, parsedKubeletConfig, unparsedKubeletConfig),
+				r.defaultClusterDNS(options, parsedKubeletConfig, unparsedKubeletConfig, amiFamily, nodeClass.Spec.UserData),
 				unparsedKubeletConfig,
 				taints,
 				RejectForbiddenLabels(options.Labels),

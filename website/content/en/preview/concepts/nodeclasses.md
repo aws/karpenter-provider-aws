@@ -1700,6 +1700,7 @@ spec:
 Any values configured by Karpenter will take precedent over values specifed in `spec.userData`.
 This includes cluster name, cluster endpoint, cluster certificate, taints, labels, and any value in [spec.kubelet]({{< ref "#speckubelet" >}}).
 These fields must be configured natively through Karpenter rather than through UserData.
+The one exception is `cluster-dns-ip`: if `spec.kubelet.clusterDNS` is not set, a `cluster-dns-ip` in `spec.userData` is kept instead of being replaced with the cluster's kube-dns IP.
 {{% /alert %}}
 
 Consider the following example to understand how your custom UserData settings will be merged in.

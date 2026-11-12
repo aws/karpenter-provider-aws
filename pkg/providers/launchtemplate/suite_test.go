@@ -1606,6 +1606,37 @@ essential = true
 				Expect(err).To(BeNil())
 				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), nodeClass.Name, karpv1.NodePoolLabelKey, nodePool.Name))
 			})
+			It("should keep cluster-dns-ip from custom user data over the discovered kube-dns IP", func() {
+				nodeClass.Spec.UserData = aws.String("[settings.kubernetes]\ncluster-dns-ip = \"169.254.5.5\"\n")
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(lo.FromPtr(config.Settings.Kubernetes.ClusterDNSIP)).To(Equal("169.254.5.5"))
+				})
+			})
+			It("should prefer kubelet clusterDNS over cluster-dns-ip in custom user data", func() {
+				nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{ClusterDNS: []string{"169.254.20.10"}})
+				nodeClass.Spec.UserData = aws.String("[settings.kubernetes]\ncluster-dns-ip = \"169.254.5.5\"\n")
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+				awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					userData, err := base64.StdEncoding.DecodeString(*ltInput.LaunchTemplateData.UserData)
+					Expect(err).To(BeNil())
+					config := &bootstrap.BottlerocketConfig{}
+					Expect(config.UnmarshalTOML(ctx, userData)).To(Succeed())
+					Expect(lo.FromPtr(config.Settings.Kubernetes.ClusterDNSIP)).To(Equal("169.254.20.10"))
+				})
+			})
 			It("should bootstrap when custom user data is empty", func() {
 				nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "foo", Value: "bar", Effect: corev1.TaintEffectNoExecute}}
 				nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "baz", Value: "bin", Effect: corev1.TaintEffectNoExecute}}
