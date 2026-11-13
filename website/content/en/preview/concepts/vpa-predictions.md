@@ -51,10 +51,10 @@ If more than one VPA targets the same workload, Karpenter uses the oldest one, a
 ## Before you enable it
 
 * Install VPA, with at least its CRDs and recommender. Without the VPA CRD, Karpenter runs normally and doesn't use predictions. It checks for the CRD every minute.
-* Karpenter needs `get`, `list`, and `watch` on `verticalpodautoscalers`, `replicasets`, and `jobs`. The Helm chart grants them. If you manage Karpenter's RBAC yourself, add them before you enable the gate.
+* Karpenter needs `get`, `list`, and `watch` on `verticalpodautoscalers`, `replicasets`, and `jobs`. It also needs `get` on the `verticalpodautoscalers.autoscaling.k8s.io` CustomResourceDefinition, which is the `customresourcedefinitions` resource in `apiextensions.k8s.io`, scoped with `resourceNames`. The Helm chart grants them. If you manage Karpenter's RBAC yourself, add them before you enable the gate. Without the CustomResourceDefinition `get`, a Karpenter pod that started before or during the uninstall and first lists VPAs after the CRD is gone can't tell that VPA is gone. Examples are a pod that restarted while the CRD was terminating, or a standby replica that becomes the leader after the uninstall. Provisioning and disruption then stop until the pod restarts, as described in the warning below.
 
 {{% alert title="Warning" color="warning" %}}
-With the gate enabled, provisioning and disruption wait until Karpenter has read the cluster's VPAs. If Karpenter can't list VPAs within a minute, for example because of missing RBAC, the controller panics and restarts.
+With the gate enabled, provisioning and disruption wait until Karpenter has read the cluster's VPAs. If Karpenter can't list VPAs within a minute, for example because of missing RBAC, the provisioning and disruption controllers panic. Karpenter recovers from the panic and keeps running, and it doesn't provision or disrupt nodes until it can list VPAs. The panic repeats about once a minute at first, then less often, and `controller_runtime_reconcile_panics_total` increases for the `provisioner` and `disruption` controllers. This can also happen after VPA is uninstalled if Karpenter can't `get` the VPA CustomResourceDefinition, as described above. To recover from missing VPA RBAC, fix the RBAC. After a VPA uninstall, granting the CustomResourceDefinition `get` or restarting Karpenter also recovers it.
 {{% /alert %}}
 
 ## Disabling it
