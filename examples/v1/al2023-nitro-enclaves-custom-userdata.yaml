@@ -1,14 +1,15 @@
 # This example provisions AL2023 nodes with AWS Nitro Enclaves enabled.
-# The user data installs the Nitro Enclaves CLI and reserves 2 vCPUs and 4 GiB (1 GiB hugepages) for enclaves.
+# The user data installs the Nitro Enclaves CLI and configures the enclave allocator.
+# This file is a template: generate it with the script in "Using Nitro Enclaves", which derives every value
+# from a name, the enclave vCPUs, and the enclave memory. Defaults (enclave 2 4096) reserve 2 vCPUs and
+# 4 GiB (1 GiB hugepages) and require instance-memory above 14336 MiB (6 GiB + 2 x memory_mib).
 # Requires the NodeOverlay feature gate and the Nitro Enclaves device plugin (see "Using Nitro Enclaves").
-# Keep the NodeOverlay capacity in sync with cpu_count and memory_mib in allocator.yaml, and keep
-# instance-memory above 6 GiB plus twice memory_mib (best practice, see "Instance Sizing").
 # The script installs packages with dnf, so nodes need access to the AL2023 package repositories.
 ---
 apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: enclave-pool
+  name: ${ENCLAVE_NAME}-pool
   annotations:
     kubernetes.io/description: "NodePool for Nitro Enclaves workloads"
 spec:
@@ -34,19 +35,19 @@ spec:
         # Exclude sizes too small for the enclave reservation; matches the NodeOverlay requirements.
         - key: karpenter.k8s.aws/instance-cpu
           operator: Gt
-          values: ["2"]
+          values: ["${ENCLAVE_CPUS}"]
         - key: karpenter.k8s.aws/instance-memory
           operator: Gt
-          values: ["14336"] # best practice: 6 GiB + 2 x memory_mib, in MiB
+          values: ["${ENCLAVE_INSTANCE_MEMORY_MIB}"] # best practice: 6 GiB + 2 x memory_mib, in MiB
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: enclave-enabled
+        name: ${ENCLAVE_NAME}-enabled
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: enclave-enabled
+  name: ${ENCLAVE_NAME}-enabled
   annotations:
     kubernetes.io/description: "EC2NodeClass for Amazon Linux 2023 nodes with Nitro Enclaves enabled"
 spec:
@@ -79,8 +80,8 @@ spec:
     # Must match the NodeOverlay capacity (aws.ec2.nitro/nitro_enclaves_cpus and hugepages-1Gi).
     cat > /etc/nitro_enclaves/allocator.yaml <<'EOF'
     ---
-    memory_mib: 4096
-    cpu_count: 2
+    memory_mib: ${ENCLAVE_MEMORY_MIB}
+    cpu_count: ${ENCLAVE_CPUS}
     EOF
     systemctl enable --now nitro-enclaves-allocator.service
     --//--
@@ -88,19 +89,22 @@ spec:
 apiVersion: karpenter.sh/v1alpha1
 kind: NodeOverlay
 metadata:
-  name: nitro-enclaves
+  name: ${ENCLAVE_NAME}-overlay
 spec:
   requirements:
+    - key: karpenter.sh/nodepool
+      operator: In
+      values: ["${ENCLAVE_NAME}-pool"]
     - key: aws-nitro-enclaves-k8s-dp
       operator: In
       values: ["enabled"]
     - key: karpenter.k8s.aws/instance-cpu
       operator: Gt
-      values: ["2"]
+      values: ["${ENCLAVE_CPUS}"]
     - key: karpenter.k8s.aws/instance-memory
       operator: Gt
-      values: ["14336"]
+      values: ["${ENCLAVE_INSTANCE_MEMORY_MIB}"]
   capacity:
     aws.ec2.nitro/nitro_enclaves: "4"
-    aws.ec2.nitro/nitro_enclaves_cpus: "2" # must match cpu_count
-    hugepages-1Gi: "4Gi" # must match memory_mib
+    aws.ec2.nitro/nitro_enclaves_cpus: "${ENCLAVE_CPUS}" # must match cpu_count
+    hugepages-1Gi: "${ENCLAVE_HUGEPAGES}" # must match memory_mib
