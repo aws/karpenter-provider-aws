@@ -69,9 +69,18 @@ runs:
       set -euo pipefail
       kubectl label ns kube-system scrape=enabled --overwrite=true
       aws ecr get-login-password --region "$REGION" | ko login "${IMAGE_REPOSITORY%%/*}" --username AWS --password-stdin
+      # Scrape the controller's /metrics into the cluster Prometheus (and so AMP), which selects ServiceMonitors labelled
+      # scrape=enabled in namespaces labelled scrape=enabled. The clusterName and gitRef target labels match
+      # install_karpenter.sh and the cAdvisor series, so a run's controller and container metrics join on clusterName.
+      SERVICE_MONITOR_OPTS="--set serviceMonitor.enabled=true --set serviceMonitor.additionalLabels.scrape=enabled \
+        --set serviceMonitor.endpointConfig.relabelings[0].targetLabel=clusterName \
+        --set serviceMonitor.endpointConfig.relabelings[0].replacement=$CLUSTER_NAME \
+        --set serviceMonitor.endpointConfig.relabelings[1].targetLabel=gitRef \
+        --set serviceMonitor.endpointConfig.relabelings[1].replacement=$(git rev-parse HEAD)"
       # The release (and so its service account) is "karpenter", which the setup-cluster pod identity association targets
       make -C kwok apply KO_DOCKER_REPO="$IMAGE_REPOSITORY" KO_PLATFORM=linux/amd64 HELM_RELEASE=karpenter \
         AWS_ACCOUNT_ID="$ACCOUNT_ID" CLUSTER_NAME="$CLUSTER_NAME" \
         KARPENTER_IAM_ROLE_ARN="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
-        EXTRA_HELM_OPTS="--set logLevel=info --set replicas=1 $CONTROLLER_HELM_OPTS --wait --timeout 10m"
+        EXTRA_HELM_OPTS="--set logLevel=info --set replicas=1 $SERVICE_MONITOR_OPTS $CONTROLLER_HELM_OPTS --wait --timeout 10m"
+      kubectl -n kube-system get servicemonitor karpenter -o name || echo "::warning::no karpenter ServiceMonitor, so the controller metrics will not reach AMP"
       kubectl -n kube-system get pods -l app.kubernetes.io/name=karpenter -o wide
