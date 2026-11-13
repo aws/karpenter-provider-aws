@@ -3403,7 +3403,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
-				// m6idn.32xlarge only suppports 2 EFAs
+				// m6idn.32xlarge only supports 2 EFAs
 				m6idnInstance, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
 					return it.Name == "m6idn.32xlarge"
 				})
