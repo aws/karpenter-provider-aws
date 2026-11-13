@@ -16,6 +16,7 @@ package nodeclass
 
 import (
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -24,6 +25,38 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
+
+func IncompatibleSubnetSecurityGroupsEvent(nodeClass *v1.EC2NodeClass, message, fingerprint string) events.Event {
+	return events.Event{
+		InvolvedObject: nodeClass,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "IncompatibleSubnetSecurityGroups",
+		Message:        message,
+		DedupeValues:   []string{string(nodeClass.UID), fingerprint},
+	}
+}
+
+func NetworkCompatibilityCheckFailedEvent(nodeClass *v1.EC2NodeClass, message string) events.Event {
+	return events.Event{
+		InvolvedObject: nodeClass,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "NetworkCompatibilityCheckFailed",
+		Message:        message,
+		// Changing AWS errors should not flood events for a single NodeClass.
+		DedupeValues:  []string{string(nodeClass.UID)},
+		DedupeTimeout: 10 * time.Minute,
+	}
+}
+
+func NetworkCompatibilityRestoredEvent(nodeClass *v1.EC2NodeClass) events.Event {
+	return events.Event{
+		InvolvedObject: nodeClass,
+		Type:           corev1.EventTypeNormal,
+		Reason:         "NetworkCompatibilityRestored",
+		Message:        "All resolved subnets are compatible with all resolved security groups",
+		DedupeValues:   []string{string(nodeClass.UID)},
+	}
+}
 
 func WaitingOnNodeClaimTerminationEvent(nodeClass *v1.EC2NodeClass, names []string) events.Event {
 	return events.Event{
