@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"regexp"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,16 +45,29 @@ const (
 	timestreamTimeout = time.Minute
 	// TierMeasured is the tier dimension of a metric with no gate in the phase.
 	TierMeasured = "measured"
+	// warnHeadroomPct is the headroom under which a passing gate's status is WARN, as in the harvester.
+	warnHeadroomPct = 10
 )
+
+// pseudoVersionHash is the commit at the end of a Go pseudo-version, e.g. v1.15.1-0.20261110002142-d9c8e7cf2445.
+var pseudoVersionHash = regexp.MustCompile(`[-.][0-9]{14}-([0-9a-f]{12})$`)
 
 // RunInfo is the CI context of a run, written as dimensions on every record. Empty fields are left out.
 type RunInfo struct {
-	RunID, RunAttempt, Trigger, Cluster, Region, K8sVersion, ControlPlaneTier, ControllerShape string
+	RunID, RunAttempt, RunURL, Trigger, Cluster, Region, K8sVersion, ControlPlaneTier, ControllerShape string
+	// CoreCommit is the sigs.k8s.io/karpenter the suite (and so the KWOK controller, from the same go.mod) was built with.
+	CoreCommit string
 }
 
 // RunInfoFromEnv reads RunInfo from the variables e2e-perf.yaml sets (and the GITHUB_ ones Actions always sets).
 func RunInfoFromEnv() RunInfo {
+	var url string
+	if server, repo, id := os.Getenv("GITHUB_SERVER_URL"), os.Getenv("GITHUB_REPOSITORY"), os.Getenv("GITHUB_RUN_ID"); server != "" && repo != "" && id != "" {
+		url = fmt.Sprintf("%s/%s/actions/runs/%s", server, repo, id)
+	}
 	return RunInfo{
+		RunURL:           url,
+		CoreCommit:       CoreCommit(),
 		RunID:            os.Getenv("GITHUB_RUN_ID"),
 		RunAttempt:       os.Getenv("GITHUB_RUN_ATTEMPT"),
 		Trigger:          os.Getenv("GITHUB_EVENT_NAME"),
@@ -62,6 +77,32 @@ func RunInfoFromEnv() RunInfo {
 		ControlPlaneTier: os.Getenv("CP_TIER"),
 		ControllerShape:  os.Getenv("CONTROLLER_SHAPE"),
 	}
+}
+
+// CoreCommit is the commit of the sigs.k8s.io/karpenter module in this binary's build info: the hash of a
+// pseudo-version, or else the version (a tag), following any replace directive. Empty without build info.
+func CoreCommit() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, m := range info.Deps {
+		if m.Path != "sigs.k8s.io/karpenter" {
+			continue
+		}
+		if m.Replace != nil {
+			m = m.Replace
+		}
+		return coreCommit(m.Version)
+	}
+	return ""
+}
+
+func coreCommit(version string) string {
+	if h := pseudoVersionHash.FindStringSubmatch(version); h != nil {
+		return h[1]
+	}
+	return version
 }
 
 // timestreamSinkFromEnv returns the Timestream sink when PERF_TIMESTREAM_TABLE is set, and nil otherwise, so a local
@@ -132,25 +173,24 @@ func TimestreamRecords(r *perf.Result, run RunInfo, metrics []perf.Metric) []tim
 	var out []timestreamtypes.Record
 	seen := map[string]bool{}
 	add := func(name string, value float64, upper bool) {
-		if seen[name] || math.IsNaN(value) || math.IsInf(value, 0) {
+		if seen[name] || !finite(value) {
 			return
 		}
 		seen[name] = true
 		g, gated := gates[name]
 		tier := TierMeasured
-		measures := []timestreamtypes.MeasureValue{double("value", value), boolean("gated", gated)}
 		if gated {
 			tier, upper = string(g.Tier), g.Upper
-			if !math.IsNaN(g.Bound) && !math.IsInf(g.Bound, 0) {
-				measures = append(measures, double("bound", g.Bound))
-			}
-			measures = append(measures, boolean("passed", g.Passed), boolean("overridden", g.Overridden))
+		}
+		measures := []timestreamtypes.MeasureValue{double("value", value), boolean("gated", gated), boolean("upper", upper)}
+		if gated {
+			measures = append(measures, gateMeasures(value, g)...)
 		}
 		out = append(out, timestreamtypes.Record{
 			MeasureName:      aws.String(name),
 			MeasureValueType: timestreamtypes.MeasureValueTypeMulti,
 			MeasureValues:    measures,
-			Dimensions:       append(append([]timestreamtypes.Dimension(nil), common...), dims("tier", tier, "upper", strconv.FormatBool(upper))...),
+			Dimensions:       append(append([]timestreamtypes.Dimension(nil), common...), dims("tier", tier)...),
 			Time:             aws.String(strconv.FormatInt(r.Time.UnixMilli(), 10)),
 			TimeUnit:         timestreamtypes.TimeUnitMilliseconds,
 		})
@@ -164,11 +204,33 @@ func TimestreamRecords(r *perf.Result, run RunInfo, metrics []perf.Metric) []tim
 	return out
 }
 
+// gateMeasures are a gated metric's bound, headroom_pct, passed, overridden and status. status is FAIL when the gate
+// failed, WARN when it passed with under 10% headroom, and PASS otherwise.
+func gateMeasures(value float64, g perf.GateResult) []timestreamtypes.MeasureValue {
+	var out []timestreamtypes.MeasureValue
+	status := "PASS"
+	if finite(g.Bound) {
+		out = append(out, double("bound", g.Bound))
+		if h, ok := headroomPct(value, g.Bound, g.Upper); ok {
+			out = append(out, double("headroom_pct", h))
+			if h < warnHeadroomPct {
+				status = "WARN"
+			}
+		}
+	}
+	if !g.Passed {
+		status = "FAIL"
+	}
+	return append(out, boolean("passed", g.Passed), boolean("overridden", g.Overridden), varchar("status", status))
+}
+
 func commonDimensions(r *perf.Result, run RunInfo) []timestreamtypes.Dimension {
 	return dims(
 		"provider", r.Provider, "scenario", r.Scenario, "phase", r.Phase, "id", r.ID,
-		"schema_version", strconv.Itoa(r.SchemaVersion), "commit", r.Commit, "sizes", sizes(r.Sizes),
-		"run_id", run.RunID, "run_attempt", run.RunAttempt, "trigger", run.Trigger,
+		"schema_version", strconv.Itoa(r.SchemaVersion), "sizes", sizes(r.Sizes),
+		// r.Commit is the controller's karpenter_build_info commit (its vcs.revision), i.e. this repo at git_ref
+		"commit", r.Commit, "aws_commit", r.Commit, "core_commit", run.CoreCommit,
+		"run_id", run.RunID, "run_attempt", run.RunAttempt, "run_url", run.RunURL, "trigger", run.Trigger,
 		"cluster", run.Cluster, "region", run.Region, "k8s_version", run.K8sVersion,
 		"cp_tier", run.ControlPlaneTier, "controller_shape", run.ControllerShape,
 	)
@@ -190,6 +252,25 @@ func sizes(s map[perf.Vector]int) string {
 	parts := lo.MapToSlice(s, func(v perf.Vector, n int) string { return fmt.Sprintf("%s=%d", v, n) })
 	sort.Strings(parts)
 	return strings.Join(parts, ",")
+}
+
+func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
+
+// headroomPct is the room left to the bound as a percent of it: positive while passing, negative past the bound, for
+// either direction. Not defined for a zero bound.
+func headroomPct(value, bound float64, upper bool) (float64, bool) {
+	if bound == 0 {
+		return 0, false
+	}
+	h := (value - bound) / math.Abs(bound) * 100
+	if upper {
+		h = -h
+	}
+	return h, finite(h)
+}
+
+func varchar(name, v string) timestreamtypes.MeasureValue {
+	return timestreamtypes.MeasureValue{Name: aws.String(name), Value: aws.String(v), Type: timestreamtypes.MeasureValueTypeVarchar}
 }
 
 func double(name string, v float64) timestreamtypes.MeasureValue {
