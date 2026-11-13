@@ -311,7 +311,6 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		}
 	}
 
-	out := &ec2.DescribeLaunchTemplatesOutput{}
 	ids := input.LaunchTemplateIds
 	for _, name := range input.LaunchTemplateNames {
 		raw, ok := c.launchTemplateNameToID.Load(name)
@@ -324,71 +323,62 @@ func (c *Client) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		ids = append(ids, raw.(string))
 	}
 
-	for _, id := range ids {
-		raw, ok := c.launchTemplates.Load(id)
-		if !ok {
-			return nil, &smithy.GenericAPIError{
-				Code:    "InvalidLaunchTemplateId.NotFoundException",
-				Message: "At least one of the launch templates specified in the request does not exist",
+	// Like EC2: IDs and names select the candidates (all templates when neither is set), and a template must match
+	// every filter, where a filter matches when any of its values does
+	var candidates []*ec2types.LaunchTemplate
+	if len(ids) > 0 {
+		for _, id := range lo.Uniq(ids) {
+			raw, ok := c.launchTemplates.Load(id)
+			if !ok {
+				return nil, &smithy.GenericAPIError{
+					Code:    "InvalidLaunchTemplateId.NotFoundException",
+					Message: "At least one of the launch templates specified in the request does not exist",
+				}
 			}
+			candidates = append(candidates, raw.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData]).A)
 		}
-		lt := raw.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-		out.LaunchTemplates = append(out.LaunchTemplates, *lt.A)
+	} else {
+		c.launchTemplates.Range(func(_, v any) bool {
+			candidates = append(candidates, v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData]).A)
+			return true
+		})
 	}
-
-	for _, filter := range input.Filters {
-		switch lo.FromPtr(filter.Name) {
-		case "create-time":
-			c.launchTemplates.Range(func(k, v any) bool {
-				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-				for _, value := range filter.Values {
-					if lo.FromPtr(lt.A.CreateTime).Equal(lo.Must(time.Parse(time.RFC3339, value))) {
-						out.LaunchTemplates = append(out.LaunchTemplates, *lt.A)
-					}
-				}
-				return true
-			})
-		case "launch-template-name":
-			c.launchTemplates.Range(func(k, v any) bool {
-				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-				for _, value := range filter.Values {
-					if lo.FromPtr(lt.A.LaunchTemplateName) == value {
-						out.LaunchTemplates = append(out.LaunchTemplates, *lt.A)
-					}
-				}
-				return true
-			})
-		case "tag-key":
-			c.launchTemplates.Range(func(k, v any) bool {
-				lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-				for _, value := range filter.Values {
-					for _, t := range lt.A.Tags {
-						if value == lo.FromPtr(t.Key) {
-							out.LaunchTemplates = append(out.LaunchTemplates, *lt.A)
-						}
-					}
-				}
-				return true
-			})
-		default:
-			// This looks for a tag with a specific value
-			if strings.Contains(lo.FromPtr(filter.Name), "tag:") {
-				key := strings.Split(lo.FromPtr(filter.Name), "tag:")[1]
-				c.launchTemplates.Range(func(k, v any) bool {
-					lt := v.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-					for _, value := range filter.Values {
-						for _, t := range lt.A.Tags {
-							if key == lo.FromPtr(t.Key) && value == lo.FromPtr(t.Value) {
-								out.LaunchTemplates = append(out.LaunchTemplates, *lt.A)
-							}
-						}
-					}
-					return true
-				})
-			}
+	out := &ec2.DescribeLaunchTemplatesOutput{}
+	for _, lt := range candidates {
+		if lo.EveryBy(input.Filters, func(f ec2types.Filter) bool { return launchTemplateMatches(lt, f) }) {
+			out.LaunchTemplates = append(out.LaunchTemplates, *lt)
 		}
 	}
 	return out, nil
+}
+
+// launchTemplateMatches reports whether lt matches any of the filter's values. Unknown filters match nothing.
+func launchTemplateMatches(lt *ec2types.LaunchTemplate, f ec2types.Filter) bool {
+	name := lo.FromPtr(f.Name)
+	return lo.SomeBy(f.Values, func(value string) bool {
+		switch {
+		case name == "create-time":
+			t, err := time.Parse(time.RFC3339, value)
+			return err == nil && lo.FromPtr(lt.CreateTime).Equal(t)
+		case name == "launch-template-name":
+			return lo.FromPtr(lt.LaunchTemplateName) == value
+		case name == "tag-key":
+			return lo.ContainsBy(lt.Tags, func(t ec2types.Tag) bool { return lo.FromPtr(t.Key) == value })
+		case strings.HasPrefix(name, "tag:"):
+			key := strings.TrimPrefix(name, "tag:")
+			return lo.ContainsBy(lt.Tags, func(t ec2types.Tag) bool { return lo.FromPtr(t.Key) == key && lo.FromPtr(t.Value) == value })
+		default:
+			return false
+		}
+	})
+}
+
+// mergeTags returns existing with tags added, replacing any existing tag with the same key, like EC2 CreateTags
+func mergeTags(existing, tags []ec2types.Tag) []ec2types.Tag {
+	kept := lo.Reject(existing, func(t ec2types.Tag, _ int) bool {
+		return lo.ContainsBy(tags, func(n ec2types.Tag) bool { return lo.FromPtr(n.Key) == lo.FromPtr(t.Key) })
+	})
+	return append(kept, tags...)
 }
 
 //nolint:gocyclo
@@ -790,15 +780,7 @@ func (c *Client) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...
 				continue
 			}
 			instance := raw.(ec2types.Instance)
-			instance.Tags = lo.Reject(instance.Tags, func(t ec2types.Tag, _ int) bool {
-				for _, tag := range instance.Tags {
-					if tag.Key == t.Key {
-						return true
-					}
-				}
-				return false
-			})
-			instance.Tags = append(instance.Tags, input.Tags...)
+			instance.Tags = mergeTags(instance.Tags, input.Tags)
 			c.instances.Store(resource, instance)
 		case strings.Contains(resource, "lt-"):
 			raw, ok := c.launchTemplates.Load(resource)
@@ -807,15 +789,7 @@ func (c *Client) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...
 				continue
 			}
 			lt := raw.(lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData])
-			lt.A.Tags = lo.Reject(lt.A.Tags, func(t ec2types.Tag, _ int) bool {
-				for _, tag := range lt.A.Tags {
-					if tag.Key == t.Key {
-						return true
-					}
-				}
-				return false
-			})
-			lt.A.Tags = append(lt.A.Tags, input.Tags...)
+			lt.A.Tags = mergeTags(lt.A.Tags, input.Tags)
 			c.launchTemplates.Store(resource, lt)
 		default:
 			return nil, fmt.Errorf("unknown resource type %q", resource)
