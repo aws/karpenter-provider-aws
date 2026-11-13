@@ -2063,7 +2063,8 @@ NodeClasses have the following status conditions:
 | ValidationSucceeded  | EC2NodeClass validation succeeded.                                                                                                                                                                                                |
 | PlacementGroupReady  | Referenced placement groups are discovered.                                                                                                                                                                                       |
 | CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
-| Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
+| NetworkCompatible    | Diagnostic condition indicating whether every resolved subnet can use all resolved security groups, including active security group VPC associations. Does not contribute to `Ready`. |
+| Ready                | Top level condition that indicates if the nodeClass is ready. If any readiness dependency is `False` then this condition is set to `False` and `Message` indicates the dependency that was not resolved. `NetworkCompatible` is excluded. |
 
 The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet`]({{< ref "#speckubelet" >}}):
 
@@ -2076,3 +2077,23 @@ The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet
 | KubeletExpressionEvaluationFailed   | A kubelet expression fails to evaluate, or produces an unusable value, for at least one known instance type.                                                     |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.
+
+### Network compatibility
+
+The `NetworkCompatible` condition checks each resolved subnet against the full set of resolved security groups. A security group is compatible with a subnet when it belongs to the subnet's VPC or has an active [Security Group VPC Association](https://docs.aws.amazon.com/vpc/latest/userguide/security-group-assoc.html) with that VPC. Matching an availability zone alone does not establish VPC compatibility.
+
+Subnet and security group selector terms remain plain filters: tag, name, explicit-ID, and OR selections are not implicitly scoped to the cluster VPC. This diagnostic does not filter the discovered resources, block provisioning, or change `ValidationSucceeded`. Consequently, a NodeClass can be `Ready=True` with `NetworkCompatible=False`; users must correct incompatible selections to avoid launch failures.
+
+| Status | Reason | Meaning |
+|--------|--------|---------|
+| `True` | `Compatible` | Every resolved subnet is compatible with every resolved security group. This checks VPC compatibility only, not security group rules or network connectivity. |
+| `False` | `PartiallyIncompatible` | Some resolved subnets cannot use the full security group set. Launches into those subnets will fail. |
+| `False` | `NoCompatibleSubnet` | None of the resolved subnets can use the full security group set. |
+| `Unknown` | `CompatibilityCheckFailed` | An AWS lookup failed or the required VPC metadata could not be determined. |
+| `Unknown` | `DependenciesNotReady` | Subnet or security group discovery has not produced the required resources. Inspect `SubnetsReady` and `SecurityGroupsReady` for details. |
+
+Mismatch messages identify affected subnet IDs, VPC IDs, and incompatible security groups, with long lists truncated. Narrow `subnetSelectorTerms` or `securityGroupSelectorTerms` so that every selected subnet can use every selected security group, or configure supported security group VPC associations.
+
+Karpenter emits a Warning `IncompatibleSubnetSecurityGroups` event when it first detects a mismatch or the affected resources or severity change, with repeated events limited. A persistent mismatch remains visible in the condition. Lookup failures produce a rate-limited Warning `NetworkCompatibilityCheckFailed` event. Recovery from a confirmed mismatch produces a Normal `NetworkCompatibilityRestored` event; routine successful checks emit no event.
+
+The diagnostic refreshes independently of dry-run validation, including when validation is cached or disabled. Discovery and association caches can delay observation of AWS-side changes. Cross-VPC checks require the controller's IAM role to allow `ec2:DescribeSecurityGroupVpcAssociations`, included in the [regional read policy]({{< ref "../reference/cloudformation#allowregionalreadactions" >}}). If that permission is missing, the condition is `Unknown`; same-VPC checks do not need the association lookup.

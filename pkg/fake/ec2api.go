@@ -48,30 +48,31 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeCapacityReservationsOutput   AtomicPtr[ec2.DescribeCapacityReservationsOutput]
-	DescribePlacementGroupsOutput        AtomicPtr[ec2.DescribePlacementGroupsOutput]
-	DescribeImagesOutput                 AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput        AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeInstanceTypesOutput          AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput  AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeInstanceStatusOutput         AtomicPtr[ec2.DescribeInstanceStatusOutput]
-	DescribeAvailabilityZonesOutput      AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeInstanceStatusBehavior       MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
-	DescribeSubnetsBehavior              MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsBehavior       MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
-	DescribeSpotPriceHistoryBehavior     MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                  MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	TerminateInstancesBehavior           MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
-	RebootInstancesBehavior              MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
-	DescribeInstancesBehavior            MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
-	CreateTagsBehavior                   MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	RunInstancesBehavior                 MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CreateLaunchTemplateBehavior         MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
-	CalledWithDescribeImagesInput        AtomicPtrSlice[ec2.DescribeImagesInput]
-	NotFoundDescribeLaunchTemplatesInput AtomicPtrSlice[ec2.DescribeLaunchTemplatesInput]
-	Instances                            sync.Map
-	InsufficientCapacityPools            atomic.Slice[CapacityPool]
-	NextError                            AtomicError
+	DescribeCapacityReservationsOutput           AtomicPtr[ec2.DescribeCapacityReservationsOutput]
+	DescribePlacementGroupsOutput                AtomicPtr[ec2.DescribePlacementGroupsOutput]
+	DescribeImagesOutput                         AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput                AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeInstanceTypesOutput                  AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput          AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeInstanceStatusOutput                 AtomicPtr[ec2.DescribeInstanceStatusOutput]
+	DescribeAvailabilityZonesOutput              AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeInstanceStatusBehavior               MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
+	DescribeSubnetsBehavior                      MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsBehavior               MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
+	DescribeSecurityGroupVpcAssociationsBehavior MockedFunction[ec2.DescribeSecurityGroupVpcAssociationsInput, ec2.DescribeSecurityGroupVpcAssociationsOutput]
+	DescribeSpotPriceHistoryBehavior             MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                          MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior                   MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	RebootInstancesBehavior                      MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
+	DescribeInstancesBehavior                    MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                           MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	RunInstancesBehavior                         MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
+	CreateLaunchTemplateBehavior                 MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
+	CalledWithDescribeImagesInput                AtomicPtrSlice[ec2.DescribeImagesInput]
+	NotFoundDescribeLaunchTemplatesInput         AtomicPtrSlice[ec2.DescribeLaunchTemplatesInput]
+	Instances                                    sync.Map
+	InsufficientCapacityPools                    atomic.Slice[CapacityPool]
+	NextError                                    AtomicError
 
 	Subnets                               sync.Map
 	LaunchTemplates                       sync.Map
@@ -102,6 +103,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceStatusBehavior.Reset()
 	e.DescribeSubnetsBehavior.Reset()
 	e.DescribeSecurityGroupsBehavior.Reset()
+	e.DescribeSecurityGroupVpcAssociationsBehavior.Reset()
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.RebootInstancesBehavior.Reset()
@@ -573,12 +575,20 @@ func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsIn
 	})
 }
 
+// DescribeSecurityGroupVpcAssociations returns no associations unless the behavior is configured by the test
+func (e *EC2API) DescribeSecurityGroupVpcAssociations(_ context.Context, input *ec2.DescribeSecurityGroupVpcAssociationsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupVpcAssociationsOutput, error) {
+	return e.DescribeSecurityGroupVpcAssociationsBehavior.Invoke(input, func(_ *ec2.DescribeSecurityGroupVpcAssociationsInput) (*ec2.DescribeSecurityGroupVpcAssociationsOutput, error) {
+		return &ec2.DescribeSecurityGroupVpcAssociationsOutput{}, nil
+	})
+}
+
 func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
 	return e.DescribeSecurityGroupsBehavior.Invoke(input, func(input *ec2.DescribeSecurityGroupsInput) (*ec2.DescribeSecurityGroupsOutput, error) {
 		defaultSecurityGroups := []ec2types.SecurityGroup{
 			{
 				GroupId:   aws.String("sg-test1"),
 				GroupName: aws.String("securityGroup-test1"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-1")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -587,6 +597,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			{
 				GroupId:   aws.String("sg-test2"),
 				GroupName: aws.String("securityGroup-test2"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-2")},
 					{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -595,6 +606,7 @@ func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSe
 			{
 				GroupId:   aws.String("sg-test3"),
 				GroupName: aws.String("securityGroup-test3"),
+				VpcId:     aws.String("vpc-test1"),
 				Tags: []ec2types.Tag{
 					{Key: aws.String("Name"), Value: aws.String("test-security-group-3")},
 					{Key: aws.String("TestTag")},

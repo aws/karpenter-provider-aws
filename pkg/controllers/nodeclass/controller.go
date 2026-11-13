@@ -72,6 +72,7 @@ type Controller struct {
 	launchTemplateProvider  launchtemplate.Provider
 	instanceProfileProvider instanceprofile.Provider
 	validation              *Validation
+	networkCompatibility    *NetworkCompatibility
 	reconcilers             []reconcile.TypedReconciler[*v1.EC2NodeClass]
 }
 
@@ -99,6 +100,7 @@ func NewController(
 	disableDryRun bool,
 ) *Controller {
 	validation := NewValidationReconciler(clk, kubeClient, cloudProvider, ec2api, amiResolver, instanceTypeProvider, launchTemplateProvider, validationCache, celEnv, disableDryRun)
+	networkCompatibility := NewNetworkCompatibilityReconciler(clk, recorder, subnetProvider, securityGroupProvider, ec2api)
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -106,12 +108,14 @@ func NewController(
 		launchTemplateProvider:  launchTemplateProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		validation:              validation,
+		networkCompatibility:    networkCompatibility,
 		reconcilers: []reconcile.TypedReconciler[*v1.EC2NodeClass]{
 			NewAMIReconciler(clk, amiProvider),
 			NewCapacityReservationReconciler(clk, capacityReservationProvider),
 			NewPlacementGroupReconciler(clk, placementGroupProvider),
 			NewSubnetReconciler(clk, subnetProvider),
 			NewSecurityGroupReconciler(clk, securityGroupProvider),
+			networkCompatibility,
 			NewInstanceProfileReconciler(clk, instanceProfileProvider, region, recreationCache),
 			validation,
 		},
@@ -215,6 +219,7 @@ func (c *Controller) cleanupManagedInstanceProfiles(ctx context.Context, nodeCla
 
 //nolint:staticcheck
 func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	c.networkCompatibility.clearState(nodeClass)
 	stored := nodeClass.DeepCopy()
 	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
 		return reconcile.Result{}, nil

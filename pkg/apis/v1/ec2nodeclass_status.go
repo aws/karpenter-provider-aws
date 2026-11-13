@@ -39,6 +39,10 @@ const (
 	ConditionTypeCapacityReservationsReady = "CapacityReservationsReady"
 	ConditionTypeValidationSucceeded       = "ValidationSucceeded"
 	ConditionTypePlacementGroupReady       = "PlacementGroupReady"
+	// ConditionTypeNetworkCompatible reports whether every resolved subnet is in a VPC that can use the full set of
+	// resolved security groups. It is a diagnostic condition only: it is not a dependency of the Ready condition and
+	// does not gate provisioning.
+	ConditionTypeNetworkCompatible = "NetworkCompatible"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
