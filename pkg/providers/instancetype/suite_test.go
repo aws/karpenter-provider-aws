@@ -3173,6 +3173,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(offering.Requirements.Has(v1.LabelCapacityReservationID)).To(BeTrue())
 				Expect(offering.Requirements.Get(v1.LabelCapacityReservationID).Any()).To(Equal(crID))
 				Expect(offering.Available).To(Equal(state != v1.CapacityReservationStateExpiring))
+				// An expiring reservation is transient, not NodeClass-incompatible.
+				Expect(offering.Incompatible).To(BeFalse())
 				Expect(offering.ReservationCapacity).To(Equal(crCapacity))
 			},
 			Entry("when the capacity block is active", v1.CapacityReservationStateActive),
@@ -3207,8 +3209,48 @@ var _ = Describe("InstanceTypeProvider", func() {
 			offering = resolveReservedOffering(crID)
 			Expect(offering).ToNot(BeNil())
 			Expect(offering.Available).To(BeFalse())
+			Expect(offering.Incompatible).To(BeFalse(), "an ICE'd reservation is transient")
 			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
 			Expect(offering.ReservationCapacity).To(BeNumerically(">", 0))
+		})
+		It("should list a reservation the NodeClass can't use as Available=false and Incompatible=true", func() {
+			// None of the fake instance types advertise nested virtualization.
+			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.Incompatible).To(BeTrue())
+			Expect(offering.ReservationCapacity).To(Equal(crCapacity))
+			ExpectOfferingsState(listOfferings(ctx, nodeClass, crInstanceType), false, true)
+
+			nodeClass.Spec.CPUOptions = nil
+			offering = resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeTrue())
+			Expect(offering.Incompatible).To(BeFalse())
+		})
+		// Terminate-first waits out a reservation that's only Available=false, so every non-NodeClass cause has to leave
+		// Incompatible false — not just the expiring and ICE'd cases above.
+		It("should leave a reservation in a zone without a NodeClass subnet Available=false and Incompatible=false", func() {
+			nodeClass.Status.Subnets = lo.Filter(nodeClass.Status.Subnets, func(s v1.Subnet, _ int) bool { return s.Zone != crZone })
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.Incompatible).To(BeFalse())
+		})
+		It("should leave a zonally shifted reservation Available=false and Incompatible=false", func() {
+			awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
+				ZonalShifts: []arczonalshifttypes.ZonalShiftInResource{{
+					AwayFrom:      aws.String("tstz1-1a"),
+					ExpiryTime:    aws.Time(time.Now().Add(time.Hour)),
+					AppliedStatus: arczonalshifttypes.AppliedStatusApplied,
+				}},
+			})
+			Expect(awsEnv.ZonalShiftProvider.UpdateZonalShifts(ctx)).To(Succeed())
+			offering := resolveReservedOffering(crID)
+			Expect(offering).ToNot(BeNil())
+			Expect(offering.Available).To(BeFalse())
+			Expect(offering.Incompatible).To(BeFalse())
 		})
 		It("should scope reservation ICE by reservation ID so one reservation's unavailability doesn't poison another sharing its instance type and zone", func() {
 			const otherID = "cr-other"
@@ -3267,6 +3309,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		for _, offering := range m5InstanceType.Offerings.Available() {
 			Expect(offering.Zone()).ToNot(Equal("test-zone-1a"))
 		}
+		// A zonal shift is transient, not NodeClass-incompatible.
+		Expect(lo.CountBy(m5InstanceType.Offerings, func(o *corecloudprovider.Offering) bool { return o.Incompatible })).To(BeZero())
 
 		// shift back into the zone, all offerings should be available again
 		awsEnv.ARCZonalShiftAPI.GetManagedResourceBehavior.Output.Set(&arczonalshift.GetManagedResourceOutput{
@@ -3357,6 +3401,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 					for _, offering := range a1InstanceType.Offerings {
 						Expect(offering.Available).To(Equal(expectedAvailability),
 							fmt.Sprintf("offering for a1.medium in zone %s should be available as %t", offering.Zone(), expectedAvailability))
+						Expect(offering.Incompatible).To(Equal(!expectedAvailability),
+							fmt.Sprintf("offering for a1.medium in zone %s should be incompatible as %t", offering.Zone(), !expectedAvailability))
 					}
 				},
 				Entry("when AMI is AL2023", v1.AMIFamilyAL2023, "al2023@latest", false),
@@ -3411,7 +3457,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 				for _, offering := range m6idnInstance.Offerings {
 					Expect(offering.Available).To(Equal(false))
+					Expect(offering.Incompatible).To(BeTrue())
 				}
+
+				// Dropping the extra interfaces makes the type compatible again.
+				nodeClass.Spec.NetworkInterfaces = nil
+				m6idnOfferings := listOfferings(ctx, nodeClass, "m6idn.32xlarge")
+				Expect(m6idnOfferings.Available()).ToNot(BeEmpty())
+				Expect(lo.CountBy(m6idnOfferings, func(o *corecloudprovider.Offering) bool { return o.Incompatible })).To(BeZero())
 			})
 		})
 	})
@@ -3579,6 +3632,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(found).To(BeTrue())
 			Expect(previewIT.Offerings.Available()).To(HaveLen(0))
+			// A missing price is transient (pricing data may arrive), not NodeClass-incompatible.
+			ExpectOfferingsState(previewIT.Offerings, false, false)
 		})
 		It("should not mark offerings as available when NodeOverlay feature gate is disabled", func() {
 			// Disable the NodeOverlay feature gate — overlay should have no effect
@@ -3697,11 +3752,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(availableOfferings()).ToNot(BeEmpty())
 			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
 			Expect(availableOfferings()).To(BeEmpty())
+			ExpectOfferingsState(listOfferings(ctx, nodeClass, "m5.large"), false, true)
 
 			awsEnv.OfferingCache.Flush()
 			Expect(availableOfferings()).To(BeEmpty())
 			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
 			Expect(availableOfferings()).ToNot(BeEmpty())
+			ExpectOfferingsState(listOfferings(ctx, nodeClass, "m5.large"), true, false)
 		})
 	})
 	Context("Nested Virtualization", func() {
@@ -3722,11 +3779,36 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(availableOfferings()).ToNot(BeEmpty())
 			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("enabled")}
 			Expect(availableOfferings()).To(BeEmpty())
+			ExpectOfferingsState(listOfferings(ctx, nodeClass, "m5.large"), false, true)
 
 			awsEnv.OfferingCache.Flush()
 			Expect(availableOfferings()).To(BeEmpty())
 			nodeClass.Spec.CPUOptions = &v1.CPUOptions{NestedVirtualization: lo.ToPtr("disabled")}
 			Expect(availableOfferings()).ToNot(BeEmpty())
+			Expect(lo.CountBy(listOfferings(ctx, nodeClass, "m5.large"), func(o *corecloudprovider.Offering) bool { return o.Incompatible })).To(BeZero())
+		})
+	})
+	Context("Transient Unavailability", func() {
+		It("should leave an ICE'd offering Incompatible=false", func() {
+			awsEnv.UnavailableOfferingsCache.MarkUnavailable(ctx, ec2types.InstanceTypeM5Large, "test-zone-1a", karpv1.CapacityTypeOnDemand, map[string]string{"reason": "test"})
+			offerings := listOfferings(ctx, nodeClass, "m5.large")
+			iced := offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{
+				corev1.LabelTopologyZone: "test-zone-1a", karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
+			}))
+			Expect(iced).To(HaveLen(1))
+			ExpectOfferingsState(iced, false, false)
+			ExpectOfferingsState(offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{
+				corev1.LabelTopologyZone: "test-zone-1a", karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeSpot,
+			})), true, false)
+			Expect(lo.CountBy(offerings, func(o *corecloudprovider.Offering) bool { return o.Incompatible })).To(BeZero())
+		})
+		It("should leave an offering in a zone without a NodeClass subnet Incompatible=false", func() {
+			nodeClass.Status.Subnets = lo.Filter(nodeClass.Status.Subnets, func(s v1.Subnet, _ int) bool { return s.Zone != "test-zone-1c" })
+			offerings := listOfferings(ctx, nodeClass, "m5.large")
+			noSubnet := offerings.Compatible(scheduling.NewLabelRequirements(map[string]string{corev1.LabelTopologyZone: "test-zone-1c"}))
+			Expect(noSubnet).ToNot(BeEmpty())
+			ExpectOfferingsState(noSubnet, false, false)
+			Expect(lo.CountBy(offerings, func(o *corecloudprovider.Offering) bool { return o.Incompatible })).To(BeZero())
 		})
 	})
 	Context("Offering Resolvers", func() {
@@ -3770,6 +3852,28 @@ var _ = Describe("InstanceTypeProvider", func() {
 					return exists && qty.Value() == 4
 				})
 			})).To(BeTrue(), "expected at least one offering with CapacityOverride from the registered resolver")
+		})
+		// A partition placement group fans each input offering out per partition, so it has to carry both availability
+		// flags across. No provider-level test uses a partition placement group, so resolve directly.
+		It("should carry Available and Incompatible onto each of a partition placement group's offerings", func() {
+			offerings := corecloudprovider.Offerings{
+				{
+					Requirements: scheduling.NewLabelRequirements(map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand, corev1.LabelTopologyZone: "test-zone-1a"}),
+					Available:    false,
+					Incompatible: true,
+				},
+				{
+					Requirements: scheduling.NewLabelRequirements(map[string]string{karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeSpot, corev1.LabelTopologyZone: "test-zone-1a"}),
+					Available:    false,
+				},
+			}
+			pg := &placementgroup.PlacementGroup{ID: "pg-1", Strategy: placementgroup.StrategyPartition, PartitionCount: 2}
+			expanded := (&offering.PlacementGroupResolver{}).ResolveOfferings(ctx, nil, offerings, ec2types.InstanceTypeInfo{}, nil, nil, nil, pg, nil)
+			Expect(expanded).To(HaveLen(4))
+			for _, o := range expanded {
+				Expect(o.Available).To(BeFalse())
+				Expect(o.Incompatible).To(Equal(o.CapacityType() == karpv1.CapacityTypeOnDemand))
+			}
 		})
 	})
 	Context("Undecodable Kubelet Configuration", func() {
@@ -4191,6 +4295,7 @@ func (r *fakeOfferingResolver) ResolveOfferings(
 			Requirements:     o.Requirements,
 			Price:            o.Price,
 			Available:        o.Available,
+			Incompatible:     o.Incompatible,
 			CapacityOverride: corev1.ResourceList{r.resourceName: *resource.NewQuantity(int64(r.slotCount), resource.DecimalSI)},
 		})
 	}
@@ -4265,4 +4370,24 @@ type countingResolver struct {
 func (r *countingResolver) Resolve(ctx context.Context, info ec2types.InstanceTypeInfo, zones []string, nodeClass instancetype.NodeClass, parsedKubelet *v1.ParsedKubeletConfig) (*corecloudprovider.InstanceType, error) {
 	r.calls.Add(1)
 	return r.Resolver.Resolve(ctx, info, zones, nodeClass, parsedKubelet)
+}
+
+// ExpectOfferingsState asserts every offering's Available and Incompatible. NodeClass-incompatible offerings are listed with
+// Available=false and Incompatible=true; cloud-API-derived unavailability is Available=false and Incompatible=false.
+func ExpectOfferingsState(offerings corecloudprovider.Offerings, available, incompatible bool) {
+	GinkgoHelper()
+	Expect(offerings).ToNot(BeEmpty())
+	for _, o := range offerings {
+		Expect(o.Available).To(Equal(available), "offering %s", o.Requirements)
+		Expect(o.Incompatible).To(Equal(incompatible), "offering %s", o.Requirements)
+	}
+}
+
+func listOfferings(ctx context.Context, nodeClass *v1.EC2NodeClass, name string) corecloudprovider.Offerings {
+	GinkgoHelper()
+	instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+	Expect(err).ToNot(HaveOccurred())
+	it, ok := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool { return it.Name == name })
+	Expect(ok).To(BeTrue(), "instance type %s should be listed", name)
+	return it.Offerings
 }

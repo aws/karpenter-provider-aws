@@ -187,6 +187,7 @@ offering := &cloudprovider.Offering{
     ),
     Price:               price,
     Available:           /* compatible && has capacity && not expiring && not zonal-shifted */,
+    Incompatible:        /* !compatible */,
     ReservationCapacity: reservationCapacity,
 }
 ```
@@ -214,7 +215,7 @@ for _, offering := range offerings {
             Requirements: reqs,
             Price:        offering.Price,
             Available:    offering.Available && !partitionUnavailable(offering, partition),
-            // ReservationCapacity, CapacityOverride, OverheadOverride copied from the input offering
+            // Incompatible, ReservationCapacity, CapacityOverride, OverheadOverride copied from the input offering
         })
     }
 }
@@ -376,7 +377,15 @@ statement.
 makes an instance type unusable, such as an insufficient-capacity signal, a zonal shift, or a
 NodeClass the instance type can't satisfy, set `Available: false` on the affected offerings instead
 of dropping the instance type. Dropping it degrades scheduling error messages and breaks
-consolidation's view of the world.
+consolidation's view of the world. When the cause is the NodeClass itself (the instance type can
+never launch under it, e.g. an unsupported AMI family, network interface configuration, enclaves, or
+nested virtualization), also set `Incompatible: true`. Unavailability derived from cloud API data
+(insufficient capacity, a zonal shift, a missing price, an expiring reservation) leaves
+`Incompatible: false`: it may recover, and Karpenter may wait for it instead of treating it as
+permanent. A zone the instance type isn't offered in, or that the NodeClass has no subnet in, is
+neither: it's already excluded by the instance type's `topology.kubernetes.io/zone` requirement, so
+Karpenter never waits on it. Those offerings are listed with `Available: false` and
+`Incompatible: false` only so the zone isn't silently absent.
 
 **Launch candidates are re-derived from the NodeClaim.** The NodeClaim's requirements are the whole
 contract between the scheduler and the cloud provider. The scheduler doesn't communicate which
@@ -427,7 +436,9 @@ the rule.
   on offerings that don't carry them. *Failure mode: pods requiring the label to be absent match
   offerings they shouldn't, or vice versa.*
 - **M3: Unavailable, not absent.** Instance types are never dropped from `GetInstanceTypes` to
-  express unavailability; `Available: false` is used instead.
+  express unavailability; `Available: false` is used instead. NodeClass-incompatible offerings are
+  listed with `Available: false` and `Incompatible: true`; cloud-API-derived unavailability stays
+  `Incompatible: false`.
 - **M4: Coexist or select, stated.** For each new key, the design says whether multiple compatible
   values can coexist as alternatives in a single launch request (like zones) or one must be selected
   (like tenancy). If one is selected, the behavior when several values are compatible or none is
@@ -483,7 +494,7 @@ The touchpoints a new option typically hits. Not every option needs all of them.
 | 1. API surface | `pkg/apis/v1/ec2nodeclass.go` | NodeClass field, CEL validation, defaulting. New fields are hashed by default; `hash:"ignore"` opts out, so changing the field won't drift existing nodes. |
 | 2. Label registration | `pkg/apis/v1/labels.go` | Add to `WellKnownLabels`. For a closed value set, also add to `karpv1.WellKnownValuesForRequirements` so NodePool/NodeClaim CEL validation rejects typos. |
 | 3. Instance type requirements | `computeRequirements` in `pkg/providers/instancetype/types.go` | Advertise the union of all offering values, or `DoesNotExist`. |
-| 4. Offerings | new `OfferingResolver` in `pkg/providers/instancetype/offering/`, registered on the provider | **Only needed for dependent options, which apply to a subset of offerings.** An independent option like instance tenancy never appears in offerings. Set `Requirements`, `Price`, `Available`, and any capacity/overhead override. Resolvers must be deterministic and cheap. |
+| 4. Offerings | new `OfferingResolver` in `pkg/providers/instancetype/offering/`, registered on the provider | **Only needed for dependent options, which apply to a subset of offerings.** An independent option like instance tenancy never appears in offerings. Set `Requirements`, `Price`, `Available` (and `Incompatible` for NodeClass incompatibility), and any capacity/overhead override. Resolvers must be deterministic and cheap. |
 | 5. Offering cache key | `newCacheKeyBuilder` in `base_resolver.go` | **Every input a resolver or compatibility check reads must be in the cache key**, or offerings computed for one NodeClass will be served to another. |
 | 6. Instance type compatibility | `pkg/providers/instancetype/compatibility/` | For NodeClass configuration that makes some instance types unusable. Every NodeClass value the check reads must also be added to the cache key (step 5). |
 | 7. Launch resolution | `pkg/providers/instance/`, `pkg/providers/launchtemplate/` | The deterministic decision rule for unconstrained/multi-valued requirements, plus the EC2 API plumbing. |
