@@ -185,6 +185,10 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	cpuOptions := nodeClass.CPUOptions()
 	nestedVirtualizationEnabled := cpuOptions != nil && lo.FromPtr(cpuOptions.NestedVirtualization) == "enabled"
 	nestedVirtualizationEnabledHash, _ := hashstructure.Hash(nestedVirtualizationEnabled, hashstructure.FormatV2, nil)
+	isWindowsFamily := nodeClass.AMIFamily() == v1.AMIFamilyWindows2019 ||
+		nodeClass.AMIFamily() == v1.AMIFamilyWindows2022 ||
+		nodeClass.AMIFamily() == v1.AMIFamilyWindows2025
+	isWindowsFamilyHash, _ := hashstructure.Hash(isWindowsFamily, hashstructure.FormatV2, nil)
 	var placementGroupHash uint64
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
@@ -192,13 +196,14 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
 			enclavesEnabledHash,
 			nestedVirtualizationEnabledHash,
+			isWindowsFamilyHash,
 			placementGroupHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),
