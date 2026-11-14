@@ -43,7 +43,7 @@ All pods and containers on the parent node can communicate with enclaves attache
 Before continuing:
 
 1. Enable the alpha `NodeOverlay` feature gate.
-2. Prepare an AMI or user data that [configures Nitro Enclaves on the node](https://docs.aws.amazon.com/enclaves/latest/user/kubernetes.html), including the allocator and the 1 GiB hugepages used by this example. For AL2023, the [Nitro Enclaves user data example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml) installs the Nitro Enclaves CLI and configures the allocator for 2 vCPUs and 4 GiB.
+2. Prepare an AMI or user data that [configures Nitro Enclaves on the node](https://docs.aws.amazon.com/enclaves/latest/user/kubernetes.html), including the allocator and the 1 GiB hugepages used by this example. For AL2023, the [Nitro Enclaves user data example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml) installs the Nitro Enclaves CLI and configures the allocator; [generate it](#generate-the-nodepool-ec2nodeclass-and-nodeoverlay) for your enclave size.
 3. Install the [AWS Nitro Enclaves Kubernetes device plugin](https://github.com/aws/aws-nitro-enclaves-k8s-device-plugin) on nodes labeled `aws-nitro-enclaves-k8s-dp: enabled`. Configure the device-plugin DaemonSet as shown below.
 4. Decide how many enclave slots and CPUs and how much memory each node will advertise.
 
@@ -59,16 +59,16 @@ settings:
 
 ## Generate the NodePool, EC2NodeClass, and NodeOverlay
 
-The allocator settings in the `EC2NodeClass` user data `(allocator.yaml)`, the `NodeOverlay` capacity, and the instance size requirements must agree; Karpenter does not compare them. The [example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml) is a template, and the following script derives every value from a name, the enclave vCPUs, and the enclave memory in MiB. Save it as `nitro-enclaves-nodes.sh`. It needs `bash`, `envsubst` (gettext), and `curl`, and prints YAML without applying it.
+The allocator settings in the `EC2NodeClass` user data (`allocator.yaml`), the `NodeOverlay` capacity, and the instance size requirements must agree; Karpenter does not compare them. The [example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml) is a template, and the following script derives every value from a name, the enclave vCPUs, and the enclave memory in MiB. Save it as `nitro-enclaves-nodes.sh`. It needs `bash`, `envsubst` (gettext), and `curl`, and prints YAML without applying it.
 
 ```bash
 #!/usr/bin/env bash
-# Usage: CLUSTER_NAME=<cluster> ./nitro-enclaves-nodes.sh <name> <enclave-cpus> <enclave-memory-mib>
+# Usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] ./nitro-enclaves-nodes.sh <name> <enclave-cpus> <enclave-memory-mib>
 set -euo pipefail
 
 fail() { echo "error: $*" >&2; exit 1; }
 
-[[ $# -eq 3 ]] || fail "usage: CLUSTER_NAME=<cluster> $0 <name> <enclave-cpus> <enclave-memory-mib>"
+[[ $# -eq 3 ]] || fail "usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] $0 <name> <enclave-cpus> <enclave-memory-mib>"
 NAME=$1 CPUS=$2 MEMORY_MIB=$3
 [[ -n "${CLUSTER_NAME:-}" ]] || fail "CLUSTER_NAME is not set"
 [[ $NAME =~ ^[a-z0-9]([-a-z0-9]{0,53}[a-z0-9])?$ ]] || fail "name must be a lowercase DNS label of at most 55 characters" # leaves room for "-enabled" within the 63-character label limit
@@ -88,25 +88,25 @@ else
 fi | envsubst "\$CLUSTER_NAME \$ENCLAVE_NAME \$ENCLAVE_CPUS \$ENCLAVE_MEMORY_MIB \$ENCLAVE_HUGEPAGES \$ENCLAVE_INSTANCE_MEMORY_MIB"
 ```
 
-The allocator reserves the enclave memory first. The script assumes pods need at least the same amount (a 1:1 ratio of pod to enclave memory), so instance memory must exceed `BUFFER_MIB` (6 GiB for the system) + 2 × the enclave memory. The script writes `ENCLAVE_INSTANCE_MEMORY_MIB` into the `karpenter.k8s.aws/instance-memory` `Gt` requirement of the NodePool and NodeOverlay, so Karpenter only launches EC2 instance types with more memory than that. The 1:1 ratio is a default, not a requirement; to reserve more or less memory for pods, adjust the `ENCLAVE_INSTANCE_MEMORY_MIB` calculation. [Instance Sizing](#instance-sizing) explains the sizing.
+The script writes `ENCLAVE_INSTANCE_MEMORY_MIB` (6 GiB + 2 × the enclave memory, assuming a 1:1 ratio of pod to enclave memory) into the `karpenter.k8s.aws/instance-memory` `Gt` requirement, so Karpenter only launches instance types with more memory; [Instance Sizing](#instance-sizing) explains the rule and how to adjust it. The CPU requirement only excludes types with `<enclave-cpus>` or fewer vCPUs, so with large enclave CPU counts, check that the remaining vCPUs fit the node's pods (see [Capacity Considerations](#capacity-considerations)).
 
-Generate and apply the default configuration (2 vCPUs and 4 GiB per node, on instances with more than 14336 MiB):
+Apply the output after you [configure the device plugin](#configure-the-device-plugin), so that its DaemonSet tolerates the taint on the first nodes. Generate and apply the default configuration (2 vCPUs and 4 GiB per node, on instances with more than 14336 MiB):
 
 ```bash
 chmod +x nitro-enclaves-nodes.sh
-CLUSTER_NAME="${CLUSTER_NAME}" ./nitro-enclaves-nodes.sh enclave 2 4096 | kubectl apply -f -
+./nitro-enclaves-nodes.sh enclave 2 4096 | kubectl apply -f -
 ```
 
 Run it again with another name to add a larger size next to the default, for example 16 vCPUs and 32 GiB on instances with more than 71680 MiB:
 
 ```bash
-CLUSTER_NAME="${CLUSTER_NAME}" ./nitro-enclaves-nodes.sh enclave-large 16 32768 | kubectl apply -f -
+./nitro-enclaves-nodes.sh enclave-large 16 32768 | kubectl apply -f -
 ```
 
 To review the YAML or keep it in version control before applying it, write the output to a file instead:
 
 ```bash
-CLUSTER_NAME="${CLUSTER_NAME}" ./nitro-enclaves-nodes.sh enclave-large 16 32768 > enclave-large.yaml
+./nitro-enclaves-nodes.sh enclave-large 16 32768 > enclave-large.yaml
 kubectl diff -f enclave-large.yaml
 kubectl apply -f enclave-large.yaml
 ```
