@@ -1,0 +1,49 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+
+#cloud-config
+bootcmd:
+  - dnf install aws-nitro-enclaves-cli -y
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash -e
+# Node resources reserved for Nitro Enclaves.
+# Must match the NodeOverlay capacity (aws.ec2.nitro/nitro_enclaves_cpus and hugepages-1Gi).
+cat > /etc/nitro_enclaves/allocator.yaml <<'EOF'
+---
+memory_mib: 4096
+cpu_count: 2
+EOF
+systemctl enable --now nitro-enclaves-allocator.service
+--//
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+metadata: {}
+spec:
+  cluster:
+    apiServerEndpoint: https://test-cluster
+    certificateAuthority: Y2EtYnVuZGxlCg==
+    cidr: 10.100.0.0/16
+    name: test-cluster
+  containerd: {}
+  instance:
+    localStorage: {}
+  kubelet:
+    config:
+      clusterDNS:
+      - 10.0.100.10
+      maxPods: 110
+      registerWithTaints:
+      - effect: NoExecute
+        key: karpenter.sh/unregistered
+    flags:
+    - --node-labels="karpenter.k8s.aws/ec2nodeclass=%s,karpenter.sh/capacity-type=on-demand,karpenter.sh/do-not-sync-taints=true,%s=%s,testing/cluster=unspecified"
+
+--//--
