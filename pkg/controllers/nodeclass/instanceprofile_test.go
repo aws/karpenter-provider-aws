@@ -175,6 +175,32 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
+	DescribeTable("should keep a single instance profile across cache expiry",
+		func(role string) {
+			nodeClass.Spec.Role = role
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			profileName := nodeClass.Status.InstanceProfile
+
+			awsEnv.InstanceProfileCache.Flush()
+			awsEnv.RecreationCache.Flush()
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("role-A"))
+			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(Equal(1))
+			Expect(awsEnv.IAMAPI.RemoveRoleFromInstanceProfileBehavior.Calls()).To(BeZero())
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		},
+		Entry("role name", "role-A"),
+		Entry("role name with path", "my/path/role-A"),
+		Entry("role ARN", "arn:aws:iam::123456789012:role/role-A"),
+		Entry("role ARN with path", "arn:aws:iam::123456789012:role/my/path/role-A"),
+	)
 	It("should resolve the specified instance profile into the status when using instanceProfile field", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")

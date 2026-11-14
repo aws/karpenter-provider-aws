@@ -17,8 +17,10 @@ package v1
 import (
 	"fmt"
 	"log"
+	"path"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/google/uuid"
 	"github.com/mitchellh/hashstructure/v2"
@@ -89,7 +91,8 @@ type EC2NodeClassSpec struct {
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
-	// Role is the AWS identity that nodes use.
+	// Role is the IAM role that nodes use, given as a role name (e.g. "KarpenterNodeRole"), a role name with its
+	// IAM path (e.g. "my-path/KarpenterNodeRole"), or a role ARN (e.g. "arn:aws:iam::111122223333:role/KarpenterNodeRole").
 	// This field is mutually exclusive from instanceProfile.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +optional
@@ -578,8 +581,14 @@ func (in *EC2NodeClass) InstanceProfileName(clusterName, region string) string {
 	return fmt.Sprintf("%s_%d", clusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s%s", region, in.Name, uuid.New().String()), hashstructure.FormatV2, nil)))
 }
 
+// InstanceProfileRole returns the bare role name from spec.role, without an ARN prefix or IAM path. It must match
+// the RoleName IAM reports for the instance profile, or the reconciler recreates the profile on every cache expiry.
 func (in *EC2NodeClass) InstanceProfileRole() string {
-	return in.Spec.Role
+	role := in.Spec.Role
+	if parsed, err := arn.Parse(role); err == nil {
+		role = parsed.Resource
+	}
+	return path.Base(role)
 }
 
 func (in *EC2NodeClass) InstanceProfileTags(clusterName string, region string) map[string]string {
