@@ -794,6 +794,7 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("missing family", "@latest"),
 			Entry("missing version", "al2023", "al2023@"),
 			Entry("invalid separator", "al2023-latest"),
+			Entry("extra separator", "al2023@latest@foo", "bottlerocket@v1.46.0@x", "windows2022@latest@x"),
 		)
 		It("should fail for an alias with an invalid family", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "ubuntu@latest"}}
