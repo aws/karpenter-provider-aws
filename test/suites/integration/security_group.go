@@ -108,6 +108,6 @@ func EventuallyExpectSecurityGroups(env *aws.Environment, nodeClass *v1.EC2NodeC
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), temp)).To(Succeed())
 		g.Expect(sets.New(lo.Map(temp.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 			return s.ID
-		})...).Equal(ids))
+		})...).Equal(ids)).To(BeTrue())
 	}).WithTimeout(10 * time.Second).Should(Succeed())
 }
