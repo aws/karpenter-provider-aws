@@ -63,55 +63,57 @@ The allocator settings in the `EC2NodeClass` user data (`allocator.yaml`), the `
 
 ```bash
 #!/usr/bin/env bash
-# Usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] ./nitro-enclaves-nodes.sh <name> <enclave-cpus> <enclave-memory-mib>
+# Usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] [POD_CPUS=<n>] [POD_MEMORY_MIB=<n>] ./nitro-enclaves-nodes.sh <name> <enclave-cpus> <enclave-memory-mib>
 set -euo pipefail
 
 fail() { echo "error: $*" >&2; exit 1; }
 
-[[ $# -eq 3 ]] || fail "usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] $0 <name> <enclave-cpus> <enclave-memory-mib>"
+[[ $# -eq 3 ]] || fail "usage: CLUSTER_NAME=<cluster> [TEMPLATE=<local-file>] [POD_CPUS=<n>] [POD_MEMORY_MIB=<n>] $0 <name> <enclave-cpus> <enclave-memory-mib>"
 NAME=$1 CPUS=$2 MEMORY_MIB=$3
 [[ -n "${CLUSTER_NAME:-}" ]] || fail "CLUSTER_NAME is not set"
 [[ $NAME =~ ^[a-z0-9]([-a-z0-9]{0,53}[a-z0-9])?$ ]] || fail "name must be a lowercase DNS label of at most 55 characters" # leaves room for "-enabled" within the 63-character label limit
 { [[ $CPUS =~ ^[1-9][0-9]*$ ]] && (( CPUS % 2 == 0 )); } || fail "enclave-cpus must be an even number of at least 2"
 { [[ $MEMORY_MIB =~ ^[1-9][0-9]*$ ]] && (( MEMORY_MIB % 1024 == 0 )); } || fail "enclave-memory-mib must be a multiple of 1024"
 
+# Default system reserve: 1 vCPU and 6 GiB for kubelet and system processes
+SYSTEM_CPUS=1
 BUFFER_MIB=6144
+
+# Pod reserve: 1 vCPU and as much memory as the enclave, unless set in the environment
+POD_CPUS=${POD_CPUS:-1}
+POD_MEMORY_MIB=${POD_MEMORY_MIB:-$MEMORY_MIB}
+[[ $POD_CPUS =~ ^(0|[1-9][0-9]*)$ && $POD_MEMORY_MIB =~ ^(0|[1-9][0-9]*)$ ]] || fail "POD_CPUS and POD_MEMORY_MIB must be non-negative integers"
 
 export CLUSTER_NAME ENCLAVE_NAME=$NAME ENCLAVE_CPUS=$CPUS ENCLAVE_MEMORY_MIB=$MEMORY_MIB
 export ENCLAVE_HUGEPAGES="$((MEMORY_MIB / 1024))Gi"
-export ENCLAVE_INSTANCE_MEMORY_MIB=$((BUFFER_MIB + 2 * MEMORY_MIB)) # system buffer + enclave memory + the same amount for pods; see "Instance Sizing"
+export ENCLAVE_INSTANCE_CPUS=$((SYSTEM_CPUS + CPUS + POD_CPUS - 1)) # Gt: at least system + enclave + pod vCPUs; see "Instance Sizing"
+export ENCLAVE_INSTANCE_MEMORY_MIB=$((BUFFER_MIB + MEMORY_MIB + POD_MEMORY_MIB)) # system buffer + enclave memory + pod memory; see "Instance Sizing"
 
 if [[ -n "${TEMPLATE:-}" ]]; then
   cat "$TEMPLATE"
 else
   curl -fsSL "https://raw.githubusercontent.com/aws/karpenter-provider-aws{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml"
-fi | envsubst "\$CLUSTER_NAME \$ENCLAVE_NAME \$ENCLAVE_CPUS \$ENCLAVE_MEMORY_MIB \$ENCLAVE_HUGEPAGES \$ENCLAVE_INSTANCE_MEMORY_MIB"
+fi | envsubst "\$CLUSTER_NAME \$ENCLAVE_NAME \$ENCLAVE_CPUS \$ENCLAVE_MEMORY_MIB \$ENCLAVE_HUGEPAGES \$ENCLAVE_INSTANCE_CPUS \$ENCLAVE_INSTANCE_MEMORY_MIB"
 ```
 
-The script writes `ENCLAVE_INSTANCE_MEMORY_MIB` (6 GiB + 2 × the enclave memory, assuming a 1:1 ratio of pod to enclave memory) into the `karpenter.k8s.aws/instance-memory` `Gt` requirement, so Karpenter only launches instance types with more memory; [Instance Sizing](#instance-sizing) explains the rule and how to adjust it. The CPU requirement only excludes types with `<enclave-cpus>` or fewer vCPUs, so with large enclave CPU counts, check that the remaining vCPUs fit the node's pods (see [Capacity Considerations](#capacity-considerations)).
+The `instance-cpu` and `instance-memory` requirements of the NodePool and NodeOverlay are minimum sizes: the system (1 vCPU, 6 GiB), plus the enclave, plus a pod reserve that `POD_CPUS` (default 1) and `POD_MEMORY_MIB` (default the enclave memory) set. Pods share whatever is left; the reserve is not dedicated to them. [Instance Sizing](#instance-sizing) explains the rule.
 
-Apply the output after you [configure the device plugin](#configure-the-device-plugin), so that its DaemonSet tolerates the taint on the first nodes. Generate and apply the default configuration (2 vCPUs and 4 GiB per node, on instances with more than 14336 MiB):
+Generate the default configuration (2 vCPUs and 4 GiB per node, on instances with at least 4 vCPUs and more than 14336 MiB). The nodes require the device plugin, so apply the file only after you [configure the device plugin](#configure-the-device-plugin); otherwise its DaemonSet does not tolerate the taint on the first nodes.
 
 ```bash
+# CLUSTER_NAME is required; skip this line if it is already exported, for example from Getting Started.
+export CLUSTER_NAME="<your-cluster-name>"
 chmod +x nitro-enclaves-nodes.sh
-./nitro-enclaves-nodes.sh enclave 2 4096 | kubectl apply -f -
+./nitro-enclaves-nodes.sh enclave 2 4096 > nitro-enclaves-nodes.yaml
 ```
 
-Run it again with another name to add a larger size next to the default, for example 16 vCPUs and 32 GiB on instances with more than 71680 MiB:
-
-```bash
-./nitro-enclaves-nodes.sh enclave-large 16 32768 | kubectl apply -f -
-```
-
-To review the YAML or keep it in version control before applying it, write the output to a file instead:
+Run it again with another name to add a larger size next to the default, for example 16 vCPUs and 32 GiB on instances with at least 18 vCPUs and more than 71680 MiB:
 
 ```bash
 ./nitro-enclaves-nodes.sh enclave-large 16 32768 > enclave-large.yaml
-kubectl diff -f enclave-large.yaml
-kubectl apply -f enclave-large.yaml
 ```
 
-Each run creates or updates its own `<name>-pool`, `<name>-enabled`, and `<name>-overlay`. The `karpenter.sh/nodepool` requirement scopes each overlay to its NodePool, so overlays for different sizes do not conflict. Set `TEMPLATE` to a local file to render a modified copy of the example. The sections below explain the generated fields using the default values.
+Each generated file creates or updates its own `<name>-pool`, `<name>-enabled`, and `<name>-overlay`. The `karpenter.sh/nodepool` requirement scopes each overlay to its NodePool, so overlays for different sizes do not conflict. Set `TEMPLATE` to a local file to render a modified copy of the example. The sections below explain the generated fields using the default values.
 
 ## Enable Nitro Enclaves on the EC2NodeClass
 
@@ -143,7 +145,7 @@ Switching `enabled` between `true` and `false` changes the generated launch temp
 
 The example uses an EKS-optimized AMI only to keep the EC2NodeClass concise. You must still provide the node-level Nitro Enclaves configuration, either by baking it into an AMI or supplying appropriate user data. It uses `@latest` for brevity; follow the [AMI pinning guidance]({{< relref "managing-amis#pinning-amis" >}}) for production.
 
-For AL2023, the following `userData` installs the Nitro Enclaves CLI and allocator and reserves 2 vCPUs and 4 GiB for enclaves, which fits enclave-capable instance types with more than 2 vCPUs and 14 GiB of memory (for example, `m5.xlarge` or `c5.2xlarge`). The example NodePool excludes smaller types; see [Instance Sizing](#instance-sizing). Karpenter appends its generated `NodeConfig` as the last MIME part. See the [complete example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml), which also contains the NodePool and NodeOverlay used in this guide. The script installs packages with `dnf` during boot, so nodes need access to the Amazon Linux 2023 repositories. The block shows the output of `nitro-enclaves-nodes.sh enclave 2 4096`.
+For AL2023, the following `userData` installs the Nitro Enclaves CLI and allocator and reserves 2 vCPUs and 4 GiB for enclaves, which fits enclave-capable instance types with at least 4 vCPUs and more than 14 GiB of memory (for example, `m5.xlarge` or `c5.2xlarge`). The example NodePool excludes smaller types; see [Instance Sizing](#instance-sizing). Karpenter appends its generated `NodeConfig` as the last MIME part. The user data installs packages with `dnf` during boot, so nodes need access to the Amazon Linux 2023 repositories. The block shows the output of `nitro-enclaves-nodes.sh enclave 2 4096`.
 
 ```yaml
 spec:
@@ -200,17 +202,17 @@ spec:
       requirements:
         - key: karpenter.k8s.aws/instance-cpu
           operator: Gt
-          values: ["2"]
+          values: ["3"]
         - key: karpenter.k8s.aws/instance-memory
           operator: Gt
-          values: ["14336"] # best practice: 6 GiB + 2 x memory_mib, in MiB
+          values: ["14336"] # 6 GiB + memory_mib + pod memory, in MiB
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: enclave-enabled
 ```
 
-You do not need to maintain a static list of enclave-capable instance families. The EC2NodeClass compatibility filter removes unsupported instance types. The `instance-cpu` and `instance-memory` requirements exclude types too small for the enclave reservation and must match the `NodeOverlay` requirements; see [Instance Sizing](#instance-sizing). Add other requirements when you need tighter cost or architecture constraints.
+You do not need to maintain a static list of enclave-capable instance families. The EC2NodeClass compatibility filter removes unsupported instance types. The `instance-cpu` and `instance-memory` requirements exclude types too small for the system, enclave, and pod reserves and must match the `NodeOverlay` requirements; see [Instance Sizing](#instance-sizing). Add other requirements when you need tighter cost or architecture constraints.
 
 ## Configure the Device Plugin
 
@@ -245,9 +247,16 @@ kubectl patch daemonset aws-nitro-enclaves-k8s-daemonset \
 
 Without the toleration, the DaemonSet cannot run on the tainted nodes. Without CPU advertisement, the device plugin does not publish the `aws.ec2.nitro/nitro_enclaves_cpus` resource used by the example.
 
+Apply the generated configuration. Configurations with different names can run side by side, so you can create one for each set of workload resource requirements and update or delete each independently:
+
+```bash
+# Apply the file for each size your workloads need, for example also enclave-large.yaml.
+kubectl apply -f nitro-enclaves-nodes.yaml
+```
+
 ## Model Enclave Resources with a NodeOverlay
 
-Create a `NodeOverlay` that matches the device-plugin label. Include numeric CPU and memory requirements so the overlay is only considered for instances larger than the enclave reservation.
+Create a `NodeOverlay` that matches the device-plugin label. Include numeric CPU and memory requirements so the overlay is only considered for instances larger than the system, enclave, and pod reserves.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha1
@@ -264,7 +273,7 @@ spec:
       values: ["enabled"]
     - key: karpenter.k8s.aws/instance-cpu
       operator: Gt
-      values: ["2"]
+      values: ["3"]
     - key: karpenter.k8s.aws/instance-memory
       operator: Gt
       values: ["14336"]
@@ -376,7 +385,7 @@ The enclave allocator takes CPU and memory from the parent instance. The `hugepa
 
 After launch, compare standard `cpu` in the NodeClaim's `.status.allocatable` with the Node's `.status.allocatable`. Keep ordinary workloads off the enclave NodePool. The sum of standard `cpu` requests for every pod allowed onto the NodePool must fit the Node's actual allocatable CPU. Separately, the sum of `aws.ec2.nitro/nitro_enclaves_cpus` requests must fit the capacity declared by the `NodeOverlay`. Requesting enclave CPUs does not reserve standard CPU, and a `NoSchedule` taint does not change Karpenter's CPU calculation.
 
-The allocator values in user data (`cpu_count`, `memory_mib`) and the `NodeOverlay` capacity (`aws.ec2.nitro/nitro_enclaves_cpus`, `hugepages-1Gi`) must change together; Karpenter does not compare them. If the user data script fails, kubelet still starts without the hugepages and enclave pods stay Pending. The capacity check in [Validate the Configuration](#validate-the-configuration) catches this, and also the hugepage shortfall described in the next section.
+If the user data script fails, kubelet still starts without the hugepages and enclave pods stay Pending. The capacity check in [Validate the Configuration](#validate-the-configuration) catches this, and also the hugepage shortfall described in the next section.
 
 ### Instance Sizing
 
@@ -384,7 +393,9 @@ Choose an instance type with enough vCPUs and memory for both the parent instanc
 
 The allocator reserves enclave memory as 1 GiB hugepages after the node boots and before kubelet starts, when free memory is already fragmented. If it cannot reserve enough 1 GiB pages, it uses 2 MiB pages for the rest. Kubernetes counts each page size as a separate resource (see [Manage HugePages](https://kubernetes.io/docs/tasks/manage-hugepages/scheduling-hugepages/)), so the node then advertises less `hugepages-1Gi` than the `NodeOverlay` declares, and enclave pods stay Pending. Kubelet also subtracts the hugepages from allocatable `memory`, so pods share only the remainder.
 
-As a best practice, keep at least 6 GiB of instance memory outside the hugepages for the system. The allocator reserves `memory_mib` for enclaves first; this guide assumes pods need at least as much memory as the enclaves (a 1:1 ratio), so instance memory must exceed 6 GiB + 2 × `memory_mib`. Adjust the ratio to your workloads. With `memory_mib: 4096`, the example requires `karpenter.k8s.aws/instance-memory Gt 14336`. Confirm the threshold for your instance types with the capacity check in [Validate the Configuration](#validate-the-configuration).
+The allocator takes `cpu_count` vCPUs offline for enclaves, but Karpenter still counts them as allocatable CPU. As a best practice, keep at least 1 vCPU for kubelet and system processes plus the vCPUs your pods need, so the instance needs at least 1 + `cpu_count` + pod vCPUs. With `cpu_count: 2` and 1 pod vCPU, the example requires `karpenter.k8s.aws/instance-cpu Gt 3`. Set `POD_CPUS` to the largest sum of standard `cpu` requests that can share one node, including DaemonSets, rounded up to whole vCPUs; otherwise some pods can stay Pending. For example, two pods requesting `1250m` each plus `300m` of DaemonSets need 3 vCPUs, so `POD_CPUS=3 ./nitro-enclaves-nodes.sh enclave 2 4096` generates `instance-cpu Gt 5` (at least 6 vCPUs).
+
+As a best practice, keep at least 6 GiB of instance memory outside the hugepages for the system. The allocator reserves `memory_mib` for enclaves first; by default the script reserves as much memory for pods as for the enclaves (a 1:1 ratio), so instance memory must exceed 6 GiB + `memory_mib` + pod memory. Set `POD_MEMORY_MIB` to change the pod share. With `memory_mib: 4096`, the example requires `karpenter.k8s.aws/instance-memory Gt 14336`. Confirm the thresholds for your instance types with the capacity check in [Validate the Configuration](#validate-the-configuration).
 
 ## Additional Resources
 

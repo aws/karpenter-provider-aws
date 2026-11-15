@@ -2,9 +2,10 @@
 # The user data installs the Nitro Enclaves CLI and configures the enclave allocator.
 # This file is a template: generate it with the script in "Using Nitro Enclaves", which derives every value
 # from a name, the enclave vCPUs, and the enclave memory. Defaults (enclave 2 4096) reserve 2 vCPUs and
-# 4 GiB (1 GiB hugepages) and require instance-memory above 14336 MiB (6 GiB + 2 x memory_mib).
+# 4 GiB (1 GiB hugepages) and require at least 4 vCPUs (1 system + cpu_count + 1 pod vCPU; instance-cpu Gt 3)
+# and instance-memory above 14336 MiB (6 GiB + memory_mib + the same amount for pods).
 # Requires the NodeOverlay feature gate and the Nitro Enclaves device plugin (see "Using Nitro Enclaves").
-# The script installs packages with dnf, so nodes need access to the AL2023 package repositories.
+# The user data installs packages with dnf, so nodes need access to the AL2023 package repositories.
 ---
 apiVersion: karpenter.sh/v1
 kind: NodePool
@@ -32,13 +33,13 @@ spec:
         - key: karpenter.sh/capacity-type
           operator: In
           values: ["on-demand"]
-        # Exclude sizes too small for the enclave reservation; matches the NodeOverlay requirements.
+        # Exclude sizes too small for the system, enclave, and pod reserves; matches the NodeOverlay requirements.
         - key: karpenter.k8s.aws/instance-cpu
           operator: Gt
-          values: ["${ENCLAVE_CPUS}"]
+          values: ["${ENCLAVE_INSTANCE_CPUS}"]
         - key: karpenter.k8s.aws/instance-memory
           operator: Gt
-          values: ["${ENCLAVE_INSTANCE_MEMORY_MIB}"] # best practice: 6 GiB + 2 x memory_mib, in MiB
+          values: ["${ENCLAVE_INSTANCE_MEMORY_MIB}"] # 6 GiB + memory_mib + pod memory, in MiB
       nodeClassRef:
         group: karpenter.k8s.aws
         kind: EC2NodeClass
@@ -100,7 +101,7 @@ spec:
       values: ["enabled"]
     - key: karpenter.k8s.aws/instance-cpu
       operator: Gt
-      values: ["${ENCLAVE_CPUS}"]
+      values: ["${ENCLAVE_INSTANCE_CPUS}"]
     - key: karpenter.k8s.aws/instance-memory
       operator: Gt
       values: ["${ENCLAVE_INSTANCE_MEMORY_MIB}"]
