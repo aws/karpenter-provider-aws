@@ -24,6 +24,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.featureGates.nodeOverlay=true \
 			--set settings.featureGates.staticCapacity=true \
 			--set settings.featureGates.capacityBuffer=true \
+			--set settings.featureGates.predictionEnabled=true \
 			--set settings.preferencePolicy=Ignore \
 			--set logLevel=debug \
 			--create-namespace
@@ -41,6 +42,9 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
 TMPFILE := $(shell mktemp)
+
+# perftests-v2 writes performancev2's per-phase reports, summaries and profiles to OUTPUT_DIR
+OUTPUT_DIR ?= $(shell pwd)/test/perf-output
 
 # Filename when building the binary controller only
 GOARCH ?= $(shell go env GOARCH)
@@ -121,6 +125,26 @@ upstream-e2etests: tidy download
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
 		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
 		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
+
+perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
+	mkdir -p "$(OUTPUT_DIR)"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
+		go test \
+		-count 1 \
+		-timeout 3h \
+		-v \
+		./suites/performancev2 \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.fail-on-empty \
+		--ginkgo.timeout=150m \
+		--ginkgo.grace-period=10m \
+		--ginkgo.vv
+
+perf-inventory: ## Print the performancev2 gates and levels for the AWS plugin
+	go run ./test/suites/performancev2/cmd/inventory
+
+perf-verify: perf-inventory ## Check the performancev2 plugin's seams and levels without a cluster
+	go test -count 1 ./test/suites/performancev2/seams/...
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
@@ -244,7 +268,7 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 perf-inventory perf-verify e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 

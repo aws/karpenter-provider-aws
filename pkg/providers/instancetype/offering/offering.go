@@ -188,6 +188,8 @@ func (p *DefaultProvider) InjectOfferings(
 			Capacity:               it.Capacity,
 			Overhead:               it.Overhead,
 			VolumeAttachmentLimits: it.VolumeAttachmentLimits,
+			DynamicResources:       it.DynamicResources,
+			AttributeBindings:      it.AttributeBindings,
 		})
 	}
 	return its

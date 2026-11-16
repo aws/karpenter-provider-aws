@@ -38,8 +38,8 @@ func devicesFor(mode *nvidiadra.ConsumableCapacityMode) []cloudprovider.Device {
 	resources := provider.ResolveDynamicResources(context.Background(), []*cloudprovider.InstanceType{
 		{Name: "g6.12xlarge"},
 	}, mode)
-	Expect(resources["g6.12xlarge"].ResourceSliceTemplates).To(HaveLen(1))
-	return resources["g6.12xlarge"].ResourceSliceTemplates[0].Devices
+	Expect(resources["g6.12xlarge"].Set.ResourceSliceTemplates).To(HaveLen(1))
+	return resources["g6.12xlarge"].Set.ResourceSliceTemplates[0].Devices
 }
 
 func expectQuantity(actual *resource.Quantity, want string) {
@@ -165,7 +165,7 @@ var _ = Describe("Consumable capacity", func() {
 			plain := provider.ResolveDynamicResources(context.Background(), its, nil)
 			shared := provider.ResolveDynamicResources(context.Background(), its, lo.Must(nvidiadra.ParseConsumableCapacity("2")))
 
-			names := func(r cloudprovider.DynamicResources) []resourcev1.QualifiedName {
+			names := func(r nvidiadra.Resources) []resourcev1.QualifiedName {
 				return lo.Map(r.AttributeBindings, func(b *cloudprovider.AttributeBinding, _ int) resourcev1.QualifiedName {
 					return b.Attribute
 				})

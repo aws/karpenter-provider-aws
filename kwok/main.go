@@ -84,6 +84,7 @@ func main() {
 			clusterState,
 			op.InstanceTypeStore,
 			op.PredictionStore,
+			corecontrollers.WithVPAPrediction(),
 		)...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,

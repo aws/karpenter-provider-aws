@@ -48,29 +48,30 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeCapacityReservationsOutput  AtomicPtr[ec2.DescribeCapacityReservationsOutput]
-	DescribePlacementGroupsOutput       AtomicPtr[ec2.DescribePlacementGroupsOutput]
-	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeInstanceStatusOutput        AtomicPtr[ec2.DescribeInstanceStatusOutput]
-	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeInstanceStatusBehavior      MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
-	DescribeSubnetsBehavior             MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsBehavior      MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
-	DescribeSpotPriceHistoryBehavior    MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
-	RebootInstancesBehavior             MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
-	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
-	CreateTagsBehavior                  MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	RunInstancesBehavior                MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CreateLaunchTemplateBehavior        MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
-	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
-	Instances                           sync.Map
-	InsufficientCapacityPools           atomic.Slice[CapacityPool]
-	NextError                           AtomicError
+	DescribeCapacityReservationsOutput   AtomicPtr[ec2.DescribeCapacityReservationsOutput]
+	DescribePlacementGroupsOutput        AtomicPtr[ec2.DescribePlacementGroupsOutput]
+	DescribeImagesOutput                 AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput        AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeInstanceTypesOutput          AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput  AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeInstanceStatusOutput         AtomicPtr[ec2.DescribeInstanceStatusOutput]
+	DescribeAvailabilityZonesOutput      AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeInstanceStatusBehavior       MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
+	DescribeSubnetsBehavior              MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsBehavior       MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
+	DescribeSpotPriceHistoryBehavior     MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                  MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior           MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	RebootInstancesBehavior              MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
+	DescribeInstancesBehavior            MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                   MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	RunInstancesBehavior                 MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
+	CreateLaunchTemplateBehavior         MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
+	CalledWithDescribeImagesInput        AtomicPtrSlice[ec2.DescribeImagesInput]
+	NotFoundDescribeLaunchTemplatesInput AtomicPtrSlice[ec2.DescribeLaunchTemplatesInput]
+	Instances                            sync.Map
+	InsufficientCapacityPools            atomic.Slice[CapacityPool]
+	NextError                            AtomicError
 
 	Subnets                               sync.Map
 	LaunchTemplates                       sync.Map
@@ -107,6 +108,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
+	e.NotFoundDescribeLaunchTemplatesInput.Reset()
 	e.DescribeSpotPriceHistoryBehavior.Reset()
 	e.Subnets.Range(func(k, v any) bool {
 		e.Subnets.Delete(k)
@@ -295,6 +297,17 @@ func (e *EC2API) CreateLaunchTemplate(ctx context.Context, input *ec2.CreateLaun
 			defer e.NextError.Reset()
 			return nil, e.NextError.Get()
 		}
+		exists := false
+		e.LaunchTemplates.Range(func(_, v any) bool {
+			exists = aws.ToString(v.(ec2types.LaunchTemplate).LaunchTemplateName) == aws.ToString(input.LaunchTemplateName)
+			return !exists
+		})
+		if exists {
+			return nil, &smithy.GenericAPIError{
+				Code:    "InvalidLaunchTemplateName.AlreadyExistsException",
+				Message: "Launch template name already in use.",
+			}
+		}
 		launchTemplate := ec2types.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 		e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
 		if crs := input.LaunchTemplateData.CapacityReservationSpecification; crs != nil && crs.CapacityReservationPreference == ec2types.CapacityReservationPreferenceCapacityReservationsOnly {
@@ -472,6 +485,7 @@ func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeL
 		return output, nil
 	}
 	if len(output.LaunchTemplates) == 0 {
+		e.NotFoundDescribeLaunchTemplatesInput.Add(input)
 		return nil, &smithy.GenericAPIError{
 			Code:    "InvalidLaunchTemplateName.NotFoundException",
 			Message: "At least one of the launch templates specified in the request does not exist.",

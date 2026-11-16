@@ -20,6 +20,15 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   ...
 ```
 
+To see the AWS API requests and responses behind an error such as a 403 or throttling, set `AWS_SDK_DEBUG_LOG` to `true`. Karpenter then logs each request, response and retry, including bodies, under the `aws-sdk` logger. Credential headers are redacted, but bodies can contain sensitive data such as user data and the cluster CA bundle, so turn it off when you're done.
+
+```
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+  --set "controller.env[0].name=AWS_SDK_DEBUG_LOG" \
+  --set-string "controller.env[0].value=true" \
+  ...
+```
+
 ## Installation
 
 ### Missing Service Linked Role
@@ -359,7 +368,7 @@ $ kg nodeclaim $NODECLAIM_NAME -o jsonpath='{.status.conditions[?(@.type=="Consi
 This can be spot checked like shown above, or monitored via the following metric:
 
 ```
-operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
+operator_nodeclaim_status_condition_count{type="ConsistentStateFound",status="False"}
 ```
 
 ### `FailedConsistencyCheck` event: `expected X of resource Y, but found Z` is reported

@@ -41,6 +41,7 @@ import (
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -62,6 +63,7 @@ const (
 
 func (env *Environment) ExpectWindowsIPAMEnabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=true")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "true",
 	})
@@ -69,6 +71,7 @@ func (env *Environment) ExpectWindowsIPAMEnabled() {
 
 func (env *Environment) ExpectWindowsIPAMDisabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=false")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "false",
 	})
@@ -79,7 +82,11 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 }
 
 func (env *Environment) ExpectIPv6ClusterDNS() string {
+	GinkgoHelper()
 	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:kube-dns-service] cluster %s has no kube-system/kube-dns Service", env.ClusterName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
@@ -117,7 +124,33 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 	Expect(err).ToNot(HaveOccurred())
 	experiment, err := env.FISAPI.StartExperiment(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
 	Expect(err).ToNot(HaveOccurred())
+	env.expectExperimentActionsStarted(experiment.Experiment)
 	return experiment.Experiment
+}
+
+func (env *Environment) expectExperimentActionsStarted(experiment *fistypes.Experiment) {
+	GinkgoHelper()
+	var failed *fistypes.ExperimentActionState
+	Eventually(func(g Gomega) {
+		out, err := env.FISAPI.GetExperiment(env.Context, &fis.GetExperimentInput{Id: experiment.Id})
+		g.Expect(err).ToNot(HaveOccurred())
+		for _, a := range out.Experiment.Actions {
+			if a.State != nil && a.State.Status == fistypes.ExperimentActionStatusFailed {
+				failed = a.State
+				return
+			}
+			g.Expect(a.State).ToNot(BeNil())
+			g.Expect(a.State.Status).To(BeElementOf(fistypes.ExperimentActionStatusRunning, fistypes.ExperimentActionStatusCompleted))
+		}
+	}).WithTimeout(time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+	if failed == nil {
+		return
+	}
+	env.ExpectExperimentTemplateDeleted(lo.FromPtr(experiment.ExperimentTemplateId))
+	if env.ExternalController != nil && strings.Contains(lo.FromPtr(failed.Reason), "Not enough privileges") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] %s denied the FIS experiment on its instances: %s", env.ExternalController.Name, lo.FromPtr(failed.Reason)))
+	}
+	Fail(fmt.Sprintf("FIS experiment %s failed: %s", lo.FromPtr(experiment.Id), lo.FromPtr(failed.Reason)))
 }
 
 func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
@@ -169,6 +202,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 		Force:       aws.Bool(true),
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
 }
 
@@ -178,7 +212,15 @@ func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
+}
+
+func skipIfProtectedInstance(err error) {
+	GinkgoHelper()
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "UnauthorizedOperation" && strings.Contains(apiErr.ErrorMessage(), "resource-based policy") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] instance is protected by a resource-based policy: %s", strings.SplitN(apiErr.ErrorMessage(), " Encoded", 2)[0]))
+	}
 }
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
@@ -237,9 +279,25 @@ func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest 
 	return siro.SpotInstanceRequests[0]
 }
 
-// GetSubnets returns all subnets matching the label selector
-// mapped from AZ -> {subnet-ids...}
-func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+func (env *Environment) DiscoveryTags() map[string]string {
+	return map[string]string{"karpenter.sh/discovery": env.ClusterName}
+}
+
+func (env *Environment) subnetDiscoveryFilters() []ec2types.Filter {
+	if len(env.SubnetIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("subnet-id"), Values: env.SubnetIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func (env *Environment) securityGroupDiscoveryFilters() []ec2types.Filter {
+	if len(env.SecurityGroupIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("group-id"), Values: env.SecurityGroupIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func tagFilters(tags map[string]string) []ec2types.Filter {
 	var filters []ec2types.Filter
 	for key, val := range tags {
 		filters = append(filters, ec2types.Filter{
@@ -247,6 +305,20 @@ func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
 			Values: []string{val},
 		})
 	}
+	return filters
+}
+
+// GetSubnets returns all subnets matching the label selector
+// mapped from AZ -> {subnet-ids...}
+func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+	return env.getSubnets(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnets() map[string][]string {
+	return env.getSubnets(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnets(filters []ec2types.Filter) map[string][]string {
 	subnets := map[string][]string{}
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -276,13 +348,14 @@ type SubnetInfo struct {
 
 // GetSubnetInfo returns all subnets matching the label selector
 func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSubnetInfo(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnetInfo() []SubnetInfo {
+	return env.getSubnetInfo(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnetInfo(filters []ec2types.Filter) []SubnetInfo {
 	var subnetInfo []SubnetInfo
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -319,13 +392,14 @@ type SecurityGroup struct {
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
 func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGroup {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSecurityGroups(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSecurityGroups() []SecurityGroup {
+	return env.getSecurityGroups(env.securityGroupDiscoveryFilters())
+}
+
+func (env *Environment) getSecurityGroups(filters []ec2types.Filter) []SecurityGroup {
 	var securityGroups []SecurityGroup
 	input := &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
@@ -351,6 +425,9 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 
 func (env *Environment) ExpectMessagesCreated(msgs ...any) {
 	GinkgoHelper()
+	if env.SQSProvider == nil {
+		Skip("[unsupported:interruption-queue] " + env.NoInterruptionQueueCause)
+	}
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
@@ -543,6 +620,9 @@ func (env *Environment) ExpectSpotInterruptionRole() *iamtypes.Role {
 	out, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 		RoleName: aws.String(fisRoleName),
 	})
+	if awserrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:fis] IAM role %s does not exist", fisRoleName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	return out.Role
 }
@@ -759,7 +839,7 @@ func (env *Environment) ExpectCapacityReservationPairCreated(largeCapacity, xlar
 
 // capacityReservationZones returns the availability zones covered by the cluster's discovery subnets
 func (env *Environment) capacityReservationZones() []string {
-	return lo.Uniq(lo.FilterMap(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s SubnetInfo, _ int) (string, bool) {
+	return lo.Uniq(lo.FilterMap(env.DiscoveredSubnetInfo(), func(s SubnetInfo, _ int) (string, bool) {
 		return s.Zone, s.ZoneType == "availability-zone"
 	}))
 }

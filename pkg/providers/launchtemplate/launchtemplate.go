@@ -242,7 +242,6 @@ func (p *DefaultProvider) CreateAMIOptions(ctx context.Context, nodeClass *v1.EC
 }
 
 func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (ec2types.LaunchTemplate, error) {
-	var launchTemplate ec2types.LaunchTemplate
 	name := LaunchTemplateName(options)
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("launch-template-name", name))
 	// Read from cache
@@ -250,25 +249,23 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 		p.cache.SetDefault(name, launchTemplate)
 		return launchTemplate.(ec2types.LaunchTemplate), nil
 	}
-	// Attempt to find an existing LT.
-	output, err := p.ec2api.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
-		LaunchTemplateNames: []string{name},
-	})
-	// Create LT if one doesn't exist
-	if awserrors.IsNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, options)
+	launchTemplate, err := p.createLaunchTemplate(ctx, options)
+	if awserrors.IsAlreadyExists(err) {
+		output, err := p.ec2api.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+			LaunchTemplateNames: []string{name},
+		})
 		if err != nil {
-			return ec2types.LaunchTemplate{}, fmt.Errorf("creating launch template, %w", err)
+			return ec2types.LaunchTemplate{}, fmt.Errorf("describing launch templates, %w", err)
 		}
-	} else if err != nil {
-		return ec2types.LaunchTemplate{}, fmt.Errorf("describing launch templates, %w", err)
-	} else if len(output.LaunchTemplates) != 1 {
-		return ec2types.LaunchTemplate{}, serrors.Wrap(fmt.Errorf("expected to find one launch template"), "launch-template-count", len(output.LaunchTemplates))
-	} else {
+		if len(output.LaunchTemplates) != 1 {
+			return ec2types.LaunchTemplate{}, serrors.Wrap(fmt.Errorf("expected to find one launch template"), "launch-template-count", len(output.LaunchTemplates))
+		}
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
 			log.FromContext(ctx).V(1).Info("discovered launch template")
 		}
 		launchTemplate = output.LaunchTemplates[0]
+	} else if err != nil {
+		return ec2types.LaunchTemplate{}, fmt.Errorf("creating launch template, %w", err)
 	}
 	p.cache.SetDefault(name, launchTemplate)
 	return launchTemplate, nil

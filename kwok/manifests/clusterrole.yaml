@@ -17,5 +17,5 @@ roleRef:
   name: kwok-karpenter-extra
 subjects:
   - kind: ServiceAccount
-    name: kwok-karpenter
+    name: ${KWOK_SERVICE_ACCOUNT}
     namespace: $KARPENTER_NAMESPACE

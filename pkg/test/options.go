@@ -40,6 +40,7 @@ type OptionsFields struct {
 	InterruptionQueue            *string
 	ReservedENIs                 *int
 	DisableDryRun                *bool
+	AWSSDKDebugLog               *bool
 	AMIRefreshInterval           *time.Duration
 	SubnetRefreshInterval        *time.Duration
 	SecurityGroupRefreshInterval *time.Duration
@@ -64,6 +65,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		InterruptionQueue:            lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:                 lo.FromPtrOr(opts.ReservedENIs, 0),
 		DisableDryRun:                lo.FromPtrOr(opts.DisableDryRun, false),
+		AWSSDKDebugLog:               lo.FromPtrOr(opts.AWSSDKDebugLog, false),
 		AMIRefreshInterval:           lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
 		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),

@@ -148,6 +148,57 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
+		It("should only interrupt managed NodeClaims when receiving SQS messages", func() {
+			unmanagedNodeClaim, unmanagedNode := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{Group: "eks.amazonaws.com", Kind: "NodeClass", Name: "default"},
+				},
+				Status: karpv1.NodeClaimStatus{ProviderID: fake.RandomProviderID()},
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node, unmanagedNodeClaim, unmanagedNode)
+			ExpectMessagesCreated(
+				spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+				spotInterruptionMessage(lo.Must(utils.ParseInstanceID(unmanagedNodeClaim.Status.ProviderID))),
+			)
+
+			ExpectSingletonReconciled(ctx, controller)
+
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+			Expect(ExpectExists(ctx, env.Client, unmanagedNodeClaim).DeletionTimestamp.IsZero()).To(BeTrue())
+			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+				metrics.ReasonLabel: "spot_interrupted",
+			})
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(2))
+		})
+		It("should ignore unmanaged NodeClaims for instance status actions and dry-run metrics", func() {
+			nodeClaim.Spec.NodeClassRef = &karpv1.NodeClassReference{Group: "eks.amazonaws.com", Kind: "NodeClass", Name: "default"}
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{{
+					InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+					InstanceStatus: &ec2types.InstanceStatusSummary{
+						Status: ec2types.SummaryStatusImpaired,
+						Details: []ec2types.InstanceStatusDetails{{
+							Status: ec2types.StatusTypeFailed, Name: ec2types.StatusNameReachability,
+							ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+						}},
+					},
+				}},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			DeferCleanup(func() { interruption.InstanceStatusDryRun = false })
+			for _, dryRun := range []bool{true, false} {
+				interruption.InstanceStatusDryRun = dryRun
+				ExpectSingletonReconciled(ctx, instanceStatusController)
+				stored := ExpectExists(ctx, env.Client, nodeClaim)
+				Expect(stored.DeletionTimestamp.IsZero()).To(BeTrue())
+				Expect(stored.Annotations).ToNot(HaveKey(karpv1.NodeClaimTerminationTimestampAnnotationKey))
+				_, unhealthy := FindMetricWithLabelValues("karpenter_interruption_instance_status_unhealthy_total", map[string]string{"category": "InstanceStatus"})
+				Expect(unhealthy).To(BeFalse())
+				_, disrupted := FindMetricWithLabelValues("karpenter_nodeclaims_disrupted_total", map[string]string{metrics.ReasonLabel: "instance_status"})
+				Expect(disrupted).To(BeFalse())
+			}
+		})
 		It("should delete the NodeClaim when receiving a capacity reservation interruption warning", func() {
 			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
 				ObjectMeta: metav1.ObjectMeta{
@@ -267,6 +318,64 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should not observe MessageLatency for no-op messages", func() {
+			// Regression test for https://github.com/aws/karpenter-provider-aws/issues/9523.
+			// EventParser.Parse returns a bare noop.Message{} with a zero-valued
+			// StartTime for empty or unrecognized SQS bodies. Observing latency
+			// against that zero time produces math.MaxInt64-nanosecond values
+			// (~9.22e9 seconds) that permanently skew histogram averages.
+			interruption.MessageLatency.Reset()
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(""),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a no-op message")
+
+			// A well-formed interruption message should still record latency.
+			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 1, nil)
+			// Pin the actual observed value: the pre-fix bug would have recorded
+			// ~9.22e9 seconds (math.MaxInt64 nanoseconds), so anything on the order
+			// of test wall time (< 1h) is a real observation.
+			metric, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeTrue())
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically(">", 0))
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically("<", 3600))
+		})
+		It("should not observe MessageLatency when a well-formed message is missing the EventBridge time field", func() {
+			// A body that matches a known parser's source/detail-type/version but
+			// omits `time` unmarshals with StartTime==zero. Kind() is a valid
+			// message kind, so guarding only on Kind would still let time.Since
+			// saturate against the zero value and corrupt the histogram.
+			interruption.MessageLatency.Reset()
+			instanceID := lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))
+			body := fmt.Sprintf(`{
+				"version":     "0",
+				"account":     %q,
+				"detail-type": "EC2 Spot Instance Interruption Warning",
+				"id":          %q,
+				"region":      %q,
+				"resources":   ["arn:aws:ec2:%s:instance/%s"],
+				"source":      "aws.ec2",
+				"detail":      {"instance-id": %q, "instance-action": "terminate"}
+			}`, defaultAccountID, string(uuid.NewUUID()), fake.DefaultRegion, fake.DefaultRegion, instanceID, instanceID)
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(body),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a message with no usable StartTime")
 		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
 			ExpectMessagesCreated(stateChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)), "creating"))

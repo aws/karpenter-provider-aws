@@ -65,6 +65,7 @@ var _ = Describe("Options", func() {
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
 			"--disable-dry-run",
+			"--aws-sdk-debug-log",
 			"--ami-refresh-interval", "15m",
 			"--subnet-refresh-interval", "15m",
 			"--security-group-refresh-interval", "15m")
@@ -78,6 +79,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
 			ReservedENIs:                 lo.ToPtr(10),
 			DisableDryRun:                lo.ToPtr(true),
+			AWSSDKDebugLog:               lo.ToPtr(true),
 			AMIRefreshInterval:           lo.ToPtr(15 * time.Minute),
 			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
 			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
@@ -92,6 +94,7 @@ var _ = Describe("Options", func() {
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
+		os.Setenv("AWS_SDK_DEBUG_LOG", "true")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
 		os.Setenv("SUBNET_REFRESH_INTERVAL", "15m")
 		os.Setenv("SECURITY_GROUP_REFRESH_INTERVAL", "15m")
@@ -110,6 +113,7 @@ var _ = Describe("Options", func() {
 			InterruptionQueue:            lo.ToPtr("env-cluster"),
 			ReservedENIs:                 lo.ToPtr(10),
 			DisableDryRun:                lo.ToPtr(false),
+			AWSSDKDebugLog:               lo.ToPtr(true),
 			AMIRefreshInterval:           lo.ToPtr(30 * time.Minute),
 			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
 			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
@@ -244,6 +248,7 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
+	Expect(optsA.AWSSDKDebugLog).To(Equal(optsB.AWSSDKDebugLog))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
 	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
