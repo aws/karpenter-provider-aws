@@ -120,6 +120,22 @@ var _ = Describe("Options", func() {
 		}))
 	})
 
+	DescribeTable("should configure instance status dry run",
+		func(envValue string, args []string, expected bool) {
+			if envValue != "" {
+				os.Setenv("INSTANCE_STATUS_DRY_RUN", envValue)
+			}
+			opts.AddFlags(fs)
+			Expect(opts.Parse(fs, append([]string{"--cluster-name", "test-cluster"}, args...)...)).To(Succeed())
+			Expect(opts.InstanceStatusDryRun).To(Equal(expected))
+		},
+		Entry("disabled by default", "", nil, false),
+		Entry("enabled by CLI flag", "", []string{"--instance-status-dry-run"}, true),
+		Entry("enabled by environment variable", "true", nil, true),
+		Entry("disabled by environment variable", "false", nil, false),
+		Entry("CLI flag overrides environment variable", "true", []string{"--instance-status-dry-run=false"}, false),
+	)
+
 	It("should correctly use default ami-refresh-interval when not specified", func() {
 		opts.AddFlags(fs)
 		err := opts.Parse(fs, "--cluster-name", "test-cluster")

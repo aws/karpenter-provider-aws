@@ -186,9 +186,8 @@ var _ = Describe("InterruptionHandling", func() {
 				}},
 			})
 			awsEnv.Clock.Step(time.Hour)
-			DeferCleanup(func() { interruption.InstanceStatusDryRun = false })
 			for _, dryRun := range []bool{true, false} {
-				interruption.InstanceStatusDryRun = dryRun
+				options.FromContext(ctx).InstanceStatusDryRun = dryRun
 				ExpectSingletonReconciled(ctx, instanceStatusController)
 				stored := ExpectExists(ctx, env.Client, nodeClaim)
 				Expect(stored.DeletionTimestamp.IsZero()).To(BeTrue())
@@ -743,10 +742,7 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should NOT delete the NodeClaim when dry run is enabled but should still emit the metric", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
-			interruption.InstanceStatusDryRun = true
-			DeferCleanup(func() {
-				interruption.InstanceStatusDryRun = false
-			})
+			options.FromContext(ctx).InstanceStatusDryRun = true
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
 					{
@@ -774,10 +770,7 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should only emit the metric once across multiple reconciles for the same unhealthy instance", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
-			interruption.InstanceStatusDryRun = true
-			DeferCleanup(func() {
-				interruption.InstanceStatusDryRun = false
-			})
+			options.FromContext(ctx).InstanceStatusDryRun = true
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{
 					{
@@ -810,10 +803,7 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should emit the metric for each unique unhealthy instance", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
-			interruption.InstanceStatusDryRun = true
-			DeferCleanup(func() {
-				interruption.InstanceStatusDryRun = false
-			})
+			options.FromContext(ctx).InstanceStatusDryRun = true
 
 			// Create a second nodeclaim/node pair
 			nodeClaim2, node2 := coretest.NodeClaimAndNode(karpv1.NodeClaim{
@@ -874,10 +864,7 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should re-emit the metric when an instance recovers and becomes unhealthy again", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
-			interruption.InstanceStatusDryRun = true
-			DeferCleanup(func() {
-				interruption.InstanceStatusDryRun = false
-			})
+			options.FromContext(ctx).InstanceStatusDryRun = true
 
 			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
 				InstanceStatuses: []ec2types.InstanceStatus{

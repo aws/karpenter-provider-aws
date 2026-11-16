@@ -207,6 +207,10 @@ spec:
             - name: DISABLE_DRY_RUN
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
+          {{- with .Values.settings.instanceStatusDryRun }}
+            - name: INSTANCE_STATUS_DRY_RUN
+              value: "{{ tpl (toString .) $ }}"
+          {{- end }}
           {{- with .Values.settings.amiRefreshInterval }}
             - name: AMI_REFRESH_INTERVAL
               value: "{{ tpl (toString .) $ }}"
