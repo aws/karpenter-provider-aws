@@ -25,9 +25,13 @@ jobs:
       - id: resolve-step
         env:
           ALLOWED_COMMENT: ${{ inputs.allowed_comment }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == *"$ALLOWED_COMMENT"* ]]; then
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            # Match the command as a prefix, not a substring: a reviewer writing prose on the same
+            # line ("/karpenter preview - check the scale docs") must not trigger every workflow
+            # whose command name happens to appear in that sentence
+            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == "/karpenter $ALLOWED_COMMENT"* ]]; then
                echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
             else
                echo SHOULD_RUN=false >> "$GITHUB_OUTPUT"

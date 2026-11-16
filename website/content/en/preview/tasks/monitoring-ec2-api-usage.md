@@ -26,6 +26,7 @@ practices.
 | `RunInstances` | Launch (hot path) | Launching nodes |
 | `CreateTags` | Launch (hot path) | Tagging instances, fleets, and launch templates as they are created |
 | `TerminateInstances` | Terminate | Removing nodes during consolidation, drift, or expiration |
+| `RebootInstances` | Reboot | Rebooting unhealthy nodes in place during [Node Auto Repair]({{<ref "../concepts/disruption#repair-actions" >}}) with the `RebootForRepair` AWS feature gate |
 | `DeleteLaunchTemplate` | Cleanup | Removing launch templates Karpenter manages |
 | `DescribeSubnets` | Discovery / refresh | Resolving `subnetSelectorTerms` for each `EC2NodeClass` |
 | `DescribeSecurityGroups` | Discovery / refresh | Resolving `securityGroupSelectorTerms` for each `EC2NodeClass` |
@@ -110,6 +111,8 @@ on an interval. These intervals are configurable (see the
 
 * `SUBNET_REFRESH_INTERVAL` — how often subnet data is refreshed (bounds `DescribeSubnets`). Defaults
   to `1m`.
+* `SECURITY_GROUP_REFRESH_INTERVAL` — how often security group data is refreshed (bounds
+  `DescribeSecurityGroups`). Defaults to `1m`.
 * `AMI_REFRESH_INTERVAL` — how often AMI data is refreshed (bounds `DescribeImages`). Defaults to `1m`.
 
 Increasing an interval reduces that call's steady-state rate proportionally — for example, changing an

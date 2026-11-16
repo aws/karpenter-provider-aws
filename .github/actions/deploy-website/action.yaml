@@ -32,6 +32,9 @@ runs:
       with:
         go-version-file: go.mod
         check-latest: true
+        # This step runs in the credentialed deploy job, which only needs to `go run` the redirects
+        # script. Restoring a shared build cache into it buys nothing and widens what can reach it.
+        cache: false
     - name: Install Hugo
       uses: peaceiris/actions-hugo@2752ce1d29631191ea3f27c23495fa06139a5b78 # v3.2.1
       if: github.event_name == 'push'
@@ -56,34 +59,48 @@ runs:
       with:
         role-to-assume: ${{ inputs.role }}
         aws-region: ${{ inputs.region }}
+    # Inputs below reach these scripts through env vars rather than being interpolated into the
+    # shell: the preview caller derives some of them from a pull request. See .github/security-notice.md
     - name: Upload to S3
       shell: bash
+      env:
+        S3_BUCKET: ${{ inputs.s3-bucket }}
+        S3_PREFIX: ${{ inputs.s3-prefix }}
+        SITE_PATH: ${{ inputs.site-path }}
       run: |
-        S3_PATH="s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}"
-        aws s3 sync ${{ inputs.site-path }}/ "$S3_PATH" --delete --no-follow-symlinks
+        aws s3 sync "$SITE_PATH/" "s3://$S3_BUCKET/$S3_PREFIX" --delete --no-follow-symlinks
     - name: Create Amplify branch (if preview and doesn't exist)
       shell: bash
       if: github.event_name == 'workflow_run'
+      env:
+        AMPLIFY_APP_ID: ${{ inputs.amplify-app-id }}
+        AMPLIFY_BRANCH_NAME: ${{ inputs.amplify-branch-name }}
       run: |
-        if ! aws amplify get-branch --app-id ${{ inputs.amplify-app-id }} --branch-name "${{ inputs.amplify-branch-name }}" 2>/dev/null; then
+        if ! aws amplify get-branch --app-id "$AMPLIFY_APP_ID" --branch-name "$AMPLIFY_BRANCH_NAME" 2>/dev/null; then
           aws amplify create-branch \
-            --app-id ${{ inputs.amplify-app-id }} \
-            --branch-name "${{ inputs.amplify-branch-name }}"
+            --app-id "$AMPLIFY_APP_ID" \
+            --branch-name "$AMPLIFY_BRANCH_NAME"
         fi
     - name: Configure redirects
       shell: bash
+      env:
+        AMPLIFY_APP_ID: ${{ inputs.amplify-app-id }}
       run: |
         # Always the base repo's script and content - it rewrites rules on the shared Amplify app
         REDIRECT_RULES=$(go run ./hack/docs/parse-redirects/main.go)
         aws amplify update-app \
-          --app-id ${{ inputs.amplify-app-id }} \
+          --app-id "$AMPLIFY_APP_ID" \
           --custom-rules "$REDIRECT_RULES"
     - name: Deploy to Amplify
       shell: bash
+      env:
+        S3_BUCKET: ${{ inputs.s3-bucket }}
+        S3_PREFIX: ${{ inputs.s3-prefix }}
+        AMPLIFY_APP_ID: ${{ inputs.amplify-app-id }}
+        AMPLIFY_BRANCH_NAME: ${{ inputs.amplify-branch-name }}
       run: |
-        SOURCE_URL="s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}"
         aws amplify start-deployment \
-          --app-id ${{ inputs.amplify-app-id }} \
-          --branch-name "${{ inputs.amplify-branch-name }}" \
-          --source-url "$SOURCE_URL" \
+          --app-id "$AMPLIFY_APP_ID" \
+          --branch-name "$AMPLIFY_BRANCH_NAME" \
+          --source-url "s3://$S3_BUCKET/$S3_PREFIX" \
           --source-url-type BUCKET_PREFIX

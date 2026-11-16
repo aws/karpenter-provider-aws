@@ -13,6 +13,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | Environment Variable | CLI Flag | Description |
 |--|--|--|
 | AMI_REFRESH_INTERVAL | \-\-ami-refresh-interval | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. (default = 1m0s)|
+| AWS_FEATURE_GATES | \-\-aws-feature-gates | Optional AWS-specific features can be enabled / disabled using feature gates. Current options are: NodeClassCEL, DRANVIDIAGPU, DRAEFA, RebootForRepair. (default = NodeClassCEL=false,DRANVIDIAGPU=false,DRAEFA=false,RebootForRepair=false)|
 | BATCH_IDLE_DURATION | \-\-batch-idle-duration | The maximum amount of time with no new pending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. (default = 1s)|
 | BATCH_MAX_DURATION | \-\-batch-max-duration | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. (default = 10s)|
 | CLUSTER_CA_BUNDLE | \-\-cluster-ca-bundle | Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.|
@@ -26,7 +27,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | EKS_CONTROL_PLANE | \-\-eks-control-plane | Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API |
 | ENABLE_PROFILING | \-\-enable-profiling | Enable the profiling on the metric endpoint|
 | ENABLE_ZONAL_SHIFT | \-\-enable-zonal-shift | If true, then enable zonal shifting feature.|
-| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, StaticCapacity, and CapacityBuffer. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false,CapacityBuffer=false)|
+| FEATURE_GATES | \-\-feature-gates | Optional features can be enabled / disabled using feature gates. Current options are: NodeRepair, ReservedCapacity, SpotToSpotConsolidation, NodeOverlay, StaticCapacity, CapacityBuffer, TerminateFirstDrift, TerminateFirstRepair, and PodDeletionCostManagement. (default = NodeRepair=false,ReservedCapacity=true,SpotToSpotConsolidation=false,NodeOverlay=false,StaticCapacity=false,CapacityBuffer=false,TerminateFirstDrift=false,TerminateFirstRepair=false,PodDeletionCostManagement=false)|
 | HEALTH_PROBE_PORT | \-\-health-probe-port | The port the health probe endpoint binds to for reporting controller health (default = 8081)|
 | IGNORE_DRA_REQUESTS | \-\-ignore-dra-requests | When set, Karpenter will ignore pods' DRA requests during scheduling simulations. NOTE: This flag will be removed once formal DRA support is GA in Karpenter.|
 | INTERRUPTION_QUEUE | \-\-interruption-queue | Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.|
@@ -36,6 +37,7 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | KUBE_CLIENT_QPS | \-\-kube-client-qps | The smoothed rate of qps to kube-apiserver (default = 200)|
 | LEADER_ELECTION_NAME | \-\-leader-election-name | Leader election name to create and monitor the lease if running outside the cluster (default = karpenter-leader-election)|
 | LEADER_ELECTION_NAMESPACE | \-\-leader-election-namespace | Leader election namespace to create and monitor the lease if running outside the cluster|
+| LEGACY_NODE_REPAIR | \-\-legacy-node-repair | When set with the NodeRepair feature gate, Karpenter runs the legacy node repair controller instead of node repair as a disruption method. The legacy controller only replaces nodes: it does not support terminate-first repair, reboot, repair policy priority or termination grace periods, or the karpenter.sh/do-not-repair annotation. NOTE: The legacy node repair controller is planned for deprecation. If you use it because the new one does not work for you, please open an issue with your use case or problem.|
 | LOG_ERROR_OUTPUT_PATHS | \-\-log-error-output-paths | Optional comma separated paths for logging error output (default = stderr)|
 | LOG_LEVEL | \-\-log-level | Log verbosity level. Can be one of 'debug', 'info', or 'error' (default = info)|
 | LOG_OUTPUT_PATHS | \-\-log-output-paths | Optional comma separated paths for directing log output (default = stdout)|
@@ -44,6 +46,8 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 | MIN_VALUES_POLICY | \-\-min-values-policy | Min values policy for scheduling. Options include 'Strict' for existing behavior where min values are strictly enforced or 'BestEffort' where Karpenter relaxes min values when it isn't satisfied. (default = Strict)|
 | PREFERENCE_POLICY | \-\-preference-policy | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' (default = Respect)|
 | RESERVED_ENIS | \-\-reserved-enis | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. (default = 0)|
+| SCHEDULER_CONFIG | \-\-scheduler-config | A YAML/JSON document configuring the parts of the cluster's kube-scheduler behavior that Karpenter must mirror during scheduling simulation, currently only podTopologySpread.defaultConstraints. Empty means no scheduler-config overrides.|
+| SECURITY_GROUP_REFRESH_INTERVAL | \-\-security-group-refresh-interval | How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m. (default = 1m0s)|
 | SUBNET_REFRESH_INTERVAL | \-\-subnet-refresh-interval | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. (default = 1m0s)|
 | VM_MEMORY_OVERHEAD_PERCENT | \-\-vm-memory-overhead-percent | The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable. (default = 0.075)|
 
@@ -64,6 +68,9 @@ Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line
 | NodeOverlay             | false   | Alpha  | v1.7.x  |         |
 | StaticCapacity          | false   | Alpha  | v1.8.x  |         |
 | CapacityBuffer          | false   | Alpha  | v1.13.x |         |
+| TerminateFirstDrift     | false   | Alpha  | v1.15.x |         |
+| TerminateFirstRepair    | false   | Alpha  | v1.15.x |         |
+| PodDeletionCostManagement | false | Alpha  | v1.15.x |         |
 
 {{% alert title="Note" color="primary" %}}
 In v1, drift has been promoted to stable and the feature gate removed. Users can continue to control drift by using disruption budgets by reason.
@@ -90,6 +97,23 @@ spec:
       -	Drifted
 ```
 {{% /alert %}}
+
+### AWS-Specific Feature Gates
+
+Some features are specific to the AWS provider and are configured separately from the core Karpenter feature gates above. These are enabled through the `--aws-feature-gates` CLI flag or the `AWS_FEATURE_GATES` environment variable in the Karpenter deployment (Helm: `settings.awsFeatureGates`). For example: `--aws-feature-gates NodeClassCEL=true`.
+
+| Feature      | Default | Stage | Since    | Until |
+|--------------|---------|-------|----------|-------|
+| NodeClassCEL | false   | Alpha | v1.15.x  |       |
+| DRANVIDIAGPU | false   | Alpha | v1.15.x  |       |
+| DRAEFA       | false   | Alpha | v1.15.x  |       |
+| RebootForRepair | false | Alpha | v1.15.x  |       |
+
+`NodeClassCEL` enables [CEL expression support in `spec.kubelet`]({{<ref "../concepts/nodeclasses#dynamic-kubelet-configuration-via-expressions" >}}), allowing `maxPods`, `kubeReserved`, and `systemReserved` to be configured as per-instance-type expressions.
+
+`DRANVIDIAGPU` and `DRAEFA` make Karpenter calculate the DRA devices the NVIDIA GPU driver (`gpu.nvidia.com`) and the dranet driver's EFA interfaces (`dra.net`) publish, respectively, so that pods with ResourceClaims for those drivers are accounted for when it sizes new nodes. Each gate is independent of the other, and of the core `--ignore-dra-requests` option: both a driver's gate and `--ignore-dra-requests=false` are needed for Karpenter to contribute that driver's devices. When installing with the Helm chart, set `settings.enableDRA` to enable both gates and set `IGNORE_DRA_REQUESTS=false`. To enable the gates individually, leave `settings.enableDRA` unset and set `settings.awsFeatureGates.draNVIDIAGPU` or `settings.awsFeatureGates.draEFA`. Enabling either one also sets `IGNORE_DRA_REQUESTS=false`, regardless of `settings.ignoreDRARequests`. The chart fails to render if `settings.enableDRA` is combined with `settings.awsFeatureGates.draNVIDIAGPU`, `settings.awsFeatureGates.draEFA`, or `settings.ignoreDRARequests`. With a driver's gate disabled, its claims are only satisfied by devices the driver publishes on nodes that already exist.
+
+`RebootForRepair` makes [Node Auto Repair]({{<ref "../concepts/disruption#node-auto-repair" >}}) reboot a node in place for reboot-clearable GPU faults instead of replacing it. It has no effect without the `NodeRepair` feature gate. When it's disabled, those faults are replaced on the same toleration and termination grace period. Enabling it requires the `ec2:RebootInstances` permission on the controller role.
 
 ### Batching Parameters
 

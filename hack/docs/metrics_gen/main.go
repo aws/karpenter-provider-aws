@@ -189,7 +189,7 @@ var labelInjections = map[string]map[string]labelInfo{
 		"result":     {help: "The outcome of the reconcile call.", values: []valueInfo{{name: "success"}, {name: "error"}, {name: "requeue"}, {name: "requeue_after"}}},
 	},
 	"client_go": {
-		"verb":        {help: "The HTTP verb of the Kubernetes API request, e.g. `GET`, `POST`."},
+		"verb":        {help: "The action of the Kubernetes API request, e.g. `GET`, `LIST`, `CREATE`, `UPDATE`."},
 		"code":        {help: "The HTTP status code of the Kubernetes API response."},
 		"method":      {help: "The HTTP method of the Kubernetes API request."},
 		"host":        {help: "The Kubernetes API server host the request was made to."},
@@ -208,13 +208,28 @@ var labelInjections = map[string]map[string]labelInfo{
 	},
 }
 
-func describeLabel(subsystem, name, scope string) (labelInfo, bool) {
-	if inj, ok := labelInjections[subsystem]; ok {
+// Per-metric overrides of labelInjections, keyed by qualified metric name, for
+// third-party metrics that reuse a subsystem's label name with a different meaning
+// (e.g. controller-runtime's client consistency `result` isn't a reconcile result).
+var metricLabelInjections = map[string]map[string]labelInfo{
+	"controller_runtime_client_consistency_wait_duration_seconds": {
+		"operation": {help: "The client read operation that waited for the cache.", values: []valueInfo{{name: "get"}, {name: "list"}}},
+		"result":    {help: "The outcome of waiting for the cache to observe prior writes.", values: []valueInfo{{name: "success"}, {name: "error"}, {name: "timeout"}}},
+	},
+}
+
+func describeLabel(m metricInfo, name string) (labelInfo, bool) {
+	if inj, ok := metricLabelInjections[m.qualifiedName()]; ok {
 		if li, ok := inj[name]; ok {
 			return li, true
 		}
 	}
-	if scope != "" {
+	if inj, ok := labelInjections[m.subsystem]; ok {
+		if li, ok := inj[name]; ok {
+			return li, true
+		}
+	}
+	if scope := m.labelScope; scope != "" {
 		if scoped, ok := scopedLabelRegistry[scope]; ok {
 			if li, ok := scoped[name]; ok {
 				return li, true
@@ -242,9 +257,6 @@ var (
 		"nodeclaim_status_condition", "nodeclaim_termination",
 		"nodepool_status_condition", "nodepool_termination",
 		"ec2nodeclass_status_condition", "ec2nodeclass_termination"}
-	// Deprecated generic status/termination metrics (no object prefix); still emitted
-	// but superseded by per-object variants.
-	deprecatedMetrics = []string{"status_condition", "termination"}
 )
 
 func (i metricInfo) qualifiedName() string {
@@ -254,8 +266,6 @@ func (i metricInfo) qualifiedName() string {
 // stabilityFromLists resolves a Stage-less metric's level by subsystem or qualified name.
 func stabilityFromLists(m metricInfo) string {
 	switch {
-	case slices.Contains(deprecatedMetrics, m.subsystem) || slices.Contains(deprecatedMetrics, m.qualifiedName()):
-		return "DEPRECATED"
 	case slices.Contains(stableMetrics, m.subsystem) || slices.Contains(stableMetrics, m.qualifiedName()):
 		return "STABLE"
 	case slices.Contains(betaMetrics, m.subsystem) || slices.Contains(betaMetrics, m.qualifiedName()):
@@ -291,10 +301,9 @@ func main() {
 
 	// per-object status metrics are created at runtime from status.NewController[T]()
 	// and can't be read from a declaration; synthesize them from the registration
-	// sites (+ deprecated + client_go).
+	// sites (+ client_go).
 	statusObjects := parseStatusControllerObjects(allPackages)
 	allMetrics = append(allMetrics, perObjectStatusMetrics(statusObjects)...)
-	allMetrics = append(allMetrics, deprecatedStatusMetrics(statusObjects)...)
 	allMetrics = append(allMetrics, hardcodedMetrics()...)
 
 	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
@@ -414,7 +423,7 @@ func formatDimensions(m metricInfo) string {
 	var b strings.Builder
 	for _, l := range m.labels {
 		b.WriteString(fmt.Sprintf("\n  - `%s`", l))
-		info, ok := describeLabel(m.subsystem, l, m.labelScope)
+		info, ok := describeLabel(m, l)
 		// a Label from THIS metric's []Label arg is authoritative — disambiguates
 		// dimensions like `reason` that the global registry collapses.
 		if mi, has := m.labelInfos[l]; has {
@@ -636,39 +645,6 @@ func perObjectStatusMetrics(objects []statusObject) []metricInfo {
 				metricType:  t.metricType,
 			})
 		}
-	}
-	return out
-}
-
-// deprecated generic status/termination metrics (no object prefix), still emitted
-// under emitDeprecatedMetrics. They carry group/kind labels, so kind/type span every
-// registered object.
-func deprecatedStatusMetrics(objects []statusObject) []metricInfo {
-	allKinds := lo.Map(objects, func(o statusObject, _ int) valueInfo { return valueInfo{name: o.kind} })
-	var allTypes []valueInfo
-	for _, o := range objects {
-		allTypes = append(allTypes, conditionTypesByKind[o.kind]...)
-	}
-	// A condition type (e.g. ValidationSucceeded) can be set by more than one object;
-	// dedupe by name so the union lists each once.
-	allTypes = lo.UniqBy(allTypes, func(v valueInfo) string { return v.name })
-
-	var out []metricInfo
-	for _, t := range statusMetricTemplates() {
-		labelValues := map[string][]valueInfo{"kind": allKinds}
-		if slices.Contains(t.labels, "type") && len(allTypes) > 0 {
-			labelValues["type"] = allTypes
-		}
-		out = append(out, metricInfo{
-			namespace:   "operator",
-			subsystem:   t.subsystemSuffix,
-			name:        t.name,
-			help:        t.help,
-			labels:      slices.Concat(t.labels, []string{"group", "kind"}),
-			labelScope:  "operatorpkg",
-			labelValues: labelValues,
-			metricType:  t.metricType,
-		})
 	}
 	return out
 }

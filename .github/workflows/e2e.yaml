@@ -30,14 +30,14 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.30"
           - "1.31"
           - "1.32"
           - "1.33"
           - "1.34"
           - "1.35"
           - "1.36"
-        default: "1.36"
+          - "1.37"
+        default: "1.37"
       cluster_name:
         type: string
       cleanup:
@@ -67,7 +67,7 @@ on:
         required: true
       k8s_version:
         type: string
-        default: "1.36"
+        default: "1.37"
       enable_metrics:
         type: boolean
         default: false
@@ -139,7 +139,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.202.0
+          eksctl_version: v0.217.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
           git_ref: ${{ inputs.git_ref }}
@@ -229,7 +229,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
-          eksctl_version: v0.202.0
+          eksctl_version: v0.217.0
           private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end

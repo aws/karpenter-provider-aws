@@ -353,6 +353,22 @@ This can be spot checked like shown above, or monitored via the following metric
 operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
 ```
 
+### `FailedConsistencyCheck` event: `expected X of resource Y, but found Z` is reported
+
+After a node is initialized, Karpenter periodically compares the capacity it expected the node to have (`nodeClaim.status.capacity`) with the capacity the node registered (`node.status.capacity`).
+If the node registers less than 90% of the expected amount of a resource in the NodeClaim's `spec.resources.requests` (the resources requested by the pods and DaemonSets the NodeClaim was launched for), Karpenter publishes a `FailedConsistencyCheck` warning event on the NodeClaim and sets its `ConsistentStateFound` status condition to `False`. For example:
+
+```
+expected 58 of resource pods, but found 29 (50.0% of expected)
+```
+
+The node keeps running, and once it is initialized Karpenter schedules against the capacity the node actually registered. However, the pods that Karpenter launched the node for may not fit on it, and Karpenter may make the same estimate for future nodes until the cause is fixed. Find the resource named in the message and check the matching cause below.
+
+* `memory`: Karpenter overestimated the memory available on the instance. See [Karpenter incorrectly computes available resources for a node](#karpenter-incorrectly-computes-available-resources-for-a-node) for how Karpenter computes memory and how to tune `VM_MEMORY_OVERHEAD_PERCENT`.
+* `pods`: The kubelet registered a lower max pods value than Karpenter computed. Karpenter uses `spec.kubelet.maxPods` from the EC2NodeClass if it's set; otherwise, for AMI families that support it, it computes the max pods from the instance type's ENI limits. This usually happens when max pods is lowered outside of Karpenter, for example in custom UserData or a custom AMI's bootstrap, which is common when using [VPC CNI custom networking](https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html). Set `spec.kubelet.maxPods` on the EC2NodeClass to the value the node uses, or, if you use custom networking, set [`RESERVED_ENIS`]({{< ref "./reference/settings" >}}) so that Karpenter excludes the reserved ENIs when computing max pods.
+* `ephemeral-storage`: The node's root volume is smaller than Karpenter expected. Karpenter uses the instance store size when `spec.instanceStorePolicy` is `RAID0`. Otherwise, it uses the size of the mapping in `spec.blockDeviceMappings` that sets `rootVolume: true`; if no mapping sets it, Karpenter uses the mapping for the AMI family's default root device name (or the last mapping, for the `Custom` AMI family), and falls back to a default size if there is no such mapping. Set `rootVolume: true` on the mapping for your root volume so that Karpenter uses its size.
+* Extended resources (for example, `nvidia.com/gpu`): The device plugin advertised fewer devices than the instance type has. Check the device plugin's configuration on the node.
+
 ### Karpenter Is Unable to Satisfy Topology Spread Constraint
 
 When scheduling pods with TopologySpreadConstraints, Karpenter will attempt to spread the pods across all eligible domains.
@@ -433,8 +449,9 @@ nodeAffinity:
 
 ### Log message of `no instance type met the scheduling requirements or had a required offering` is reported
 
-This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a Node Pool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
+This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a NodePool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
 
+Combining `karpenter.k8s.aws/instance-family` with `karpenter.k8s.aws/instance-size` can also collapse the NodePool to a single instance type (for example family `g6` and size `xlarge` is only `g6.xlarge`). When EC2 returns `InsufficientInstanceCapacity` for that type in every configured AZ, Karpenter marks the offering unavailable and then logs `skipping, nodepool requirements filtered out all instance types` / emits `NoCompatibleInstanceTypes`. Include at least two sizes (or a second family that draws from a different capacity pool) so CreateFleet can fail over. `minValues` is not a substitute: under Strict it fails scheduling on a one-SKU pool.
 
 The phrase `had a required offering` pertains to the availability of an instance type in a specific location, such as an availability zone. This error can occur if a pod is restricted to a particular availability zone. For instance, consider a pod in a stateful set that previously had an EBS volume attached. If the subnet where the pod is scheduled changes, the pod might end up in a different availability zone than the EBS volume it needs to attach to. This mismatch in availability zones can lead to an error related to the required offering.
 

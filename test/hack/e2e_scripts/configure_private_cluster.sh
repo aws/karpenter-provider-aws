@@ -9,7 +9,7 @@ SHARED_NODE_SG=$((aws ec2 describe-security-groups --filters Name=tag:aws:cloudf
 eks_cluster_sg=$((aws ec2 describe-security-groups --filters Name=tag:aws:eks:cluster-name,Values="$CLUSTER_NAME"  --query "SecurityGroups[0]") | jq .GroupId -r)
 echo EKS_CLUSTER_SG="$eks_cluster_sg" >> "$GITHUB_ENV"
 
-for SERVICE in "com.amazonaws.$REGION.ssm" "com.amazonaws.$REGION.eks" "com.amazonaws.$REGION.sqs"; do
+for SERVICE in "com.amazonaws.$REGION.ssm" "com.amazonaws.$REGION.eks" "com.amazonaws.$REGION.sqs" "com.amazonaws.$REGION.arc-zonal-shift"; do
   aws ec2 create-vpc-endpoint \
     --vpc-id "${VPC_ID}" \
     --vpc-endpoint-type Interface \

@@ -26,6 +26,8 @@ import (
 
 type FeatureGates struct {
 	NodeClassCEL *bool
+	DRANVIDIAGPU *bool
+	DRAEFA       *bool
 }
 
 type OptionsFields struct {
@@ -38,6 +40,7 @@ type OptionsFields struct {
 	InterruptionQueue            *string
 	ReservedENIs                 *int
 	DisableDryRun                *bool
+	AWSSDKDebugLog               *bool
 	AMIRefreshInterval           *time.Duration
 	SubnetRefreshInterval        *time.Duration
 	SecurityGroupRefreshInterval *time.Duration
@@ -62,12 +65,15 @@ func Options(overrides ...OptionsFields) *options.Options {
 		InterruptionQueue:            lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:                 lo.FromPtrOr(opts.ReservedENIs, 0),
 		DisableDryRun:                lo.FromPtrOr(opts.DisableDryRun, false),
+		AWSSDKDebugLog:               lo.FromPtrOr(opts.AWSSDKDebugLog, false),
 		AMIRefreshInterval:           lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
 		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),
 		EnableZonalShift:             lo.FromPtrOr(opts.EnableZonalShift, false),
 		FeatureGates: options.FeatureGates{
 			NodeClassCEL: lo.FromPtrOr(opts.FeatureGates.NodeClassCEL, false),
+			DRANVIDIAGPU: lo.FromPtrOr(opts.FeatureGates.DRANVIDIAGPU, false),
+			DRAEFA:       lo.FromPtrOr(opts.FeatureGates.DRAEFA, false),
 		},
 	}
 }

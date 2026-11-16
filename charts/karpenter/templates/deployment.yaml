@@ -1,3 +1,4 @@
+{{- $dra := include "karpenter.dra" . | fromJson }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,10 +27,10 @@ spec:
       {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.podAnnotations }}
       annotations:
-        {{- with .Values.podAnnotations }}
-          {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -119,16 +120,24 @@ spec:
                   containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: 1m
                   resource: requests.cpu
+          {{- if .Values.controller.memoryLimit }}
+          {{- if and (kindIs "string" .Values.controller.memoryLimit) (not (regexMatch "^-?[0-9]+$" .Values.controller.memoryLimit)) }}
+          {{- fail "controller.memoryLimit must be a number of bytes such as 1073741824, or -1 to disable GOMEMLIMIT" }}
+          {{- end }}
+            - name: MEMORY_LIMIT
+              value: {{ .Values.controller.memoryLimit | int64 | quote }}
+          {{- else }}
             - name: MEMORY_LIMIT
               valueFrom:
                 resourceFieldRef:
                   containerName: {{ include "karpenter.controller.containerName" . }}
                   divisor: "0"
                   resource: limits.memory
+          {{- end }}
             - name: FEATURE_GATES
-              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }}"
+              value: "ReservedCapacity={{ .Values.settings.featureGates.reservedCapacity }},SpotToSpotConsolidation={{ .Values.settings.featureGates.spotToSpotConsolidation }},NodeRepair={{ .Values.settings.featureGates.nodeRepair }},NodeOverlay={{ .Values.settings.featureGates.nodeOverlay }},StaticCapacity={{ .Values.settings.featureGates.staticCapacity }},CapacityBuffer={{ .Values.settings.featureGates.capacityBuffer }},TerminateFirstDrift={{ .Values.settings.featureGates.terminateFirstDrift }},TerminateFirstRepair={{ .Values.settings.featureGates.terminateFirstRepair }},PodDeletionCostManagement={{ .Values.settings.featureGates.podDeletionCostManagement }},PredictionEnabled={{ .Values.settings.featureGates.predictionEnabled }}"
             - name: AWS_FEATURE_GATES
-              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }}"
+              value: "NodeClassCEL={{ .Values.settings.awsFeatureGates.nodeClassCEL }},DRANVIDIAGPU={{ $dra.draNVIDIAGPU }},DRAEFA={{ $dra.draEFA }},RebootForRepair={{ .Values.settings.awsFeatureGates.rebootForRepair }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ tpl (toString .) $ }}"
@@ -163,9 +172,9 @@ spec:
             - name: EKS_CONTROL_PLANE
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.vmMemoryOverheadPercent }}
+          {{- if not (kindIs "invalid" .Values.settings.vmMemoryOverheadPercent) }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ tpl (toString .) $ }}"
+              value: "{{ tpl (toString .Values.settings.vmMemoryOverheadPercent) $ }}"
           {{- end }}
           {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
@@ -179,8 +188,15 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
-          {{- with .Values.settings.ignoreDRARequests }}
+          {{- /* Always rendered: `with` would drop an explicit false, leaving core's default of true in place. See
+          karpenter.dra for how enableDRA and the DRA driver gates resolve it. */}}
             - name: IGNORE_DRA_REQUESTS
+              value: "{{ $dra.ignoreDRARequests }}"
+          {{- if and .Values.settings.legacyNodeRepair .Values.settings.featureGates.terminateFirstRepair }}
+          {{- fail "settings.legacyNodeRepair can't be combined with settings.featureGates.terminateFirstRepair: the legacy node repair controller doesn't support terminate-first repair" }}
+          {{- end }}
+          {{- with .Values.settings.legacyNodeRepair }}
+            - name: LEGACY_NODE_REPAIR
               value: "{{ tpl (toString .) $ }}"
           {{- end }}
           {{- with .Values.settings.disableClusterStateObservability }}

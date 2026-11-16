@@ -1,0 +1,178 @@
+name: E2EPerf
+on:
+  workflow_call:
+    inputs:
+      git_ref:
+        type: string
+      spec_id:
+        type: string
+        required: true
+      focus:
+        description: "Ginkgo focus regex for the spec"
+        type: string
+        required: true
+      region:
+        type: string
+        default: "us-west-2"
+      k8s_version:
+        description: "The levels were calibrated on 1.36"
+        type: string
+        default: "1.36"
+      control_plane_tier:
+        type: string
+        default: "tier-xl"
+      helm_opts:
+        description: "Extra helm flags for the KWOK controller (see install-karpenter-kwok)"
+        type: string
+        default: "--set settings.featureGates.nodeRepair=false"
+      cleanup:
+        type: boolean
+        required: true
+jobs:
+  run-perf:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials
+    name: perf-${{ inputs.spec_id }}
+    runs-on: ubuntu-latest
+    # Cluster and node group setup, the 150m ginkgo timeout plus its 10m grace period, and cleanup
+    timeout-minutes: 270
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.git_ref }}
+      - uses: ./.github/actions/install-deps
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
+          aws-region: ${{ inputs.region }}
+          role-duration-seconds: 21600
+      - name: add jitter on cluster setup
+        run: |
+          # Stagger cluster creation across the parallel spec jobs to avoid API throttling
+          sleep $(( RANDOM % 120 + 1 ))
+      - id: generate-cluster-name
+        name: generate cluster name
+        env:
+          SPEC_ID: ${{ inputs.spec_id }}
+        run: |
+          CLUSTER_NAME=$(echo "perf-$SPEC_ID-${{ github.run_id }}-${{ github.run_attempt }}" | awk '{print tolower($0)}' | tr / -)
+          echo "Using cluster name \"$CLUSTER_NAME\""
+          echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
+      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+        uses: ./.github/actions/e2e/setup-cluster
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: v0.217.0
+          ip_family: IPv4
+          private_cluster: 'false'
+          git_ref: ${{ inputs.git_ref }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
+          prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
+          prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          enable_local_zones: false
+          cleanup: ${{ inputs.cleanup }}
+          # The KWOK controller is built from git_ref below, so no snapshot chart is needed
+          install_karpenter: 'false'
+          # The same zones every night, so offerings and topology domains don't change between runs
+          availability_zones: ${{ inputs.region }}a ${{ inputs.region }}b ${{ inputs.region }}c
+      - name: set control plane tier ${{ inputs.control_plane_tier }}
+        if: inputs.control_plane_tier != 'standard'
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          TIER: ${{ inputs.control_plane_tier }}
+        run: |
+          set -euo pipefail
+          update_id=$(aws eks update-cluster-config --name "$CLUSTER_NAME" --control-plane-scaling-config "tier=$TIER" --query update.id --output text)
+          while status=$(aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id" --query update.status --output text); [[ "$status" == InProgress ]]; do
+            sleep 30
+          done
+          [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
+          aws eks wait cluster-active --name "$CLUSTER_NAME"
+      - name: create the controller node group
+        env:
+          ACCOUNT_ID: ${{ vars.CI_ACCOUNT_ID }}
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          REGION: ${{ inputs.region }}
+        run: |
+          set -euo pipefail
+          # The levels were calibrated with the controller alone on 2x m6i.4xlarge: the system pool's 2x c5.4xlarge
+          # can't fit the 24Gi controller next to kwok-controller and Prometheus, and nodepools/startup needs a second
+          # node for the replacement pod while the old one terminates. The taint keeps everything else off.
+          cat <<EOF > perf-nodegroup.yaml
+          apiVersion: eksctl.io/v1alpha5
+          kind: ClusterConfig
+          metadata:
+            name: $CLUSTER_NAME
+            region: $REGION
+          managedNodeGroups:
+            - name: perf-controller
+              instanceType: m6i.4xlarge
+              amiFamily: AmazonLinux2023
+              desiredCapacity: 2
+              minSize: 2
+              maxSize: 2
+              disableIMDSv1: true
+              labels:
+                perf-controller: "true"
+              taints:
+                - key: perf-controller
+                  value: "true"
+                  effect: NoSchedule
+              iam:
+                instanceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+          EOF
+          eksctl create nodegroup -f perf-nodegroup.yaml
+      - name: install karpenter (KWOK)
+        uses: ./.github/actions/e2e/install-karpenter-kwok
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          git_ref: ${{ inputs.git_ref }}
+          image_repository: ${{ vars.CI_ACCOUNT_ID }}.dkr.ecr.${{ inputs.region }}.amazonaws.com/${{ vars.PERF_KWOK_ECR_REPOSITORY || 'karpenter/kwok' }}
+          helm_opts: ${{ inputs.helm_opts }}
+      - name: run the performance spec '${{ inputs.focus }}'
+        id: run
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          FOCUS: ${{ inputs.focus }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --name "$CLUSTER_NAME"
+          OUTPUT_DIR="$RUNNER_TEMP/perf"
+          mkdir -p "$OUTPUT_DIR"
+          # test/suites/performancev2 writes its gate tables to $GITHUB_STEP_SUMMARY itself. A Stable breach fails the
+          # spec; an Experimental one only warns.
+          make perftests-v2 CLUSTER_NAME="$CLUSTER_NAME" FOCUS="$FOCUS" OUTPUT_DIR="$OUTPUT_DIR" 2>&1 | tee "$OUTPUT_DIR/test.log"
+      - name: upload results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-results-${{ inputs.spec_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/perf
+          if-no-files-found: warn
+      - name: dump logs on failure
+        uses: ./.github/actions/e2e/dump-logs
+        if: failure() || cancelled()
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+      - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
+        uses: ./.github/actions/e2e/cleanup
+        if: always() && inputs.cleanup
+        with:
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          git_ref: ${{ inputs.git_ref }}
+          eksctl_version: v0.217.0
+          private_cluster: false

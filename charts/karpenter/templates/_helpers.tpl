@@ -137,6 +137,43 @@ This works because Helm treats dictionaries as mutable objects and allows passin
 {{- end }}
 
 {{/*
+Resolve the DRA settings to the values the controller receives, as JSON with the keys draNVIDIAGPU, draEFA, and
+ignoreDRARequests. enableDRA turns on every DRA driver gate and stops ignoring DRA requests, so it's mutually exclusive
+with the individual values: setting any of them alongside it fails the render, even to the value enableDRA implies.
+Individually, enabling either gate still forces ignoreDRARequests off, since the gates contribute nothing while DRA
+requests are ignored. The individual values default to null so that an explicit setting can be told apart from the
+default. New DRA driver gates must be added to $gates.
+*/}}
+{{- define "karpenter.dra" -}}
+{{- $settings := .Values.settings -}}
+{{- $gates := list "draNVIDIAGPU" "draEFA" -}}
+{{- if $settings.enableDRA -}}
+{{- $set := list -}}
+{{- range $gates -}}
+{{- if not (kindIs "invalid" (index $settings.awsFeatureGates .)) -}}
+{{- $set = append $set (printf "settings.awsFeatureGates.%s" .) -}}
+{{- end -}}
+{{- end -}}
+{{- if not (kindIs "invalid" $settings.ignoreDRARequests) -}}
+{{- $set = append $set "settings.ignoreDRARequests" -}}
+{{- end -}}
+{{- if $set -}}
+{{- fail (printf "settings.enableDRA is mutually exclusive with %s: unset them, or unset settings.enableDRA" (join ", " $set)) -}}
+{{- end -}}
+{{- end -}}
+{{- $resolved := dict -}}
+{{- $anyGate := false -}}
+{{- range $gates -}}
+{{- $enabled := or $settings.enableDRA (index $settings.awsFeatureGates . | default false) -}}
+{{- $_ := set $resolved . $enabled -}}
+{{- $anyGate = or $anyGate $enabled -}}
+{{- end -}}
+{{- $ignore := ternary true $settings.ignoreDRARequests (kindIs "invalid" $settings.ignoreDRARequests) -}}
+{{- $_ := set $resolved "ignoreDRARequests" (and (not $anyGate) $ignore) -}}
+{{- toJson $resolved -}}
+{{- end -}}
+
+{{/*
 Patch topology spread constraints
 This template uses the patchLabelSelector template to add a labelSelector to topologySpreadConstraints if one isn't specified.
 This works because Helm treats dictionaries as mutable objects and allows passing them by reference.

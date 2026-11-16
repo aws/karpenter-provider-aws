@@ -10,29 +10,50 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      # ./.github/actions/download-artifact reads the triggering run's artifacts over the REST API
+      actions: read
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     outputs:
+      SHOULD_RUN: ${{ steps.metadata.outputs.SHOULD_RUN }}
       PR_COMMIT: ${{ steps.verify.outputs.PR_COMMIT }}
       PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/download-artifact
+      # ApprovalComment fires for every /karpenter command, so only continue for this one - otherwise
+      # any other command would also publish a snapshot built from the PR's code. The PR number and
+      # commit are read from the end of the file because the review body ahead of them may span
+      # several lines
       - id: metadata
         run: |
-          pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
+          if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == "/karpenter snapshot"* ]]; then
+            echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
+          else
+            echo SHOULD_RUN=false >> "$GITHUB_OUTPUT"
+          fi
+          pr_number="$(tail -n 2 /tmp/artifacts/metadata.txt | head -n 1)"
           pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
           echo "PR_COMMIT=${pr_commit}" >> "$GITHUB_OUTPUT"
           echo "PR_NUMBER=${pr_number}" >> "$GITHUB_OUTPUT"
       - id: verify
+        if: steps.metadata.outputs.SHOULD_RUN == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
           PR_COMMIT: ${{ steps.metadata.outputs.PR_COMMIT }}
         with:
           script: |
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const prCommit = process.env.PR_COMMIT;
+            if (!/^[0-9]+$/.test(process.env.PR_NUMBER)) {
+              core.setFailed(`malformed PR number in artifact: ${JSON.stringify(process.env.PR_NUMBER)}`);
+              return;
+            }
+            if (!/^[0-9a-f]{40}$/.test(prCommit)) {
+              core.setFailed(`malformed commit in artifact: ${JSON.stringify(prCommit)}`);
+              return;
+            }
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
 
             const reviews = await github.paginate(
               github.rest.pulls.listReviews,
@@ -41,12 +62,13 @@ jobs:
 
             const validReview = reviews.find(r =>
               r.author_association === 'MEMBER' &&
-              r.commit_id === prCommit
+              r.commit_id === prCommit &&
+              (r.body || '').startsWith('/karpenter snapshot')
             );
 
             if (!validReview) {
               core.setFailed(
-                `No MEMBER review found for commit ${prCommit} on PR #${prNumber}. ` +
+                `No MEMBER '/karpenter snapshot' review found for commit ${prCommit} on PR #${prNumber}. ` +
                 `The snapshot commit must match a commit reviewed by a repository member.`
               );
               return;
@@ -57,6 +79,7 @@ jobs:
 
   snapshot:
     needs: [resolve]
+    if: needs.resolve.outputs.SHOULD_RUN == 'true'
     permissions:
       id-token: write
       pull-requests: write

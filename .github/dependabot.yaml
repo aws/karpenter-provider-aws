@@ -128,6 +128,14 @@ updates:
         patterns:
           - '*'
   - package-ecosystem: github-actions
+    directory: .github/actions/e2e/install-karpenter-kwok
+    schedule:
+      interval: weekly
+    groups:
+      action-deps:
+        patterns:
+          - '*'
+  - package-ecosystem: github-actions
     directory: .github/actions/e2e/install-prometheus
     schedule:
       interval: weekly

@@ -6,11 +6,9 @@ description: >
   Join the Karpenter Community Meetings
 ---
 
-Karpenter hosts two types of regular community meetings to foster collaboration and maintain project health:
+Karpenter hosts a regular community meeting to foster collaboration and maintain project health:
 
 The **Working Group** meetings focus on project direction, technical discussions, and feature development. These bi-weekly sessions bring together contributors, users, and maintainers to review designs, plan releases, and address architectural decisions that shape Karpenter's future.
-
-The **Issue Triage** meetings, held weekly, are dedicated to maintaining project health through focused issue management across our repositories. These sessions ensure proper prioritization, assignment coordination, and timely response to community contributions.
 
 Meeting times alternate to accommodate our global community. All interested participants are welcome to join, contribute, and learn more about Karpenter.
 
@@ -28,19 +26,6 @@ Key focus areas include:
 The working group provides a platform for both synchronous decision-making and asynchronous follow-ups, ensuring the project maintains its technical excellence while growing its community impact.
 
 Working group meetings will be held every other Thursday, alternating between a 3:00 PM PST (Americas-friendly) and 9:00 AM PST (Europe-friendly) start time.
-Please refer to our [calendar](https://calendar.google.com/calendar/u/0?cid=N3FmZGVvZjVoZWJkZjZpMnJrMmplZzVqYmtAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ) for an up-to-date schedule.
-
-### Issue Triage Meetings
-
-Karpenter is expanding our community meetings to include dedicated Issue Triage sessions alongside our regular Working Group meetings. This addition aims to improve issue management across both kubernetes-sigs/karpenter and karpenter-provider-aws repositories.
-
-These weekly meetings rotate between repositories and time zones to accommodate our global community. These dedicated triage sessions focus on:
-- Issue prioritization
-- Assignment coordination
-- Discussion of complex issues
-- Maintaining repository health
-
-An issue triage meeting for each repository will be held monthly, alternating between a 3:00 PM PST (Americas-friendly) and 9:00 AM PST (Europe-friendly) start time.
 Please refer to our [calendar](https://calendar.google.com/calendar/u/0?cid=N3FmZGVvZjVoZWJkZjZpMnJrMmplZzVqYmtAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ) for an up-to-date schedule.
 
 ### Getting Involved

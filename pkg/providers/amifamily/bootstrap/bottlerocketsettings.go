@@ -80,6 +80,9 @@ type BottlerocketKubernetes struct {
 	CPUManagerReconcilePeriod          *string                                            `toml:"cpu-manager-reconcile-period,omitempty"`
 	MemoryManagerPolicy                *string                                            `toml:"memory-manager-policy,omitempty"`
 	MemoryManagerReservedMemory        map[string]BottlerocketMemoryManagerReservedMemory `toml:"memory-manager-reserved-memory,omitempty"`
+	MemorySwapBehavior                 *string                                            `toml:"memory-swap-behavior,omitempty"`
+	MemoryReservationPolicy            *string                                            `toml:"memory-reservation-policy,omitempty"`
+	MemoryThrottlingFactor             *float64                                           `toml:"memory-throttling-factor,omitempty"`
 	TopologyManagerScope               *string                                            `toml:"topology-manager-scope,omitempty"`
 	TopologyManagerPolicy              *string                                            `toml:"topology-manager-policy,omitempty"`
 	TopologyManagerPolicyOptions       *BottlerocketTopologyManagerPolicyOptions          `toml:"topology-manager-policy-options,omitempty"`
