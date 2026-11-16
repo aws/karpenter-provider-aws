@@ -36,30 +36,6 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
   --annotations version=1.15.1
 ```
 
-## User RBAC
-
-The chart creates `karpenter-admin` (see `templates/aggregate-clusterrole.yaml`) so the default `admin` ClusterRole can manage NodePools, NodeClaims, and EC2NodeClasses. It does **not** aggregate those resources into `view` or `edit`. Kubernetes RBAC aggregation flows `edit` → `admin`, not the reverse, so view and edit users cannot read Karpenter CRDs.
-
-That matches the default `view` ClusterRole, which also omits Nodes. Those objects are cluster-scoped capacity resources. If your operators need read access, install this ClusterRole on the cluster. It is not a chart value.
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: karpenter-view
-  labels:
-    rbac.authorization.k8s.io/aggregate-to-view: "true"
-rules:
-  - apiGroups: ["karpenter.sh"]
-    resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["karpenter.k8s.aws"]
-    resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
-    verbs: ["get", "list", "watch"]
-```
-
-Do not add write verbs. Aggregating create, delete, or patch into `edit` would let any cluster-wide `edit` binding delete NodePools.
-
 ## Values
 
 | Key | Type | Default | Description |
@@ -156,6 +132,28 @@ Do not add write verbs. Aggregating create, delete, or patch into `edit` would l
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"DoNotSchedule"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
+
+## Appendix: User RBAC
+
+The chart aggregates NodePools, NodeClaims, and EC2NodeClasses only into the `admin` ClusterRole, so `view` and `edit` users cannot read them, just as `view` omits Nodes. To grant read access, apply this ClusterRole yourself. It is not a chart value.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: karpenter-view
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules:
+  - apiGroups: ["karpenter.sh"]
+    resources: ["nodepools", "nodepools/status", "nodeclaims", "nodeclaims/status"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
+    verbs: ["get", "list", "watch"]
+```
+
+Keep it read-only. Aggregating write verbs into `edit` would let any `edit` binding delete NodePools.
 
 ----------------------------------------------
 
