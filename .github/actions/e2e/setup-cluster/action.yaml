@@ -69,6 +69,13 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
+      # Stopgap: standard retry, 10 attempts. Gives the AWS CLI more attempts on CloudFormation throttles (e.g.
+      # "Concurrent resource level operations limit exceeded"). The AWS CLI v2 defaults to 3 attempts. This only
+      # absorbs throttles of about a minute. eksctl sets its own retryer, so these variables have no effect on it.
+      # Retired by: the sweeper no longer saturating the CloudFormation operation limit (bounded in-flight deletes,
+      # no repeated deletes of DELETE_FAILED stacks) and fewer concurrent matrix runs per ref.
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "10"
     run: |
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
