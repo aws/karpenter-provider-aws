@@ -16,7 +16,10 @@ package resourcetypes
 
 import (
 	"context"
+	"errors"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 // SkippedError marks a resource that was deliberately left in place. It's reported but doesn't fail the sweep.
@@ -26,6 +29,24 @@ type SkippedError struct {
 
 func (e *SkippedError) Error() string {
 	return e.Reason
+}
+
+// Fatal reports whether an error from GetExpired or Cleanup should fail the sweep
+func Fatal(err error) bool {
+	for _, e := range multierr.Errors(err) {
+		var stuck *StuckStacksError
+		var skipped *SkippedError
+		switch {
+		case errors.As(e, &stuck):
+			if len(stuck.Failed) > 0 {
+				return true
+			}
+		case errors.As(e, &skipped):
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 const (
