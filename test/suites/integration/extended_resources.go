@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -244,10 +245,22 @@ func registerExtendedResources() bool {
 				}).Should(Succeed())
 				Env.EventuallyExpectBranchENIsDeleted()
 			}
-			Env.ExpectCreated(NodePool, dep, sgp)
-			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			// The webhook only injects pod-eni if the SGP exists when the pod is created
+			Env.ExpectCreated(sgp)
+			// The webhook reads SGPs from a cache, so wait until a dry-run pod gets pod-eni
+			Eventually(func(g Gomega) {
+				pod := test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dep.Spec.Selector.MatchLabels}})
+				g.Expect(Env.Client.Create(Env.Context, pod, client.DryRunAll)).To(Succeed())
+				g.Expect(pod.Spec.Containers[0].Resources.Requests).To(HaveKey(v1.ResourceAWSPodENI))
+			}).Should(Succeed())
+			Env.ExpectCreated(NodePool, dep)
+			pods := Env.EventuallyExpectHealthyPodCount(selector, numPods)
 			Env.ExpectCreatedNodeCount("==", 1)
 			Env.EventuallyExpectInitializedNodeCount("==", 1)
+			for _, pod := range pods {
+				resources := pod.Spec.Containers[0].Resources
+				Expect([]corev1.ResourceList{resources.Requests, resources.Limits}).To(ContainElement(HaveKey(v1.ResourceAWSPodENI)))
+			}
 		})
 		It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 			Skip("skipping test on AMD instance types")
