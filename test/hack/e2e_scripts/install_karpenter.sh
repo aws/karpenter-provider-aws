@@ -7,10 +7,9 @@ if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
   ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\" --set .Values.postInstallHook.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/ecr-public/bitnami/kubectl --set .Values.postInstallHook.image.digest=\"\""
 fi
 
-# DRA needs the resource.k8s.io/v1 API, which is GA from Kubernetes 1.34. Enabling either DRA gate also forces
-# ignoreDRARequests off in the chart, so all three flags are dropped on older versions. An unset K8S_VERSION keeps DRA on.
+# DRA needs resource.k8s.io/v1 (GA in 1.34), and either DRA gate forces ignoreDRARequests off, so drop all three before 1.34
 DRA_FLAGS="--set settings.awsFeatureGates.draNVIDIAGPU=true --set settings.awsFeatureGates.draEFA=true --set settings.ignoreDRARequests=false"
-# POSIX syntax so a /bin/sh caller (the private cluster CodeBuild buildspec) cannot abort on a parse error here
+# [ ] rather than [[ ]], since the private cluster CodeBuild buildspec runs this script under /bin/sh
 K8S_MINOR="${K8S_VERSION#*.}"
 K8S_MINOR="${K8S_MINOR%%.*}"
 if [ -n "${K8S_VERSION:-}" ] && [ "${K8S_VERSION%%.*}" = "1" ] && [ "$K8S_MINOR" -lt 34 ]; then
