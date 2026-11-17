@@ -26,16 +26,17 @@ Follow the clean-up instructions to reduce any charges.
 
 Karpenter is installed in clusters with a Helm chart.
 
-Karpenter requires cloud provider permissions to provision nodes, for AWS IAM
-Roles for Service Accounts (IRSA) should be used. IRSA permits Karpenter
-(within the cluster) to make privileged requests to AWS (as the cloud provider)
-via a ServiceAccount.
+Karpenter requires cloud provider permissions to provision nodes. With managed
+node groups, this guide uses
+[EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html)
+to grant them. With Fargate, it uses
+[IAM Roles for Service Accounts (IRSA)](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 Install these tools before proceeding:
 
-1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
+1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html) (>= v2.36.21)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` (>= v0.202.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
+3. `eksctl` (>= v0.230.0) - [the CLI for AWS EKS](https://eksctl.io/installation)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
@@ -73,11 +74,12 @@ Create a basic cluster with `eksctl`.
 The following cluster configuration will:
 
 * Use CloudFormation to set up the infrastructure needed by the EKS cluster. See [CloudFormation]({{< relref "../../reference/cloudformation/" >}}) for a complete description of what `cloudformation.yaml` does for Karpenter.
-* Create a Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
+* Create an AWS IAM Role for Karpenter and associate it with the Karpenter service account using EKS Pod Identity (managed node groups) or IRSA (Fargate) to let Karpenter launch instances.
 * Add the Karpenter node role to the aws-auth configmap to allow nodes to connect.
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
 * Set KARPENTER_IAM_ROLE_ARN variables.
 * Create a role to allow spot instances.
+* Configure the cluster's `kube-scheduler` to use the `MostAllocated` scoring strategy so it packs pods onto fewer nodes, complementing Karpenter's bin-packing and consolidation for higher utilization and lower cost. See [kube-scheduler settings]({{<ref "../../concepts/scheduling#kube-scheduler-settings" >}}).
 * Run Helm to install Karpenter
 
 {{< tabpane text=true right=false >}}
@@ -154,6 +156,19 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 
 Karpenter is now active and ready to begin provisioning nodes.
 
+{{% alert title="Note" color="primary" %}}
+NodePools, EC2NodeClasses, and NodeClaims are standard Kubernetes custom resources. You can list and inspect them with `kubectl` the same way you would any other cluster resource:
+
+```bash
+kubectl get nodepools
+kubectl describe nodepool default
+kubectl get ec2nodeclasses
+kubectl describe ec2nodeclass default
+kubectl get nodeclaims
+kubectl describe nodeclaim <nodeclaim-name>
+```
+{{% /alert %}}
+
 ### 6. Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
@@ -217,7 +232,8 @@ com.amazonaws.<region>.ec2
 com.amazonaws.<region>.ecr.api
 com.amazonaws.<region>.ecr.dkr
 com.amazonaws.<region>.s3 – For pulling container images
-com.amazonaws.<region>.sts – For IAM roles for service accounts
+com.amazonaws.<region>.sts – For IAM roles for service accounts (Fargate)
+com.amazonaws.<region>.eks-auth – For eks pod identity
 com.amazonaws.<region>.ssm - For resolving default AMIs
 com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
 com.amazonaws.<region>.eks - For Karpenter to discover the cluster endpoint
