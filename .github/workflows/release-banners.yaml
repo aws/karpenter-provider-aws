@@ -1,0 +1,32 @@
+name: ReleaseBanners
+on:
+  # workflow_run always runs this file from the default branch, so patch releases tagged on release branches update
+  # the banners too, without backporting this workflow to every release branch
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  # Failed Release runs are skipped on purpose: their images may not be published, so older patches shouldn't point to
+  # the release yet. Re-running the Release workflow, or the next release, reconciles everything.
+  # Run manually to bring every release up to date, e.g. to backfill the banners on existing releases
+  workflow_dispatch:
+# One run at a time, so runs can't race on the same releases. Every run reconciles all releases, so a queued run that
+# GitHub cancels in favor of a newer one loses nothing.
+concurrency:
+  group: release-banners
+  cancel-in-progress: false
+jobs:
+  release-banners:
+    if: github.repository == 'aws/karpenter-provider-aws' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    permissions:
+      contents: write # gh release edit
+    runs-on: ubuntu-latest
+    steps:
+      # A manual run can be started from any branch, so always use the default branch's script and LTS list
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - run: ./hack/release/banners.sh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+          LTS_CONFIG_REF: HEAD

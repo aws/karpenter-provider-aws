@@ -23,7 +23,7 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Support Policy
 
-Patch releases contain bug fixes, security patches, and other targeted changes backported to supported releases.
+Patch releases contain bug fixes, security patches, and other targeted changes backported to supported releases. Use the newest patch of your minor version. On GitHub, an older patch release has a banner at the top of its release notes that links to the newest patch.
 
 ### Regular Releases
 
