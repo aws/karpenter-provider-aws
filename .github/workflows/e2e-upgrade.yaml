@@ -101,7 +101,8 @@ jobs:
           CLUSTER_NAME="upgrade-$RANDOM$RANDOM"
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
-      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+      - id: setup-cluster
+        name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         uses: ./.github/actions/e2e/setup-cluster
         with:
           account_id: ${{ vars.CI_ACCOUNT_ID }}
@@ -173,6 +174,9 @@ jobs:
         if: (success() || failure()) && inputs.workflow_trigger == 'matrix'
         with:
           suite: Upgrade
+          # Only the first setup counts as infra, since the upgrade step is what this suite tests
+          infra: ${{ steps.setup-cluster.outcome == 'failure' && env.E2E_SETUP_PHASE != 'install-karpenter' }}
+          infra_signature: ${{ env.E2E_SETUP_FAILURE }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: failure() || cancelled()
