@@ -1,15 +1,9 @@
 name: Sweeper
 on:
   schedule:
-    # Run between the scheduled E2E matrix runs, not on top of them. The us-east-2 cleanup issues
-    # DeleteStack for every expired stack and can saturate the CloudFormation concurrent operation
-    # limit for ~20 minutes, which fails cluster setup for any E2E run starting in that window.
-    # The matrix ('7 */8 * * *' in e2e-matrix-trigger.yaml) usually starts 5-80 minutes after its
-    # cron (up to ~2h observed) and runs for ~3.5-4.5h, so it typically occupies 00:30-04:50,
-    # 08:10-12:40 and 16:10-20:45 UTC. 05:30 and 13:30 sit mid-gap: clear of slow 00:xx runs that
-    # end as late as ~05:25, and ~1.5h before the next matrix start. They also stay clear of the
-    # perf, scale (us-west-2) and private cluster (us-east-1) schedules. Re-check this slot if any
-    # of those crons change.
+    # The us-east-2 cleanup can saturate the CloudFormation operation limit for ~20 minutes and fail cluster setup,
+    # so run in the gaps between E2E matrix runs (e2e-matrix-trigger.yaml), which typically occupy 00:30-04:50,
+    # 08:10-12:40 and 16:10-20:45 UTC. Re-check this slot if the matrix, perf, scale or private cluster crons change.
     - cron: '30 5,13 * * *'
   workflow_dispatch:
 jobs:
