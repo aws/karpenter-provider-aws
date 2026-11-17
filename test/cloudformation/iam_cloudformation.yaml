@@ -133,6 +133,13 @@ Resources:
           - Effect: Allow
             Action: timestream:DescribeEndpoints
             Resource: "*"
+          # ResourceCount mirrors its counts to CloudWatch, so alarms can watch them
+          - Effect: Allow
+            Action: cloudwatch:PutMetricData
+            Resource: "*"
+            Condition:
+              StringEquals:
+                cloudwatch:namespace: !Sub "${DatabaseName}/${ResourceCountTableName}"
           # ResourceCount reads the role and instance profile counts from the account summary
           - Effect: Allow
             Action: iam:GetAccountSummary

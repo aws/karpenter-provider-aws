@@ -49,7 +49,7 @@ func main() {
 	logger := lo.Must(zap.NewProduction()).Sugar()
 
 	ec2Client := ec2.NewFromConfig(cfg)
-	metricsClient := metrics.Client(metrics.NewTimeStream(cfg))
+	metricsClient := metrics.Multi{metrics.NewTimeStream(cfg), metrics.NewCloudWatch(cfg)}
 
 	// Stacks, ENIs, OIDC providers and instance profiles are counted by Capacity, which lists them once
 	resourceTypes := []resourcetypes.Type{

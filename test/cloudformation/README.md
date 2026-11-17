@@ -35,3 +35,7 @@ aws cloudformation deploy --stack-name GithubActionsIAM \
 ```
 
 _Note: If deploying this cloudformation stack to reference back to your own repository, ensure you replace the `Repository` parameter override with your fully-qualified repository name in the format `<organization>/<repo-name>`. This parameter (along with the `Branches` parameter) tells the OIDC provider that is deployed for the action to reach out to, which branches and repos it should allow tokens to come from._
+
+### [Optional] Account capacity alarms
+
+The hourly `ResourceCount` workflow writes its counts to Timestream and to the CloudWatch namespace `karpenterTesting/resourceCount` in us-east-2, with a `Region` dimension (`global` for account-wide counts like `IAMRole`). CloudWatch alarms on these metrics can catch leaked test resources before they reach a quota. The counts are hourly, so alarms should use the `Maximum` or `Minimum` statistic.
