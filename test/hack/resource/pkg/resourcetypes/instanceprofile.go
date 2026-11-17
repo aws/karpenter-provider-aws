@@ -165,7 +165,7 @@ func (ip *InstanceProfile) deleteInstanceProfile(ctx context.Context, name strin
 	return ignoreNoSuchEntity(err)
 }
 
-// orphanedKarpenterProfile matches Karpenter's <cluster>_<digits> profiles by name, since they often lack the testing/cluster and region tags
+// orphanedKarpenterProfile matches <cluster>_<digits> by name, since these profiles often lack the testing/cluster tag
 func orphanedKarpenterProfile(name string, tags []iamtypes.Tag, currentRegion string, excludedClusters []string, live *LiveClusters) bool {
 	clusterName, ok := karpenterProfileCluster(name)
 	if !ok || slices.Contains(excludedClusters, clusterName) {

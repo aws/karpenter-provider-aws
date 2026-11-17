@@ -77,7 +77,7 @@ type Stack struct {
 	iamClient            profileReleaseAPI
 	eni                  *ENI
 	live                 *LiveClusters
-	// Only candidates from GetExpired back off between delete attempts, a single cluster cleanup retries its own stacks right away
+	// A single cluster cleanup retries its own stacks right away, without backoff
 	candidates map[string]stackCandidate
 
 	now            func() time.Time
@@ -295,7 +295,7 @@ func (s *Stack) skipRedrive(c stackCandidate) string {
 	return ""
 }
 
-// planRedrive only reads. Known blockers are node roles held by instance profiles, and leaked branch ENIs holding the VPC.
+// planRedrive only reads. It finds node roles held by instance profiles and branch ENIs holding the VPC.
 func (s *Stack) planRedrive(ctx context.Context, stack cloudformationtypes.Stack) (redrive, error) {
 	name, clusterName := lo.FromPtr(stack.StackName), stackCluster(stack)
 	out, err := s.cloudFormationClient.DescribeStackResources(ctx, &cloudformation.DescribeStackResourcesInput{StackName: lo.ToPtr(name)})

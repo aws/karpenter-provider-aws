@@ -128,7 +128,7 @@ func leakedBranchENI(ni ec2types.NetworkInterface, excludedClusters []string, li
 		live.Gone(clusterName)
 }
 
-// The VPC resource controller sets the branch ENI description, the eks:eni:owner tag and one kubernetes.io/cluster/<cluster>=owned tag
+// The VPC resource controller sets this description, eks:eni:owner and one kubernetes.io/cluster/<cluster>=owned tag
 func branchENICluster(ni ec2types.NetworkInterface) (string, bool) {
 	if lo.FromPtr(ni.Description) != branchENIDescription {
 		return "", false

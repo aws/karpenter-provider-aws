@@ -53,7 +53,7 @@ func EKSClusterLister(cfg aws.Config) ClusterLister {
 	}
 }
 
-// SnapshotLiveClusters lists every enabled region, so a cluster outside the CI regions can't read as gone
+// SnapshotLiveClusters lists clusters in every enabled region
 func SnapshotLiveClusters(ctx context.Context, api regionsAPI, lister ClusterLister, currentRegion string) *LiveClusters {
 	// Without AllRegions, DescribeRegions only returns the regions enabled in the account
 	out, err := api.DescribeRegions(ctx, &ec2.DescribeRegionsInput{})

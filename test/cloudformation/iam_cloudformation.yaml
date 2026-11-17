@@ -175,7 +175,7 @@ Resources:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
               - !GetAtt FISInterruptionRole.Arn
-          # The sweeper lists roles to find KarpenterNodeRole-* roles that outlived their cluster
+          # Finds KarpenterNodeRole-* roles that outlived their cluster
           - Effect: Allow
             Action: iam:ListRoles
             Resource: "*"
@@ -248,7 +248,7 @@ Resources:
               StringEquals:
                 aws:RequestedRegion:
                   Ref: Regions
-          # ListClusters has no resource type. The sweeper lists every enabled region so a cluster outside Regions isn't read as gone.
+          # ListClusters has no resource type, and the sweeper checks every enabled region
           - Effect: Allow
             Action: eks:ListClusters
             Resource: "*"
