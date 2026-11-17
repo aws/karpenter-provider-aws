@@ -111,6 +111,15 @@ params:
         desc: "Chat with us on Slack in the #aws-provider channel"
   latest_release_version: "1.15.3"
   latest_k8s_version: "1.36"
+  # Supported Long-Term Support (LTS) minors. Add a minor when it is designated LTS, before its first release is
+  # tagged, and remove it at end of life. Read by hack/release/banners.sh to mark the GitHub releases of these minors.
+  lts_versions:
+    - version: v1.14
+      released: Jul 2026
+      eol: Jul 2027
+    - version: v1.9
+      released: Feb 2026
+      eol: Feb 2027
   versions:
     - v1.15
     - v1.14
