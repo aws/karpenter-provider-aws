@@ -24,8 +24,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-// CloudWatch mirrors the Timestream records so that CloudWatch alarms can watch them. The namespace is
-// <database>/<table>, for example karpenterTesting/resourceCount, and the Region dimension is the record's region.
+// CloudWatch mirrors the Timestream records to the <database>/<table> namespace so CloudWatch alarms can watch them
 type CloudWatch struct {
 	client *cloudwatch.Client
 }
