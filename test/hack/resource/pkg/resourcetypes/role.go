@@ -36,9 +36,6 @@ const (
 	// maxRoleDeletesPerRun bounds the damage if a live cluster is ever misread as gone
 	maxRoleDeletesPerRun = 50
 	roleDeleteAttempts   = 3
-
-	cloudFormationStackNameTag = "aws:cloudformation:stack-name"
-	cloudFormationStackIDTag   = "aws:cloudformation:stack-id"
 )
 
 type profileReleaseAPI interface {
@@ -99,10 +96,6 @@ func (r *Role) GetExpired(ctx context.Context, expirationTime time.Time, exclude
 		}
 		clusterName, ok := nodeRoleCluster(lo.FromPtr(role.RoleName), out.Role.Tags)
 		if !ok || slices.Contains(excludedClusters, clusterName) || !r.live.Gone(clusterName) {
-			continue
-		}
-		if stack, owned := cloudFormationStack(out.Role.Tags); owned {
-			errs = multierr.Append(errs, &SkippedError{Reason: fmt.Sprintf("role %s belongs to stack %s, which the stack sweep deletes", lo.FromPtr(role.RoleName), stack)})
 			continue
 		}
 		r.clusters[lo.FromPtr(role.RoleName)] = clusterName
@@ -219,16 +212,6 @@ func nodeRoleCluster(roleName string, tags []iamtypes.Tag) (string, bool) {
 		}
 		if roleName == nodeRolePrefix+clusterName || strings.HasPrefix(roleName, nodeRolePrefix+clusterName+"-") {
 			return clusterName, true
-		}
-	}
-	return "", false
-}
-
-// cloudFormationStack returns the stack that created a resource, from the tags CloudFormation adds
-func cloudFormationStack(tags []iamtypes.Tag) (string, bool) {
-	for _, key := range []string{cloudFormationStackNameTag, cloudFormationStackIDTag} {
-		if tag, found := lo.Find(tags, func(t iamtypes.Tag) bool { return lo.FromPtr(t.Key) == key }); found {
-			return lo.FromPtr(tag.Value), true
 		}
 	}
 	return "", false
