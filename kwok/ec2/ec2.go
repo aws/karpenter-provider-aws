@@ -826,8 +826,15 @@ func (c *Client) CreateLaunchTemplate(_ context.Context, input *ec2.CreateLaunch
 		LaunchTemplateName:   input.LaunchTemplateName,
 		Tags:                 ltTags.Tags,
 	}
+	// Like EC2, a name can only be used once. Claim it before storing the template, so concurrent creates of the same
+	// name can't leave a template behind that no name points to
+	if _, exists := c.launchTemplateNameToID.LoadOrStore(lo.FromPtr(input.LaunchTemplateName), launchTemplateID); exists {
+		return nil, &smithy.GenericAPIError{
+			Code:    "InvalidLaunchTemplateName.AlreadyExistsException",
+			Message: fmt.Sprintf("Launch template name already in use: %s", lo.FromPtr(input.LaunchTemplateName)),
+		}
+	}
 	c.launchTemplates.Store(launchTemplateID, lo.Tuple2[*ec2types.LaunchTemplate, *ec2types.RequestLaunchTemplateData]{A: lt, B: input.LaunchTemplateData})
-	c.launchTemplateNameToID.Store(lo.FromPtr(input.LaunchTemplateName), launchTemplateID)
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: lt}, nil
 }
 
