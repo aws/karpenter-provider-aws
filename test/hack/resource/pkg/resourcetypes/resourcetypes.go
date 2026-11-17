@@ -19,10 +19,20 @@ import (
 	"time"
 )
 
+// SkippedError marks a resource that was deliberately left in place. It's reported but doesn't fail the sweep.
+type SkippedError struct {
+	Reason string
+}
+
+func (e *SkippedError) Error() string {
+	return e.Reason
+}
+
 const (
 	karpenterClusterNameTag    = "eks:eks-cluster-name"
 	karpenterNodePoolTag       = "karpenter.sh/nodepool"
 	karpenterLaunchTemplateTag = "karpenter.k8s.aws/cluster"
+	karpenterNodeClassTag      = "karpenter.k8s.aws/ec2nodeclass"
 	karpenterSecurityGroupTag  = "karpenter.sh/discovery"
 	karpenterTestingTag        = "testing/cluster"
 	k8sClusterTag              = "cluster.k8s.amazonaws.com/name"

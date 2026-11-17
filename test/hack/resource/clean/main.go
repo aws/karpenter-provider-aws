@@ -61,6 +61,11 @@ func main() {
 
 	metricsClient := metrics.Client(metrics.NewTimeStream(cfg))
 
+	live := resourcetypes.SnapshotLiveClusters(ctx, ec2Client, resourcetypes.EKSClusterLister(cfg), cfg.Region)
+	if err := live.Err(); err != nil {
+		logger.Errorf("failed to list live clusters, sweeps that need them are skipped, %v", err)
+	}
+
 	// These resources are intentionally ordered so that instances that are using ENIs
 	// will be cleaned before ENIs are attempted to be cleaned up. Likewise, instances and ENIs
 	// are cleaned up before security groups are cleaned up to ensure that everything is detached and doesn't
@@ -73,9 +78,11 @@ func main() {
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),
-		resourcetypes.NewInstanceProfile(iamClient),
+		resourcetypes.NewInstanceProfile(iamClient, live, cfg.Region),
 		resourcetypes.NewStack(cloudFormationClient),
 		resourcetypes.NewVPCPeeringConnection(ec2Client),
+		// Roles go last so that the stacks and instance profiles that hold them are already gone
+		resourcetypes.NewRole(iamClient, live),
 	}
 
 	for i := range resourceTypes {

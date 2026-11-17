@@ -16,10 +16,10 @@ package resourcetypes
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
@@ -27,12 +27,22 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type InstanceProfile struct {
-	iamClient *iam.Client
+type instanceProfileAPI interface {
+	iam.ListInstanceProfilesAPIClient
+	ListInstanceProfileTags(ctx context.Context, params *iam.ListInstanceProfileTagsInput, optFns ...func(*iam.Options)) (*iam.ListInstanceProfileTagsOutput, error)
+	GetInstanceProfile(ctx context.Context, params *iam.GetInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error)
+	RemoveRoleFromInstanceProfile(ctx context.Context, params *iam.RemoveRoleFromInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.RemoveRoleFromInstanceProfileOutput, error)
+	DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error)
 }
 
-func NewInstanceProfile(iamClient *iam.Client) *InstanceProfile {
-	return &InstanceProfile{iamClient: iamClient}
+type InstanceProfile struct {
+	iamClient instanceProfileAPI
+	live      *LiveClusters
+	region    string
+}
+
+func NewInstanceProfile(iamClient instanceProfileAPI, live *LiveClusters, region string) *InstanceProfile {
+	return &InstanceProfile{iamClient: iamClient, live: live, region: region}
 }
 
 func (ip *InstanceProfile) String() string {
@@ -54,8 +64,9 @@ func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.T
 		profiles, err := ip.iamClient.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
 			InstanceProfileName: instanceProfiles[i].InstanceProfileName,
 		})
+		// Profiles of clusters that are tearing down can disappear between the list and this call
 		if err != nil {
-			errs[i] = err
+			errs[i] = ignoreNoSuchEntity(err)
 			continue
 		}
 
@@ -66,13 +77,17 @@ func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.T
 		region, _ := lo.Find(profiles.Tags, func(tag iamtypes.Tag) bool {
 			return lo.FromPtr(tag.Key) == v1.LabelTopologyRegion
 		})
-		if slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) || lo.FromPtr(region.Value) != lo.Must(config.LoadDefaultConfig(ctx)).Region {
+		if slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
 			continue
 		}
 		// Since we can only get the date of the instance profile (not the exact time the instance profile was created)
 		// we add a day to the time that it was created to account for the worst-case of the instance profile being created
 		// at 23:59:59 and being marked with a time of 00:00:00 due to only capturing the date and not the time
-		if lo.FromPtr(clusterName.Value) != "" && instanceProfiles[i].CreateDate.Add(time.Hour*24).Before(expirationTime) {
+		if !instanceProfiles[i].CreateDate.Add(time.Hour * 24).Before(expirationTime) {
+			continue
+		}
+		if (lo.FromPtr(region.Value) == ip.region && lo.FromPtr(clusterName.Value) != "") ||
+			orphanedKarpenterProfile(lo.FromPtr(instanceProfiles[i].InstanceProfileName), profiles.Tags, ip.region, excludedClusters, ip.live) {
 			names = append(names, lo.FromPtr(instanceProfiles[i].InstanceProfileName))
 		}
 	}
@@ -100,7 +115,7 @@ func (ip *InstanceProfile) Get(ctx context.Context, clusterName string) (names [
 			InstanceProfileName: instanceProfiles[i].InstanceProfileName,
 		})
 		if err != nil {
-			errs[i] = err
+			errs[i] = ignoreNoSuchEntity(err)
 			continue
 		}
 
@@ -120,22 +135,50 @@ func (ip *InstanceProfile) Cleanup(ctx context.Context, names []string) ([]strin
 	var deleted []string
 	var errs error
 	for i := range names {
-		out, _ := ip.iamClient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: lo.ToPtr(names[i])})
-		if len(out.InstanceProfile.Roles) != 0 {
-			_, _ = ip.iamClient.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
-				InstanceProfileName: lo.ToPtr(names[i]),
-				RoleName:            out.InstanceProfile.Roles[0].RoleName,
-			})
-		}
-		_, err := ip.iamClient.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
-			InstanceProfileName: lo.ToPtr(names[i]),
-		})
-		if err != nil {
-			errs = multierr.Append(errs, err)
+		if err := ip.deleteInstanceProfile(ctx, names[i]); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("deleting instance profile %s, %w", names[i], err))
+			continue
 		}
 		deleted = append(deleted, names[i])
 	}
 	return deleted, errs
+}
+
+func (ip *InstanceProfile) deleteInstanceProfile(ctx context.Context, name string) error {
+	out, err := ip.iamClient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: lo.ToPtr(name)})
+	if err != nil {
+		return ignoreNoSuchEntity(err)
+	}
+	if out != nil && out.InstanceProfile != nil {
+		for _, role := range out.InstanceProfile.Roles {
+			if _, err := ip.iamClient.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+				InstanceProfileName: lo.ToPtr(name),
+				RoleName:            role.RoleName,
+			}); ignoreNoSuchEntity(err) != nil {
+				return err
+			}
+		}
+	}
+	_, err = ip.iamClient.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: lo.ToPtr(name),
+	})
+	return ignoreNoSuchEntity(err)
+}
+
+// orphanedKarpenterProfile matches Karpenter's <cluster>_<digits> profiles by name, since they often lack the testing/cluster and region tags
+func orphanedKarpenterProfile(name string, tags []iamtypes.Tag, currentRegion string, excludedClusters []string, live *LiveClusters) bool {
+	clusterName, ok := karpenterProfileCluster(name)
+	if !ok || slices.Contains(excludedClusters, clusterName) {
+		return false
+	}
+	region, _ := lo.Find(tags, func(tag iamtypes.Tag) bool { return lo.FromPtr(tag.Key) == v1.LabelTopologyRegion })
+	if r := lo.FromPtr(region.Value); r != "" && r != currentRegion {
+		return false
+	}
+	if !lo.ContainsBy(tags, func(tag iamtypes.Tag) bool { return lo.FromPtr(tag.Key) == karpenterNodeClassTag }) {
+		return false
+	}
+	return live.Gone(clusterName)
 }
 
 func (ip *InstanceProfile) getAllInstanceProfiles(ctx context.Context) (instanceprofiles []iamtypes.InstanceProfile, err error) {

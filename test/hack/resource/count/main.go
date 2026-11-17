@@ -48,7 +48,7 @@ func main() {
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),
-		resourcetypes.NewInstanceProfile(iamClient),
+		resourcetypes.NewInstanceProfile(iamClient, nil, cfg.Region),
 		resourcetypes.NewStack(cloudFormationClient),
 		resourcetypes.NewVPCPeeringConnection(ec2Client),
 	}
