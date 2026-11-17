@@ -70,7 +70,7 @@ runs:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
-      # Keep a copy of the output so a failure can be classified by signature (see "classify setup failure")
+      # Copy the output to the log that "classify setup failure" greps
       exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
@@ -103,7 +103,7 @@ runs:
       CLEANUP: ${{ inputs.cleanup }}
       CODEBUILD_ROLE: ${{ inputs.codebuild_role }}
     run: |
-      # Keep a copy of the output so a failure can be classified by signature (see "classify setup failure")
+      # Copy the output to the log that "classify setup failure" greps
       exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       if [[ "$GIT_REF" == '' ]]; then
         GIT_REF=$(git rev-parse HEAD)
@@ -274,7 +274,7 @@ runs:
     env:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
-      # Keep a copy of the output so a failure can be classified by signature (see "classify setup failure")
+      # Copy the output to the log that "classify setup failure" greps
       exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       stack_names=$(aws cloudformation describe-stacks --query "Stacks[?Tags[?Key == 'karpenter.sh/discovery' && Value == '$CLUSTER_NAME']].{StackName: StackName}" --output text)
       for stack_name in $stack_names; do
@@ -292,7 +292,7 @@ runs:
       cluster_name: ${{ inputs.cluster_name }}
       workspace_id: ${{ inputs.prometheus_workspace_id }}
       git_ref: ${{ inputs.git_ref }}
-  # Callers read E2E_SETUP_PHASE to tell a Karpenter install failure apart from a cluster (infra) failure
+  # Callers read E2E_SETUP_PHASE so a failed Karpenter install isn't counted as infra
   - name: mark karpenter install phase
     if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
     shell: bash
@@ -310,7 +310,6 @@ runs:
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.karpenter_git_ref || inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
-  # Callers read E2E_SETUP_FAILURE to label an infra failure by its cause
   - name: classify setup failure
     if: failure()
     shell: bash

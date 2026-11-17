@@ -179,7 +179,6 @@ jobs:
           }
           join_by() { local d="$1"; shift; local out="${1:-}"; shift || true; local x; for x in "$@"; do out+="$d$x"; done; printf '%s' "$out"; }
 
-          # Suites that failed in cluster setup are recorded as "infra" and reported apart from test failures
           failed=(); infra=(); passed=()
           declare -A infra_signature=()
           for f in suite-status/*; do
