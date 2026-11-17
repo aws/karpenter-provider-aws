@@ -149,6 +149,11 @@ Duration of CloudProvider Instance termination in seconds.
 - Dimensions:
   - `nodepool` — The name of the NodePool that owns the resource.
 
+### `karpenter_nodeclaims_informer_lag_seconds`
+Time from a NodeClaim write on the API server to the controller's informer delivering the update. Sampled on updates that advance the newest managedFields timestamp, which has one-second resolution.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+
 ### `karpenter_nodeclaims_disrupted_total`
 Number of nodeclaims disrupted in total by Karpenter. Labeled by reason the nodeclaim was disrupted, the owning nodepool, the capacity type, the consolidation policy, and the termination mode.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
