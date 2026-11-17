@@ -37,10 +37,7 @@ Every **6 months**, a minor release is designated as a Long-Term Support (LTS) r
 
 LTS releases are identified on GitHub by an `(LTS)` suffix in the release title (e.g. `v1.14.0 (LTS)`) and a banner at the top of the release notes.
 
-| Version | Released | EOL      |
-| ---     | ---      | ---      |
-| v1.14   | Jul 2026 | Jul 2027 |
-| v1.9    | Feb 2026 | Feb 2027 |
+{{< lts-versions >}}
 
 ### Support Timeline
 

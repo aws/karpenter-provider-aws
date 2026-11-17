@@ -112,7 +112,9 @@ params:
   latest_release_version: "1.15.3"
   latest_k8s_version: "1.36"
   # Supported Long-Term Support (LTS) minors. Add a minor when it is designated LTS, before its first release is
-  # tagged, and remove it at end of life. Read by hack/release/banners.sh to mark the GitHub releases of these minors.
+  # tagged, and remove it at end of life. Read by hack/release/banners.sh to mark the GitHub releases of these minors,
+  # by hack/release/common.sh to keep their docs and list them in the version menu, and by the website for the
+  # "(LTS)" labels, the docs version banner, and the LTS table on the compatibility page.
   lts_versions:
     - version: v1.14
       released: Jul 2026
@@ -123,7 +125,7 @@ params:
   versions:
     - v1.15
     - v1.14
-    - v1.13
+    - v1.9
     - v1.0
     - preview
 menu:
