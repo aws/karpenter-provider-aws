@@ -42,6 +42,7 @@ jobs:
     with:
       suite: Scale
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
+      k8s_version: ${{ needs.resolve.outputs.K8S_VERSION }}
       region: ${{ inputs.region || 'us-west-2' }}
       enable_metrics: ${{ inputs.enable_metrics || true }}
       workflow_trigger: "scale"
