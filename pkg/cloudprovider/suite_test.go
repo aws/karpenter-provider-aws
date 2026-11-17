@@ -422,19 +422,16 @@ var _ = Describe("CloudProvider", func() {
 			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
 		})
 	})
-	// Core validates RepairPolicies while the controller starts, so a core bump that tightens the contract used to show
-	// up only as a crash-looping controller in e2e (#9669). This repeats main.go's wiring for each repair mode.
+	// Core validates RepairPolicies at startup, so this repeats main.go's wiring to catch a stricter contract before e2e
 	Context("Startup", func() {
 		DescribeTable("should build the core controllers from the AWS repair policies",
 			func(legacyNodeRepair, rebootForRepair bool) {
 				startupCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
 					LegacyNodeRepair: lo.ToPtr(legacyNodeRepair),
-					// The gates that add controllers, as the e2e install sets them. PredictionEnabled and WithVPAPrediction are
-					// left out because the VPA controller adds its types to the global scheme when it's built, which races with
-					// envtest's running informers
+					// The e2e install's gates, minus prediction: building the VPA controller mutates the global scheme and races envtest
 					FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true), NodeOverlay: lo.ToPtr(true), StaticCapacity: lo.ToPtr(true),
 						CapacityBuffer: lo.ToPtr(true)},
-					// The observability controllers register their metrics on construction, which can happen only once per process
+					// Observability controllers register metrics on construction, which can only happen once per process
 					DisableClusterStateObservability: lo.ToPtr(true),
 				}))
 				awsCloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
@@ -447,7 +444,7 @@ var _ = Describe("CloudProvider", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(matcher == nil).To(Equal(legacyNodeRepair))
 
-				// NewControllers takes the manager for event recorders. It is never started
+				// Only used for event recorders, never started
 				mgr, err := manager.New(env.Config, manager.Options{Scheme: env.Client.Scheme(), Metrics: metricsserver.Options{BindAddress: "0"}})
 				Expect(err).ToNot(HaveOccurred())
 				startupCluster := state.NewCluster(fakeClock, env.Client, startupCloudProvider, state.WithRepairPolicyMatcher(matcher))

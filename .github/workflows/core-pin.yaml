@@ -24,8 +24,7 @@ jobs:
     - env:
         GH_TOKEN: ${{ github.token }}
         BASE_REF: ${{ github.base_ref }}
-      # The base's copy of the script runs, so a PR can't loosen the check it's judged by. HEAD's copy runs only when
-      # the base has none
+      # Run the base's copy so a PR can't loosen the check it's judged by
       run: |
         script="${RUNNER_TEMP}/core-pin-check.sh"
         git show HEAD^1:hack/github/core-pin-check.sh > "${script}" 2> /dev/null || cp hack/github/core-pin-check.sh "${script}"

@@ -2,14 +2,8 @@
 set -euo pipefail
 
 # Usage: core-pin-check.sh <base-rev> <head-rev>
-#
-# Checks a change to the sigs.k8s.io/karpenter pin in go.mod between two revisions. These fail the check:
-#   - A pseudo-version whose commit isn't on core's branch for BASE_REF (main, or release-vX.Y.x for release-vX.Y.*).
-#     Release tags aren't on main, so only commits are checked.
-#   - A replace for the module.
-# These only warn, in the log and the job summary:
-#   - The PR changes files that a pin bump doesn't regenerate.
-#   - The core commits the bump pulls in, with breaking ones (feat!, fix!:) highlighted.
+# Fails when go.mod replaces sigs.k8s.io/karpenter or pins a commit that isn't on core's branch for BASE_REF. Tags are
+# skipped since release tags aren't on main. Warns on breaking core commits and on files a pin bump doesn't regenerate.
 # Needs go, jq and gh.
 
 base="$1"
@@ -21,8 +15,7 @@ core_repo="kubernetes-sigs/karpenter"
 tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
-# Prints the module's require version and replace for go.mod at a revision. go mod edit -json parses go.mod the way the
-# go command does, so comments, exclude and retract lines can't pass for the require
+# go mod edit -json parses go.mod like the go command, so comment, exclude and retract lines can't pass for the require
 pin() {
   git show "$1:go.mod" > "${tmp}/go.mod"
   go mod edit -json "${tmp}/go.mod" | jq -c --arg m "${module}" \
@@ -49,8 +42,7 @@ warn() {
   echo "::warning::$*"
   echo "- :warning: $*" >> "${summary}"
 }
-# Calls the GitHub API. On an error gh prints the response body to stdout, so this prints a short error such as
-# "HTTP 404" to stderr instead
+# On error gh prints the response body to stdout, so print just the HTTP status to stderr
 api() {
   if ! gh api "$@" > "${tmp}/api.out" 2> "${tmp}/api.err"; then
     echo "GitHub API error ($(grep -oE 'HTTP [0-9]+' "${tmp}/api.err" | head -n 1 || echo "no HTTP status"))" >&2
@@ -90,7 +82,6 @@ elif [[ "$(ref "${new}")" != "${new}" ]]; then
   fi
 fi
 
-# Lists what the bump pulls in, so a reviewer sees core's breaking changes before e2e does
 if [[ "${old}" != "null" && "${new}" != "null" ]]; then
   if commits="$(api "repos/${core_repo}/compare/$(ref "${old}")...$(ref "${new}")" \
     --jq '.status, (.commits[] | .sha[0:12] + " " + (.commit.message | split("\n")[0]))' 2> "${tmp}/compare.err")"; then
@@ -112,15 +103,14 @@ if [[ "${old}" != "null" && "${new}" != "null" ]]; then
   fi
 fi
 
-# Files a pin bump changes on its own: the module files, core's CRDs that make verify copies, the chart's RBAC for core's
-# controllers, and docs generated from core
+# Files a pin bump regenerates on its own
 others="$(git diff --name-only "${base}" "${head}" | grep -Ev \
   -e '^go\.(mod|sum)$' \
   -e '^(pkg/apis/crds|charts/karpenter-crd/templates)/(karpenter\.sh|autoscaling\.x-k8s\.io)_[a-z]+\.yaml$' \
   -e '^charts/karpenter/templates/clusterrole-core\.yaml$' \
   -e '^website/content/en/preview/reference/(metrics|settings|annotations)\.md$' || true)"
 if [[ -n "${others}" ]]; then
-  # Most bumps need provider changes, so this only asks the reviewer to check them against the core commits above
+  # Only a warning since most bumps need provider changes
   warn "This PR bumps ${module} and changes other files. Check that they need the new core: $(paste -sd ' ' - <<< "${others}")"
 fi
 

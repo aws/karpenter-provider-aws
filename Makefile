@@ -41,7 +41,7 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
-# E2E_TEST_FLAGS appends go test and ginkgo flags to the e2e targets, after the flags they already pass
+# E2E_TEST_FLAGS appends go test and ginkgo flags after the e2e targets' own flags
 E2E_TEST_FLAGS ?=
 TMPFILE := $(shell mktemp)
 
@@ -145,8 +145,7 @@ perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS
 		--ginkgo.vv \
 		$(E2E_TEST_FLAGS)
 
-# The e2e targets pass -p 1 so suites don't share a cluster at once. A dry-run needs no cluster, so the later -p wins.
-# -k runs every target even after one fails
+# A dry-run needs no cluster, so the later -p overrides the targets' -p 1. -k runs every target even if one fails
 e2e-dryrun: ## Build every e2e suite and walk its specs with the flags CI passes, without a cluster
 	$(MAKE) -k e2etests upstream-e2etests perftests-v2 CLUSTER_NAME=dryrun CLUSTER_ENDPOINT=https://dryrun.invalid \
 		E2E_TEST_FLAGS="-p=$(shell getconf _NPROCESSORS_ONLN) --ginkgo.dry-run"
