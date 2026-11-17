@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Tears down a private e2e cluster from the GitHub Actions runner. Every step is best-effort and finds its
-# resources by name or tag, so it is safe after a partial setup or on a rerun.
+# Best-effort private cluster teardown. Finds resources by name or tag, so it's safe after a partial setup or a rerun.
 set -uo pipefail
 
 : "${CLUSTER_NAME:?}"
 CODEBUILD_SG="${CODEBUILD_SG:-}"
 
-# Delete the IRSA stacks first so the Karpenter controller loses its role and can't launch replacement nodes.
-# eksctl would otherwise try to delete these service accounts through the unreachable Kubernetes API and stop.
+# Delete IRSA stacks first so Karpenter can't launch nodes and eksctl doesn't stop on the unreachable Kubernetes API
 for stack in $(aws cloudformation list-stacks \
   --query "StackSummaries[?StackStatus!='DELETE_COMPLETE' && starts_with(StackName, 'eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-')].StackName" --output text); do
   aws cloudformation delete-stack --stack-name "${stack}" &&
