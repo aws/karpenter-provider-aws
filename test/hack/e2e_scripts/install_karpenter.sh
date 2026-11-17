@@ -7,6 +7,16 @@ if [[ "$PRIVATE_CLUSTER" == "true" ]]; then
   ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\" --set .Values.postInstallHook.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/ecr-public/bitnami/kubectl --set .Values.postInstallHook.image.digest=\"\""
 fi
 
+# DRA needs the resource.k8s.io/v1 API, which is GA from Kubernetes 1.34. Enabling either DRA gate also forces
+# ignoreDRARequests off in the chart, so all three flags are dropped on older versions. An unset K8S_VERSION keeps DRA on.
+DRA_FLAGS="--set settings.awsFeatureGates.draNVIDIAGPU=true --set settings.awsFeatureGates.draEFA=true --set settings.ignoreDRARequests=false"
+# POSIX syntax so a /bin/sh caller (the private cluster CodeBuild buildspec) cannot abort on a parse error here
+K8S_MINOR="${K8S_VERSION#*.}"
+K8S_MINOR="${K8S_MINOR%%.*}"
+if [ -n "${K8S_VERSION:-}" ] && [ "${K8S_VERSION%%.*}" = "1" ] && [ "$K8S_MINOR" -lt 34 ]; then
+  DRA_FLAGS=""
+fi
+
 helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \
@@ -25,10 +35,8 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.featureGates.capacityBuffer=true \
   --set settings.featureGates.predictionEnabled=true \
   --set settings.awsFeatureGates.nodeClassCEL=true \
-  --set settings.awsFeatureGates.draNVIDIAGPU=true \
-  --set settings.awsFeatureGates.draEFA=true \
   --set settings.awsFeatureGates.rebootForRepair=true \
-  --set settings.ignoreDRARequests=false \
+  $DRA_FLAGS \
   --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
   --set controller.resources.limits.cpu=5 \
