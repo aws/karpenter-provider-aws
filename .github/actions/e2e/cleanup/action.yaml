@@ -21,6 +21,8 @@ inputs:
   private_cluster:
     description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
     default: 'false'
+  codebuild_sg:
+    description: "Codebuild security group that private cluster setup allowed into the cluster"
 runs:
   using: "composite"
   steps:
@@ -43,7 +45,18 @@ runs:
         cache-dependency-path: test/hack/resource/go.sum
         check-latest: true
         cache: false
+    # Runs here rather than in CodeBuild so the cluster is deleted whichever CodeBuild phase failed
+    - name: delete-private-cluster
+      if: ${{ inputs.private_cluster == 'true' }}
+      shell: bash
+      env:
+        CLUSTER_NAME: ${{ inputs.cluster_name }}
+        CODEBUILD_SG: ${{ inputs.codebuild_sg }}
+      run: |
+        ./test/hack/e2e_scripts/clean_private_cluster.sh
+    # Sweep whatever is still tagged with the cluster, even if deleting the private cluster failed
     - name: "Run cleanup script"
+      if: always()
       shell: bash
       env:
         CLUSTER_NAME: ${{ inputs.cluster_name }}
