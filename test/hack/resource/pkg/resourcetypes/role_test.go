@@ -27,6 +27,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 )
 
 var testNow = time.Date(2026, 11, 17, 12, 0, 0, 0, time.UTC)
@@ -171,6 +172,29 @@ func TestRoleSweep(t *testing.T) {
 	}
 	if names, err := r.GetExpired(context.Background(), testNow.Add(-12*time.Hour), []string{"excluded-1"}); err != nil || len(names) != 0 {
 		t.Errorf("second GetExpired() = %v, %v", names, err)
+	}
+}
+
+func TestRoleSweepLeavesStackRolesToTheStackSweep(t *testing.T) {
+	old := testNow.Add(-72 * time.Hour)
+	f := newFakeIAM()
+	f.roles["KarpenterNodeRole-gone-1"] = &fakeRole{created: old, tags: map[string]string{"testing/cluster": "gone-1", "aws:cloudformation:stack-name": "iam-gone-1"}}
+	f.roles["KarpenterNodeRole-gone-2"] = &fakeRole{created: old, tags: map[string]string{"testing/cluster": "gone-2", "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-2:123456789012:stack/iam-gone-2/1"}}
+	f.roles["KarpenterNodeRole-gone-3"] = &fakeRole{created: old, tags: map[string]string{"testing/cluster": "gone-3"}}
+	r := NewRole(f, liveSnapshot())
+	names, err := r.GetExpired(context.Background(), testNow.Add(-12*time.Hour), nil)
+	if want := []string{"KarpenterNodeRole-gone-3"}; !slices.Equal(names, want) {
+		t.Fatalf("GetExpired() = %v, want %v", names, want)
+	}
+	var skipped *SkippedError
+	if !errors.As(err, &skipped) || Fatal(err) || len(multierr.Errors(err)) != 2 {
+		t.Errorf("GetExpired() error = %v, want both stack roles reported as skipped", err)
+	}
+	if deleted, err := r.Cleanup(context.Background(), names); err != nil || !slices.Equal(deleted, names) {
+		t.Fatalf("Cleanup() = %v, %v", deleted, err)
+	}
+	if want := []string{"DeleteRole KarpenterNodeRole-gone-3"}; !slices.Equal(f.calls, want) {
+		t.Errorf("calls = %v, want %v", f.calls, want)
 	}
 }
 
