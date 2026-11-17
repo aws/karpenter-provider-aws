@@ -50,9 +50,10 @@ func registerExtendedResources() bool {
 			}
 		})
 		AfterEach(func() {
-			if releaseBranchENIs != nil {
-				releaseBranchENIs()
+			// Clear first so a failed release doesn't run again in later specs
+			if release := releaseBranchENIs; release != nil {
 				releaseBranchENIs = nil
+				release()
 			}
 		})
 		It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
