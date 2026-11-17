@@ -220,7 +220,7 @@ With this configuration:
 4. The pod is scheduled and runs on the fractional GPU
 
 {{% alert title="Note" color="primary" %}}
-The NodeOverlay feature gate must be enabled. Add `--feature-gates NodeOverlay=true` to your Karpenter controller arguments or set it in the ConfigMap.
+The NodeOverlay feature gate must be enabled. Add `--feature-gates NodeOverlay=true` to your Karpenter controller arguments, or set `settings.featureGates.nodeOverlay: true` in the Helm chart, which sets the `FEATURE_GATES` environment variable.
 {{% /alert %}}
 
 {{% alert title="Important" color="warning" %}}
