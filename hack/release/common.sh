@@ -187,22 +187,34 @@ createNewWebsiteDirectory() {
   cp -r "website/content/en/v${short_version}/"* website/content/en/docs/
 }
 
+# websiteVersionDirectories prints the names of the docs version directories (e.g. v1.14), sorted by version
+websiteVersionDirectories() {
+  find website/content/en/* -maxdepth 0 -type d -name "v*" -print0 | xargs -0 -r -n 1 basename | sort -V
+}
+
+# removeOldWebsiteDirectories removes the docs version directories that are no longer kept, and redirects their pages
+# to the same pages in the latest docs so that links to them keep working. The rule uses the Amplify <*> wildcard,
+# which hack/docs/parse-redirects passes through unexpanded. It keeps the last n minors, the supported
+# LTS minors in params.lts_versions, and the preview, docs, and v1.0 directories.
 removeOldWebsiteDirectories() {
-  local n=3 last_n_versions all
+  local n=3 keep dir version
 
-  # Get all the directories except the last n directories sorted from earliest to latest version
-  # preview, docs, and v1.0 are special directories that we always propagate into the set of directory options
   # Keep the v1.0 version around while we are supporting v1beta1 migration
-  # Drop it once we no longer want to maintain the v1.00 version in the docs
-  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort -V | tail -n "${n}")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/v1.0")
-  all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
+  # Drop it once we no longer want to maintain the v1.0 version in the docs
+  keep="$(websiteVersionDirectories | grep -v -x 'v1\.0' | tail -n "${n}")"
+  keep+=$'\n'"$(yq '.params.lts_versions[].version' website/hugo.yaml)"
+  keep+=$'\n'"v1.0"$'\n'"preview"$'\n'"docs"
 
-  ## symmetric difference
-  # shellcheck disable=SC2086
-  comm -3 <(sort <<< "${last_n_versions}") <(sort <<< "${all}") | tr -d '\t' | xargs -r -n 1 rm -r
+  for dir in website/content/en/*/; do
+    version="$(basename "${dir}")"
+    if grep -q -x -F -- "${version}" <<< "${keep}"; then
+      continue
+    fi
+    rm -r "${dir}"
+    if ! grep -q -F "/${version}/<*>  /docs/<*>" website/static/_redirects; then
+      printf '/%s/<*>  /docs/<*>\n' "${version}" >> website/static/_redirects
+    fi
+  done
 }
 
 editWebsiteConfig() {
@@ -211,14 +223,23 @@ editWebsiteConfig() {
   yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
-# editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
-# without increasing the size of the set.
-# It uses the current version directories (ignoring the docs directory) to generate this list
+# editWebsiteVersionsMenu sets the version dropdown menu of the website to the supported docs versions: the latest
+# minor, the supported LTS minors in params.lts_versions, v1.0 (kept for v1beta1 migration), and preview.
+# Other version directories that are still kept are left out of the menu. Their pages show a banner that they are no
+# longer maintained (website/layouts/partials/version-banner.html).
 editWebsiteVersionsMenu() {
-  local versions version
+  local latest versions version
 
-  # shellcheck disable=SC2207
-  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview" | sort -r))
+  latest="$(websiteVersionDirectories | tail -n 1)"
+  versions=("${latest}")
+  while read -r version; do
+    if [[ -n "${version}" ]] && [[ "${version}" != "${latest}" ]] && [[ -d "website/content/en/${version}" ]]; then
+      versions+=("${version}")
+    fi
+  done < <(yq '.params.lts_versions[].version' website/hugo.yaml | sort -r -V)
+  if [[ "${latest}" != "v1.0" ]] && [[ -d website/content/en/v1.0 ]]; then
+    versions+=('v1.0')
+  fi
   versions+=('preview')
 
   yq -i '.params.versions = []' website/hugo.yaml

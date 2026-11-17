@@ -49,7 +49,8 @@ func getAvailableKarpenterVersions() []string {
 func getRule(source string, target string, versions []string) []RedirectRule {
 	var rules []RedirectRule
 
-	if !strings.Contains(source, "*") {
+	// <*> is the Amplify wildcard, so it is passed through rather than expanded to each version
+	if strings.Contains(source, "<*>") || !strings.Contains(source, "*") {
 		return []RedirectRule{{
 			Source: source,
 			Target: target,

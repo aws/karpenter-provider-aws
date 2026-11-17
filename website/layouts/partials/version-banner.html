@@ -1,0 +1,18 @@
+{{- /*
+  Overrides Docsy's version banner, which only supports a site-wide archived_version flag. This site serves every
+  docs version from one build, so the banner is chosen per version directory: LTS versions show their support date,
+  and any other version that isn't the latest is marked as no longer maintained.
+*/ -}}
+{{- $pageDir := index (split (path.Dir .Page.RelPermalink) "/") 1 -}}
+{{- $latest := index .Site.Params.versions 0 -}}
+{{- if and (hasPrefix $pageDir "v") (ne $pageDir $latest) -}}
+{{- $eol := "" -}}
+{{- range .Site.Params.lts_versions }}{{ if eq .version $pageDir }}{{ $eol = .eol }}{{ end }}{{ end }}
+<div class="pageinfo pageinfo-primary">
+  {{- if $eol }}
+  <p>You are viewing the {{ $pageDir }} (LTS) documentation. {{ $pageDir }} is supported until {{ $eol }}. For the latest release, see the <a href="/docs/">{{ $latest }} documentation</a>.</p>
+  {{- else }}
+  <p>Version {{ $pageDir }} of the documentation is no longer actively maintained. The site that you are currently viewing is an archived snapshot. For up-to-date documentation, see the <a href="/docs/">latest version</a>.</p>
+  {{- end }}
+</div>
+{{- end -}}
