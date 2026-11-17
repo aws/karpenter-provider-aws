@@ -16,7 +16,9 @@ package metrics_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/awslabs/operatorpkg/object"
@@ -31,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -630,4 +633,43 @@ var _ = Describe("MetricsController", func() {
 			}
 		})
 	})
+	Context("NodeOverlay", func() {
+		It("should requeue soon without an error when a NodePool is awaiting evaluation", func() {
+			metrics.InstanceTypeOfferingAvailable.Reset()
+			metrics.InstanceTypeOfferingPriceEstimate.Reset()
+			nodeClass.Status.Subnets = []v1.Subnet{{ID: "subnet-test1", Zone: "test-zone-1a"}}
+			unevaluatedNodeClass := test.EC2NodeClass(v1.EC2NodeClass{
+				Status: v1.EC2NodeClassStatus{Subnets: []v1.Subnet{{ID: "subnet-test2", Zone: "test-zone-1b"}}},
+			})
+			unevaluatedNodePool := coretest.NodePool()
+			unevaluatedNodePool.Spec.Template.Spec.NodeClassRef = &karpv1.NodeClassReference{
+				Group: object.GVK(unevaluatedNodeClass).Group,
+				Kind:  object.GVK(unevaluatedNodeClass).Kind,
+				Name:  unevaluatedNodeClass.Name,
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, unevaluatedNodePool, unevaluatedNodeClass)
+
+			result := ExpectSingletonReconciled(ctx, metrics.NewController(env.Client, unevaluatedCloudProvider{
+				CloudProvider: cloudProvider,
+				nodePools:     sets.New(unevaluatedNodePool.Name),
+			}))
+			Expect(result.RequeueAfter).To(Equal(5 * time.Second))
+			Expect(availableInZone("test-zone-1a")).To(BeNumerically(">", 0))
+			Expect(availableInZone("test-zone-1b")).To(BeZero())
+		})
+	})
 })
+
+// unevaluatedCloudProvider fails GetInstanceTypes for the named NodePools the way the NodeOverlay decorator does
+// before it has evaluated them.
+type unevaluatedCloudProvider struct {
+	*cloudprovider.CloudProvider
+	nodePools sets.Set[string]
+}
+
+func (c unevaluatedCloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*corecloudprovider.InstanceType, error) {
+	if c.nodePools.Has(nodePool.Name) {
+		return []*corecloudprovider.InstanceType{}, fmt.Errorf("applying nodeoverlays, %w", corecloudprovider.NewUnevaluatedNodePoolError(nodePool.Name))
+	}
+	return c.CloudProvider.GetInstanceTypes(ctx, nodePool)
+}

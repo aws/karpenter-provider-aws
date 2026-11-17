@@ -69,8 +69,14 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	availability := map[metricDimensions]bool{}
 	price := map[metricDimensions]float64{}
 	var errs error
+	awaitingEvaluation := false
 	for _, nodePool := range nodePools.Items {
 		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &nodePool)
+		// A new NodePool is unresolvable until NodeOverlay evaluates it, which takes seconds, so this isn't an error.
+		if cloudprovider.IsUnevaluatedNodePoolError(err) {
+			awaitingEvaluation = true
+			continue
+		}
 		if err != nil {
 			// Keep going rather than abandoning the reconcile. A NodePool whose instance types can't be
 			// resolved -- an undecodable spec.kubelet, for instance -- would otherwise suppress the
@@ -118,6 +124,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	// NodePool costs only its own series rather than the whole cluster's.
 	if errs != nil {
 		return reconciler.Result{}, errs
+	}
+	if awaitingEvaluation {
+		return reconciler.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 	// Backstop for inputs with no watch: pricing, ICE, reservation capacity, NodeOverlay, zonal shift, placement groups
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
