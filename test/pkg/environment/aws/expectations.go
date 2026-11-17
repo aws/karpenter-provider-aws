@@ -47,6 +47,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -603,16 +604,13 @@ func ignoreAlreadyContainsRole(err error) error {
 
 // ExpectInterruptibleCapacityAllocationCreated allocates interruptible capacity from the source reservation and returns the
 // ID of the resulting interruptible reservation.
-func ExpectInterruptibleCapacityAllocationCreated(
-	ctx context.Context,
-	ec2api *ec2.Client,
-	sourceReservationID string,
-	interruptibleCapacity int32,
-) string {
+func (env *Environment) ExpectInterruptibleCapacityAllocationCreated(sourceReservationID string, interruptibleCapacity int32) string {
 	GinkgoHelper()
+	ctx, ec2api := env.Context, env.EC2API
 	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
 		CapacityReservationId: &sourceReservationID,
 		InstanceCount:         lo.ToPtr(interruptibleCapacity),
+		TagSpecifications:     env.capacityReservationTags(),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -772,6 +770,7 @@ func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, 
 		InstancePlatform:      ec2types.CapacityReservationInstancePlatformLinuxUnix,
 		AvailabilityZone:      lo.ToPtr(zone),
 		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
+		TagSpecifications:     env.capacityReservationTags(),
 	})
 	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && lo.Contains([]string{"InsufficientInstanceCapacity", "Unsupported"}, apiErr.ErrorCode()) {
 		GinkgoWriter.Printf("Skipping capacity reservation for %s in %s: %s\n", instanceType, zone, apiErr.ErrorCode())
@@ -782,6 +781,14 @@ func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, 
 	}
 	By(fmt.Sprintf("created capacity reservation %s for %s in %s", *out.CapacityReservation.CapacityReservationId, instanceType, zone))
 	return &CapacityReservation{ID: *out.CapacityReservation.CapacityReservationId, InstanceType: instanceType, Zone: zone}, nil
+}
+
+// capacityReservationTags let the sweeper tie a leaked reservation to the test cluster that created it
+func (env *Environment) capacityReservationTags() []ec2types.TagSpecification {
+	return []ec2types.TagSpecification{{
+		ResourceType: ec2types.ResourceTypeCapacityReservation,
+		Tags:         utils.EC2MergeTags(map[string]string{"testing/type": "e2e", "testing/cluster": env.ClusterName}),
+	}}
 }
 
 func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
