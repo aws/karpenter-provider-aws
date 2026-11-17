@@ -29,6 +29,10 @@ on:
         description: "Delete each cluster when its spec finishes"
         type: boolean
         default: true
+      record_results:
+        description: "Write the results to the perf dashboard's Timestream table. Turn off for ad-hoc runs that shouldn't show in the trend"
+        type: boolean
+        default: true
 permissions: {}
 jobs:
   args:
@@ -85,3 +89,5 @@ jobs:
       control_plane_tier: ${{ inputs.control_plane_tier || vars.PERF_CONTROL_PLANE_TIER || 'tier-xl' }}
       # Always delete scheduled clusters; a manual run can keep them for debugging
       cleanup: ${{ github.event_name != 'workflow_dispatch' || inputs.cleanup }}
+      # inputs is empty on schedule, so the nightly always records; a manual run records unless record_results is off
+      record_results: ${{ github.event_name != 'workflow_dispatch' || inputs.record_results }}
