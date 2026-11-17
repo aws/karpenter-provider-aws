@@ -223,6 +223,23 @@ editWebsiteConfig() {
   yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
+# requireLTSWebsiteDirectories fails when a supported LTS minor in params.lts_versions has no docs version directory.
+# Pruning never removes them, so a missing directory means the docs were lost and have to be restored, rather than
+# the minor being left out of the version menu.
+requireLTSWebsiteDirectories() {
+  local version missing=()
+
+  while read -r version; do
+    if [[ -n "${version}" ]] && [[ ! -d "website/content/en/${version}" ]]; then
+      missing+=("${version}")
+    fi
+  done < <(yq '.params.lts_versions[].version' website/hugo.yaml)
+  if ((${#missing[@]} > 0)); then
+    echo "Supported LTS minors in params.lts_versions have no docs: ${missing[*]}. Restore website/content/en/<version>." >&2
+    return 1
+  fi
+}
+
 # editWebsiteVersionsMenu sets the version dropdown menu of the website to the supported docs versions: the latest
 # minor, the supported LTS minors in params.lts_versions, v1.0 (kept for v1beta1 migration), and preview.
 # Other version directories that are still kept are left out of the menu. Their pages show a banner that they are no
@@ -230,10 +247,11 @@ editWebsiteConfig() {
 editWebsiteVersionsMenu() {
   local latest versions version
 
+  requireLTSWebsiteDirectories
   latest="$(websiteVersionDirectories | tail -n 1)"
   versions=("${latest}")
   while read -r version; do
-    if [[ -n "${version}" ]] && [[ "${version}" != "${latest}" ]] && [[ -d "website/content/en/${version}" ]]; then
+    if [[ -n "${version}" ]] && [[ "${version}" != "${latest}" ]]; then
       versions+=("${version}")
     fi
   done < <(yq '.params.lts_versions[].version' website/hugo.yaml | sort -r -V)
