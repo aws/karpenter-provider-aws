@@ -41,9 +41,18 @@ import (
 
 func registerExtendedResources() bool {
 	return Describe("Extended Resources", func() {
+		// Set by the pod-eni spec. This AfterEach runs before the suite's, which deletes the node. The VPC resource
+		// controller drops its pending branch ENI deletes when the node goes away, so the pods have to go first.
+		var releaseBranchENIs func()
 		BeforeEach(func() {
 			if Env.PrivateCluster {
 				Skip("skipping Extended Resources test for private cluster")
+			}
+		})
+		AfterEach(func() {
+			if releaseBranchENIs != nil {
+				releaseBranchENIs()
+				releaseBranchENIs = nil
 			}
 		})
 		It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
@@ -192,6 +201,10 @@ func registerExtendedResources() bool {
 			DeferCleanup(func() {
 				Env.ExpectPodENIDisabled()
 			})
+			// Runs after the node is deleted, to delete branch ENIs left detached if releaseBranchENIs failed
+			DeferCleanup(func() {
+				Env.EventuallyExpectBranchENIsDeleted()
+			})
 			Env.ExpectCreated(NodeClass) // Creating the nodeclass first to discover the security groups
 
 			// evenutally expect the status on the nodeclass to be hydrated
@@ -223,6 +236,13 @@ func registerExtendedResources() bool {
 				},
 			}
 
+			releaseBranchENIs = func() {
+				Env.ExpectDeleted(dep, sgp)
+				Eventually(func(g Gomega) {
+					g.Expect(Env.ExpectPodsMatchingSelector(selector)).To(BeEmpty())
+				}).Should(Succeed())
+				Env.EventuallyExpectBranchENIsDeleted()
+			}
 			Env.ExpectCreated(NodePool, dep, sgp)
 			Env.EventuallyExpectHealthyPodCount(selector, numPods)
 			Env.ExpectCreatedNodeCount("==", 1)
