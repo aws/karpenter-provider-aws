@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
-# Tears down a private e2e cluster and everything configure_private_cluster.sh adds to it.
-# It only calls AWS APIs, so it runs from the GitHub Actions runner no matter how far CodeBuild got.
-# Every step is best-effort and rediscovers its IDs by name or tag, so a partial setup or a rerun is safe.
+# Tears down a private e2e cluster from the GitHub Actions runner. Every step is best-effort and finds its
+# resources by name or tag, so it is safe after a partial setup or on a rerun.
 set -uo pipefail
 
 : "${CLUSTER_NAME:?}"
 CODEBUILD_SG="${CODEBUILD_SG:-}"
 
-# Karpenter nodes keep ENIs in the cluster subnets, which blocks deleting the cluster VPC
+# Delete the IRSA stacks first so the Karpenter controller loses its role and can't launch replacement nodes.
+# eksctl would otherwise try to delete these service accounts through the unreachable Kubernetes API and stop.
+for stack in $(aws cloudformation list-stacks \
+  --query "StackSummaries[?StackStatus!='DELETE_COMPLETE' && starts_with(StackName, 'eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-')].StackName" --output text); do
+  aws cloudformation delete-stack --stack-name "${stack}" &&
+    aws cloudformation wait stack-delete-complete --stack-name "${stack}"
+done
+
+# Without this instance profile Karpenter can't launch nodes, and KarpenterNodeRole can't be deleted while it's in it
+aws iam remove-role-from-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}" --role-name "KarpenterNodeRole-${CLUSTER_NAME}"
+aws iam delete-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
+
+# Karpenter node ENIs block deleting the cluster VPC
 instance_ids=$(aws ec2 describe-instances \
   --filters "Name=tag:eks:eks-cluster-name,Values=${CLUSTER_NAME}" Name=tag-key,Values=karpenter.sh/nodepool Name=instance-state-name,Values=pending,running,stopping,stopped \
   --query "Reservations[].Instances[].InstanceId" --output text)
@@ -17,7 +28,7 @@ if [[ -n "${instance_ids}" ]]; then
     aws ec2 wait instance-terminated --instance-ids ${instance_ids}
 fi
 
-# The nodegroup stack can't delete its NodeInstanceRole while the inline pull through cache policy is attached
+# The nodegroup stack can't delete its NodeInstanceRole while the inline policy is attached
 for stack in $(aws cloudformation list-stacks \
   --query "StackSummaries[?StackStatus!='DELETE_COMPLETE' && starts_with(StackName, 'eksctl-${CLUSTER_NAME}-nodegroup-')].StackName" --output text); do
   node_role=$(aws cloudformation describe-stack-resources --stack-name "${stack}" --logical-resource-id NodeInstanceRole \
@@ -25,11 +36,7 @@ for stack in $(aws cloudformation list-stacks \
     aws iam delete-role-policy --role-name "${node_role}" --policy-name PullThroughCachePolicy
 done
 
-# The KarpenterNodeRole can't be deleted while it is in the manually created instance profile
-aws iam remove-role-from-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}" --role-name "KarpenterNodeRole-${CLUSTER_NAME}"
-aws iam delete-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
-
-# VPC endpoint ENIs block deleting the cluster subnets, so delete the endpoints and wait for them to go away
+# VPC endpoint ENIs block deleting the cluster subnets
 endpoints_query="VpcEndpoints[?State!='deleted' && State!='Deleted'].VpcEndpointId"
 endpoint_ids=$(aws ec2 describe-vpc-endpoints --filters "Name=tag:testing/cluster,Values=${CLUSTER_NAME}" --query "${endpoints_query}" --output text)
 if [[ -n "${endpoint_ids}" ]]; then
@@ -41,7 +48,6 @@ if [[ -n "${endpoint_ids}" ]]; then
   done
 fi
 
-# Remove the CodeBuild security group ingress from the cluster security groups
 cluster_vpc=$(aws cloudformation describe-stack-resources --stack-name "eksctl-${CLUSTER_NAME}-cluster" --logical-resource-id VPC \
   --query "StackResources[].PhysicalResourceId" --output text)
 if [[ -n "${cluster_vpc}" && -n "${CODEBUILD_SG}" ]]; then
@@ -51,7 +57,7 @@ if [[ -n "${cluster_vpc}" && -n "${CODEBUILD_SG}" ]]; then
   done
 fi
 
-# Delete the routes through the peering before the peering itself, otherwise the CodeBuild VPC keeps them as blackhole routes
+# Delete the peering routes first, otherwise the CodeBuild VPC keeps them as blackhole routes
 for pcx in $(aws ec2 describe-vpc-peering-connections \
   --filters "Name=tag:testing/cluster,Values=${CLUSTER_NAME}" Name=status-code,Values=initiating-request,pending-acceptance,provisioning,active \
   --query "VpcPeeringConnections[].VpcPeeringConnectionId" --output text); do
@@ -63,13 +69,5 @@ for pcx in $(aws ec2 describe-vpc-peering-connections \
   aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id "${pcx}" > /dev/null
 done
 
-# eksctl deletes IRSA service accounts through the Kubernetes API, which isn't reachable from here, and stops at the
-# first failed task. Deleting the IRSA stacks first means eksctl skips that task and goes on to the cluster stack.
-for stack in $(aws cloudformation list-stacks \
-  --query "StackSummaries[?StackStatus!='DELETE_COMPLETE' && starts_with(StackName, 'eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-')].StackName" --output text); do
-  aws cloudformation delete-stack --stack-name "${stack}" &&
-    aws cloudformation wait stack-delete-complete --stack-name "${stack}"
-done
-
-# --force pushes through the remaining Kubernetes API errors, since the private endpoint isn't reachable from here
+# --force pushes through Kubernetes API errors, since the private endpoint isn't reachable from here
 eksctl delete cluster --name "${CLUSTER_NAME}" --force --wait --timeout 60m

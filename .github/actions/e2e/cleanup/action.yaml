@@ -39,7 +39,7 @@ runs:
         CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
         eksctl delete cluster --name "$CLUSTER_NAME" --timeout 60m --wait || true
-    # Runs here rather than in CodeBuild so the cluster is deleted whichever CodeBuild phase failed
+    # Runs on the runner so teardown doesn't depend on how far CodeBuild got
     - name: delete-private-cluster
       if: always() && inputs.private_cluster == 'true'
       shell: bash
@@ -49,12 +49,12 @@ runs:
       run: |
         ./test/hack/e2e_scripts/clean_private_cluster.sh
     - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      if: always()
       with:
         go-version-file: test/hack/resource/go.mod
         cache-dependency-path: test/hack/resource/go.sum
         check-latest: true
         cache: false
-    # Sweep whatever is still tagged with the cluster, even if deleting the private cluster failed
     - name: "Run cleanup script"
       if: always()
       shell: bash
