@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/awslabs/operatorpkg/object"
+	"github.com/go-logr/logr/funcr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
@@ -582,6 +584,72 @@ var _ = Describe("CloudProvider", func() {
 			nodeClaim.Status.ProviderID = "not-a-valid-provider-id"
 			Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).ToNot(Succeed())
 			Expect(awsEnv.EC2API.RebootInstancesBehavior.CalledWithInput.Len()).To(Equal(0))
+		})
+	})
+	Context("Delete", func() {
+		var logs []string
+		var logCtx context.Context
+		BeforeEach(func() {
+			logs = nil
+			logCtx = log.IntoContext(ctx, funcr.New(func(_, args string) { logs = append(logs, args) }, funcr.Options{}))
+			nodeClaim.StatusConditions().SetTrue(karpv1.ConditionTypeLaunched)
+			nodeClaim.StatusConditions().SetUnknownWithReason(karpv1.ConditionTypeRegistered, "NodeNotFound", "Node not registered with cluster")
+		})
+		neverRegisteredLogs := func() []string {
+			return lo.Filter(logs, func(l string, _ int) bool { return strings.Contains(l, "never registered") })
+		}
+		It("should log the instance state when terminating the instance of a NodeClaim that never registered", func() {
+			instance := test.EC2Instance(ec2types.Instance{LaunchTime: aws.Time(time.Date(2026, 9, 1, 4, 3, 50, 0, time.UTC))})
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+
+			Expect(cloudProvider.Delete(logCtx, nodeClaim)).To(Succeed())
+			Expect(neverRegisteredLogs()).To(ConsistOf(SatisfyAll(
+				ContainSubstring(`"msg"="terminating instance for nodeclaim that never registered"`),
+				ContainSubstring(`"instance-state"="running"`),
+				ContainSubstring(`"registered-reason"="NodeNotFound"`),
+				ContainSubstring(`"launch-time"="2026-09-01`),
+			)))
+		})
+		It("should log when the instance of a NodeClaim that never registered is already gone", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(logCtx, nodeClaim))).To(BeTrue())
+			Expect(neverRegisteredLogs()).To(ConsistOf(SatisfyAll(
+				ContainSubstring(`"msg"="deleting nodeclaim that never registered, instance not found"`),
+				ContainSubstring(`"registered-reason"="NodeNotFound"`),
+			)))
+		})
+		It("shouldn't log for a NodeClaim that registered", func() {
+			instance := test.EC2Instance()
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaim.Status.ProviderID = fake.ProviderID(aws.ToString(instance.InstanceId))
+			nodeClaim.StatusConditions().SetTrue(karpv1.ConditionTypeRegistered)
+
+			Expect(cloudProvider.Delete(logCtx, nodeClaim)).To(Succeed())
+			Expect(neverRegisteredLogs()).To(BeEmpty())
+		})
+		It("shouldn't log again once the instance is terminating", func() {
+			nodeClaim.Status.ProviderID = fake.ProviderID(fake.InstanceID())
+			nodeClaim.StatusConditions().SetTrue(karpv1.ConditionTypeInstanceTerminating)
+
+			Expect(corecloudprovider.IsNodeClaimNotFoundError(cloudProvider.Delete(logCtx, nodeClaim))).To(BeTrue())
+			Expect(neverRegisteredLogs()).To(BeEmpty())
+		})
+		It("shouldn't log for a NodeClaim built from an instance by List", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instance := test.EC2Instance(ec2types.Instance{Tags: []ec2types.Tag{
+				{Key: aws.String(v1.NodePoolTagKey), Value: aws.String(nodePool.Name)},
+				{Key: aws.String(v1.NodeClassTagKey), Value: aws.String(nodeClass.Name)},
+				{Key: aws.String(v1.EKSClusterNameTagKey), Value: aws.String(options.FromContext(ctx).ClusterName)},
+			}})
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), instance)
+			nodeClaims, err := cloudProvider.List(ctx)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(nodeClaims).To(HaveLen(1))
+
+			Expect(cloudProvider.Delete(logCtx, nodeClaims[0])).To(Succeed())
+			Expect(neverRegisteredLogs()).To(BeEmpty())
 		})
 	})
 	Context("DynamicResources", func() {
