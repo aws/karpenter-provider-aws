@@ -24,6 +24,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -38,15 +39,23 @@ import (
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
+// minInstanceAge is how long an instance must have existed before it can be garbage collected. It covers the window
+// between launch and the NodeClaim status write that records the instance's providerID.
+const minInstanceAge = 5 * time.Minute
+
 type Controller struct {
-	kubeClient      client.Client
+	kubeClient client.Client
+	// apiReader reads directly from the API server. The informer cache can lag by tens of seconds during large scale-ups,
+	// so every termination candidate is confirmed against it.
+	apiReader       client.Reader
 	cloudProvider   cloudprovider.CloudProvider
 	successfulCount uint64 // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
 }
 
-func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, apiReader client.Reader, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:      kubeClient,
+		apiReader:       apiReader,
 		cloudProvider:   cloudProvider,
 		successfulCount: 0,
 	}
@@ -70,24 +79,41 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	if err != nil {
 		return reconciler.Result{}, err
 	}
-	clusterProviderIDs := sets.New(lo.FilterMap(clusterNodeClaims, func(nc *karpv1.NodeClaim, _ int) (string, bool) {
-		return nc.Status.ProviderID, nc.Status.ProviderID != ""
-	})...)
-	nodeList := &corev1.NodeList{}
-	if err = c.kubeClient.List(ctx, nodeList); err != nil {
-		return reconciler.Result{}, err
-	}
-	errs := make([]error, len(cloudNodeClaims))
-	workqueue.ParallelizeUntil(ctx, 100, len(cloudNodeClaims), func(i int) {
-		if nc := cloudNodeClaims[i]; !clusterProviderIDs.Has(nc.Status.ProviderID) && time.Since(nc.CreationTimestamp.Time) > time.Second*30 {
-			errs[i] = c.garbageCollect(ctx, cloudNodeClaims[i], nodeList)
+	candidates := orphaned(cloudNodeClaims, clusterNodeClaims)
+	if len(candidates) > 0 {
+		// The cached list may predate the NodeClaim status writes for recently launched instances
+		nodeClaimList := &karpv1.NodeClaimList{}
+		if err = c.apiReader.List(ctx, nodeClaimList); err != nil {
+			return reconciler.Result{}, fmt.Errorf("listing nodeclaims from the api server, %w", err)
 		}
-	})
-	if err = multierr.Combine(errs...); err != nil {
-		return reconciler.Result{}, err
+		candidates = orphaned(candidates, lo.ToSlicePtr(nodeClaimList.Items))
+	}
+	if len(candidates) > 0 {
+		nodeList := &corev1.NodeList{}
+		if err = c.kubeClient.List(ctx, nodeList); err != nil {
+			return reconciler.Result{}, err
+		}
+		errs := make([]error, len(candidates))
+		workqueue.ParallelizeUntil(ctx, 100, len(candidates), func(i int) {
+			errs[i] = c.garbageCollect(ctx, candidates[i], nodeList)
+		})
+		if err = multierr.Combine(errs...); err != nil {
+			return reconciler.Result{}, err
+		}
 	}
 	c.successfulCount++
 	return reconciler.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
+}
+
+// orphaned returns the cloudprovider NodeClaims that are old enough to collect and whose providerID is not claimed by
+// any of the given cluster NodeClaims.
+func orphaned(cloudNodeClaims, clusterNodeClaims []*karpv1.NodeClaim) []*karpv1.NodeClaim {
+	clusterProviderIDs := sets.New(lo.FilterMap(clusterNodeClaims, func(nc *karpv1.NodeClaim, _ int) (string, bool) {
+		return nc.Status.ProviderID, nc.Status.ProviderID != ""
+	})...)
+	return lo.Filter(cloudNodeClaims, func(nc *karpv1.NodeClaim, _ int) bool {
+		return !clusterProviderIDs.Has(nc.Status.ProviderID) && time.Since(nc.CreationTimestamp.Time) > minInstanceAge
+	})
 }
 
 func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeList *corev1.NodeList) error {
@@ -101,7 +127,11 @@ func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *karpv1.NodeC
 	if node, ok := lo.Find(nodeList.Items, func(n corev1.Node) bool {
 		return n.Spec.ProviderID == nodeClaim.Status.ProviderID
 	}); ok {
-		if err := c.kubeClient.Delete(ctx, &node); err != nil {
+		// The Node comes from the cache. The UID precondition stops us from deleting a newer Node that reused its name.
+		if err := c.kubeClient.Delete(ctx, &node, client.Preconditions{UID: &node.UID}); err != nil {
+			if apierrors.IsConflict(err) {
+				return nil
+			}
 			return client.IgnoreNotFound(err)
 		}
 		log.FromContext(ctx).WithValues("Node", klog.KObj(&node)).V(1).Info("garbage collected node")
