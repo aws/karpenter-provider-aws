@@ -45,8 +45,7 @@ const minInstanceAge = 5 * time.Minute
 
 type Controller struct {
 	kubeClient client.Client
-	// apiReader reads directly from the API server. The informer cache can lag by tens of seconds during large scale-ups,
-	// so every termination candidate is confirmed against it.
+	// apiReader bypasses the informer cache, which can lag by tens of seconds during large scale-ups
 	apiReader       client.Reader
 	cloudProvider   cloudprovider.CloudProvider
 	successfulCount uint64 // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
@@ -105,8 +104,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	return reconciler.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
 }
 
-// orphaned returns the cloudprovider NodeClaims that are old enough to collect and whose providerID is not claimed by
-// any of the given cluster NodeClaims.
+// orphaned returns the cloudprovider NodeClaims old enough to collect whose providerID no cluster NodeClaim claims
 func orphaned(cloudNodeClaims, clusterNodeClaims []*karpv1.NodeClaim) []*karpv1.NodeClaim {
 	clusterProviderIDs := sets.New(lo.FilterMap(clusterNodeClaims, func(nc *karpv1.NodeClaim, _ int) (string, bool) {
 		return nc.Status.ProviderID, nc.Status.ProviderID != ""
