@@ -754,7 +754,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Env.ZoneInfo[0].Zone,
 					1,
 					nil,
-					nil,
+					Env.CapacityReservationTags(),
 				)
 				xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
 					Env.Context,
@@ -763,7 +763,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Env.ZoneInfo[0].Zone,
 					2,
 					nil,
-					nil,
+					Env.CapacityReservationTags(),
 				)
 			})
 			AfterAll(func() {
@@ -902,7 +902,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Env.ZoneInfo[0].Zone,
 					2,
 					1,
-					nil,
+					Env.CapacityReservationTags(),
 				)
 				xlargeReservationID = environmentaws.ExpectCapacityReservationCreated(
 					Env.Context,
@@ -911,7 +911,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					Env.ZoneInfo[0].Zone,
 					1,
 					nil,
-					nil,
+					Env.CapacityReservationTags(),
 				)
 			})
 			AfterAll(func() {

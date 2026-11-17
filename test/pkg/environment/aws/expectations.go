@@ -714,6 +714,11 @@ func ExpectCapacityReservationCreated(
 	return *out.CapacityReservation.CapacityReservationId
 }
 
+// CapacityReservationTags let the sweeper tie a leaked reservation to the test cluster that created it
+func (env *Environment) CapacityReservationTags() map[string]string {
+	return map[string]string{"testing/type": "e2e", "testing/cluster": env.ClusterName}
+}
+
 func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
 	GinkgoHelper()
 	for _, id := range reservationIDs {

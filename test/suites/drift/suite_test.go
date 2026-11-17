@@ -531,7 +531,7 @@ var _ = Describe("Drift", Ordered, func() {
 				env.ZoneInfo[0].Zone,
 				1,
 				nil,
-				nil,
+				env.CapacityReservationTags(),
 			)
 			xlargeCapacityReservationID = aws.ExpectCapacityReservationCreated(
 				env.Context,
@@ -540,7 +540,7 @@ var _ = Describe("Drift", Ordered, func() {
 				env.ZoneInfo[0].Zone,
 				1,
 				nil,
-				nil,
+				env.CapacityReservationTags(),
 			)
 		})
 		AfterAll(func() {
@@ -583,7 +583,7 @@ var _ = Describe("Drift", Ordered, func() {
 				env.ZoneInfo[0].Zone,
 				1,
 				nil,
-				nil,
+				env.CapacityReservationTags(),
 			)
 			DeferCleanup(func() {
 				aws.ExpectCapacityReservationsCanceled(env.Context, env.EC2API, capacityReservationID)
