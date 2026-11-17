@@ -988,11 +988,14 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			var interruptibleReservationID string
 			BeforeAll(func() {
 				sourceReservation, xlargeReservation = Env.ExpectCapacityReservationPairCreated(2, 1)
-				interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityAllocationCreated(Env.Context, Env.EC2API, sourceReservation.ID, 1)
-			})
-			AfterAll(func() {
-				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservation.ID, interruptibleReservationID)
-				environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservation.ID)
+				// Separate cleanups, registered before the allocation, so that a failure in one doesn't leak the others
+				DeferCleanup(func() {
+					environmentaws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, xlargeReservation.ID)
+				})
+				DeferCleanup(func() {
+					environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservation.ID, interruptibleReservationID)
+				})
+				interruptibleReservationID = Env.ExpectInterruptibleCapacityAllocationCreated(sourceReservation.ID, 1)
 			})
 			BeforeEach(func() {
 				NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{

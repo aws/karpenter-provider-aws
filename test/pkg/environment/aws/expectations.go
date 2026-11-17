@@ -48,6 +48,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -683,32 +684,32 @@ func ignoreAlreadyContainsRole(err error) error {
 
 // ExpectInterruptibleCapacityAllocationCreated allocates interruptible capacity from the source reservation and returns the
 // ID of the resulting interruptible reservation.
-func ExpectInterruptibleCapacityAllocationCreated(
-	ctx context.Context,
-	ec2api *ec2.Client,
-	sourceReservationID string,
-	interruptibleCapacity int32,
-) string {
+func (env *Environment) ExpectInterruptibleCapacityAllocationCreated(sourceReservationID string, interruptibleCapacity int32) string {
 	GinkgoHelper()
-	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
+	_, err := env.EC2API.CreateInterruptibleCapacityReservationAllocation(env.Context, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
 		CapacityReservationId: &sourceReservationID,
 		InstanceCount:         lo.ToPtr(interruptibleCapacity),
+		TagSpecifications:     env.capacityReservationTags(),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
 	// the create IODCR API doesn't return the IODCR ID, so we have to describe the source reservation
-	var out *ec2.DescribeCapacityReservationsOutput
+	var id string
 	Eventually(func(g Gomega) {
-		out, err = ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
-			CapacityReservationIds: []string{sourceReservationID},
-		})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(out).To(Not(BeNil()))
-		Expect(len(out.CapacityReservations)).To(Equal(1))
-		Expect(out.CapacityReservations[0].InterruptibleCapacityAllocation).To(Not(BeNil()))
+		id = describeInterruptibleReservationID(env.Context, g, env.EC2API, sourceReservationID)
+		g.Expect(id).ToNot(BeEmpty())
 	}).WithTimeout(15 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
+	return id
+}
 
-	return *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
+// describeInterruptibleReservationID returns the ID of the source reservation's interruptible reservation, if it has one
+func describeInterruptibleReservationID(ctx context.Context, g Gomega, ec2api *ec2.Client, sourceReservationID string) string {
+	out, err := ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+		CapacityReservationIds: []string{sourceReservationID},
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(out.CapacityReservations).To(HaveLen(1))
+	return lo.FromPtr(lo.FromPtr(out.CapacityReservations[0].InterruptibleCapacityAllocation).InterruptibleCapacityReservationId)
 }
 
 func ExpectModifyInterruptibleCapacity(
@@ -736,6 +737,7 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 	if sourceReservationId == "" {
 		return
 	}
+	// the interruptible reservation can only be reclaimed through its source
 	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
 		CapacityReservationId: lo.ToPtr(sourceReservationId),
 		TargetInstanceCount:   aws.Int32(0),
@@ -745,16 +747,21 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		MatchError(ContainSubstring("doesn't have an active interruptible capacity allocation")),
 	))
 
+	// the allocation can exist even if the test failed before it read the ID
+	if interrutibleReservationID == "" {
+		interrutibleReservationID = describeInterruptibleReservationID(ctx, Default, ec2api, sourceReservationId)
+	}
 	// instances in IODCRs take 2 minutes to terminate and reclaim
-	Eventually(func(g Gomega) {
-		out, err := ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
-			CapacityReservationIds: []string{interrutibleReservationID},
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(out).To(Not(BeNil()))
-		g.Expect(len(out.CapacityReservations)).To(Equal(1))
-		g.Expect(out.CapacityReservations[0].State).To(Equal(ec2types.CapacityReservationStateCancelled))
-	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	if interrutibleReservationID != "" {
+		Eventually(func(g Gomega) {
+			out, err := ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
+				CapacityReservationIds: []string{interrutibleReservationID},
+			})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(out.CapacityReservations).To(HaveLen(1))
+			g.Expect(out.CapacityReservations[0].State).To(Equal(ec2types.CapacityReservationStateCancelled))
+		}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	}
 
 	// there can be transient delays in when IODCR capacity is fully reclaimed and when the source ODCR can be canceled
 	// if we directly try to cancel the source reservation we'll see error "has an active interruptible capacity allocation"
@@ -852,6 +859,7 @@ func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, 
 		InstancePlatform:      ec2types.CapacityReservationInstancePlatformLinuxUnix,
 		AvailabilityZone:      lo.ToPtr(zone),
 		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
+		TagSpecifications:     env.capacityReservationTags(),
 	})
 	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && lo.Contains([]string{"InsufficientInstanceCapacity", "Unsupported"}, apiErr.ErrorCode()) {
 		GinkgoWriter.Printf("Skipping capacity reservation for %s in %s: %s\n", instanceType, zone, apiErr.ErrorCode())
@@ -864,14 +872,25 @@ func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, 
 	return &CapacityReservation{ID: *out.CapacityReservation.CapacityReservationId, InstanceType: instanceType, Zone: zone}, nil
 }
 
+// capacityReservationTags let the sweeper tie a leaked reservation to the test cluster that created it
+func (env *Environment) capacityReservationTags() []ec2types.TagSpecification {
+	return []ec2types.TagSpecification{{
+		ResourceType: ec2types.ResourceTypeCapacityReservation,
+		Tags:         utils.EC2MergeTags(map[string]string{"testing/type": "e2e", "testing/cluster": env.ClusterName}),
+	}}
+}
+
+// ExpectCapacityReservationsCanceled tries every reservation before failing, so one failed cancel doesn't leak the rest
 func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
 	GinkgoHelper()
+	var errs []error
 	for _, id := range lo.Compact(reservationIDs) {
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &id,
 		})
-		Expect(err).ToNot(HaveOccurred())
+		errs = append(errs, err)
 	}
+	Expect(multierr.Combine(errs...)).ToNot(HaveOccurred())
 }
 
 // Creates a role with the provided name. The appropriate policies and trust policy are configured to ensure nodes with
