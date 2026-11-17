@@ -33,8 +33,15 @@ do
   ROUTE_TABLE_ID=$((aws ec2 describe-route-tables --filters Name=vpc-id,Values="${CODEBUILD_VPC}" Name=association.subnet-id,Values="$subnet" --query "RouteTables[0].RouteTableId") | jq -r)
   route_args=(--route-table-id "$ROUTE_TABLE_ID" --destination-cidr-block 192.168.0.0/16 --vpc-peering-connection-id "$vpc_peering_connection_id")
   # Every eksctl cluster uses 192.168.0.0/16, so replace a stale route from an earlier run
-  aws ec2 create-route "${route_args[@]}" 2>/dev/null || aws ec2 replace-route "${route_args[@]}"
-done
+  if ! create_err=$(aws ec2 create-route "${route_args[@]}" 2>&1 >/dev/null); then
+    if [[ "$create_err" != *RouteAlreadyExists* ]]; then
+      echo "$create_err" >&2
+      exit 1
+    fi
+    aws ec2 replace-route "${route_args[@]}" || exit 1
+  fi
+# The loop runs in a subshell, so exit the script too
+done || exit 1
 
 
 # Modify route table for cluster vpc

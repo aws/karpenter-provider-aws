@@ -42,10 +42,13 @@ endpoint_ids=$(aws ec2 describe-vpc-endpoints --filters "Name=tag:testing/cluste
 if [[ -n "${endpoint_ids}" ]]; then
   # shellcheck disable=SC2086 # split the ID list into arguments
   aws ec2 delete-vpc-endpoints --vpc-endpoint-ids ${endpoint_ids} > /dev/null
-  for _ in {1..30}; do
-    [[ -z "$(aws ec2 describe-vpc-endpoints --filters "Name=tag:testing/cluster,Values=${CLUSTER_NAME}" --query "${endpoints_query}" --output text)" ]] && break
+  # Interface endpoints take about 7 minutes to delete
+  endpoints_deleted=false
+  for _ in {1..60}; do
+    [[ -z "$(aws ec2 describe-vpc-endpoints --filters "Name=tag:testing/cluster,Values=${CLUSTER_NAME}" --query "${endpoints_query}" --output text)" ]] && endpoints_deleted=true && break
     sleep 10
   done
+  [[ "${endpoints_deleted}" == true ]] || echo "VPC endpoints still not deleted after 10 minutes, continuing"
 fi
 
 cluster_vpc=$(aws cloudformation describe-stack-resources --stack-name "eksctl-${CLUSTER_NAME}-cluster" --logical-resource-id VPC \
