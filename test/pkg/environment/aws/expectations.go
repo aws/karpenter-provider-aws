@@ -261,9 +261,8 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	return dnio.NetworkInterfaces
 }
 
-// EventuallyExpectBranchENIsDeleted waits until the cluster has no security-groups-for-pods branch ENIs.
-// Detached ones are deleted here. The VPC resource controller only reclaims those every 30m, which can
-// outlast the cluster, and they block deleting the cluster's subnets and security groups.
+// EventuallyExpectBranchENIsDeleted deletes the cluster's detached branch ENIs and waits until none remain.
+// The VPC resource controller only reclaims them every 30m, and they block deleting the cluster's subnets.
 func (env *Environment) EventuallyExpectBranchENIsDeleted() {
 	GinkgoHelper()
 	By("waiting for the cluster's branch ENIs to be deleted")

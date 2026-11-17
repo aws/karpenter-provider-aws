@@ -42,8 +42,7 @@ import (
 
 func registerExtendedResources() bool {
 	return Describe("Extended Resources", func() {
-		// Set by the pod-eni spec. This AfterEach runs before the suite's, which deletes the node. The VPC resource
-		// controller drops its pending branch ENI deletes when the node goes away, so the pods have to go first.
+		// Set by the pod-eni spec. It must run before the suite AfterEach deletes the node, which drops pending branch ENI deletes.
 		var releaseBranchENIs func()
 		BeforeEach(func() {
 			if Env.PrivateCluster {
@@ -203,7 +202,7 @@ func registerExtendedResources() bool {
 			DeferCleanup(func() {
 				Env.ExpectPodENIDisabled()
 			})
-			// Runs after the node is deleted, to delete branch ENIs left detached if releaseBranchENIs failed
+			// Runs after the node is deleted, in case releaseBranchENIs failed
 			DeferCleanup(func() {
 				Env.EventuallyExpectBranchENIsDeleted()
 			})
