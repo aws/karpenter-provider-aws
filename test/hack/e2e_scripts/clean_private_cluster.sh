@@ -63,5 +63,13 @@ for pcx in $(aws ec2 describe-vpc-peering-connections \
   aws ec2 delete-vpc-peering-connection --vpc-peering-connection-id "${pcx}" > /dev/null
 done
 
-# The private API endpoint isn't reachable from here, so skip draining and push through Kubernetes API errors
-eksctl delete cluster --name "${CLUSTER_NAME}" --force --disable-nodegroup-eviction --wait --timeout 60m
+# eksctl deletes IRSA service accounts through the Kubernetes API, which isn't reachable from here, and stops at the
+# first failed task. Deleting the IRSA stacks first means eksctl skips that task and goes on to the cluster stack.
+for stack in $(aws cloudformation list-stacks \
+  --query "StackSummaries[?StackStatus!='DELETE_COMPLETE' && starts_with(StackName, 'eksctl-${CLUSTER_NAME}-addon-iamserviceaccount-')].StackName" --output text); do
+  aws cloudformation delete-stack --stack-name "${stack}" &&
+    aws cloudformation wait stack-delete-complete --stack-name "${stack}"
+done
+
+# --force pushes through the remaining Kubernetes API errors, since the private endpoint isn't reachable from here
+eksctl delete cluster --name "${CLUSTER_NAME}" --force --wait --timeout 60m

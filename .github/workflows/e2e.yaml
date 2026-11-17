@@ -153,6 +153,8 @@ jobs:
           codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', inputs.codebuild_region)] }}
       - name: run tests for private cluster
         if: ${{ inputs.workflow_trigger == 'private_cluster' }}
+        # Leaves time for cleanup before the job and its credentials time out
+        timeout-minutes: 240
         uses: ./.github/actions/e2e/run-tests-private-cluster
         with:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
