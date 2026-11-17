@@ -50,8 +50,7 @@ runs:
       run: |
         go run main.go --cluster-name "$CLUSTER_NAME"
       working-directory: ./test/hack/resource/clean
-    # The cleanup script finds stacks by tag and calls DeleteStack once without waiting. This goes by name and waits.
-    # Runs last so the script has removed the instance profiles that hold the stack's node role.
+    # Deletes by name so untagged stacks go too. Runs last so the instance profiles holding the node role are gone.
     - name: delete iam stack
       if: always()
       shell: bash
@@ -66,7 +65,7 @@ runs:
           fi
           exit 0
         fi
-        # DeleteStack can be rejected while an operation is in progress, e.g. a cancelled setup
+        # DeleteStack is rejected while another operation is in progress
         for _ in {1..40}; do
           [[ "$status" == *_IN_PROGRESS && "$status" != REVIEW_IN_PROGRESS && "$status" != DELETE_IN_PROGRESS ]] || break
           sleep 15

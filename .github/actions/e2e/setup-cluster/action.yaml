@@ -69,7 +69,7 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
-      # Stopgap for short CloudFormation throttles (the CLI default is 3 attempts). eksctl sets its own retryer and ignores these.
+      # Rides out short CloudFormation throttles. eksctl uses its own retryer and ignores these.
       AWS_RETRY_MODE: standard
       AWS_MAX_ATTEMPTS: "10"
     run: |
@@ -85,8 +85,7 @@ runs:
       awk '{gsub(/"Resource": "\${KarpenterNodeRole.Arn}"/, "\"Resource\": \"arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*\"")}1' $CLOUDFORMATION_PATH > $CLOUDFORMATION_PATH.tmp && mv $CLOUDFORMATION_PATH.tmp $CLOUDFORMATION_PATH
 
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
-      # deploy creates a new stack untagged in REVIEW_IN_PROGRESS and leaves it there if the change set never runs.
-      # create-stack tags it up front, so a failed create ends tagged in ROLLBACK_COMPLETE, where cleanup finds it.
+      # deploy leaves a new stack untagged in REVIEW_IN_PROGRESS if its change set never runs. create-stack tags it up front.
       if aws cloudformation describe-stacks --stack-name "iam-$CLUSTER_NAME" > /dev/null 2>&1; then
         aws cloudformation deploy \
           --stack-name "iam-$CLUSTER_NAME" \
