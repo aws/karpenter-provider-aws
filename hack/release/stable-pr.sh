@@ -29,6 +29,8 @@ if isPatchRelease "${version}"; then
   git fetch origin main
   git checkout --force -B "${branch_name}" origin/main
 
+  # Fail rather than skip when the docs of a supported LTS minor are missing from main
+  requireLTSWebsiteDirectories
   short_version="${version%.*}"
   if [[ ! -d "website/content/en/v${short_version}" ]]; then
     echo "website/content/en/v${short_version} does not exist on main, skipping PR for ${git_tag}."
