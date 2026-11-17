@@ -38,4 +38,4 @@ _Note: If deploying this cloudformation stack to reference back to your own repo
 
 ### [Optional] Account capacity alarms
 
-The hourly `ResourceCount` workflow writes its counts to Timestream and to the CloudWatch namespace `karpenterTesting/resourceCount` in us-east-2, with a `Region` dimension (`global` for account-wide counts like `IAMRole`). CloudWatch alarms on these metrics can catch leaked test resources before they reach a quota. The counts are hourly, so alarms should use the `Maximum` or `Minimum` statistic.
+The hourly `ResourceCount` workflow writes its counts to Timestream and to the CloudWatch namespace `karpenterTesting/resourceCount` in us-east-2, with a `Region` dimension (`global` for account-wide counts like `IAMRole`). CloudWatch alarms on these metrics can catch leaked test resources before they reach a quota. The counts are hourly, the cron often starts 10-15 minutes late, and a failed count is skipped rather than written as 0. Use `Maximum` or `Minimum` over a period of a few hours, or M-of-N evaluation, and set `TreatMissingData` deliberately: `missing` hides a broken counter, `breaching` alerts on a late run.
