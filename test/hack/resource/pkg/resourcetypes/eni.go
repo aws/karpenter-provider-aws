@@ -16,7 +16,9 @@ package resourcetypes
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,12 +28,26 @@ import (
 	"go.uber.org/multierr"
 )
 
-type ENI struct {
-	ec2Client *ec2.Client
+const (
+	// branchENIDescription is set by the VPC resource controller on security-groups-for-pods branch ENIs
+	branchENIDescription          = "aws-k8s-branch-eni"
+	vpcResourceControllerOwnerTag = "eks:eni:owner"
+	vpcResourceControllerOwner    = "eks-vpc-resource-controller"
+	clusterOwnedTagPrefix         = "kubernetes.io/cluster/"
+)
+
+type eniAPI interface {
+	ec2.DescribeNetworkInterfacesAPIClient
+	DeleteNetworkInterface(ctx context.Context, params *ec2.DeleteNetworkInterfaceInput, optFns ...func(*ec2.Options)) (*ec2.DeleteNetworkInterfaceOutput, error)
 }
 
-func NewENI(ec2Client *ec2.Client) *ENI {
-	return &ENI{ec2Client: ec2Client}
+type ENI struct {
+	ec2Client eniAPI
+	live      *LiveClusters
+}
+
+func NewENI(ec2Client eniAPI, live *LiveClusters) *ENI {
+	return &ENI{ec2Client: ec2Client, live: live}
 }
 
 func (e *ENI) String() string {
@@ -77,7 +93,59 @@ func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time, excluded
 		}
 	}
 
-	return ids, err
+	branchENIs, err := e.getLeakedBranchENIs(ctx, nil, excludedClusters)
+	if err != nil {
+		return ids, err
+	}
+	ids = append(ids, lo.Map(branchENIs, func(ni ec2types.NetworkInterface, _ int) string { return lo.FromPtr(ni.NetworkInterfaceId) })...)
+	return lo.Uniq(ids), nil
+}
+
+// EC2 doesn't record when an ENI was created, so the branch ENI's cluster being gone is the expiry signal
+func (e *ENI) getLeakedBranchENIs(ctx context.Context, filters []ec2types.Filter, excludedClusters []string) ([]ec2types.NetworkInterface, error) {
+	if err := e.live.Err(); err != nil {
+		return nil, fmt.Errorf("skipping branch ENI sweep, %w", err)
+	}
+	enis, err := e.getAllENIs(ctx, &ec2.DescribeNetworkInterfacesInput{
+		Filters: append([]ec2types.Filter{
+			{Name: lo.ToPtr("description"), Values: []string{branchENIDescription}},
+			{Name: lo.ToPtr("status"), Values: []string{string(ec2types.NetworkInterfaceStatusAvailable)}},
+		}, filters...),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return lo.Filter(enis, func(ni ec2types.NetworkInterface, _ int) bool {
+		return leakedBranchENI(ni, excludedClusters, e.live)
+	}), nil
+}
+
+func leakedBranchENI(ni ec2types.NetworkInterface, excludedClusters []string, live *LiveClusters) bool {
+	clusterName, ok := branchENICluster(ni)
+	return ok &&
+		ni.Status == ec2types.NetworkInterfaceStatusAvailable &&
+		!slices.Contains(excludedClusters, clusterName) &&
+		live.Gone(clusterName)
+}
+
+// The VPC resource controller sets the branch ENI description, the eks:eni:owner tag and one kubernetes.io/cluster/<cluster>=owned tag
+func branchENICluster(ni ec2types.NetworkInterface) (string, bool) {
+	if lo.FromPtr(ni.Description) != branchENIDescription {
+		return "", false
+	}
+	if !lo.ContainsBy(ni.TagSet, func(t ec2types.Tag) bool {
+		return lo.FromPtr(t.Key) == vpcResourceControllerOwnerTag && lo.FromPtr(t.Value) == vpcResourceControllerOwner
+	}) {
+		return "", false
+	}
+	clusters := lo.FilterMap(ni.TagSet, func(t ec2types.Tag, _ int) (string, bool) {
+		return strings.TrimPrefix(lo.FromPtr(t.Key), clusterOwnedTagPrefix),
+			strings.HasPrefix(lo.FromPtr(t.Key), clusterOwnedTagPrefix) && lo.FromPtr(t.Value) == "owned"
+	})
+	if len(clusters) != 1 || clusters[0] == "" {
+		return "", false
+	}
+	return clusters[0], true
 }
 
 func (e *ENI) CountAll(ctx context.Context) (count int, err error) {

@@ -74,7 +74,7 @@ func main() {
 		resourcetypes.NewInstance(ec2Client),
 		resourcetypes.NewCapacityReservation(ec2Client),
 		resourcetypes.NewVPCEndpoint(ec2Client),
-		resourcetypes.NewENI(ec2Client),
+		resourcetypes.NewENI(ec2Client, live),
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),
