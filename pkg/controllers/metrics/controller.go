@@ -120,6 +120,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		return reconciler.Result{}, errs
 	}
 	// The requeue is a backstop for inputs that have no watch: pricing, ICE and capacity reservation counts.
+	// It also covers NodeOverlay prices, zonal shift, placement groups and the periodic instance type refresh.
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
@@ -146,8 +147,10 @@ func NodeClassChangedPredicate() predicate.Funcs {
 			if !okOld || !okNew {
 				return true
 			}
+			// The subnet reconciler sorts by free IPs, so the order changes without changing the offerings.
+			// AMIs and capacity reservations are written in a stable order.
 			return o.Generation != n.Generation ||
-				!equality.Semantic.DeepEqual(o.Status.Subnets, n.Status.Subnets) ||
+				!sets.New(o.Status.Subnets...).Equal(sets.New(n.Status.Subnets...)) ||
 				!equality.Semantic.DeepEqual(o.Status.AMIs, n.Status.AMIs) ||
 				!equality.Semantic.DeepEqual(o.Status.CapacityReservations, n.Status.CapacityReservations)
 		},

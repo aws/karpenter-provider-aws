@@ -16,6 +16,7 @@ package metrics_test
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -59,6 +60,13 @@ var _ = Describe("Watches", func() {
 		})
 		It("should pass subnet status changes", func() {
 			Expect(update(func(n *v1.EC2NodeClass) { n.Status.Subnets = n.Status.Subnets[:1] })).To(BeTrue())
+		})
+		It("should drop subnet status reorders", func() {
+			Expect(len(nodeClass.Status.Subnets)).To(BeNumerically(">", 1))
+			Expect(update(func(n *v1.EC2NodeClass) { slices.Reverse(n.Status.Subnets) })).To(BeFalse())
+		})
+		It("should pass subnet zone changes", func() {
+			Expect(update(func(n *v1.EC2NodeClass) { n.Status.Subnets[0].ZoneID = "tstz1-az9" })).To(BeTrue())
 		})
 		It("should pass AMI status changes", func() {
 			Expect(update(func(n *v1.EC2NodeClass) { n.Status.AMIs = append(n.Status.AMIs, v1.AMI{ID: "ami-new"}) })).To(BeTrue())
