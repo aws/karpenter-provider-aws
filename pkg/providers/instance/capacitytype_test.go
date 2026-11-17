@@ -41,10 +41,10 @@ var _ = Describe("getCapacityType (reserved capacity decoupled)", func() {
 				scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, "z-1"),
 			),
 			Offerings: cloudprovider.Offerings{
-				&cloudprovider.Offering{Available: true, ReservationCapacity: reservedCap, Requirements: scheduling.NewLabelRequirements(map[string]string{
+				&cloudprovider.Offering{Available: true, Compatible: true, ReservationCapacity: reservedCap, Requirements: scheduling.NewLabelRequirements(map[string]string{
 					karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeReserved, corev1.LabelTopologyZone: "z-1",
 				})},
-				&cloudprovider.Offering{Available: true, Requirements: scheduling.NewLabelRequirements(map[string]string{
+				&cloudprovider.Offering{Available: true, Compatible: true, Requirements: scheduling.NewLabelRequirements(map[string]string{
 					karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand, corev1.LabelTopologyZone: "z-1",
 				})},
 			},
@@ -82,7 +82,7 @@ var _ = Describe("getCapacityType (additional on-demand class capacity types)", 
 			),
 		}
 		for ct, available := range launchable {
-			it.Offerings = append(it.Offerings, &cloudprovider.Offering{Available: available, Requirements: scheduling.NewLabelRequirements(map[string]string{
+			it.Offerings = append(it.Offerings, &cloudprovider.Offering{Available: available, Compatible: true, Requirements: scheduling.NewLabelRequirements(map[string]string{
 				karpv1.CapacityTypeLabelKey: ct, corev1.LabelTopologyZone: "z-1",
 			})})
 		}
