@@ -31,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -44,6 +46,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -55,6 +58,9 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
+	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
 	"sigs.k8s.io/karpenter/pkg/controllers/nodeclaim/lifecycle"
@@ -415,6 +421,45 @@ var _ = Describe("CloudProvider", func() {
 			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
 			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
 		})
+	})
+	// Core validates RepairPolicies while the controller starts, so a core bump that tightens the contract used to show
+	// up only as a crash-looping controller in e2e (#9669). This repeats main.go's wiring for each repair mode.
+	Context("Startup", func() {
+		DescribeTable("should build the core controllers from the AWS repair policies",
+			func(legacyNodeRepair, rebootForRepair bool) {
+				startupCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+					LegacyNodeRepair: lo.ToPtr(legacyNodeRepair),
+					// The gates that add controllers, as the e2e install sets them. PredictionEnabled and WithVPAPrediction are
+					// left out because the VPA controller adds its types to the global scheme when it's built, which races with
+					// envtest's running informers
+					FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true), NodeOverlay: lo.ToPtr(true), StaticCapacity: lo.ToPtr(true),
+						CapacityBuffer: lo.ToPtr(true)},
+					// The observability controllers register their metrics on construction, which can happen only once per process
+					DisableClusterStateObservability: lo.ToPtr(true),
+				}))
+				awsCloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+					testCABundle, cloudprovider.WithLegacyRepairPolicies(legacyNodeRepair), cloudprovider.WithRebootForRepair(rebootForRepair))
+				overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
+				startupCloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, env.Client, awsEnv.InstanceTypeStore)
+
+				matcher, err := health.NewRepairPolicyMatcher(startupCtx, startupCloudProvider)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(matcher == nil).To(Equal(legacyNodeRepair))
+
+				// NewControllers takes the manager for event recorders. It is never started
+				mgr, err := manager.New(env.Config, manager.Options{Scheme: env.Client.Scheme(), Metrics: metricsserver.Options{BindAddress: "0"}})
+				Expect(err).ToNot(HaveOccurred())
+				startupCluster := state.NewCluster(fakeClock, env.Client, startupCloudProvider, state.WithRepairPolicyMatcher(matcher))
+				Expect(corecontrollers.NewControllers(startupCtx, mgr, fakeClock, env.Client, recorder, startupCloudProvider,
+					overlayUndecoratedCloudProvider, startupCluster, awsEnv.InstanceTypeStore, prediction.NewStore(env.Client),
+					corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(awsEnv.InstanceProvider)))).ToNot(BeEmpty())
+			},
+			Entry("node repair", false, false),
+			Entry("node repair with RebootForRepair", false, true),
+			Entry("legacy node repair", true, false),
+			Entry("legacy node repair with RebootForRepair", true, true),
+		)
 	})
 	Context("RepairPolicies", func() {
 		var matcher *health.RepairPolicyMatcher

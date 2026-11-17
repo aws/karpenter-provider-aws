@@ -41,6 +41,8 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
+# E2E_TEST_FLAGS appends go test and ginkgo flags to the e2e targets, after the flags they already pass
+E2E_TEST_FLAGS ?=
 TMPFILE := $(shell mktemp)
 
 # perftests-v2 writes performancev2's per-phase reports, summaries and profiles to OUTPUT_DIR
@@ -105,7 +107,8 @@ e2etests: ## Run the e2e suite against your local cluster
 		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h20m \
 		--ginkgo.grace-period=3m \
-		--ginkgo.vv
+		--ginkgo.vv \
+		$(E2E_TEST_FLAGS)
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
@@ -124,7 +127,8 @@ upstream-e2etests: tidy download
 		--default-nodeclass="$(TMPFILE)"\
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
 		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
-		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
+		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error" \
+		$(E2E_TEST_FLAGS)
 
 perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
 	mkdir -p "$(OUTPUT_DIR)"
@@ -138,7 +142,14 @@ perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS
 		--ginkgo.fail-on-empty \
 		--ginkgo.timeout=150m \
 		--ginkgo.grace-period=10m \
-		--ginkgo.vv
+		--ginkgo.vv \
+		$(E2E_TEST_FLAGS)
+
+# The e2e targets pass -p 1 so suites don't share a cluster at once. A dry-run needs no cluster, so the later -p wins.
+# -k runs every target even after one fails
+e2e-dryrun: ## Build every e2e suite and walk its specs with the flags CI passes, without a cluster
+	$(MAKE) -k e2etests upstream-e2etests perftests-v2 CLUSTER_NAME=dryrun CLUSTER_ENDPOINT=https://dryrun.invalid \
+		E2E_TEST_FLAGS="-p=$(shell getconf _NPROCESSORS_ONLN) --ginkgo.dry-run"
 
 perf-inventory: ## Print the performancev2 gates and levels for the AWS plugin
 	go run ./test/suites/performancev2/cmd/inventory
@@ -268,7 +279,7 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 perf-inventory perf-verify e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 e2e-dryrun perf-inventory perf-verify e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 
