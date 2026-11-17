@@ -133,6 +133,10 @@ Resources:
           - Effect: Allow
             Action: timestream:DescribeEndpoints
             Resource: "*"
+          # ResourceCount reads the role and instance profile counts from the account summary
+          - Effect: Allow
+            Action: iam:GetAccountSummary
+            Resource: "*"
   GithubActionsIAMPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
