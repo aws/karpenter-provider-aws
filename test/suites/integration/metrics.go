@@ -95,6 +95,7 @@ func registerMetrics() bool {
 						p.Value > 0
 				})
 				// On-demand prices are regional, spot prices exist only where EC2 offers the type.
+				// Buffers: 100 on-demand, 200 spot per zone.
 				expectedCount := (instanceTypeCount - 100) * availabilityZoneCount * capacityTypeCount
 				expectedNonZeroCount := (instanceTypeCount-100)*availabilityZoneCount + offeredPairs(availabilityZones) - 200*availabilityZoneCount
 				g.Expect(priceMetricCount).To(BeNumerically(">", expectedCount))
@@ -120,6 +121,7 @@ func registerMetrics() bool {
 						p.Value > 0
 				})
 				// Offerings are only available where EC2 offers the type in a selected zone.
+				// Buffers: 100 on-demand, 200 spot per zone.
 				expectedCount := (instanceTypeCount - 100) * selectedAZCount * capacityTypeCount
 				expectedNonZeroCount := offeredPairs(selectedAZs) - 100*selectedAZCount + offeredPairs(selectedAZs) - 200*selectedAZCount
 				g.Expect(availableMetricCount).To(BeNumerically(">", expectedCount))
