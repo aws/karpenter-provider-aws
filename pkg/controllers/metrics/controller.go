@@ -24,14 +24,22 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type metricDimensions struct {
@@ -111,12 +119,37 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	if errs != nil {
 		return reconciler.Result{}, errs
 	}
+	// The requeue is a backstop for inputs that have no watch: pricing, ICE and capacity reservation counts.
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	// Every event maps to the singleton's request, so a burst of changes collapses into one reconcile.
+	enqueue := handler.EnqueueRequestsFromMapFunc(func(context.Context, client.Object) []reconcile.Request {
+		return []reconcile.Request{{}}
+	})
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("cloudprovider.metrics").
 		WatchesRawSource(singleton.Source()).
+		Watches(&karpv1.NodePool{}, enqueue, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		Watches(&v1.EC2NodeClass{}, enqueue, builder.WithPredicates(NodeClassChangedPredicate())).
 		Complete(singleton.AsReconciler(c))
+}
+
+// NodeClassChangedPredicate passes EC2NodeClass spec changes and changes to the resolved status fields that feed
+// instance type offerings. Condition and other status writes are dropped.
+func NodeClassChangedPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			o, okOld := e.ObjectOld.(*v1.EC2NodeClass)
+			n, okNew := e.ObjectNew.(*v1.EC2NodeClass)
+			if !okOld || !okNew {
+				return true
+			}
+			return o.Generation != n.Generation ||
+				!equality.Semantic.DeepEqual(o.Status.Subnets, n.Status.Subnets) ||
+				!equality.Semantic.DeepEqual(o.Status.AMIs, n.Status.AMIs) ||
+				!equality.Semantic.DeepEqual(o.Status.CapacityReservations, n.Status.CapacityReservations)
+		},
+	}
 }
