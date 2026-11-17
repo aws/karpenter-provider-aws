@@ -91,10 +91,11 @@ runs:
         phases:
           install:
             commands:
-              # Make sure goenv is up to date
-              - cd $HOME/.goenv && git pull --ff-only && cd -
-              # Install the Go version from go.mod; -s skips the install if the image already has it
-              - GO_VERSION="$(sed -n 's/^go //p' go.mod)" && goenv install -s "$GO_VERSION" && goenv global "$GO_VERSION"
+              # Install the Go version from go.mod from go.dev into goenv, since goenv's own definitions can lag Go releases
+              - |
+                GO_VERSION="$(sed -n 's/^go //p' go.mod)" && GO_DIR="$(goenv root)/versions/$GO_VERSION" && GO_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" &&
+                  { [ -x "$GO_DIR/bin/go" ] || { mkdir -p "$GO_DIR" && curl -fsSL "https://go.dev/dl/go$GO_VERSION.linux-$GO_ARCH.tar.gz" | tar -xz -C "$GO_DIR" --strip-components=1; }; } &&
+                  goenv rehash && goenv global "$GO_VERSION" && go version
           build:
             commands:
               - aws eks update-kubeconfig --name $CLUSTER_NAME
