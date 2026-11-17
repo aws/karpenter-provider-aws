@@ -119,8 +119,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	if errs != nil {
 		return reconciler.Result{}, errs
 	}
-	// The requeue is a backstop for inputs that have no watch: pricing, ICE and capacity reservation counts.
-	// It also covers NodeOverlay prices, zonal shift, placement groups and the periodic instance type refresh.
+	// Backstop for inputs with no watch: pricing, ICE, reservation capacity, NodeOverlay, zonal shift, placement groups
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
