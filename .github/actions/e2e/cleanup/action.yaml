@@ -50,3 +50,30 @@ runs:
       run: |
         go run main.go --cluster-name "$CLUSTER_NAME"
       working-directory: ./test/hack/resource/clean
+    # The cleanup script finds stacks by tag and calls DeleteStack once without waiting. This goes by name and waits.
+    # Runs last so the script has removed the instance profiles that hold the stack's node role.
+    - name: delete iam stack
+      if: always()
+      shell: bash
+      env:
+        STACK_NAME: iam-${{ inputs.cluster_name }}
+        AWS_RETRY_MODE: standard
+        AWS_MAX_ATTEMPTS: "10"
+      run: |
+        if ! status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1); then
+          if [[ "$status" != *"does not exist"* ]]; then
+            echo "::warning::Could not describe $STACK_NAME: $status"
+          fi
+          exit 0
+        fi
+        # DeleteStack can be rejected while an operation is in progress, e.g. a cancelled setup
+        for _ in {1..40}; do
+          [[ "$status" == *_IN_PROGRESS && "$status" != REVIEW_IN_PROGRESS && "$status" != DELETE_IN_PROGRESS ]] || break
+          sleep 15
+          status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1 || true)
+        done
+        echo "Deleting $STACK_NAME from $status"
+        if ! aws cloudformation delete-stack --stack-name "$STACK_NAME" || ! aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"; then
+          status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1 || true)
+          echo "::warning::$STACK_NAME was not deleted: $status"
+        fi

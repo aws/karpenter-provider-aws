@@ -85,12 +85,24 @@ runs:
       awk '{gsub(/"Resource": "\${KarpenterNodeRole.Arn}"/, "\"Resource\": \"arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*\"")}1' $CLOUDFORMATION_PATH > $CLOUDFORMATION_PATH.tmp && mv $CLOUDFORMATION_PATH.tmp $CLOUDFORMATION_PATH
 
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
-      aws cloudformation deploy \
-        --stack-name "iam-$CLUSTER_NAME" \
-        --template-file $CLOUDFORMATION_PATH \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides "ClusterName=$CLUSTER_NAME" \
-        --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
+      # deploy creates a new stack untagged in REVIEW_IN_PROGRESS and leaves it there if the change set never runs.
+      # create-stack tags it up front, so a failed create ends tagged in ROLLBACK_COMPLETE, where cleanup finds it.
+      if aws cloudformation describe-stacks --stack-name "iam-$CLUSTER_NAME" > /dev/null 2>&1; then
+        aws cloudformation deploy \
+          --stack-name "iam-$CLUSTER_NAME" \
+          --template-file $CLOUDFORMATION_PATH \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameter-overrides "ClusterName=$CLUSTER_NAME" \
+          --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
+      else
+        aws cloudformation create-stack \
+          --stack-name "iam-$CLUSTER_NAME" \
+          --template-body "file://$CLOUDFORMATION_PATH" \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameters "ParameterKey=ClusterName,ParameterValue=$CLUSTER_NAME" \
+          --tags "Key=testing/type,Value=e2e" "Key=testing/cluster,Value=$CLUSTER_NAME" "Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "Key=karpenter.sh/discovery,Value=$CLUSTER_NAME"
+        aws cloudformation wait stack-create-complete --stack-name "iam-$CLUSTER_NAME"
+      fi
   - name: create or upgrade cluster
     shell: bash
     env:
