@@ -91,7 +91,7 @@ runs:
         phases:
           install:
             commands:
-              # Install the Go version from go.mod from go.dev into goenv, since goenv's own definitions can lag Go releases
+              # goenv's definitions can lag Go releases, so install go.mod's version from go.dev
               - |
                 GO_VERSION="$(sed -n 's/^go //p' go.mod)" && GO_DIR="$(goenv root)/versions/$GO_VERSION" && GO_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')" &&
                   { [ -x "$GO_DIR/bin/go" ] || { mkdir -p "$GO_DIR" && curl -fsSL "https://go.dev/dl/go$GO_VERSION.linux-$GO_ARCH.tar.gz" | tar -xz -C "$GO_DIR" --strip-components=1; }; } &&
@@ -118,7 +118,6 @@ runs:
               - PRIVATE_CLUSTER=$CLUSTER_NAME TEST_SUITE=$SUITE ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=$METRICS_REGION GIT_REF="$(git rev-parse HEAD)" CLUSTER_NAME=$CLUSTER_NAME CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.endpoint" --output text)" INTERRUPTION_QUEUE=$CLUSTER_NAME make e2etests
           post_build:
             commands:
-              # Diagnostics only, the cleanup action tears the cluster down from GitHub Actions
               - kubectl describe pods -n kube-system -l app.kubernetes.io/name=karpenter || true
               - kubectl describe nodes || true
       env-vars-for-codebuild: |
