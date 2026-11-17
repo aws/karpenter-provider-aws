@@ -72,7 +72,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	awaitingEvaluation := false
 	for _, nodePool := range nodePools.Items {
 		instanceTypes, err := c.cloudProvider.GetInstanceTypes(ctx, &nodePool)
-		// A new NodePool is unresolvable until NodeOverlay evaluates it, which takes seconds, so this isn't an error.
+		// NodeOverlay evaluates new NodePools within seconds, so retry soon instead of erroring.
 		if cloudprovider.IsUnevaluatedNodePoolError(err) {
 			awaitingEvaluation = true
 			continue
@@ -128,12 +128,12 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	if awaitingEvaluation {
 		return reconciler.Result{RequeueAfter: 5 * time.Second}, nil
 	}
-	// Backstop for inputs with no watch: pricing, ICE, reservation capacity, NodeOverlay, zonal shift, placement groups
+	// Backstop for inputs with no watch, like pricing, ICE and reservation capacity
 	return reconciler.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	// Every event maps to the singleton's request, so a burst of changes collapses into one reconcile.
+	// Every event maps to the singleton's request, so a burst collapses into one reconcile.
 	enqueue := handler.EnqueueRequestsFromMapFunc(func(context.Context, client.Object) []reconcile.Request {
 		return []reconcile.Request{{}}
 	})
@@ -145,8 +145,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Complete(singleton.AsReconciler(c))
 }
 
-// NodeClassChangedPredicate passes EC2NodeClass spec changes and changes to the resolved status fields that feed
-// instance type offerings. Condition and other status writes are dropped.
+// NodeClassChangedPredicate passes EC2NodeClass spec changes and status changes that affect offerings.
 func NodeClassChangedPredicate() predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -155,8 +154,7 @@ func NodeClassChangedPredicate() predicate.Funcs {
 			if !okOld || !okNew {
 				return true
 			}
-			// The subnet reconciler sorts by free IPs, so the order changes without changing the offerings.
-			// AMIs and capacity reservations are written in a stable order.
+			// Subnets are sorted by free IPs, so compare them as a set.
 			return o.Generation != n.Generation ||
 				!sets.New(o.Status.Subnets...).Equal(sets.New(n.Status.Subnets...)) ||
 				!equality.Semantic.DeepEqual(o.Status.AMIs, n.Status.AMIs) ||

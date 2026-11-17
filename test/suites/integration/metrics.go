@@ -37,7 +37,6 @@ func registerMetrics() bool {
 		var capacityTypeCount int
 		// offeredZones maps each instance type Karpenter discovers to the zones EC2 offers it in
 		var offeredZones map[ec2types.InstanceType]sets.Set[string]
-		// offeredPairs counts the (instance type, zone) pairs EC2 offers within the given zones
 		offeredPairs := func(zones sets.Set[string]) int {
 			return lo.SumBy(lo.Values(offeredZones), func(z sets.Set[string]) int { return z.Intersection(zones).Len() })
 		}
@@ -48,7 +47,7 @@ func registerMetrics() bool {
 				return lo.FromPtr(az.ZoneName)
 			})...)
 
-			// Paginated, with the filters Karpenter uses to discover instance types
+			// Same filters Karpenter uses to discover instance types
 			offeredZones = map[ec2types.InstanceType]sets.Set[string]{}
 			itPaginator := ec2.NewDescribeInstanceTypesPaginator(Env.EC2API, &ec2.DescribeInstanceTypesInput{
 				Filters: []ec2types.Filter{
@@ -95,7 +94,7 @@ func registerMetrics() bool {
 					return p.Name == "karpenter_cloudprovider_instance_type_offering_price_estimate" &&
 						p.Value > 0
 				})
-				// On-demand prices are regional, spot prices only exist where EC2 offers the type. Buffers: 100 on-demand, 200 spot per zone.
+				// On-demand prices are regional, spot prices exist only where EC2 offers the type.
 				expectedCount := (instanceTypeCount - 100) * availabilityZoneCount * capacityTypeCount
 				expectedNonZeroCount := (instanceTypeCount-100)*availabilityZoneCount + offeredPairs(availabilityZones) - 200*availabilityZoneCount
 				g.Expect(priceMetricCount).To(BeNumerically(">", expectedCount))
@@ -120,7 +119,7 @@ func registerMetrics() bool {
 					return p.Name == "karpenter_cloudprovider_instance_type_offering_available" &&
 						p.Value > 0
 				})
-				// Only available where EC2 offers the type in a selected zone. Buffers: 100 on-demand, 200 spot per zone.
+				// Offerings are only available where EC2 offers the type in a selected zone.
 				expectedCount := (instanceTypeCount - 100) * selectedAZCount * capacityTypeCount
 				expectedNonZeroCount := offeredPairs(selectedAZs) - 100*selectedAZCount + offeredPairs(selectedAZs) - 200*selectedAZCount
 				g.Expect(availableMetricCount).To(BeNumerically(">", expectedCount))

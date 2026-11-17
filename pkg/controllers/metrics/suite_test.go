@@ -660,8 +660,7 @@ var _ = Describe("MetricsController", func() {
 	})
 })
 
-// unevaluatedCloudProvider fails GetInstanceTypes for the named NodePools the way the NodeOverlay decorator does
-// before it has evaluated them.
+// unevaluatedCloudProvider fails GetInstanceTypes like the NodeOverlay decorator does before evaluation.
 type unevaluatedCloudProvider struct {
 	*cloudprovider.CloudProvider
 	nodePools sets.Set[string]

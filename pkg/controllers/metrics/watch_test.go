@@ -40,8 +40,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/metrics"
 )
 
-// watchTimeout is well under the controller's one minute requeue, so passing proves a watch triggered the
-// reconcile.
+// watchTimeout is well under the one minute requeue, so a pass means a watch triggered the reconcile.
 const watchTimeout = 10 * time.Second
 
 var _ = Describe("Watches", func() {
@@ -125,7 +124,7 @@ var _ = Describe("Watches", func() {
 			Eventually(done, watchTimeout).Should(BeClosed())
 		})
 		It("should publish metrics when a NodePool is created", func() {
-			// Let the EC2NodeClass create and status events drain so only the NodePool event is left to publish.
+			// Drain EC2NodeClass events so only the NodePool event can publish.
 			baseline := reconcileCount()
 			ExpectApplied(ctx, env.Client, nodeClass)
 			expectReconcilesSettled(baseline)
@@ -146,7 +145,7 @@ var _ = Describe("Watches", func() {
 				g.Expect(availableInZone("test-zone-1b")).To(BeNumerically(">", 0))
 			}, watchTimeout).Should(Succeed())
 
-			// A status-only write, matching what the nodeclass controller does after subnet discovery
+			// Status-only write, like the nodeclass controller's subnet discovery
 			stored := &v1.EC2NodeClass{}
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nodeClass), stored)).To(Succeed())
 			generation := stored.Generation
@@ -173,14 +172,12 @@ func expectReconcilesSettled(baseline float64) {
 	}, watchTimeout).Should(BeTrue())
 }
 
-// reconcileCount sums the metrics controller's reconciles across results.
 func reconcileCount() float64 {
 	return lo.SumBy(familyMetrics("controller_runtime_reconcile_total"), func(m metricWithLabels) float64 {
 		return lo.Ternary(m.labels["controller"] == "cloudprovider.metrics", m.value, 0)
 	})
 }
 
-// availableInZone counts offerings in the zone that the availability metric marks as available.
 func availableInZone(zone string) int {
 	return lo.CountBy(familyMetrics("karpenter_cloudprovider_instance_type_offering_available"), func(m metricWithLabels) bool {
 		return m.labels["zone"] == zone && m.value > 0
