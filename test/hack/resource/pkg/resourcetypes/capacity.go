@@ -29,8 +29,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-// Metric names. CloudformationStacks, ElasticNetworkInterface, InstanceProfile and OpenIDConnectProvider were
-// already in the resourceCount table and keep their meaning.
+// Metric names. The ones that already existed in the resourceCount table keep their meaning.
 const (
 	MetricStacks                 = "CloudformationStacks"
 	MetricStacksDeleteFailed     = "CloudformationStacksDeleteFailed"
