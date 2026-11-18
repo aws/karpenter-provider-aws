@@ -16,7 +16,14 @@ package drametadata
 
 import (
 	resourcev1 "k8s.io/api/resource/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+// UnusableEFAInstanceTypes are instance types whose EFAs can't be used from pods, so Karpenter advertises no EFA for
+// them, neither as DRA devices nor as the vpc.amazonaws.com/efa extended resource. On g4dn.metal, firmware leaves the
+// EFA's BARs unassigned and the efa driver fails to probe it, so no RDMA device is registered.
+// https://github.com/aws/karpenter-provider-aws/issues/9902
+var UnusableEFAInstanceTypes = sets.New("g4dn.metal")
 
 type DRADevice struct {
 	Attributes map[resourcev1.QualifiedName]resourcev1.DeviceAttribute

@@ -37,6 +37,7 @@ import (
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -648,6 +649,9 @@ func habanaGaudis(info ec2types.InstanceTypeInfo) *resource.Quantity {
 }
 
 func efas(info ec2types.InstanceTypeInfo, networkInterfaces []*v1.NetworkInterface) *resource.Quantity {
+	if drametadata.UnusableEFAInstanceTypes.Has(string(info.InstanceType)) {
+		return resources.Quantity("0")
+	}
 	// If the network interface field is specified on the NodeClass, this overrides the EFAs that the instance type supports.
 	count := 0
 	if networkInterfaces != nil {
