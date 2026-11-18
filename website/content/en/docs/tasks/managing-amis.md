@@ -37,7 +37,7 @@ Whenever a node is replaced, the replacement node will be launched using the new
 - [**Drift**]({{< relref "../concepts/disruption/#drift" >}}): If a node's state no longer matches the desired state dictated by the `NodePool` or `EC2NodeClass`, it will be replaced, including if the node's AMI no longer matches the latest AMI selected by the `amiSelectorTerms`.
 - [**Interruption**]({{< relref "../concepts/disruption/#interruption" >}}): Nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed.
 
-See [**Automated Methods**]({{< relref "../concepts/disruption/#automated-methods" >}}) for details on how Karpenter uses these automated actions to replace nodes.
+See [**Automated Methods**]({{< relref "../concepts/disruption/#automated-graceful-methods" >}}) for details on how Karpenter uses these automated actions to replace nodes.
 
 The most relevant automated disruption method is [**Drift**]({{< relref "../concepts/disruption/#drift" >}}), since it is initiated when a new AMI is selected-on by your `amiSelectorTerms`. This could be due to a manual update (e.g. a new `id` term was added), or due to a new AMI being resolved by a dynamic term.
 
@@ -113,11 +113,11 @@ Instead of avoiding AMI upgrades, you can set up test clusters where you can try
 
 ### Using Disruption Budgets
 
-To reduce the risk of entire workloads being immediately degraded when a new AMI is deployed, you can enable Karpenter's [**Node Disruption Budgets**]({{< relref "#node-disruption-budgets " >}}) as well as ensure that you have [**Pod Disruption Budgets**]({{< relref "#pod-disruption-budgets " >}}) configured for applications on your cluster. Below provides more details on how to configure each.
+To reduce the risk of entire workloads being immediately degraded when a new AMI is deployed, you can enable Karpenter's [**Node Disruption Budgets**]({{< relref "#node-disruption-budgets" >}}) as well as ensure that you have [**Pod Disruption Budgets**]({{< relref "#pod-disruption-budgets" >}}) configured for applications on your cluster. Below provides more details on how to configure each.
 
 #### Node Disruption Budgets
 
-[Disruption Budgets]({{< relref "../concepts/disruption/#disruption-budgets " >}}) limit when and to what extent nodes can be disrupted. You can prevent disruption based on nodes (a percentage or number of nodes that can be disrupted at a time) and schedule (excluding certain times from disrupting nodes).
+[Disruption Budgets]({{< relref "../concepts/disruption/#nodepool-disruption-budgets" >}}) limit when and to what extent nodes can be disrupted. You can prevent disruption based on nodes (a percentage or number of nodes that can be disrupted at a time) and schedule (excluding certain times from disrupting nodes).
 You can set Disruption Budgets in a `NodePool` spec. Here is an example:
 
 ```yaml
