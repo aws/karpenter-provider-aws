@@ -23,6 +23,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -93,6 +94,11 @@ func (c *Controller) zoneInfosByNodePool(ctx context.Context) (map[*karpv1.NodeP
 		}
 		nodeClass := &v1.EC2NodeClass{}
 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+			// A NodePool can reference an EC2NodeClass that doesn't exist (yet). It can't provision into any zone,
+			// so skip it rather than blocking zonal shift events for every other NodePool.
+			if apierrors.IsNotFound(err) {
+				continue
+			}
 			return nil, fmt.Errorf("getting nodeclass %q for nodepool %q, %w", nodePool.Spec.Template.Spec.NodeClassRef.Name, nodePool.Name, err)
 		}
 		zoneInfosByNodePool[nodePool] = nodeClass.ZoneInfo()

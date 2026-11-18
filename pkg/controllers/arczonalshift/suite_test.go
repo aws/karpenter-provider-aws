@@ -218,4 +218,26 @@ var _ = Describe("ARCZonalShiftController", func() {
 
 		Expect(recorder.Calls(detectedReason)).To(Equal(1))
 	})
+
+	It("should still emit events for other NodePools when a NodePool references a missing EC2NodeClass", func() {
+		dangling := coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  "does-not-exist",
+						},
+					},
+				},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, dangling, nodeClass)
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+
+		Expect(recorder.Calls(detectedReason)).To(Equal(1))
+		Expect(recorder.DetectedEvent("Zonal shift detected: offerings in zone test-zone-1a (tstz1-1a) are unavailable for this NodePool")).To(BeTrue())
+	})
 })
