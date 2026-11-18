@@ -132,6 +132,10 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 			}
 			idFilter.Values = append(idFilter.Values, imageID)
 		default:
+			// Reached with an alias that didn't parse. Without a selector the query would describe every image visible to the account.
+			if term.Name == "" && term.Owner == "" && len(term.Tags) == 0 {
+				return []DescribeImageQuery{}, fmt.Errorf("resolving ami selector term, alias %q is not a supported family@version", term.Alias)
+			}
 			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
 			}

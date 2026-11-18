@@ -919,6 +919,14 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}, queries)
 		})
+		It("should fail for an alias term that does not parse rather than describing every image", func() {
+			_, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "al2023@latest@foo"}},
+				},
+			})
+			Expect(err).To(HaveOccurred())
+		})
 		It("should allow prefixed name and prefixed owners", func() {
 			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
