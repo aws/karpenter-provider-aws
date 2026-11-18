@@ -56,9 +56,15 @@ runs:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
+      K8S_VERSION: ${{ inputs.k8s_version }}
     run: |
-      output=$(./test/hack/e2e_scripts/install_karpenter.sh 2>&1)
+      # Capture the exit code so the output is printed even when the install fails (the shell runs with -e)
+      rc=0
+      output=$(./test/hack/e2e_scripts/install_karpenter.sh 2>&1) || rc=$?
       echo "$output"
+      if [[ $rc -ne 0 ]]; then
+        exit "$rc"
+      fi
       if echo "$output" | grep -i "warning.*violate.*podsecurity"; then
         echo "ERROR: Karpenter does not respect restricted Pod Security Standard"
         exit 1
