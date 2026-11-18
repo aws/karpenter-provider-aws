@@ -386,6 +386,25 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
+		DescribeTable("should annotate the NodeClaim as interrupted only for interruption warnings",
+			func(messageBuilder func(id string) any, expectAnnotation bool) {
+				nodeClaim.Finalizers = []string{"testing/finalizer"}
+				ExpectMessagesCreated(messageBuilder(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+				ExpectApplied(ctx, env.Client, nodeClaim, node)
+
+				ExpectSingletonReconciled(ctx, controller)
+				nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+				Expect(nodeClaim.DeletionTimestamp.IsZero()).To(BeFalse())
+				if expectAnnotation {
+					Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceInterrupted, "true"))
+				} else {
+					Expect(nodeClaim.Annotations).ToNot(HaveKey(v1.AnnotationInstanceInterrupted))
+				}
+			},
+			Entry("with spot interruption messages", func(id string) any { return spotInterruptionMessage(id) }, true),
+			Entry("with capacity reservation interruption messages", func(id string) any { return capacityReservationInterruptionMessage(id) }, true),
+			Entry("with scheduled change messages", func(id string) any { return scheduledChangeMessage(id) }, false),
+		)
 		It("should mark the ICE cache for the offering when getting a spot interruption warning", func() {
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{
 				corev1.LabelTopologyZone:       "coretest-zone-1a",

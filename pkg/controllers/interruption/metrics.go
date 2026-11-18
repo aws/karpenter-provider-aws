@@ -57,6 +57,17 @@ var interruptionKindValues = []opmetrics.Value{
 }
 
 var (
+	MissedInterruptionTerminations = opmetrics.NewPrometheusCounter(
+		crmetrics.Registry,
+		prometheus.CounterOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: interruptionSubsystem,
+			Name:      "missed_termination_total",
+			Help:      "Count of interruptible (spot or interruptible capacity reservation) instance terminations that were not preceded by an SQS interruption message.",
+		},
+		[]opmetrics.Label{metrics.CapacityType},
+		opmetrics.Alpha,
+	)
 	ReceivedMessages = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
 		prometheus.CounterOpts{

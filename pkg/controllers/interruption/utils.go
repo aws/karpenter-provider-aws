@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/metrics"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
@@ -110,6 +111,9 @@ func (h *InterruptionHandler) handleNodeClaim(ctx context.Context, msg messages.
 	// Record metric and event for this action
 	h.notifyForMessage(msg, nodeClaim, node)
 	h.markUnavailableOfferings(ctx, msg, nodeClaim)
+	if err := h.annotateForInterruption(ctx, msg, nodeClaim); err != nil {
+		return err
+	}
 
 	switch action {
 	case ForcefulTermination:
@@ -172,6 +176,26 @@ func (h *InterruptionHandler) deleteNodeClaim(ctx context.Context, msg messages.
 		metrics.ConsolidationPolicyLabel: "",
 		metrics.TerminationModeLabel:     nodeclaimutils.DisruptionTerminationMode(nodeClaim),
 	})
+	return nil
+}
+
+// annotateForInterruption marks the NodeClaim as having received an interruption warning for its instance. The
+// cloudprovider uses this annotation on Delete to detect interruptible instances that were terminated without Karpenter
+// ever receiving an interruption message (see MissedInterruptionTerminations).
+func (h *InterruptionHandler) annotateForInterruption(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim) error {
+	if msg.Kind() != messages.SpotInterruptionKind && msg.Kind() != messages.CapacityReservationInterruptionKind {
+		return nil
+	}
+	if _, exists := nodeClaim.Annotations[v1.AnnotationInstanceInterrupted]; exists {
+		return nil
+	}
+	stored := nodeClaim.DeepCopy()
+	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+		v1.AnnotationInstanceInterrupted: "true",
+	})
+	if err := h.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
+		return client.IgnoreNotFound(fmt.Errorf("annotating nodeclaim as interrupted, %w", err))
+	}
 	return nil
 }
 
