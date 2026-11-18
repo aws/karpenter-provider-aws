@@ -115,6 +115,7 @@ params:
   # tagged, and remove it at end of life. Read by hack/release/banners.sh to mark the GitHub releases of these minors,
   # by hack/release/common.sh to keep their docs and list them in the version menu, and by the website for the
   # "(LTS)" labels, the docs version banner, and the LTS table on the compatibility page.
+  # A new minor release fails if the newest entry was released more than 6 months ago (hack/release/check-lts.sh).
   lts_versions:
     - version: v1.14
       released: Jul 2026

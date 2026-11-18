@@ -267,6 +267,34 @@ editWebsiteVersionsMenu() {
   done
 }
 
+# requireRecentLTS fails when the newest LTS minor in a hugo.yaml (passed as its contents) was released more than 6
+# months ago. The support policy designates a new LTS minor every 6 months, so an older list means a designation was
+# missed, and pruning would delete the docs of the unlisted LTS minor like any other minor's. LTS_CHECK_NOW (YYYY-MM)
+# overrides the current month, for testing.
+requireRecentLTS() {
+  local hugo_config now newest=0 version released months entries
+
+  hugo_config="${1}"
+  now="${LTS_CHECK_NOW:-$(date -u +%Y-%m)}"
+  # Read the list before the loop, so that a parse failure fails the check instead of being hidden by the loop
+  entries="$(yq '.params.lts_versions[] | [.version, .released] | @tsv' <<< "${hugo_config}")"
+  while IFS=$'\t' read -r version released; do
+    if [[ -z "${version}" ]]; then
+      continue
+    fi
+    months=$(($(date -u -d "1 ${released}" +%Y) * 12 + 10#$(date -u -d "1 ${released}" +%m)))
+    if ((months > newest)); then
+      newest="${months}"
+    fi
+  done <<< "${entries}"
+  months=$((10#${now%-*} * 12 + 10#${now#*-}))
+  if ((months - newest > 6)); then
+    echo "No LTS minor has been designated in the last 6 months: the newest in params.lts_versions in website/hugo.yaml on main was released more than 6 months ago." >&2
+    echo "Add the new LTS minor there, with its release and end-of-life months, then re-run this release." >&2
+    return 1
+  fi
+}
+
 # isPatchRelease returns success when the version (e.g. 1.14.2) is a stable patch release rather than a new minor
 isPatchRelease() {
   local version="${1}"
