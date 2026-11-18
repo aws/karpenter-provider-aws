@@ -164,6 +164,9 @@ jobs:
           }
           CONTROLLER_SHAPE="cpu=$(resource requests cpu)/$(resource limits cpu),mem=$(resource requests memory)/$(resource limits memory)"
           export CONTROLLER_SHAPE
+          # The core version the suite is built with, for the core_commit dimension
+          CORE_VERSION="$(go list -m -f '{{ if .Replace }}{{ .Replace.Version }}{{ else }}{{ .Version }}{{ end }}' sigs.k8s.io/karpenter)"
+          export CORE_VERSION
           echo "controller_shape=$CONTROLLER_SHAPE record_results=${PERF_TIMESTREAM_TABLE:+true}"
           aws eks update-kubeconfig --name "$CLUSTER_NAME"
           OUTPUT_DIR="$RUNNER_TEMP/perf"
