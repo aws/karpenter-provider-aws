@@ -78,6 +78,13 @@ Limits specified on the nodepool that restrict the quantity of resources provisi
   - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
   - `nodepool` — The name of the NodePool that owns the resource.
 
+### `karpenter_nodepools_drift_backoff_seconds`
+Seconds remaining in the current drift replacement back-off window for a NodePool. The series is present only while the NodePool is backed off and is removed once it becomes eligible again (absent == not backing off). Labeled by NodePool.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
 ### `karpenter_nodepools_cost_tracker_errors_total`
 Number of errors encountered during cost tracking operations. Labeled by nodepool.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
@@ -762,6 +769,13 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption reas
     - `drifted` — The node drifted from its desired specification.
     - `unhealthy` — The node failed a node-repair health check.
 
+### `karpenter_voluntary_disruption_drift_backoffs_total`
+The number of times a NodePool entered or escalated drift replacement back-off after an unrecoverable failure. Labeled by NodePool.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
 ### `karpenter_voluntary_disruption_decisions_total`
 Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
@@ -915,6 +929,16 @@ Count of messages received from the SQS queue. Broken down by message type and w
     - `instance_status` — An EC2 instance status check reported the instance unhealthy.
     - `system_status` — An EC2 system status check reported the instance's host unhealthy.
     - `event_status` — An EC2 scheduled-event status check fired for the instance.
+
+### `karpenter_interruption_missed_termination_total`
+Count of interruptible (spot or interruptible capacity reservation) instance terminations that were not preceded by an SQS interruption message.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `capacity_type` — The capacity type of the instance.
+    - `on-demand` — On-demand capacity.
+    - `spot` — Spot capacity, which can be reclaimed by the cloud provider.
+    - `reserved` — Reserved capacity, backed by a capacity reservation.
 
 ### `karpenter_interruption_message_queue_duration_seconds`
 Amount of time an interruption message is on the queue before it is processed by karpenter.
