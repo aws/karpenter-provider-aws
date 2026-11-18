@@ -21,6 +21,10 @@ on:
       control_plane_tier:
         type: string
         default: "tier-xl"
+      scheduler_scoring:
+        description: "kube-scheduler NodeResourcesFit scoring strategy: MostAllocated packs pods like Karpenter plans them, as the levels were calibrated; LeastAllocated is the EKS default"
+        type: string
+        default: "MostAllocated"
       helm_opts:
         description: "Extra helm flags for the KWOK controller (see install-karpenter-kwok)"
         type: string
@@ -98,6 +102,22 @@ jobs:
           done
           [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
           aws eks wait cluster-active --name "$CLUSTER_NAME"
+      - name: set kube-scheduler scoring ${{ inputs.scheduler_scoring }}
+        if: inputs.scheduler_scoring != 'LeastAllocated'
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          SCORING: ${{ inputs.scheduler_scoring }}
+        run: |
+          set -euo pipefail
+          # EKS's default LeastAllocated spreads pods across the nodes Karpenter launched, stranding some pods for
+          # a second round of NodeClaims, so pods/scaleOut's pod_ready p95/p99 jump between ~42s and ~72s night to night
+          update_id=$(aws eks update-cluster-config --name "$CLUSTER_NAME" --kube-scheduler-config "nodeResourcesFit={scoringStrategy={type=$SCORING}}" --query update.id --output text)
+          while status=$(aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id" --query update.status --output text); [[ "$status" == InProgress ]]; do
+            sleep 30
+          done
+          [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
+          aws eks wait cluster-active --name "$CLUSTER_NAME"
+          aws eks describe-cluster --name "$CLUSTER_NAME" --query cluster.kubeSchedulerConfig
       - name: create the controller node group
         env:
           ACCOUNT_ID: ${{ vars.CI_ACCOUNT_ID }}
