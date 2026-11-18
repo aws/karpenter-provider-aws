@@ -67,7 +67,7 @@ func RunInfoFromEnv() RunInfo {
 	}
 	return RunInfo{
 		RunURL:           url,
-		CoreCommit:       CoreCommit(),
+		CoreCommit:       coreCommitFromEnv(),
 		RunID:            os.Getenv("GITHUB_RUN_ID"),
 		RunAttempt:       os.Getenv("GITHUB_RUN_ATTEMPT"),
 		Trigger:          os.Getenv("GITHUB_EVENT_NAME"),
@@ -77,6 +77,15 @@ func RunInfoFromEnv() RunInfo {
 		ControlPlaneTier: os.Getenv("CP_TIER"),
 		ControllerShape:  os.Getenv("CONTROLLER_SHAPE"),
 	}
+}
+
+// coreCommitFromEnv prefers CORE_VERSION (the workflow sets it from go list -m): Go 1.26 test binaries don't embed
+// their dependencies, so CoreCommit is empty there.
+func coreCommitFromEnv() string {
+	if v := os.Getenv("CORE_VERSION"); v != "" {
+		return coreCommit(v)
+	}
+	return CoreCommit()
 }
 
 // CoreCommit is the commit of the sigs.k8s.io/karpenter module in this binary's build info: the hash of a
