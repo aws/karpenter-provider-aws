@@ -147,6 +147,24 @@ var _ = Describe("ARCZonalShiftController", func() {
 		Expect(recorder.DetectedEvent("Zonal shift cleared: offerings in zone test-zone-1a (tstz1-1a) are restored for this NodePool")).To(BeTrue())
 	})
 
+	It("should clear a zone whose shift ends while another zone is still shifted", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		setShiftedZones("tstz1-1a", "tstz1-1b")
+		ExpectSingletonReconciled(ctx, controller)
+		Expect(recorder.Calls(detectedReason)).To(Equal(2))
+		Expect(awsEnv.ZonalShiftProvider.IsZonalShifted(ctx, "tstz1-1a")).To(BeTrue())
+
+		// The shift away from tstz1-1a is cancelled; tstz1-1b is still shifted.
+		setShiftedZones("tstz1-1b")
+		ExpectSingletonReconciled(ctx, controller)
+
+		Expect(awsEnv.ZonalShiftProvider.IsZonalShifted(ctx, "tstz1-1a")).To(BeFalse())
+		Expect(awsEnv.ZonalShiftProvider.IsZonalShifted(ctx, "tstz1-1b")).To(BeTrue())
+		Expect(awsEnv.ZonalShiftProvider.ShiftedZones().UnsortedList()).To(ConsistOf("tstz1-1b"))
+		Expect(recorder.Calls(clearedReason)).To(Equal(1))
+		Expect(recorder.DetectedEvent("Zonal shift cleared: offerings in zone test-zone-1a (tstz1-1a) are restored for this NodePool")).To(BeTrue())
+	})
+
 	It("should not emit an event on a NodePool restricted to different zones", func() {
 		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{

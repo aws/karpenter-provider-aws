@@ -77,14 +77,10 @@ func (p *DefaultProvider) UpdateZonalShifts(ctx context.Context) error {
 			applied:     shift.AppliedStatus == arczonalshifttypes.AppliedStatusApplied,
 		}
 	}
-	if len(shiftStatuses) == 0 {
-		// If there are no shifts on the resource, reset the map
-		p.zonalShiftStatuses = make(map[string]shiftStatus)
-	} else {
-		for zone, status := range shiftStatuses {
-			p.zonalShiftStatuses[zone] = status
-		}
-	}
+	// GetManagedResource returns every active shift on the resource, so replace the map rather than merging into it.
+	// Merging would keep a zone that is no longer shifted (e.g. a cancelled shift) marked as shifted until its
+	// original expiry whenever any other zone is still shifted.
+	p.zonalShiftStatuses = shiftStatuses
 	p.Unlock()
 	log.FromContext(ctx).V(1).Info(fmt.Sprintf("successfully updated zonal shifts %#v", shiftStatuses))
 	return nil
