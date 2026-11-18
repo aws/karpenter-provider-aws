@@ -140,10 +140,13 @@ func (p *DefaultProvider) getEKSVersion(ctx context.Context) (string, error) {
 
 func (p *DefaultProvider) getK8sVersion() (string, error) {
 	output, err := p.kubernetesInterface.Discovery().ServerVersion()
-	if err != nil || output == nil {
-		return "", fmt.Errorf("getting kubernetes version from the kubernetes API")
+	if err != nil {
+		return "", fmt.Errorf("getting kubernetes version from the kubernetes API, %w", err)
 	}
-	return fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+")), err
+	if output == nil {
+		return "", fmt.Errorf("getting kubernetes version from the kubernetes API, empty response")
+	}
+	return fmt.Sprintf("%s.%s", output.Major, strings.TrimSuffix(output.Minor, "+")), nil
 }
 
 // SupportsDefaultBind checks if the Bottlerocket AMI version supports default bind (>= 1.46.0)

@@ -16,6 +16,7 @@ package version_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -24,9 +25,13 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/runtime"
+	fakekubernetes "k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	controllersversion "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/version"
@@ -93,6 +98,17 @@ var _ = Describe("Operator", func() {
 			ExpectSingletonReconciled(ctx, versionController)
 			version := awsEnv.VersionProvider.Get(ctx)
 			Expect(version).To(Equal(testEnv.K8sVersion()))
+		})
+		It("should surface the underlying error when the K8s API version lookup fails", func() {
+			options.FromContext(ctx).EKSControlPlane = false
+			clientset := fakekubernetes.NewClientset()
+			clientset.PrependReactor("get", "version", func(clienttesting.Action) (bool, runtime.Object, error) {
+				return true, nil, fmt.Errorf("connection refused")
+			})
+			provider := version.NewDefaultProvider(clientset, awsEnv.EKSAPI)
+			err := provider.UpdateVersion(ctx)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("connection refused"))
 		})
 	})
 })
