@@ -13,6 +13,11 @@ on:
 jobs:
   resolve:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      # ./.github/actions/download-artifact reads the triggering run's artifacts over the REST API
+      actions: read
     outputs:
       SHOULD_RUN: ${{ steps.resolve-step.outputs.SHOULD_RUN }}
       GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
@@ -22,22 +27,81 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
-      - id: resolve-step
+      - id: metadata
+        if: github.event_name == 'workflow_run'
         env:
           ALLOWED_COMMENT: ${{ inputs.allowed_comment }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
-            # Match the command as a prefix, not a substring: a reviewer writing prose on the same
-            # line ("/karpenter preview - check the scale docs") must not trigger every workflow
-            # whose command name happens to appear in that sentence
-            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == "/karpenter $ALLOWED_COMMENT"* ]]; then
-               echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
-            else
-               echo SHOULD_RUN=false >> "$GITHUB_OUTPUT"
-            fi
-            echo GIT_REF="$(tail -n 1 /tmp/artifacts/metadata.txt)" >> "$GITHUB_OUTPUT"
+          # Match the command as a prefix, not a substring: a reviewer writing prose on the same
+          # line ("/karpenter preview - check the scale docs") must not trigger every workflow
+          # whose command name happens to appear in that sentence
+          if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == "/karpenter $ALLOWED_COMMENT"* ]]; then
+            echo MATCH=true >> "$GITHUB_OUTPUT"
           else
-            echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
-            echo GIT_REF="" >> "$GITHUB_OUTPUT"
+            echo MATCH=false >> "$GITHUB_OUTPUT"
           fi
+          # The review body may span several lines, so read the PR number and commit from the end
+          echo PR_NUMBER="$(tail -n 2 /tmp/artifacts/metadata.txt | head -n 1)" >> "$GITHUB_OUTPUT"
+          echo PR_COMMIT="$(tail -n 1 /tmp/artifacts/metadata.txt)" >> "$GITHUB_OUTPUT"
+      # Only run a commit that a member reviewed with this command, as SnapshotPR does
+      - id: resolve-step
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ALLOWED_COMMENT: ${{ inputs.allowed_comment }}
+          MATCH: ${{ steps.metadata.outputs.MATCH }}
+          PR_NUMBER: ${{ steps.metadata.outputs.PR_NUMBER }}
+          PR_COMMIT: ${{ steps.metadata.outputs.PR_COMMIT }}
+        with:
+          script: |
+            if (process.env.EVENT_NAME !== 'workflow_run') {
+              core.setOutput('SHOULD_RUN', 'true');
+              core.setOutput('GIT_REF', '');
+              return;
+            }
+            if (process.env.MATCH !== 'true') {
+              core.setOutput('SHOULD_RUN', 'false');
+              core.setOutput('GIT_REF', '');
+              return;
+            }
+            const run = context.payload.workflow_run;
+            const prCommit = process.env.PR_COMMIT;
+            if (!/^[0-9]+$/.test(process.env.PR_NUMBER)) {
+              core.setFailed(`malformed PR number in artifact: ${JSON.stringify(process.env.PR_NUMBER)}`);
+              return;
+            }
+            if (!/^[0-9a-f]{40}$/.test(prCommit)) {
+              core.setFailed(`malformed commit in artifact: ${JSON.stringify(prCommit)}`);
+              return;
+            }
+            // head_sha and actor come from GitHub, not the artifact
+            if (prCommit !== run.head_sha) {
+              core.setFailed(`artifact commit ${prCommit} is not the triggering run's head ${run.head_sha}`);
+              return;
+            }
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const command = `/karpenter ${process.env.ALLOWED_COMMENT}`;
+
+            const reviews = await github.paginate(
+              github.rest.pulls.listReviews,
+              { owner: context.repo.owner, repo: context.repo.repo, pull_number: prNumber }
+            );
+
+            const validReview = reviews.find(r =>
+              r.author_association === 'MEMBER' &&
+              r.user?.login === run.actor.login &&
+              r.state !== 'DISMISSED' &&
+              r.commit_id === prCommit &&
+              (r.body || '').startsWith(command)
+            );
+
+            if (!validReview) {
+              core.setFailed(
+                `No '${command}' review by member ${run.actor.login} on commit ${prCommit} of PR #${prNumber}`
+              );
+              return;
+            }
+
+            core.info(`Verified: ${validReview.user.login} requested '${command}' on commit ${prCommit}`);
+            core.setOutput('SHOULD_RUN', 'true');
+            core.setOutput('GIT_REF', prCommit);
