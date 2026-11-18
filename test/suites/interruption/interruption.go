@@ -100,10 +100,11 @@ func RegisterTests() bool {
 		It("should terminate the interruptible reserved capacity instance and spin-up a new node on reserved capacity interruption warning", func() {
 			By("Creating an IODCR and configuring the nodeclass to select on it")
 			sourceReservationID := Env.ExpectCapacityReservationCreated(1).ID
-			interruptibleReservationID := aws.ExpectInterruptibleCapacityAllocationCreated(Env.Context, Env.EC2API, sourceReservationID, 1)
+			var interruptibleReservationID string
 			DeferCleanup(func() {
 				aws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservationID, interruptibleReservationID)
 			})
+			interruptibleReservationID = Env.ExpectInterruptibleCapacityAllocationCreated(sourceReservationID, 1)
 			NodeClass.Spec.CapacityReservationSelectorTerms = []v1.CapacityReservationSelectorTerm{
 				{ID: sourceReservationID}, {ID: interruptibleReservationID},
 			}
