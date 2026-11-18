@@ -69,6 +69,9 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
+      # Stopgap for short CloudFormation throttles (the CLI default is 3 attempts). eksctl sets its own retryer and ignores these.
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "10"
     run: |
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
