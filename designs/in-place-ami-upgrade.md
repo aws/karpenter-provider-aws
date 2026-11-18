@@ -64,6 +64,8 @@ An AMI cannot be swapped in place, and `reason` names the check, when:
 
 Node-level checks run per NodeClaim and are not reported in `status.amis`: the AMI family, variant and Kubernetes minor version are unchanged, which also keeps the architecture and virtualization type EC2 requires, and the instance is running.
 
+EC2 has more [requirements](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html#replace-ami): ENA and sriov-net support, NitroTPM, a matching boot mode, and no move from an encrypted root volume to an unencrypted one. Karpenter does not check these ahead of time. EC2 rejects the task, so the reboot fails and core deletes the NodeClaim.
+
 AMIs with more than one volume are not rejected.
 Only the root volume is replaced; volumes already attached to the instance stay attached with their data.
 Bottlerocket is the main case: its AMI defines a root volume and a data volume, and the data volume keeps container images and state across the swap.
@@ -74,10 +76,10 @@ Bottlerocket is the main case: its AMI defines a root volume and a data volume, 
 2. **Report every drift reason.** [`isNodeClassDrifted`](https://github.com/aws/karpenter-provider-aws/blob/103b2f0a/pkg/cloudprovider/drift.go#L45-L55) returns `AMIDrift` before it checks security groups, subnets, capacity reservations and placement groups. `GetDriftStatus` needs to know AMI is the only drift, so the AMI check moves after the others (or all reasons are computed) when `amiDriftPolicy` is `ReplaceRootVolume`.
 3. **`GetDriftStatus`.** Returns `NoOp` when nothing drifted. Returns `Reboot` only when `amiDriftPolicy` is `ReplaceRootVolume`, the reason is `AMIDrift` alone, and every gate below passes. Any other drift returns `Replace`.
 4. **Gates.** Every failed gate emits an event naming it.
-   - AMI level, reported in `status.amis[].inPlaceUpgrade`: the AMI has no Marketplace product codes, and its root snapshot is readable (`createVolumePermission`) from the node's account. Snapshot sharing and product codes can change outside Karpenter, so these are recomputed on every EC2NodeClass AMI status reconcile (the [AMI controller](https://github.com/aws/karpenter-provider-aws/blob/e9a7e995/pkg/controllers/nodeclass/ami.go#L97) requeues every 5 minutes) and checked again right before the swap.
+   - AMI level, reported in `status.amis[].inPlaceUpgrade`: the AMI has no Marketplace product codes, and its root snapshot is readable (`createVolumePermission`) from the node's account. Snapshot sharing and product codes can change outside Karpenter, so these are recomputed on every EC2NodeClass AMI status reconcile (the [AMI controller](https://github.com/aws/karpenter-provider-aws/blob/e9a7e995/pkg/controllers/nodeclass/ami.go#L97) requeues every 5 minutes). They are not checked again before each swap: if something changed outside Karpenter, EC2 rejects the task and the reboot fails.
    - Node level, per NodeClaim: AMI family, variant and Kubernetes minor version are unchanged, and the instance is running.
-5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, the provider re-runs the gates, then looks up the instance's tasks with `DescribeReplaceRootVolumeTasks` (filter `instance-id`). If a task is `pending` or `in-progress`, it waits for that task instead of creating another. Otherwise it calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and a `ClientToken` derived from `operationID`. Core's `operationID` is about 93 characters (`<NodeClaim UID>-<request time in ns>-<boot ID>`) and EC2 allows 64, so the provider passes its SHA-256 hex digest, which is exactly 64 characters and the same on every retry. The task lookup, not the `ClientToken`, is what finds an existing task: EC2 does not always reject a reused token whose parameters changed, for example when the EC2NodeClass AMI drifts again between retries. Any other reboot stays `RebootInstances`.
-6. **Keep `Status.ImageID` current.** Core does not read the AMI back after the reboot; it calls `GetDriftStatus` on its next drift pass. When the instance's latest root volume replacement task succeeds, the provider sets the NodeClaim's `status.imageID` to that task's AMI. The existing AMI drift check, and everything else that reads `status.imageID` (such as [instance type resolution](https://github.com/aws/karpenter-provider-aws/blob/e9a7e995/pkg/providers/instancetype/instancetype.go#L526)), then sees the AMI the node really runs. A `failed` or `failed-detached` task returns `Replace`, and a task that has not finished returns `NoOp` until the next drift pass.
+5. **`Reboot`.** When the NodeClaim's `DisruptionReason` is `Drifted`, `Reboot` hands off to a root volume replacement provider. It makes every `CreateReplaceRootVolumeTask` and `DescribeReplaceRootVolumeTasks` call and keeps the latest task per instance. It looks up the instance's tasks with `DescribeReplaceRootVolumeTasks` (filter `instance-id`). If a task is `pending` or `in-progress`, it waits for that task instead of creating another. Otherwise it calls `CreateReplaceRootVolumeTask` with the AMI resolved from the EC2NodeClass and a `ClientToken` derived from `operationID`. Core's `operationID` is about 93 characters (`<NodeClaim UID>-<request time in ns>-<boot ID>`) and EC2 allows 64, so the provider passes its SHA-256 hex digest, which is exactly 64 characters and the same on every retry. The task lookup, not the `ClientToken`, is what finds an existing task: EC2 does not always reject a reused token whose parameters changed, for example when the EC2NodeClass AMI drifts again between retries. If EC2 rejects the task, `Reboot` returns `NodeRebootFailedError`, so core fails the reboot right away and deletes the NodeClaim. Any other reboot stays `RebootInstances`.
+6. **Keep `Status.ImageID` current.** Core does not read the AMI back after the reboot; it calls `GetDriftStatus` on its next drift pass. A controller watches NodeClaims that are rebooting with `DisruptionReason=Drifted`, or rebooted that way until their task finishes. When the task succeeds, it patches `status.imageID` to the task's AMI, which is also what `DescribeInstances` reports after the swap. The existing AMI drift check, and everything else that reads `status.imageID` (such as [instance type resolution](https://github.com/aws/karpenter-provider-aws/blob/e9a7e995/pkg/providers/instancetype/instancetype.go#L526)), then sees the AMI the node really runs. `GetDriftStatus` reads the same task records. A `failed` or `failed-detached` task returns `Replace`. A task that has not finished returns `Reboot`, so the NodeClaim stays `Drifted`: core does not commit a node that is already rebooting, and a repeated `Reboot` call joins the running task.
 
 ### IAM
 
@@ -134,7 +136,7 @@ The image statement allows any AMI, matching `RunInstances` in `AllowScopedEC2In
   fi
   ```
 
-  Without it, a node that does not rejoin never becomes `Ready`, and core replaces it when its observation window ends.
+  Without it, a node that does not rejoin never becomes `Ready`, and core deletes the NodeClaim when its observation window ends.
 
 ### Observability
 
@@ -150,7 +152,7 @@ The image statement allows any AMI, matching `RunInstances` in `AllowScopedEC2In
 - **Controller restart mid-swap.** The restarted controller finds the `pending` or `in-progress` task with `DescribeReplaceRootVolumeTasks` and waits for it instead of creating a second one.
 - **AMI drifts again during a swap.** The running task finishes on the older AMI and `status.imageID` is updated to it. The next drift pass sees drift to the newer AMI and starts a new reboot with a new `operationID`.
 - **Task fails and the instance boots the old AMI.** The reboot completes, the next `GetDriftStatus` sees the `failed` task and returns `Replace`, and core replaces the node through its normal drift path.
-- **Task fails before the instance reboots.** No new boot appears, so core replaces the node when its observation window ends.
+- **Task fails before the instance reboots.** If EC2 rejects the task, the reboot fails right away. Otherwise no new boot appears, and core deletes the NodeClaim when its observation window ends.
 
 ## Alternatives Considered
 
@@ -166,7 +168,7 @@ Rejected because they bypass disruption budgets, drains and drift state, and rac
 ## Backward Compatibility
 
 - `amiDriftPolicy` defaults to `ReplaceInstance` and is excluded from the drift hash. Upgrading changes nothing.
-- Opting in needs the IAM above. Without it, `CreateReplaceRootVolumeTask` is denied, the reboot fails, and core replaces the node.
+- Opting in needs the IAM above. Without it, `CreateReplaceRootVolumeTask` is denied, the reboot fails, and core deletes the NodeClaim.
 
 ## Graduation Criteria
 
@@ -177,4 +179,3 @@ Rejected because they bypass disruption budgets, drains and drift state, and rac
 
 1. Shape of the per-AMI result: a nested `inPlaceUpgrade` object, or flat `inPlaceUpgradeSupported` and `inPlaceUpgradeReason` fields on each `status.amis` entry.
 2. Root volume replacements typically take 2 to 10 minutes. Is core's 20 minute observation window right for them?
-3. Keeping `status.imageID` current is the provider's job ([#3460](https://github.com/kubernetes-sigs/karpenter/pull/3460)). Today `Get` copies the instance's `ImageId` from `DescribeInstances`. Does EC2 report the new AMI there after a swap? If it does, step 6 can rely on it; if not, the provider sets it from the task's AMI. The alpha test confirms which.
