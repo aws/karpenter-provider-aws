@@ -3407,6 +3407,28 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Entry("when AMI is AL2023", v1.AMIFamilyAL2023, "al2023@latest", false),
 				Entry("when AMI is BottleRocket", v1.AMIFamilyBottlerocket, "bottlerocket@latest", true),
 			)
+			It("should isolate cached a1 offering compatibility by AMI family", func() {
+				a1Offerings := func(amiFamily, alias string) corecloudprovider.Offerings {
+					nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+					nodeClass.Spec.AMIFamily = lo.ToPtr(amiFamily)
+					instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
+					Expect(err).ToNot(HaveOccurred())
+					a1InstanceType, found := lo.Find(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+						return it.Name == "a1.medium"
+					})
+					Expect(found).To(BeTrue())
+					Expect(a1InstanceType.Offerings).ToNot(BeEmpty())
+					return a1InstanceType.Offerings
+				}
+
+				// Populate the offering cache with a Bottlerocket NodeClass, then resolve the same instance type for AL2023
+				// (and back) without flushing. The cached compatibility for one AMI family must not leak into the other.
+				Expect(a1Offerings(v1.AMIFamilyBottlerocket, "bottlerocket@latest").Available()).ToNot(BeEmpty())
+				al2023Offerings := a1Offerings(v1.AMIFamilyAL2023, "al2023@latest")
+				Expect(al2023Offerings.Available()).To(BeEmpty())
+				Expect(lo.NoneBy(al2023Offerings, func(o *corecloudprovider.Offering) bool { return o.Compatible })).To(BeTrue())
+				Expect(a1Offerings(v1.AMIFamilyBottlerocket, "bottlerocket@latest").Available()).ToNot(BeEmpty())
+			})
 		})
 		Context("Network Interfaces", func() {
 			It("should mark instance type offering as available when it supports network interface configuration", func() {

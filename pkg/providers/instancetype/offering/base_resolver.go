@@ -188,6 +188,8 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	cpuOptions := nodeClass.CPUOptions()
 	nestedVirtualizationEnabled := cpuOptions != nil && lo.FromPtr(cpuOptions.NestedVirtualization) == "enabled"
 	nestedVirtualizationEnabledHash, _ := hashstructure.Hash(nestedVirtualizationEnabled, hashstructure.FormatV2, nil)
+	// AMI family affects compatibility (e.g. a1 instance types aren't supported on AL2023)
+	amiFamilyHash, _ := hashstructure.Hash(nodeClass.AMIFamily(), hashstructure.FormatV2, nil)
 	var placementGroupHash uint64
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
@@ -195,13 +197,14 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
 			connectionTrackingHash,
 			enclavesEnabledHash,
 			nestedVirtualizationEnabledHash,
+			amiFamilyHash,
 			placementGroupHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),
