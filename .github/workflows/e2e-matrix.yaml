@@ -31,6 +31,8 @@ on:
           - "us-west-2"
           - "eu-west-1"
         default: "us-east-2"
+      # The default and options are the k8s versions E2E tests. Trigger workflows read them from the commit under
+      # test (see resolve-args.yaml), and K8sVersions checks that the other files that pin a version agree
       k8s_version:
         type: choice
         options:

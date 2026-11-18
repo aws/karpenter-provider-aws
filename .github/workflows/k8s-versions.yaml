@@ -1,0 +1,19 @@
+name: K8sVersions
+# Fails a PR whose k8s versions disagree across the files that pin them. PR E2E runs read the versions from the PR's
+# e2e-matrix.yaml (see resolve-args.yaml), so a bump that misses that file would still test the old version
+on:
+  pull_request:
+  merge_group:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  k8s-versions:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - run: ./hack/github/k8s-versions.sh HEAD --check

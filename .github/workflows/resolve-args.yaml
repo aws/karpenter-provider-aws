@@ -10,6 +10,10 @@ on:
         value: ${{ jobs.resolve.outputs.SHOULD_RUN }}
       GIT_REF:
         value: ${{ jobs.resolve.outputs.GIT_REF }}
+      K8S_VERSION:
+        value: ${{ jobs.resolve.outputs.K8S_VERSION }}
+      K8S_VERSIONS:
+        value: ${{ jobs.resolve.outputs.K8S_VERSIONS }}
 jobs:
   resolve:
     runs-on: ubuntu-latest
@@ -21,6 +25,8 @@ jobs:
     outputs:
       SHOULD_RUN: ${{ steps.resolve-step.outputs.SHOULD_RUN }}
       GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
+      K8S_VERSION: ${{ steps.k8s-versions.outputs.K8S_VERSION }}
+      K8S_VERSIONS: ${{ steps.k8s-versions.outputs.K8S_VERSIONS }}
     steps:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
@@ -105,3 +111,16 @@ jobs:
             core.info(`Verified: ${validReview.user.login} requested '${command}' on commit ${prCommit}`);
             core.setOutput('SHOULD_RUN', 'true');
             core.setOutput('GIT_REF', prCommit);
+      # Read the k8s versions from the commit under test, so a PR that changes them is tested with its own. The
+      # script is this checkout's copy, and it only reads the commit's files with git show
+      - id: k8s-versions
+        if: steps.resolve-step.outputs.SHOULD_RUN == 'true'
+        env:
+          GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
+        run: |
+          rev=HEAD
+          if [[ -n "$GIT_REF" ]]; then
+            git fetch --no-tags --depth=1 origin "$GIT_REF"
+            rev="$GIT_REF"
+          fi
+          ./hack/github/k8s-versions.sh "$rev" >> "$GITHUB_OUTPUT"
