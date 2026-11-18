@@ -138,20 +138,21 @@ var _ = Describe("Timestream sink", func() {
 		}), "8.6%% headroom is under 10%%, so WARN")
 	})
 
-	It("signs headroom_pct by the gate's direction and sets status PASS, WARN or FAIL", func() {
+	It("signs headroom_pct by the gate's direction and sets status PASS, WARN, BREACH or FAIL", func() {
 		rep := result()
 		rep.ReservedCPUUtil, rep.Nodes = 0.5, 120
 		rep.Gates = []perf.GateResult{
 			{Metric: "cpu_util", Value: 0.5, Bound: 0.4, Upper: false, Tier: perf.TierStable, Passed: true},
 			{Metric: "nodes", Value: 120, Bound: 100, Upper: true, Tier: perf.TierStable, Passed: false},
 			{Metric: "cpu_cores", Value: 2.25, Bound: 4.5, Upper: true, Tier: perf.TierExperimental, Passed: true},
+			{Metric: "heap_mb", Value: 3000.5, Bound: 2000, Upper: true, Tier: perf.TierExperimental, Passed: false},
 		}
 		ts := &fakeTimestream{}
 		Expect(performancev2.TimestreamSink(ts, "db", "t", run, metrics)(context.Background(), rep)).To(Succeed())
 		for metric, want := range map[string]struct {
 			headroom      float64
 			upper, status string
-		}{"cpu_util": {25, "false", "PASS"}, "nodes": {-20, "true", "FAIL"}, "cpu_cores": {50, "true", "PASS"}} {
+		}{"cpu_util": {25, "false", "PASS"}, "nodes": {-20, "true", "FAIL"}, "cpu_cores": {50, "true", "PASS"}, "heap_mb": {-50.025, "true", "BREACH"}} {
 			r, ok := record(ts.records(), metric)
 			Expect(ok).To(BeTrue())
 			m := measures(r)
