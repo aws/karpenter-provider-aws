@@ -113,6 +113,7 @@ type DefaultProvider struct {
 	placementGroupProvider      placementgroup.Provider
 	zonalshiftProvider          arczonalshift.Provider
 	instanceCache               *cache.Cache
+	validationCache             *awscache.Validation
 	allocationStrategyProvider  AllocationStrategyProvider
 	efaProvider                 efa.Provider
 }
@@ -148,6 +149,7 @@ func NewDefaultProvider(
 	placementGroupProvider placementgroup.Provider,
 	zonalshiftProvider arczonalshift.Provider,
 	instanceCache *cache.Cache,
+	validationCache *awscache.Validation,
 	opts ...DefaultProviderOpts,
 ) *DefaultProvider {
 	provider := &DefaultProvider{
@@ -162,6 +164,7 @@ func NewDefaultProvider(
 		placementGroupProvider:      placementGroupProvider,
 		zonalshiftProvider:          zonalshiftProvider,
 		instanceCache:               instanceCache,
+		validationCache:             validationCache,
 		allocationStrategyProvider:  DefaultAllocationStrategyProvider{},
 		efaProvider:                 efa.DefaultProvider{},
 	}
@@ -489,6 +492,9 @@ func (p *DefaultProvider) launchInstance(
 			middleware.AWSErrorCodeLogKey, "UnfulfillableCapacity",
 		)
 	}
+	// The CreateFleet call successfully launched an instance, which proves the nodeclass is valid for launching nodes.
+	// Mark validation as successful so the next dry-run validation for this nodeclass can be skipped.
+	p.validationCache.SetSuccess(nodeClass, tags)
 	return createFleetOutput.Instances[0], nil
 }
 

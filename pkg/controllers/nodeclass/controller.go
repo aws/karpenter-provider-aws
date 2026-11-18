@@ -53,6 +53,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -92,7 +93,7 @@ func NewController(
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
 	ec2api sdk.EC2API,
-	validationCache *cache.Cache,
+	validationCache *awscache.Validation,
 	recreationCache *cache.Cache,
 	amiResolver amifamily.Resolver,
 	celEnv *kubeletcel.CELEnvironment,
@@ -247,7 +248,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}
-	c.validation.clearCacheEntries(nodeClass)
+	c.validation.cache.ClearCacheEntries(nodeClass)
 	return reconcile.Result{}, nil
 }
 
