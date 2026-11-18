@@ -240,7 +240,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string, opts ...Options) (
 		return nil, fmt.Errorf("getting instances from output, %w", err)
 	}
 	if len(instances) != 1 {
-		return nil, fmt.Errorf("expected a single instance, %w", err)
+		return nil, fmt.Errorf("expected a single instance, got %d", len(instances))
 	}
 	p.instanceCache.SetDefault(id, instances[id])
 	return instances[id], nil

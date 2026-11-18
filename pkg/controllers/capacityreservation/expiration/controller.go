@@ -76,7 +76,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	ctx = injection.WithControllerName(ctx, c.Name())
 	ncs, err := nodeclaim.ListManaged(ctx, c.kubeClient, c.cloudProvider)
 	if err != nil {
-		return reconciler.Result{}, fmt.Errorf("listing instance types, %w", err)
+		return reconciler.Result{}, fmt.Errorf("listing nodeclaims, %w", err)
 	}
 	ec2CRs, err := c.crProvider.List(ctx, lo.FilterMap(ncs, func(nc *karpv1.NodeClaim, _ int) (v1.CapacityReservationSelectorTerm, bool) {
 		id, ok := nc.Labels[cloudprovider.ReservationIDLabel]
