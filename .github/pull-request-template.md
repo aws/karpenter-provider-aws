@@ -31,4 +31,7 @@ If yes, add release note in the block below detailing user-facing change. If thi
 - [ ] Yes, issue opened: # <!-- issue number -->
 - [x] No
 
+**AI Disclosure**
+- [ ] I have verified any AI-assisted code and take full responsibility for my responses. I will not solely use AI to write my replies.
+
 By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
