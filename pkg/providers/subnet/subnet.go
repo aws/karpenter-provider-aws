@@ -280,6 +280,10 @@ func getFilterSets(terms []v1.SubnetSelectorTerm) (res [][]ec2types.Filter) {
 					})
 				}
 			}
+			// A term without filters would match every subnet
+			if len(filters) == 0 {
+				continue
+			}
 			res = append(res, filters)
 		}
 	}
