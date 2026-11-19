@@ -102,27 +102,6 @@ var _ = Describe("CEL/Validation", func() {
 		unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
 		Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
 	})
-	// The typed client drops empty values through omitempty, so these terms are submitted as raw JSON
-	DescribeTable("should reject selector terms with empty values",
-		func(field string, term map[string]any) {
-			data, err := json.Marshal(nc)
-			Expect(err).ToNot(HaveOccurred())
-			object := map[string]any{}
-			Expect(json.Unmarshal(data, &object)).To(Succeed())
-			Expect(unstructured.SetNestedSlice(object, []any{term}, "spec", field)).To(Succeed())
-			unstructuredNC := &unstructured.Unstructured{Object: object}
-			unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
-			Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
-		},
-		Entry("subnet tags", "subnetSelectorTerms", map[string]any{"tags": map[string]any{}}),
-		Entry("subnet tags with a null value", "subnetSelectorTerms", map[string]any{"tags": map[string]any{"Name": nil}}),
-		Entry("security group tags", "securityGroupSelectorTerms", map[string]any{"tags": map[string]any{}}),
-		Entry("security group name", "securityGroupSelectorTerms", map[string]any{"name": ""}),
-		Entry("capacity reservation tags", "capacityReservationSelectorTerms", map[string]any{"tags": map[string]any{}}),
-		Entry("ami tags", "amiSelectorTerms", map[string]any{"tags": map[string]any{}}),
-		Entry("ami name", "amiSelectorTerms", map[string]any{"name": ""}),
-		Entry("ami ssmParameter", "amiSelectorTerms", map[string]any{"ssmParameter": ""}),
-	)
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())

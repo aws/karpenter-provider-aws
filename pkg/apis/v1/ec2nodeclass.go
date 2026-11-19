@@ -183,7 +183,6 @@ type SubnetSelectorTerm struct {
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
-	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -199,7 +198,6 @@ type SecurityGroupSelectorTerm struct {
 	// Tags is a map of key/value tags used to select security groups.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
-	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -209,7 +207,6 @@ type SecurityGroupSelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the security group name in EC2.
 	// This value is the name field, which is different from the name tag.
-	// +kubebuilder:validation:MinLength:=1
 	Name string `json:"name,omitempty"`
 }
 
@@ -217,7 +214,6 @@ type CapacityReservationSelectorTerm struct {
 	// Tags is a map of key/value tags used to select capacity reservations.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
-	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -264,7 +260,6 @@ type AMISelectorTerm struct {
 	// Tags is a map of key/value tags used to select amis.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
-	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -274,7 +269,6 @@ type AMISelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
 	// This value is the name field, which is different from the name tag.
-	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
@@ -282,7 +276,6 @@ type AMISelectorTerm struct {
 	// +optional
 	Owner string `json:"owner,omitempty"`
 	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
-	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }

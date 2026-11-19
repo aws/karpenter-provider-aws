@@ -86,6 +86,15 @@ If you get the error `invalid ownership metadata; label validation error:` while
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.14.4`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.1.0` drops the support for `v1beta1` APIs.
+**Do not** upgrade to `1.1.0`+ without following the [Migration Guide]({{<ref "../../v1.0/upgrading/v1-migration.md#before-upgrading-to-v110">}}).
+{{% /alert %}}
+
+* Karpenter now ignores EC2NodeClass selector terms with an empty `tags` map, `name`, or `ssmParameter`. An EC2NodeClass whose selector terms are all empty goes `NotReady` and doesn't launch nodes until it's fixed, and nodes already launched from it aren't replaced automatically. Nodes from an EC2NodeClass that mixed empty and valid terms may be replaced through drift. Before upgrading, remove empty selector values, including values rendered from unset template variables, and replace nodes launched from affected EC2NodeClasses. No CRD changes are required.
+
 ### Upgrading to `1.14.0`+
 
 {{% alert title="Warning" color="warning" %}}
