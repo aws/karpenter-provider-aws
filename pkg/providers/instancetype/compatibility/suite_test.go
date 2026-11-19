@@ -203,6 +203,25 @@ var _ = Describe("CompatibilityTest", func() {
 				nil, true),
 		)
 	})
+
+	Context("ENAExpressCompatibility", func() {
+		DescribeTable("should gate instance types on EnaSrdSupported when ENA Express is enabled",
+			func(enaExpress *v1.ENAExpress, networkInfo *ec2types.NetworkInfo, expected bool) {
+				info := makeInstanceTypeInfo("", networkInfo)
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				nc.enaExpress = enaExpress
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil ENAExpress passes regardless of support", nil, &ec2types.NetworkInfo{EnaSrdSupported: lo.ToPtr(false)}, true),
+			Entry("enabled + supported", &v1.ENAExpress{Enabled: true}, &ec2types.NetworkInfo{EnaSrdSupported: lo.ToPtr(true)}, true),
+			Entry("enabled with UDP + supported", &v1.ENAExpress{Enabled: true, UDPEnabled: lo.ToPtr(true)}, &ec2types.NetworkInfo{EnaSrdSupported: lo.ToPtr(true)}, true),
+			Entry("enabled + unsupported", &v1.ENAExpress{Enabled: true}, &ec2types.NetworkInfo{EnaSrdSupported: lo.ToPtr(false)}, false),
+			Entry("enabled + unset support", &v1.ENAExpress{Enabled: true}, &ec2types.NetworkInfo{}, false),
+			Entry("enabled + nil network info", &v1.ENAExpress{Enabled: true}, nil, false),
+			Entry("disabled passes regardless", &v1.ENAExpress{Enabled: false}, &ec2types.NetworkInfo{EnaSrdSupported: lo.ToPtr(false)}, true),
+		)
+	})
 })
 
 func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface) *mockNodeClass {
@@ -218,6 +237,7 @@ type mockNodeClass struct {
 	cpuOptions         *v1.CPUOptions
 	enclaveOptions     *v1.EnclaveOptions
 	connectionTracking *v1.ConnectionTracking
+	enaExpress         *v1.ENAExpress
 }
 
 func (m mockNodeClass) AMIFamily() string {
@@ -238,6 +258,10 @@ func (m *mockNodeClass) EnclaveOptions() *v1.EnclaveOptions {
 
 func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
 	return m.connectionTracking
+}
+
+func (m *mockNodeClass) ENAExpress() *v1.ENAExpress {
+	return m.enaExpress
 }
 
 func makeInstanceTypeInfo(instanceType string, networkInfo *ec2types.NetworkInfo) ec2types.InstanceTypeInfo {
