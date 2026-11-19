@@ -13,7 +13,7 @@ Before continuing with this guide, you should know that Karpenter `v1.0.x` only 
 Earlier `Provisioner`, `AWSNodeTemplate`, and `Machine` APIs are not supported.
 Do not upgrade to `v1.0.x` without first [upgrading to `v0.32.x`]({{<ref "upgrade-guide#upgrading-to-0320" >}}) and then upgrading to `v0.33+`.
 
-Additionaly, validate that you are running at least Kubernetes `1.25`.
+Additionally, validate that you are running at least Kubernetes `1.25`.
 Use the [compatibility matrix]({{<ref "compatibility#compatibility-matrix">}}) to confirm you are on a supported Kubernetes version.
 
 ## Before You Start

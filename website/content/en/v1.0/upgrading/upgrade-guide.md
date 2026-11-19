@@ -102,7 +102,7 @@ Refer to the `v1` Migration Guide for the [full changelog]({{<ref "./v1-migratio
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.37.3` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.37.3` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -124,7 +124,7 @@ v0.36.x introduces update to drift that restricts rollback. When rolling back fr
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.36.5` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.36.5` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -138,7 +138,7 @@ You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.35.8` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.35.8` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -156,7 +156,7 @@ The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.34.9` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.34.9` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
@@ -178,7 +178,7 @@ You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
-Webhooks have been re-enabled by default starting in `0.33.8` to faciliate migration to `v1.0`.
+Webhooks have been re-enabled by default starting in `0.33.8` to facilitate migration to `v1.0`.
 If your cluster has network policies that block Ingress then ports `8000`, `8001`, `8081`, `8443` will need to be allowlisted.
 You may still choose to disable webhooks through the helm chart.
 {{% /alert %}}
