@@ -39,7 +39,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
-	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
 var Env *aws.Environment
@@ -643,8 +642,7 @@ func RegisterTests() bool {
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 
 				// Hold the node so the window between the drifted nodeclaim's deletion and its refill stays observable
-				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				Env.ExpectUpdated(node)
+				Env.ExpectTestingFinalizerAdded(node)
 				NodeClass.Spec.Tags = lo.Assign(NodeClass.Spec.Tags, map[string]string{"test-key": "test-value"})
 				Env.ExpectUpdated(NodeClass)
 

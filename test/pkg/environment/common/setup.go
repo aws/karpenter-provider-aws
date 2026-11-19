@@ -166,6 +166,24 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 	wg.Wait()
 }
 
+// ExpectTestingFinalizerAdded adds the TestingFinalizer to each object using an optimistic-locked merge patch,
+// retrying on conflict. Only the finalizer change is sent, so concurrent controller writes (e.g. Karpenter
+// adding the karpenter.sh/initialized label to a Node) are never overwritten. Each object is refreshed in place.
+func (env *Environment) ExpectTestingFinalizerAdded(objects ...client.Object) {
+	GinkgoHelper()
+	for _, obj := range objects {
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+			if lo.Contains(obj.GetFinalizers(), TestingFinalizer) {
+				return
+			}
+			stored := obj.DeepCopyObject().(client.Object)
+			obj.SetFinalizers(append(obj.GetFinalizers(), TestingFinalizer))
+			g.Expect(env.Client.Patch(env, obj, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{}))).To(Succeed())
+		}).WithTimeout(10 * time.Second).Should(Succeed())
+	}
+}
+
 func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
 	metaObj := &metav1.PartialObjectMetadata{}
 	metaObj.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))

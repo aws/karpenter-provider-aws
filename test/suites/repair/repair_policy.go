@@ -168,8 +168,7 @@ func registerRepairPolicy() bool {
 			nodeClaim := Env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 
 			// Hold the node so the window between the unhealthy nodeclaim's deletion and its refill stays observable
-			node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-			Env.ExpectUpdated(node)
+			Env.ExpectTestingFinalizerAdded(node)
 			node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
 				Type:               "AcceleratedHardwareReady",
 				Status:             corev1.ConditionFalse,
