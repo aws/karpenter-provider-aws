@@ -10,6 +10,10 @@ updates:
       # This may change later, but this is how we have it configured right now.
       # https://github.com/aws/karpenter-provider-aws/issues/7826
       - dependency-name: sigs.k8s.io/karpenter
+      # tools/kompat is a nested module in this repo, pinned to a pseudo-version. Dependabot resolves its
+      # "latest" version from the repo-wide release tags (e.g. v1.15.2), but nested modules need
+      # tools/kompat/vX.Y.Z tags, so every update attempt fails with "unknown revision tools/kompat/v1.15.2".
+      - dependency-name: github.com/aws/karpenter-provider-aws/tools/kompat
     groups:
       # Group updates together, so that they are all applied in a single PR.
       # Grouped updates are currently in beta and is subject to change.
