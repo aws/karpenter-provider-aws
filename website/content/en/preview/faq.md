@@ -26,7 +26,7 @@ Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "
 Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/nodeclasses/#specamiselectorterms" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
-Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
+Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling#well-known-labels">}}).
 
 ### What RBAC access is required?
 All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/role.yaml) files for details.
@@ -195,7 +195,7 @@ See [Application developer]({{< ref "./concepts/#application-developer" >}}) for
 Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.
 
 ### Can I set `--max-pods` on my nodes?
-Yes, see the [KubeletConfiguration Section in the NodePool docs]({{<ref "./concepts/nodepools#spectemplatespeckubelet" >}}) to learn more.
+Yes, see the [Kubelet section in the EC2NodeClass docs]({{<ref "./concepts/nodeclasses#speckubelet" >}}) to learn more.
 
 ### Why do the Windows2019, Windows2022 and Windows2025 AMI families only support Windows Server Core?
 The difference between the Core and Full variants is that Core is a minimal OS with less components and no graphic user interface (GUI) or desktop experience.
@@ -258,7 +258,7 @@ Karpenter requires a queue to exist that receives event messages from EC2 and he
 
 Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/disruption/#interruption" >}}).
 
-Details on provisioning the SQS queue and EventBridge rules can be found in the [Getting Started Guide]({{< ref "./getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles" >}}).
+Details on provisioning the SQS queue and EventBridge rules can be found in the [CloudFormation reference]({{< ref "./reference/cloudformation#interruption-handling" >}}).
 
 ## Consolidation
 

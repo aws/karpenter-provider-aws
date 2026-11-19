@@ -4,6 +4,12 @@ inputs:
   suite:
     description: "Suite that's running"
     required: true
+  infra:
+    description: "Whether a failure happened in cluster setup, before Karpenter was installed. Recorded as 'infra:<signature>' when infra_signature is a known cause"
+    default: 'false'
+  infra_signature:
+    description: "Cause of an infra failure (iam-roles-quota, oidc-quota or cfn-throttle). Empty or 'other' is recorded as 'failure'"
+    default: ''
 runs:
   using: "composite"
   steps:
@@ -11,13 +17,18 @@ runs:
       shell: bash
       env:
         SUITE: ${{ inputs.suite }}
+        INFRA: ${{ inputs.infra }}
+        INFRA_SIGNATURE: ${{ inputs.infra_signature }}
       run: |
         mkdir -p suite-status
         STATUS="failure"
         if [[ "${{ job.status }}" == "success" ]]; then
           STATUS="success"
+        # An unmatched setup failure may be a regression in Karpenter's own setup code, so it stays a failure
+        elif [[ "$INFRA" == "true" && -n "$INFRA_SIGNATURE" && "$INFRA_SIGNATURE" != "other" ]]; then
+          STATUS="infra:${INFRA_SIGNATURE}"
         fi
-        # Filename is the lowercased suite name; contents are success|failure
+        # Filename is the lowercased suite name; contents are success|failure|infra:<signature>
         echo "$STATUS" > "suite-status/${SUITE,,}"
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:

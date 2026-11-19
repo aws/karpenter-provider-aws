@@ -179,20 +179,33 @@ jobs:
           }
           join_by() { local d="$1"; shift; local out="${1:-}"; shift || true; local x; for x in "$@"; do out+="$d$x"; done; printf '%s' "$out"; }
 
-          failed=(); passed=()
+          failed=(); infra=(); passed=()
+          declare -A infra_signature=()
           for f in suite-status/*; do
             name="$(basename "$f")"
-            if [[ "$(cat "$f")" == "success" ]]; then passed+=("$name"); else failed+=("$name"); fi
+            status="$(cat "$f")"
+            case "$status" in
+              success) passed+=("$name") ;;
+              infra:*) infra+=("$name"); infra_signature[$name]="${status#infra:}" ;;
+              *) failed+=("$name") ;;
+            esac
           done
-          total=$(( ${#passed[@]} + ${#failed[@]} ))
+          total=$(( ${#passed[@]} + ${#failed[@]} + ${#infra[@]} ))
 
           # Bare URLs auto-link everywhere (Slack mrkdwn <url|text> does not render in Workflow Builder)
-          if [[ ${#failed[@]} -eq 0 ]]; then
+          if [[ ${#failed[@]} -eq 0 && ${#infra[@]} -eq 0 ]]; then
             msg=":white_check_mark: E2E ${ctx} — all ${total} suites passed: ${run_url}"
           else
-            msg=":x: E2E ${ctx} — ${#failed[@]}/${total} suites failed: ${run_url}"
+            msg=":x: E2E ${ctx} — $(( ${#failed[@]} + ${#infra[@]} ))/${total} suites failed"
+            if [[ ${#infra[@]} -gt 0 ]]; then
+              msg+=" (${#infra[@]} in cluster setup, infra)"
+            fi
+            msg+=": ${run_url}"
             for s in "${failed[@]}"; do
               msg+=$'\n'":x: ${s}: $(job_url "$s")"
+            done
+            for s in "${infra[@]}"; do
+              msg+=$'\n'":construction: ${s} (infra: ${infra_signature[$s]}): $(job_url "$s")"
             done
             msg+=$'\n'":white_check_mark: ${#passed[@]} passed: $(join_by ", " "${passed[@]:-}")"
           fi

@@ -130,7 +130,8 @@ jobs:
           fi
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
-      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+      - id: setup-cluster
+        name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         if: inputs.cluster_name == ''
         uses: ./.github/actions/e2e/setup-cluster
         with:
@@ -212,6 +213,9 @@ jobs:
         if: (success() || failure()) && inputs.workflow_trigger == 'matrix'
         with:
           suite: ${{ inputs.suite }}
+          # A failed Karpenter install is a Karpenter failure, so only failures before that phase count as infra
+          infra: ${{ steps.setup-cluster.outcome == 'failure' && env.E2E_SETUP_PHASE != 'install-karpenter' }}
+          infra_signature: ${{ env.E2E_SETUP_FAILURE }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: (failure() || cancelled()) && inputs.workflow_trigger != 'private_cluster'

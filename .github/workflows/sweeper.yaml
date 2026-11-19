@@ -1,7 +1,10 @@
 name: Sweeper
 on:
   schedule:
-    - cron: '0 */12 * * *'
+    # The us-east-2 cleanup can saturate the CloudFormation operation limit for ~20 minutes and fail cluster setup,
+    # so run in the gaps between E2E matrix runs (e2e-matrix-trigger.yaml), which typically occupy 00:30-04:50,
+    # 08:10-12:40 and 16:10-20:45 UTC. Re-check this slot if the matrix, perf, scale or private cluster crons change.
+    - cron: '30 5,13 * * *'
   workflow_dispatch:
 jobs:
   sweeper:

@@ -315,10 +315,10 @@ func RegisterTests() bool {
 			roleName := fmt.Sprintf("KarpenterNodeRole-%s", Env.ClusterName)
 
 			for _, name := range []string{instanceProfileName, instanceProfileDriftName} {
-				Env.ExpectInstanceProfileCreated(name, roleName)
 				DeferCleanup(func() {
-					Env.ExpectInstanceProfileDeleted(name, roleName)
+					Env.ExpectInstanceProfileDeleted(name)
 				})
+				Env.ExpectInstanceProfileCreated(name, roleName)
 			}
 			NodeClass.Spec.Role = ""
 			NodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileName)
@@ -359,10 +359,10 @@ func RegisterTests() bool {
 
 			// Change role
 			secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-%s", Env.ClusterName, uuid.New().String()[:8])
-			Env.EventuallyExpectNodeRoleCreated(secondRoleName)
 			DeferCleanup(func() {
 				Env.ExpectNodeRoleDeleted(secondRoleName)
 			})
+			Env.EventuallyExpectNodeRoleCreated(secondRoleName)
 
 			NodeClass.Spec.Role = secondRoleName
 			Env.ExpectCreatedOrUpdated(NodeClass)

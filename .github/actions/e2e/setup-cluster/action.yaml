@@ -69,7 +69,12 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
+      # Stopgap for short CloudFormation throttles (the CLI default is 3 attempts). eksctl sets its own retryer and ignores these.
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "10"
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
 
@@ -101,6 +106,8 @@ runs:
       CLEANUP: ${{ inputs.cleanup }}
       CODEBUILD_ROLE: ${{ inputs.codebuild_role }}
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       if [[ "$GIT_REF" == '' ]]; then
         GIT_REF=$(git rev-parse HEAD)
       fi
@@ -270,6 +277,8 @@ runs:
     env:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       stack_names=$(aws cloudformation describe-stacks --query "Stacks[?Tags[?Key == 'karpenter.sh/discovery' && Value == '$CLUSTER_NAME']].{StackName: StackName}" --output text)
       for stack_name in $stack_names; do
         echo "Stack Events for $stack_name:"
@@ -286,6 +295,11 @@ runs:
       cluster_name: ${{ inputs.cluster_name }}
       workspace_id: ${{ inputs.prometheus_workspace_id }}
       git_ref: ${{ inputs.git_ref }}
+  # Callers read E2E_SETUP_PHASE so a failed Karpenter install isn't counted as infra
+  - name: mark karpenter install phase
+    if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
+    shell: bash
+    run: echo "E2E_SETUP_PHASE=install-karpenter" >> "$GITHUB_ENV"
   - name: install karpenter
     if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
     uses: ./.github/actions/e2e/install-karpenter
@@ -299,3 +313,20 @@ runs:
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.karpenter_git_ref || inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
+  - name: classify setup failure
+    if: failure()
+    shell: bash
+    run: |
+      log="$RUNNER_TEMP/e2e-setup.log"
+      signature="other"
+      if [[ -f "$log" ]]; then
+        if grep -q "RolesPerAccount" "$log"; then
+          signature="iam-roles-quota"
+        elif grep -q "OpenIdConnectProvidersPerAccount" "$log"; then
+          signature="oidc-quota"
+        elif grep -q "Concurrent resource level operations" "$log"; then
+          signature="cfn-throttle"
+        fi
+      fi
+      echo "cluster setup failure signature: $signature"
+      echo "E2E_SETUP_FAILURE=$signature" >> "$GITHUB_ENV"

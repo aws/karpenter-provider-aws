@@ -67,7 +67,7 @@ func RunInfoFromEnv() RunInfo {
 	}
 	return RunInfo{
 		RunURL:           url,
-		CoreCommit:       CoreCommit(),
+		CoreCommit:       coreCommitFromEnv(),
 		RunID:            os.Getenv("GITHUB_RUN_ID"),
 		RunAttempt:       os.Getenv("GITHUB_RUN_ATTEMPT"),
 		Trigger:          os.Getenv("GITHUB_EVENT_NAME"),
@@ -77,6 +77,15 @@ func RunInfoFromEnv() RunInfo {
 		ControlPlaneTier: os.Getenv("CP_TIER"),
 		ControllerShape:  os.Getenv("CONTROLLER_SHAPE"),
 	}
+}
+
+// coreCommitFromEnv prefers CORE_VERSION (the workflow sets it from go list -m): Go 1.26 test binaries don't embed
+// their dependencies, so CoreCommit is empty there.
+func coreCommitFromEnv() string {
+	if v := os.Getenv("CORE_VERSION"); v != "" {
+		return coreCommit(v)
+	}
+	return CoreCommit()
 }
 
 // CoreCommit is the commit of the sigs.k8s.io/karpenter module in this binary's build info: the hash of a
@@ -204,8 +213,9 @@ func TimestreamRecords(r *perf.Result, run RunInfo, metrics []perf.Metric) []tim
 	return out
 }
 
-// gateMeasures are a gated metric's bound, headroom_pct, passed, overridden and status. status is FAIL when the gate
-// failed, WARN when it passed with under 10% headroom, and PASS otherwise.
+// gateMeasures are a gated metric's bound, headroom_pct, passed, overridden and status. status follows what the
+// breach did: FAIL when a Stable gate failed (the spec fails), BREACH when an Experimental one did (it only warns),
+// WARN when the gate passed with under 10% headroom, and PASS otherwise.
 func gateMeasures(value float64, g perf.GateResult) []timestreamtypes.MeasureValue {
 	var out []timestreamtypes.MeasureValue
 	status := "PASS"
@@ -219,7 +229,7 @@ func gateMeasures(value float64, g perf.GateResult) []timestreamtypes.MeasureVal
 		}
 	}
 	if !g.Passed {
-		status = "FAIL"
+		status = lo.Ternary(g.Tier == perf.TierStable, "FAIL", "BREACH")
 	}
 	return append(out, boolean("passed", g.Passed), boolean("overridden", g.Overridden), varchar("status", status))
 }

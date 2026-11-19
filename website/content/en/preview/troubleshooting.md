@@ -61,7 +61,7 @@ You have two mitigations to resolve this error:
 
 If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
 
-Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-karpenter/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` by the [CloudFormation template]({{<ref "./reference/cloudformation#karpenternoderole" >}}) used in the getting started guide.
 If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
 
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
@@ -256,14 +256,14 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 
 1. Enable [Prefix Delegation](https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your NodePods
-3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+3. Remove the `maxPods` value from your [`spec.kubelet`]({{<ref "./concepts/nodeclasses#speckubelet" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 4. Set [RESERVED_ENIS]({{<ref "./reference/settings" >}})=1 in your Karpenter configuration to account for the reserved ENI when using Security Groups for Pods.
 
 For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodeclasses#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
-When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`EC2NodeClass`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelectorTerms`]({{<ref "./concepts/nodeclasses#specsubnetselectorterms" >}}) value in your [`EC2NodeClass`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
 
 ##### Solutions
 
@@ -697,7 +697,7 @@ This means that your CNI plugin is out of date. You can find instructions on how
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the EC2NodeClass.
+This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses#specblockdevicemappings" >}}) specified in the EC2NodeClass.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
@@ -791,4 +791,4 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
-See [Environment Variables / CLI Flags]({{<ref "./reference/settings#environment-variables--cli-flags" >}}) for details.
+See [Environment Variables / CLI Flags]({{<ref "./reference/settings" >}}) for details.

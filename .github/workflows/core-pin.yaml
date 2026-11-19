@@ -1,0 +1,31 @@
+name: CorePin
+# Fails a sigs.k8s.io/karpenter pin that isn't a merged core commit, and lists what the bump pulls in
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core-pin:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws/karpenter-provider-aws'
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        # HEAD is the PR merged into its base, so HEAD^1 is the base
+        fetch-depth: 2
+    # The check parses go.mod with go mod edit
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version-file: go.mod
+        cache: false
+    - env:
+        GH_TOKEN: ${{ github.token }}
+        BASE_REF: ${{ github.base_ref }}
+      # Run the base's copy so a PR can't loosen the check it's judged by
+      run: |
+        script="${RUNNER_TEMP}/core-pin-check.sh"
+        git show HEAD^1:hack/github/core-pin-check.sh > "${script}" 2> /dev/null || cp hack/github/core-pin-check.sh "${script}"
+        bash "${script}" HEAD^1 HEAD
