@@ -1866,7 +1866,7 @@ spec:
 
 The example uses `@latest` for brevity; follow the [AMI pinning guidance]({{< ref "../tasks/managing-amis#pinning-amis" >}}) for production.
 
-For detailed configuration examples, including the default device-plugin label and expected extended resources, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}).
+For detailed configuration examples, including the default device-plugin label and expected extended resources, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) and the [AL2023 Nitro Enclaves user data example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml).
 
 ## spec.ipPrefixCount
 
