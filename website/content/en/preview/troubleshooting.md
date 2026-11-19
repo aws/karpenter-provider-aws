@@ -694,6 +694,23 @@ If you have an EC2 instance get launched that is stuck in pending and ultimately
 
 This means that your CNI plugin is out of date. You can find instructions on how to update your plugin [here](https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html).
 
+### Node doesn't become Ready after its root volume is replaced
+
+On AL2023 AMIs without [amazon-eks-ami#2869](https://github.com/awslabs/amazon-eks-ami/pull/2869), an instance-store RAID0 array (`instanceStorePolicy: RAID0`) isn't reassembled after [`amiDriftPolicy: ReplaceRootVolume`]({{<ref "./concepts/nodeclasses#specamidriftpolicy" >}}) replaces the root volume, so the node doesn't rejoin the cluster ([amazon-eks-ami#2867](https://github.com/awslabs/amazon-eks-ami/issues/2867)).
+Karpenter deletes the NodeClaim when the reboot doesn't complete in time.
+Move to an AMI with the fix, or add this to the EC2NodeClass `userData` on older AMIs:
+
+```bash
+#cloud-boothook
+#!/bin/bash
+set -euo pipefail
+MD_CONFIG=/.aws/mdadm.conf
+if mdadm --detail --scan 2>/dev/null | grep -q "ARRAY" && [ ! -s "$MD_CONFIG" ]; then
+  mkdir -p "$(dirname "$MD_CONFIG")"
+  mdadm --detail --scan > "$MD_CONFIG"
+fi
+```
+
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.

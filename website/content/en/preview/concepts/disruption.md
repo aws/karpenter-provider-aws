@@ -196,6 +196,12 @@ Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
 2. The NodeClaim isn't drifted, but has the status condition, Karpenter will remove it.
 
+#### In-Place AMI Updates
+By default, drift replaces the node.
+When an EC2NodeClass sets [`amiDriftPolicy: ReplaceRootVolume`]({{<ref "./nodeclasses#specamidriftpolicy" >}}), a node drifted only by its AMI keeps its instance instead: Karpenter drains it, replaces its root volume with one restored from the new AMI through a reboot, and waits for it to become `Ready`.
+This keeps instance-store data and capacity at the cost of a longer pod outage, since no replacement is launched first.
+These reboots count against the `Drifted` [disruption budget]({{<ref "#nodepool-disruption-budgets" >}}) until the node is initialized again.
+
 ### Terminate-First Disruption
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.15.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})

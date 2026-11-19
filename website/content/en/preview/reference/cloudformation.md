@@ -291,6 +291,47 @@ The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.
 }
 ```
 
+#### AllowScopedReplaceRootVolume
+
+The AllowScopedReplaceRootVolume Sid allows [CreateReplaceRootVolumeTask](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateReplaceRootVolumeTask.html) on instances that have the `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags, the same scoping as [AllowScopedDeletion]({{< ref "#allowscopeddeletion" >}}).
+Karpenter uses it to replace the root volume of a node drifted only by its AMI when the EC2NodeClass sets [`amiDriftPolicy: ReplaceRootVolume`]({{<ref "../concepts/nodeclasses#specamidriftpolicy" >}}).
+
+```json
+{
+  "Sid": "AllowScopedReplaceRootVolume",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
+  "Action": "ec2:CreateReplaceRootVolumeTask",
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+    },
+    "StringLike": {
+      "aws:ResourceTag/karpenter.sh/nodepool": "*"
+    }
+  }
+}
+```
+
+#### AllowReplaceRootVolumeResources
+
+The AllowReplaceRootVolumeResources Sid allows the other resources a [CreateReplaceRootVolumeTask](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateReplaceRootVolumeTask.html) call touches: the AMI the new root volume is restored from, and the volume and task the call creates.
+The volume and the task don't exist before the call, so they can't carry a tag condition.
+The image resource allows any AMI, like [AllowScopedEC2InstanceAccessActions]({{< ref "#allowscopedec2instanceaccessactions" >}}) does for `RunInstances`; you can narrow it with an `ec2:Owner` condition.
+
+```json
+{
+  "Sid": "AllowReplaceRootVolumeResources",
+  "Effect": "Allow",
+  "Resource": [
+    "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:volume/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:replace-root-volume-task/*"
+  ],
+  "Action": "ec2:CreateReplaceRootVolumeTask"
+}
+```
+
 ### KarpenterControllerIAMIntegrationPolicy
 
 The `IAMIntegrationPolicy` manages IAM instance profile operations. Given a cluster name of `bob-karpenter-demo`, this policy would be named: `KarpenterControllerIAMIntegrationPolicy-bob-karpenter-demo`
@@ -536,7 +577,7 @@ ResourceDiscoveryPolicy:
 
 #### AllowRegionalReadActions
 
-The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
+The AllowRegionalReadActions Sid allows [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html), [DescribeImages](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeImages.html), [DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html), [DescribeInstanceStatus](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceStatus.html), [DescribeInstanceTypeOfferings](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypeOfferings.html), [DescribeInstanceTypes](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstanceTypes.html), [DescribeLaunchTemplates](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeLaunchTemplates.html), [DescribePlacementGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html), [DescribeReplaceRootVolumeTasks](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeReplaceRootVolumeTasks.html), [DescribeSecurityGroups](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSecurityGroups.html), [DescribeSnapshots](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSnapshots.html), [DescribeSpotPriceHistory](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSpotPriceHistory.html), and [DescribeSubnets](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeSubnets.html) actions for the current AWS region.
 This allows the Karpenter controller to do any of those read-only actions across all related resources for that AWS region.
 
 ```json
@@ -553,7 +594,9 @@ This allows the Karpenter controller to do any of those read-only actions across
     "ec2:DescribeInstanceTypes",
     "ec2:DescribeLaunchTemplates",
     "ec2:DescribePlacementGroups",
+    "ec2:DescribeReplaceRootVolumeTasks",
     "ec2:DescribeSecurityGroups",
+    "ec2:DescribeSnapshots",
     "ec2:DescribeSpotPriceHistory",
     "ec2:DescribeSubnets"
   ],
