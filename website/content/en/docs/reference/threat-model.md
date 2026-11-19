@@ -57,7 +57,7 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 **Threat**: A Cluster Developer attempts to have Karpenter create more instances than intended by creating a large number of pods or by using anti-affinity to schedule one pod per node.
 
-**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "../concepts/nodepools#spec-limits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
+**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "../concepts/nodepools#speclimits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
 
 ## Threats
 
