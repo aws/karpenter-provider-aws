@@ -225,11 +225,7 @@ func registerConsolidation() bool {
 				Env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 
 				By("adding finalizers to the nodes to prevent termination")
-				for _, node := range nodes {
-					Expect(Env.Client.Get(Env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-					node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-					Env.ExpectUpdated(node)
-				}
+				Env.ExpectTestingFinalizerAdded(lo.Map(nodes, func(n *corev1.Node, _ int) client.Object { return n })...)
 
 				dep.Spec.Replicas = lo.ToPtr[int32](1)
 				By("making the nodes empty")
@@ -285,11 +281,7 @@ func registerConsolidation() bool {
 
 				By("cordoning and adding finalizer to the nodes")
 				// Add a finalizer to each node so that we can stop termination disruptions
-				for _, node := range nodes {
-					Expect(Env.Client.Get(Env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-					node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-					Env.ExpectUpdated(node)
-				}
+				Env.ExpectTestingFinalizerAdded(lo.Map(nodes, func(n *corev1.Node, _ int) client.Object { return n })...)
 
 				By("enabling consolidation")
 				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
@@ -372,11 +364,7 @@ func registerConsolidation() bool {
 
 				By("cordoning and adding finalizer to the nodes")
 				// Add a finalizer to each node so that we can stop termination disruptions
-				for _, node := range originalNodes {
-					Expect(Env.Client.Get(Env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-					node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-					Env.ExpectUpdated(node)
-				}
+				Env.ExpectTestingFinalizerAdded(lo.Map(originalNodes, func(n *corev1.Node, _ int) client.Object { return n })...)
 
 				// Delete the daemonset so that the nodes can be consolidated to smaller size
 				Env.ExpectDeleted(ds)
