@@ -843,7 +843,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 				env.ZoneInfo[0].Zone,
 				1,
 				nil,
-				nil,
+				env.CapacityReservationTags(),
 			)
 			xlargeCapacityReservationID = environmentaws.ExpectCapacityReservationCreated(
 				env.Context,
@@ -852,7 +852,7 @@ var _ = DescribeTableSubtree("Consolidation", Ordered, func(minValuesPolicy opti
 				env.ZoneInfo[0].Zone,
 				1,
 				nil,
-				nil,
+				env.CapacityReservationTags(),
 			)
 		})
 		AfterAll(func() {

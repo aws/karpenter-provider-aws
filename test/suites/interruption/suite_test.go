@@ -121,7 +121,7 @@ var _ = Describe("Interruption", func() {
 			env.ZoneInfo[0].Zone,
 			1,
 			1,
-			nil,
+			env.CapacityReservationTags(),
 		)
 		DeferCleanup(func() {
 			aws.ExpectInterruptibleAndSourceCapacityCanceled(env.Context, env.EC2API, sourceReservationID, interruptibleReservationID)
