@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -41,9 +42,18 @@ import (
 
 func registerExtendedResources() bool {
 	return Describe("Extended Resources", func() {
+		// Set by the pod-eni spec. It must run before the suite AfterEach deletes the node, which drops pending branch ENI deletes.
+		var releaseBranchENIs func()
 		BeforeEach(func() {
 			if Env.PrivateCluster {
 				Skip("skipping Extended Resources test for private cluster")
+			}
+		})
+		AfterEach(func() {
+			// Clear first so a failed release doesn't run again in later specs
+			if release := releaseBranchENIs; release != nil {
+				releaseBranchENIs = nil
+				release()
 			}
 		})
 		It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
@@ -192,6 +202,10 @@ func registerExtendedResources() bool {
 			DeferCleanup(func() {
 				Env.ExpectPodENIDisabled()
 			})
+			// Runs after the node is deleted, in case releaseBranchENIs failed
+			DeferCleanup(func() {
+				Env.EventuallyExpectBranchENIsDeleted()
+			})
 			Env.ExpectCreated(NodeClass) // Creating the nodeclass first to discover the security groups
 
 			// evenutally expect the status on the nodeclass to be hydrated
@@ -223,10 +237,29 @@ func registerExtendedResources() bool {
 				},
 			}
 
-			Env.ExpectCreated(NodePool, dep, sgp)
-			Env.EventuallyExpectHealthyPodCount(selector, numPods)
+			releaseBranchENIs = func() {
+				Env.ExpectDeleted(dep, sgp)
+				Eventually(func(g Gomega) {
+					g.Expect(Env.ExpectPodsMatchingSelector(selector)).To(BeEmpty())
+				}).Should(Succeed())
+				Env.EventuallyExpectBranchENIsDeleted()
+			}
+			// The webhook only injects pod-eni if the SGP exists when the pod is created
+			Env.ExpectCreated(sgp)
+			// The webhook reads SGPs from a cache, so wait until a dry-run pod gets pod-eni
+			Eventually(func(g Gomega) {
+				pod := test.Pod(test.PodOptions{ObjectMeta: metav1.ObjectMeta{Labels: dep.Spec.Selector.MatchLabels}})
+				g.Expect(Env.Client.Create(Env.Context, pod, client.DryRunAll)).To(Succeed())
+				g.Expect(pod.Spec.Containers[0].Resources.Requests).To(HaveKey(v1.ResourceAWSPodENI))
+			}).Should(Succeed())
+			Env.ExpectCreated(NodePool, dep)
+			pods := Env.EventuallyExpectHealthyPodCount(selector, numPods)
 			Env.ExpectCreatedNodeCount("==", 1)
 			Env.EventuallyExpectInitializedNodeCount("==", 1)
+			for _, pod := range pods {
+				resources := pod.Spec.Containers[0].Resources
+				Expect([]corev1.ResourceList{resources.Requests, resources.Limits}).To(ContainElement(HaveKey(v1.ResourceAWSPodENI)))
+			}
 		})
 		It("should provision nodes for a deployment that requests amd.com/gpu", func() {
 			Skip("skipping test on AMD instance types")

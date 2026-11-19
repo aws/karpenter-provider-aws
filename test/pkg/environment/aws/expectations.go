@@ -263,6 +263,41 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	return dnio.NetworkInterfaces
 }
 
+// EventuallyExpectBranchENIsDeleted deletes the cluster's detached branch ENIs and waits until none remain.
+// The VPC resource controller only reclaims them every 30m, and they block deleting the cluster's subnets.
+func (env *Environment) EventuallyExpectBranchENIsDeleted() {
+	GinkgoHelper()
+	By("waiting for the cluster's branch ENIs to be deleted")
+	Eventually(func(g Gomega) {
+		var enis []ec2types.NetworkInterface
+		paginator := ec2.NewDescribeNetworkInterfacesPaginator(env.EC2API, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{Name: aws.String("description"), Values: []string{"aws-k8s-branch-eni"}},
+				{Name: aws.String("tag:eks:eni:owner"), Values: []string{"eks-vpc-resource-controller"}},
+				{Name: aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", env.ClusterName)), Values: []string{"owned"}},
+			},
+		})
+		for paginator.HasMorePages() {
+			out, err := paginator.NextPage(env.Context)
+			g.Expect(err).ToNot(HaveOccurred())
+			enis = append(enis, out.NetworkInterfaces...)
+		}
+		for _, eni := range enis {
+			if eni.Status != ec2types.NetworkInterfaceStatusAvailable {
+				continue
+			}
+			_, err := env.EC2API.DeleteNetworkInterface(env.Context, &ec2.DeleteNetworkInterfaceInput{NetworkInterfaceId: eni.NetworkInterfaceId})
+			if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "InvalidNetworkInterfaceID.NotFound" {
+				continue
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+		g.Expect(lo.Map(enis, func(eni ec2types.NetworkInterface, _ int) string {
+			return fmt.Sprintf("%s (%s)", aws.ToString(eni.NetworkInterfaceId), eni.Status)
+		})).To(BeEmpty())
+	}).WithTimeout(5 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+}
+
 func FindNetworkInterface(interfaces []ec2types.InstanceNetworkInterface, networkCardIndex, deviceIndex int32) (ec2types.InstanceNetworkInterface, bool) {
 	return lo.Find(interfaces, func(ni ec2types.InstanceNetworkInterface) bool {
 		return ni.Attachment != nil &&
