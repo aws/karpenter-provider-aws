@@ -184,6 +184,10 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
+	# Regenerate the reference pages that are derived purely from source (no AWS credentials needed), so a
+	# change that adds/changes a metric or annotation (including a sigs.k8s.io/karpenter bump) fails presubmit
+	# instead of the post-merge DryRunGen drift check.
+	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh metrics annotations
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
