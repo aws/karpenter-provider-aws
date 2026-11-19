@@ -75,7 +75,7 @@ run: ## Run Karpenter controller binary against your local cluster with latest C
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
-	go test ./pkg/... \
+	go test ./pkg/... ./kwok/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.skip="${SKIP}" \
@@ -90,7 +90,7 @@ deflake: ## Run randomized, racing tests until the test fails to catch flakes
 		--randomize-all \
 		--until-it-fails \
 		-v \
-		./pkg/...
+		./pkg/... ./kwok/...
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
