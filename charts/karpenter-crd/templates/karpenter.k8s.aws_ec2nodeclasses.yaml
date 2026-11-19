@@ -60,6 +60,16 @@ spec:
                 EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
                 This will contain configuration necessary to launch instances in AWS.
               properties:
+                amiDriftPolicy:
+                  description: |-
+                    AMIDriftPolicy controls how nodes drifted only by their AMI are updated. ReplaceInstance, the default, replaces
+                    them. ReplaceRootVolume replaces the root volume of the running instance with one restored from the new AMI,
+                    which keeps the instance and its instance-store volumes, and falls back to replacing the instance when the AMI
+                    or the node can't be updated in place or the root volume replacement fails.
+                  enum:
+                    - ReplaceInstance
+                    - ReplaceRootVolume
+                  type: string
                 amiFamily:
                   description: |-
                     AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.
@@ -687,6 +697,20 @@ spec:
                       id:
                         description: ID of the AMI
                         type: string
+                      inPlaceUpgrade:
+                        description: |-
+                          InPlaceUpgrade reports whether a running instance's root volume can be replaced with one restored from this AMI.
+                          It is only set when the EC2NodeClass's amiDriftPolicy is ReplaceRootVolume.
+                        properties:
+                          reason:
+                            description: Reason names the check the AMI failed.
+                            type: string
+                          supported:
+                            description: Supported is true when the AMI passes every check.
+                            type: boolean
+                        required:
+                          - supported
+                        type: object
                       name:
                         description: Name of the AMI
                         type: string

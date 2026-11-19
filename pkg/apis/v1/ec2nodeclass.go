@@ -84,6 +84,13 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022,Windows2025}
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
+	// AMIDriftPolicy controls how nodes drifted only by their AMI are updated. ReplaceInstance, the default, replaces
+	// them. ReplaceRootVolume replaces the root volume of the running instance with one restored from the new AMI,
+	// which keeps the instance and its instance-store volumes, and falls back to replacing the instance when the AMI
+	// or the node can't be updated in place or the root volume replacement fails.
+	// +kubebuilder:validation:Enum:={ReplaceInstance,ReplaceRootVolume}
+	// +optional
+	AMIDriftPolicy *AMIDriftPolicy `json:"amiDriftPolicy,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -506,6 +513,16 @@ const (
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
+// AMIDriftPolicy enumerates how Karpenter updates nodes drifted only by their AMI.
+type AMIDriftPolicy string
+
+const (
+	// AMIDriftPolicyReplaceInstance replaces the node.
+	AMIDriftPolicyReplaceInstance AMIDriftPolicy = "ReplaceInstance"
+	// AMIDriftPolicyReplaceRootVolume replaces the root volume of the running instance through a reboot.
+	AMIDriftPolicyReplaceRootVolume AMIDriftPolicy = "ReplaceRootVolume"
+)
+
 // InterfaceType specifies the network interface type for a network interface.
 type InterfaceType string
 
@@ -604,6 +621,10 @@ func (in *EC2NodeClass) BlockDeviceMappings() []*BlockDeviceMapping {
 
 func (in *EC2NodeClass) InstanceStorePolicy() *InstanceStorePolicy {
 	return in.Spec.InstanceStorePolicy
+}
+
+func (in *EC2NodeClass) AMIDriftPolicy() AMIDriftPolicy {
+	return lo.FromPtrOr(in.Spec.AMIDriftPolicy, AMIDriftPolicyReplaceInstance)
 }
 
 func (in *EC2NodeClass) NetworkInterfaces() []*NetworkInterface {

@@ -217,6 +217,20 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
+	Context("AMIDriftPolicy", func() {
+		DescribeTable("should succeed with valid policies", func(policy *v1.AMIDriftPolicy) {
+			nc.Spec.AMIDriftPolicy = policy
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		},
+			Entry("when omitted", (*v1.AMIDriftPolicy)(nil)),
+			Entry("ReplaceInstance", lo.ToPtr(v1.AMIDriftPolicyReplaceInstance)),
+			Entry("ReplaceRootVolume", lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)),
+		)
+		It("should fail with an invalid policy", func() {
+			nc.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicy("Reboot"))
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("Tags", func() {
 		It("should succeed when tags are empty", func() {
 			nc.Spec.Tags = map[string]string{}

@@ -78,7 +78,31 @@ type AMI struct {
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
 	Requirements []corev1.NodeSelectorRequirement `json:"requirements"`
+	// InPlaceUpgrade reports whether a running instance's root volume can be replaced with one restored from this AMI.
+	// It is only set when the EC2NodeClass's amiDriftPolicy is ReplaceRootVolume.
+	// +optional
+	InPlaceUpgrade *InPlaceUpgrade `json:"inPlaceUpgrade,omitempty" hash:"ignore"`
 }
+
+// InPlaceUpgrade is the result of the AMI-level checks for replacing a running instance's root volume.
+type InPlaceUpgrade struct {
+	// Supported is true when the AMI passes every check.
+	// +required
+	Supported bool `json:"supported"`
+	// Reason names the check the AMI failed.
+	// +optional
+	Reason InPlaceUpgradeReason `json:"reason,omitempty"`
+}
+
+// InPlaceUpgradeReason names an AMI-level check that keeps an AMI from replacing a running instance's root volume.
+type InPlaceUpgradeReason string
+
+const (
+	// InPlaceUpgradeReasonProductCodes means the AMI carries AWS Marketplace product codes.
+	InPlaceUpgradeReasonProductCodes InPlaceUpgradeReason = "ProductCodes"
+	// InPlaceUpgradeReasonSnapshotNotReadable means the account can't create a volume from the AMI's root snapshot.
+	InPlaceUpgradeReasonSnapshotNotReadable InPlaceUpgradeReason = "SnapshotNotReadable"
+)
 
 type CapacityReservation struct {
 	// The availability zone the capacity reservation is available in.
