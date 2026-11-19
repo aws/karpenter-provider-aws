@@ -92,7 +92,7 @@ type Operator struct {
 	Config                      aws.Config
 	UnavailableOfferingsCache   *awscache.UnavailableOfferings
 	SSMCache                    *cache.Cache
-	ValidationCache             *cache.Cache
+	ValidationCache             *awscache.Validation
 	RecreationCache             *cache.Cache
 	SubnetProvider              subnet.Provider
 	SecurityGroupProvider       securitygroup.Provider
@@ -162,7 +162,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	ssmCache := cache.New(awscache.SSMCacheTTL, awscache.DefaultCleanupInterval)
-	validationCache := awscache.NewJitteredCache(awscache.ValidationTTL, 5*time.Minute, awscache.DefaultCleanupInterval)
+	validationCache := awscache.NewValidation(awscache.NewJitteredCache(awscache.ValidationTTL, 5*time.Minute, awscache.DefaultCleanupInterval))
 	recreationCache := cache.New(awscache.RecreationTTL, awscache.DefaultCleanupInterval)
 
 	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval
@@ -267,6 +267,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
 		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
+		validationCache,
 		instance.WithEFAProvider(efaProvider),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)

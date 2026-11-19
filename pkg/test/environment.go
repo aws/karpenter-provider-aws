@@ -92,7 +92,7 @@ type Environment struct {
 	CapacityReservationCache             *cache.Cache
 	CapacityReservationAvailabilityCache *cache.Cache
 	PlacementGroupCache                  *cache.Cache
-	ValidationCache                      *cache.Cache
+	ValidationCache                      *awscache.Validation
 	RecreationCache                      *cache.Cache
 	ProtectedProfilesCache               *cache.Cache
 
@@ -149,7 +149,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	capacityReservationAvailabilityCache := cache.New(24*time.Hour, awscache.DefaultCleanupInterval)
 	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	placementGroupAvailabilityCache := cache.New(awscache.PlacementGroupAvailabilityTTL, awscache.DefaultCleanupInterval)
-	validationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	validationCache := awscache.NewValidation(cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	recreationCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 	eventRecorder := coretest.NewEventRecorder()
@@ -219,6 +219,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		placementGroupProvider,
 		zonalshiftProvider,
 		instanceCache,
+		validationCache,
 		instance.WithEFAProvider(efaProvider),
 	)
 

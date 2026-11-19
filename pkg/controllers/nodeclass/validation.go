@@ -23,8 +23,6 @@ import (
 
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/awslabs/operatorpkg/status"
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +43,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -82,13 +81,6 @@ var ValidationConditionMessages = map[string]string{
 	ConditionReasonUserDataTooLarge:               "ec2:CreateLaunchTemplate rejected the rendered user data as too large",
 }
 
-// validationCacheEntry stores a failed validation result with both the condition reason and the
-// enriched message derived from the AWS error, so cached results can reproduce the same condition.
-type validationCacheEntry struct {
-	reason  string
-	message string
-}
-
 type Validation struct {
 	kubeClient             client.Client
 	cloudProvider          cloudprovider.CloudProvider
@@ -96,7 +88,7 @@ type Validation struct {
 	amiResolver            amifamily.Resolver
 	instanceTypeProvider   instancetype.Provider
 	launchTemplateProvider launchtemplate.Provider
-	cache                  *cache.Cache
+	cache                  *awscache.Validation
 	clk                    clock.Clock
 	celEnv                 *kubeletcel.CELEnvironment
 	dryRunDisabled         bool
@@ -110,7 +102,7 @@ func NewValidationReconciler(
 	amiResolver amifamily.Resolver,
 	instanceTypeProvider instancetype.Provider,
 	launchTemplateProvider launchtemplate.Provider,
-	cache *cache.Cache,
+	cache *awscache.Validation,
 	celEnv *kubeletcel.CELEnvironment,
 	dryRunDisabled bool,
 ) *Validation {
@@ -292,16 +284,15 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("validating tags, %w", err))
 	}
 
-	if val, ok := v.cache.Get(v.cacheKey(nodeClass, tags)); ok {
+	if entry, ok := v.cache.Get(nodeClass, tags); ok {
 		// We still update the status condition even if it's cached since we may have had a conflict error previously
-		entry := val.(validationCacheEntry)
-		if entry.reason == "" {
+		if entry.Reason == "" {
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
 		} else {
 			nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 				v1.ConditionTypeValidationSucceeded,
-				entry.reason,
-				entry.message,
+				entry.Reason,
+				entry.Message,
 			)
 		}
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
@@ -309,7 +300,7 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 
 	if v.dryRunDisabled {
 		nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
-		v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
+		v.cache.SetSuccess(nodeClass, tags)
 		return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 	}
 
@@ -328,17 +319,14 @@ func (v *Validation) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 		return result, err
 	}
 
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{})
+	v.cache.SetSuccess(nodeClass, tags)
 	nodeClass.StatusConditions(status.WithClock(v.clk)).SetTrue(v1.ConditionTypeValidationSucceeded)
 	return reconcile.Result{RequeueAfter: requeueAfterTime}, nil
 }
 
 func (v *Validation) updateCacheOnFailure(nodeClass *v1.EC2NodeClass, tags map[string]string, failureReason string, reasonMessage string) {
 	message := fmt.Sprintf("%s: %s", ValidationConditionMessages[failureReason], reasonMessage)
-	v.cache.SetDefault(v.cacheKey(nodeClass, tags), validationCacheEntry{
-		reason:  failureReason,
-		message: message,
-	})
+	v.cache.SetFailure(nodeClass, tags, failureReason, message)
 	nodeClass.StatusConditions(status.WithClock(v.clk)).SetFalse(
 		v1.ConditionTypeValidationSucceeded,
 		failureReason,
@@ -484,38 +472,6 @@ func (*Validation) requiredConditions() []string {
 		v1.ConditionTypeInstanceProfileReady,
 		v1.ConditionTypeSecurityGroupsReady,
 		v1.ConditionTypeSubnetsReady,
-	}
-}
-
-func (*Validation) cacheKey(nodeClass *v1.EC2NodeClass, tags map[string]string) string {
-	hash := lo.Must(hashstructure.Hash([]any{
-		nodeClass.Status.Subnets,
-		nodeClass.Status.SecurityGroups,
-		nodeClass.Status.AMIs,
-		nodeClass.Status.InstanceProfile,
-		nodeClass.Spec,
-		nodeClass.Annotations,
-		tags,
-		nodeClass.Spec.Kubelet.String(),
-	}, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%s:%016x", nodeClass.Name, hash)
-}
-
-// clearCacheEntries removes all cache entries associated with the given nodeclass from the validation cache
-func (v *Validation) clearCacheEntries(nodeClass *v1.EC2NodeClass) {
-	var toDelete []string
-	for key := range v.cache.Items() {
-		parts := strings.Split(key, ":")
-		// NOTE: should never occur, indicates malformed cache key
-		if len(parts) != 2 {
-			continue
-		}
-		if parts[0] == nodeClass.Name {
-			toDelete = append(toDelete, key)
-		}
-	}
-	for _, key := range toDelete {
-		v.cache.Delete(key)
 	}
 }
 
