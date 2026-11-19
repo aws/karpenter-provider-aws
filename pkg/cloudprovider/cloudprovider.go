@@ -56,6 +56,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -73,6 +74,7 @@ type CloudProvider struct {
 	securityGroupProvider       securitygroup.Provider
 	capacityReservationProvider capacityreservation.Provider
 	placementGroupProvider      placementgroup.Provider
+	rootVolumeProvider          rootvolume.Provider
 	instanceTypeStore           *nodeoverlay.InstanceTypeStore
 	nvidiaDRAProvider           nvidiadra.Provider
 	efaDRAProvider              efadra.Provider
@@ -90,6 +92,7 @@ func New(
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
+	rootVolumeProvider rootvolume.Provider,
 	store *nodeoverlay.InstanceTypeStore,
 	caBundle *string,
 	opts ...Option,
@@ -102,6 +105,7 @@ func New(
 		securityGroupProvider:       securityGroupProvider,
 		capacityReservationProvider: capacityReservationProvider,
 		placementGroupProvider:      placementGroupProvider,
+		rootVolumeProvider:          rootVolumeProvider,
 		recorder:                    recorder,
 		instanceTypeStore:           store,
 		nvidiaDRAProvider:           nvidiadra.NewDefaultProvider(),
@@ -315,7 +319,34 @@ func (c *CloudProvider) Reboot(ctx context.Context, nodeClaim *karpv1.NodeClaim,
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
+	// Core only reboots a drifted NodeClaim when GetDriftStatus asked to resolve its AMI drift in place.
+	if cond := nodeClaim.StatusConditions().Get(karpv1.ConditionTypeDisruptionReason); cond.IsTrue() && cond.Reason == string(karpv1.DisruptionReasonDrifted) {
+		return c.replaceRootVolume(ctx, nodeClaim, id, operationID)
+	}
 	return c.instanceProvider.Reboot(ctx, id, operationID)
+}
+
+func (c *CloudProvider) replaceRootVolume(ctx context.Context, nodeClaim *karpv1.NodeClaim, id string, operationID string) error {
+	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return cloudprovider.NewNodeRebootFailedError(fmt.Errorf("resolving nodeclass, %w", err))
+		}
+		return fmt.Errorf("resolving nodeclass, %w", err)
+	}
+	imageID, err := c.resolveAMI(ctx, nodeClaim, nodeClass)
+	if err != nil {
+		return fmt.Errorf("resolving ami, %w", err)
+	}
+	if imageID == "" {
+		return cloudprovider.NewNodeRebootFailedError(fmt.Errorf("no ami is compatible with the instance type"))
+	}
+	// The drift is already resolved, so a plain reboot completes the reboot without replacing the root volume.
+	if imageID == nodeClaim.Status.ImageID {
+		return c.instanceProvider.Reboot(ctx, id, operationID)
+	}
+	_, err = c.rootVolumeProvider.Replace(ctx, id, imageID, operationID)
+	return err
 }
 
 func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {

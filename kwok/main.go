@@ -45,6 +45,7 @@ func main() {
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
 		op.PlacementGroupProvider,
+		op.RootVolumeProvider,
 		op.InstanceTypeStore,
 		awscloudprovider.WithLegacyRepairPolicies(karpoptions.FromContext(ctx).LegacyNodeRepair),
 		awscloudprovider.WithRebootForRepair(options.FromContext(ctx).FeatureGates.RebootForRepair),

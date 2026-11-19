@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 )
 
@@ -45,6 +46,7 @@ func New(
 	securityGroupProvider securitygroup.Provider,
 	capacityReservationProvider capacityreservation.Provider,
 	placementGroupProvider placementgroup.Provider,
+	rootVolumeProvider rootvolume.Provider,
 	instanceTypeStore *nodeoverlay.InstanceTypeStore,
 	opts ...cloudprovider.Option,
 ) *CloudProvider {
@@ -58,6 +60,7 @@ func New(
 			securityGroupProvider,
 			capacityReservationProvider,
 			placementGroupProvider,
+			rootVolumeProvider,
 			instanceTypeStore,
 			lo.ToPtr(""),
 			opts...,

@@ -80,6 +80,7 @@ func main() {
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
 		op.PlacementGroupProvider,
+		op.RootVolumeProvider,
 		op.InstanceTypeStore,
 		lo.ToPtr(""),
 	)

@@ -45,6 +45,7 @@ func main() {
 		op.SecurityGroupProvider,
 		op.CapacityReservationProvider,
 		op.PlacementGroupProvider,
+		op.RootVolumeProvider,
 		op.InstanceTypeStore,
 		op.CABundle,
 		cloudprovider.WithLegacyRepairPolicies(karpoptions.FromContext(ctx).LegacyNodeRepair),

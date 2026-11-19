@@ -110,7 +110,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore, lo.ToPtr("test-ca-bundle"))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
@@ -348,7 +348,7 @@ var _ = Describe("CloudProvider", func() {
 		BeforeEach(func() {
 			eventRecorder = coretest.NewEventRecorder()
 			provider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, eventRecorder, env.Client, awsEnv.AMIProvider,
-				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
 				lo.ToPtr("test-ca-bundle"))
 		})
 		DescribeTable("should warn when a requirement uses a managed node group label",
@@ -399,7 +399,7 @@ var _ = Describe("CloudProvider", func() {
 	Context("Legacy RepairPolicies", func() {
 		newCloudProvider := func(opts ...cloudprovider.Option) *cloudprovider.CloudProvider {
 			return cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
-				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
 				lo.ToPtr("test-ca-bundle"), opts...)
 		}
 		It("should return the 1.14 repair policies with WithLegacyRepairPolicies", func() {
@@ -435,7 +435,7 @@ var _ = Describe("CloudProvider", func() {
 					DisableClusterStateObservability: lo.ToPtr(true),
 				}))
 				awsCloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
-					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
 					testCABundle, cloudprovider.WithLegacyRepairPolicies(legacyNodeRepair), cloudprovider.WithRebootForRepair(rebootForRepair))
 				overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
 				startupCloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, env.Client, awsEnv.InstanceTypeStore)
@@ -462,7 +462,7 @@ var _ = Describe("CloudProvider", func() {
 		var matcher *health.RepairPolicyMatcher
 		newMatcher := func(rebootForRepair bool) *health.RepairPolicyMatcher {
 			provider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
-				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
 				lo.ToPtr("test-ca-bundle"), cloudprovider.WithRebootForRepair(rebootForRepair))
 			repairCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
 			m, err := health.NewRepairPolicyMatcher(repairCtx, provider)
@@ -1824,6 +1824,40 @@ var _ = Describe("CloudProvider", func() {
 				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(isDrifted).To(BeEmpty())
+			})
+		})
+		Context("Reboot after AMI drift", func() {
+			BeforeEach(func() {
+				nodeClaim.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeDisruptionReason, string(karpv1.DisruptionReasonDrifted), string(karpv1.DisruptionReasonDrifted))
+				nodeClaim.Status.ImageID = fake.ImageID()
+			})
+			It("should replace the root volume with the EC2NodeClass AMI for the instance type", func() {
+				Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+				input := awsEnv.EC2API.CreateReplaceRootVolumeTaskBehavior.CalledWithInput.Pop()
+				Expect(lo.FromPtr(input.InstanceId)).To(Equal(lo.FromPtr(instance.InstanceId)))
+				Expect(lo.FromPtr(input.ImageId)).To(Equal(amdAMIID))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.Calls()).To(Equal(0))
+			})
+			It("should reboot without replacing the root volume when the NodeClaim already runs the AMI", func() {
+				nodeClaim.Status.ImageID = amdAMIID
+				Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+				Expect(awsEnv.EC2API.CreateReplaceRootVolumeTaskBehavior.Calls()).To(Equal(0))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.Calls()).To(Equal(1))
+			})
+			It("should fail the reboot when the EC2NodeClass is gone", func() {
+				ExpectDeleted(ctx, env.Client, nodeClass)
+				Expect(corecloudprovider.IsNodeRebootFailedError(cloudProvider.Reboot(ctx, nodeClaim, "op-1"))).To(BeTrue())
+				Expect(awsEnv.EC2API.CreateReplaceRootVolumeTaskBehavior.Calls()).To(Equal(0))
+			})
+			It("should fail the reboot when EC2 rejects the root volume replacement", func() {
+				awsEnv.EC2API.CreateReplaceRootVolumeTaskBehavior.Error.Set(&smithy.GenericAPIError{Code: "InvalidParameterValue"})
+				Expect(corecloudprovider.IsNodeRebootFailedError(cloudProvider.Reboot(ctx, nodeClaim, "op-1"))).To(BeTrue())
+			})
+			It("should reboot without replacing the root volume for a repair reboot", func() {
+				nodeClaim.StatusConditions().SetTrueWithReason(karpv1.ConditionTypeDisruptionReason, string(karpv1.DisruptionReasonUnhealthy), string(karpv1.DisruptionReasonUnhealthy))
+				Expect(cloudProvider.Reboot(ctx, nodeClaim, "op-1")).To(Succeed())
+				Expect(awsEnv.EC2API.CreateReplaceRootVolumeTaskBehavior.Calls()).To(Equal(0))
+				Expect(awsEnv.EC2API.RebootInstancesBehavior.Calls()).To(Equal(1))
 			})
 		})
 	})

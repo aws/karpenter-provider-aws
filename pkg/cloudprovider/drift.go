@@ -83,6 +83,22 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	imageID, err := c.resolveAMI(ctx, nodeClaim, nodeClass)
+	if err != nil {
+		return "", err
+	}
+	// Should never happen as ImageID is resolved when setting Launched status condition
+	if nodeClaim.Status.ImageID == "" {
+		return "", fmt.Errorf("no ami ID found in nodeClaim status")
+	}
+	if imageID != nodeClaim.Status.ImageID {
+		return AMIDrift, nil
+	}
+	return "", nil
+}
+
+// resolveAMI returns the EC2NodeClass AMI for the NodeClaim's instance type, or "" when none is compatible with it.
+func (c *CloudProvider) resolveAMI(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (string, error) {
 	instanceTypeName := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 	nodeInstanceType, err := c.instanceTypeProvider.Get(ctx, nodeClass, ec2types.InstanceType(instanceTypeName))
 	if err != nil {
@@ -91,15 +107,9 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.Node
 	if len(nodeClass.Status.AMIs) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
-	// Should never happen as ImageID is resolved when setting Launched status condition
-	if nodeClaim.Status.ImageID == "" {
-		return "", fmt.Errorf("no ami ID found in nodeClaim status")
-	}
 	mappedAMIs := amifamily.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType}, nodeClass.Status.AMIs)
-	if !lo.Contains(lo.Keys(mappedAMIs), nodeClaim.Status.ImageID) {
-		return AMIDrift, nil
-	}
-	return "", nil
+	imageID, _ := lo.First(lo.Keys(mappedAMIs))
+	return imageID, nil
 }
 
 // Checks if the security groups are drifted, by comparing the subnet returned from the subnetProvider
