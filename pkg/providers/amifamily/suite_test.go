@@ -846,6 +846,22 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}, queries)
 		})
+		It("should not query for a term without filters", func() {
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{Tags: map[string]string{}},
+						{Name: ""},
+						{SSMParameter: ""},
+						{Owner: "123456789012"},
+						{Owner: "aws-marketplace", Name: ""},
+						{Owner: "123456789012", Tags: map[string]string{}},
+					},
+				},
+			})
+			Expect(err).To(BeNil())
+			Expect(queries).To(BeEmpty())
+		})
 		It("should have default owners and use name when prefixed", func() {
 			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
@@ -892,29 +908,6 @@ var _ = Describe("AMIProvider", func() {
 							Values: []string{"ami-abcd1234", "ami-cafeaced"},
 						},
 					},
-				},
-			}, queries)
-		})
-		It("should allow only specifying owners", func() {
-			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
-				Spec: v1.EC2NodeClassSpec{
-					AMISelectorTerms: []v1.AMISelectorTerm{
-						{
-							Owner: "abcdef",
-						},
-						{
-							Owner: "123456789012",
-						},
-					},
-				},
-			})
-			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
-				{
-					Owners: []string{"abcdef"},
-				},
-				{
-					Owners: []string{"123456789012"},
 				},
 			}, queries)
 		})
