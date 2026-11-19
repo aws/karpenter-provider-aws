@@ -15,6 +15,7 @@ limitations under the License.
 package nodeclass_test
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/version"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -618,6 +620,38 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
+	DescribeTable("should set AMINotFound condition and retry when no AMIs are found for alias", func(alias string) {
+		awsEnv.SSMAPI.Parameters = map[string]string{"not-real": "not-real"}
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		err := ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+		// The AMIs for the alias may not have been published yet, so this should not be a terminal error
+		Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeFalse())
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).To(Equal("AMINotFound"))
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Message).To(ContainSubstring("failed to discover any AMIs for alias"))
+	},
+		Entry("AL2023 with invalid version", "al2023@v20240101"),
+		Entry("Bottlerocket with invalid version", "bottlerocket@v20240101"),
+		Entry("Windows with unpublished AMIs", "windows2022@latest"),
+	)
+	DescribeTable("should not set AMINotFound condition when SSM returns transient errors", func(alias string) {
+		awsEnv.SSMAPI.WantErr = fmt.Errorf("RequestLimitExceeded: Rate exceeded")
+
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady).Reason).ToNot(Equal("AMINotFound"))
+	},
+		Entry("AL2023", "al2023@v20240101"),
+		Entry("Bottlerocket", "bottlerocket@v20240101"),
+		Entry("Windows", "windows2022@latest"),
+	)
 	Context("NodeClass AMI Status", func() {
 		BeforeEach(func() {
 			// Set time using the injectable/fake clock to now
