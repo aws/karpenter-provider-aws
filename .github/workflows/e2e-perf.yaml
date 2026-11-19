@@ -96,12 +96,7 @@ jobs:
           TIER: ${{ inputs.control_plane_tier }}
         run: |
           set -euo pipefail
-          update_id=$(aws eks update-cluster-config --name "$CLUSTER_NAME" --control-plane-scaling-config "tier=$TIER" --query update.id --output text)
-          while status=$(aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id" --query update.status --output text); [[ "$status" == InProgress ]]; do
-            sleep 30
-          done
-          [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
-          aws eks wait cluster-active --name "$CLUSTER_NAME"
+          ./test/hack/e2e_scripts/update_cluster_config.sh "$CLUSTER_NAME" --control-plane-scaling-config "tier=$TIER"
       - name: set kube-scheduler scoring ${{ inputs.scheduler_scoring }}
         if: inputs.scheduler_scoring != 'LeastAllocated'
         env:
@@ -111,12 +106,7 @@ jobs:
           set -euo pipefail
           # EKS's default LeastAllocated spreads pods across the nodes Karpenter launched, stranding some pods for
           # a second round of NodeClaims, so pods/scaleOut's pod_ready p95/p99 jump between ~42s and ~72s night to night
-          update_id=$(aws eks update-cluster-config --name "$CLUSTER_NAME" --kube-scheduler-config "nodeResourcesFit={scoringStrategy={type=$SCORING}}" --query update.id --output text)
-          while status=$(aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id" --query update.status --output text); [[ "$status" == InProgress ]]; do
-            sleep 30
-          done
-          [[ "$status" == Successful ]] || { aws eks describe-update --name "$CLUSTER_NAME" --update-id "$update_id"; exit 1; }
-          aws eks wait cluster-active --name "$CLUSTER_NAME"
+          ./test/hack/e2e_scripts/update_cluster_config.sh "$CLUSTER_NAME" --kube-scheduler-config "nodeResourcesFit={scoringStrategy={type=$SCORING}}"
           aws eks describe-cluster --name "$CLUSTER_NAME" --query cluster.kubeSchedulerConfig
       - name: create the controller node group
         env:
