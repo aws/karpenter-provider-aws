@@ -88,10 +88,10 @@ func registerInstanceProfile() bool {
 		It("should use the unmanaged instance profile", func() {
 			instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", Env.ClusterName)
 			roleName := fmt.Sprintf("KarpenterNodeRole-%s", Env.ClusterName)
-			Env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 			DeferCleanup(func() {
-				Env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
+				Env.ExpectInstanceProfileDeleted(instanceProfileName)
 			})
+			Env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 
 			pod := coretest.Pod()
 			NodeClass.Spec.Role = ""
