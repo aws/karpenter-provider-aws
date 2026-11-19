@@ -77,6 +77,11 @@ func FormatPath(segments ...string) string {
 	return "/" + strings.Join(segments, "/") + "/"
 }
 
+// KarpenterPath builds the IAM path used for Karpenter-managed instance profiles.
+func KarpenterPath(region, clusterName string, segments ...string) string {
+	return FormatPath(append([]string{"karpenter", region, clusterName}, segments...)...)
+}
+
 func (p *DefaultProvider) Get(ctx context.Context, instanceProfileName string) (*iamtypes.InstanceProfile, error) {
 	profileCacheKey := GetProfileCacheKey(instanceProfileName)
 	if instanceProfile, ok := p.instanceProfileCache.Get(profileCacheKey); ok {
