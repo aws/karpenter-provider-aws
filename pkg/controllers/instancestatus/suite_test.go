@@ -23,9 +23,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,6 +38,7 @@ import (
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -226,6 +229,71 @@ var _ = Describe("InstanceStatus", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, node)
 		ExpectSingletonReconciled(ctx, controller)
 		Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), instancestatusprovider.ConditionTypeEC2StatusReady).Type).To(BeEmpty())
+	})
+	Context("After a reboot", func() {
+		var succeededAt time.Time
+		BeforeEach(func() {
+			succeededAt = awsEnv.Clock.Now()
+			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceHypervisor: "nitro"})
+			nodeClaim.StatusConditions(status.WithClock(awsEnv.Clock)).SetFalse(karpv1.ConditionTypeRebooting, karpv1.RebootReasonSucceeded, "")
+		})
+		DescribeTable("should ignore an impairment from the reboot's outage during the grace, then tolerate it from the end of the grace",
+			func(hypervisor string, grace time.Duration) {
+				nodeClaim.Labels[v1.LabelInstanceHypervisor] = hypervisor
+				impair(lo.ToPtr(succeededAt.Add(-5*time.Minute)), nil)
+				ExpectApplied(ctx, env.Client, nodeClaim, node)
+				awsEnv.Clock.Step(grace - time.Minute)
+				ExpectSingletonReconciled(ctx, controller)
+				Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), instancestatusprovider.ConditionTypeEC2StatusReady).Type).To(BeEmpty())
+
+				awsEnv.Clock.Step(2 * time.Minute)
+				ExpectSingletonReconciled(ctx, controller)
+				expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonInstanceReachabilityFailed, succeededAt.Add(grace))
+			},
+			Entry("virtualized", "nitro", 5*time.Minute),
+			Entry("bare metal", "", 20*time.Minute),
+		)
+		It("should ignore an impairment without a start time during the grace", func() {
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{{
+					InstanceId: lo.ToPtr(instanceID),
+					InstanceStatus: &ec2types.InstanceStatusSummary{
+						Status:  ec2types.SummaryStatusImpaired,
+						Details: []ec2types.InstanceStatusDetails{{Name: ec2types.StatusNameReachability, Status: ec2types.StatusTypeFailed}},
+					},
+				}},
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(nodeutils.GetCondition(ExpectExists(ctx, env.Client, node), instancestatusprovider.ConditionTypeEC2StatusReady).Type).To(BeEmpty())
+		})
+		It("should set EC2StatusReady=True when the impairment clears during the grace", func() {
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			expectCondition(corev1.ConditionTrue, instancestatusprovider.ReasonNoImpairmentReported, awsEnv.Clock.Now())
+		})
+		It("should publish an impairment that began after the reboot succeeded", func() {
+			impairedSince := succeededAt.Add(time.Minute)
+			impair(&impairedSince, nil)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			awsEnv.Clock.Step(2 * time.Minute)
+			ExpectSingletonReconciled(ctx, controller)
+			expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonInstanceReachabilityFailed, impairedSince)
+		})
+		It("should keep publishing an impairment that was published before the reboot", func() {
+			impairedSince := succeededAt.Add(-10 * time.Minute)
+			impair(&impairedSince, nil)
+			node.Status.Conditions = append(node.Status.Conditions, corev1.NodeCondition{
+				Type:               instancestatusprovider.ConditionTypeEC2StatusReady,
+				Status:             corev1.ConditionFalse,
+				Reason:             instancestatusprovider.ReasonInstanceReachabilityFailed,
+				Message:            "EC2 reports failing reachability checks: InstanceStatus",
+				LastTransitionTime: metav1.NewTime(impairedSince),
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			expectCondition(corev1.ConditionFalse, instancestatusprovider.ReasonInstanceReachabilityFailed, impairedSince)
+		})
 	})
 	It("should stop patching Nodes once a status patch is forbidden", func() {
 		for range 11 {

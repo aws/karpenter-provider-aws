@@ -42,12 +42,19 @@ import (
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-const pollInterval = time.Minute
+const (
+	pollInterval = time.Minute
+	// Bound how long an impairment from a reboot's outage is ignored after the reboot succeeds. EC2 keeps reporting
+	// it after the node is Ready: seconds on virtualized instances, up to about 15 minutes on bare metal.
+	postRebootGrace          = 5 * time.Minute
+	postRebootGraceBareMetal = 20 * time.Minute
+)
 
 // Controller publishes EC2 instance and system status checks as the EC2StatusReady Node condition (False when a
 // reachability check fails, True otherwise) so that Node Repair can replace impaired nodes. It is only registered when NodeRepair is enabled; otherwise the interruption
@@ -117,18 +124,30 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			Message:            "EC2 reports no recognized instance or system reachability impairment",
 			LastTransitionTime: metav1.NewTime(c.clock.Now()),
 		}
+		current := nodeutils.GetCondition(node, condition.Type)
 		if hs, ok := impaired[instanceID]; ok {
+			// Toleration is measured from when EC2 first reported the impairment, not from when Karpenter observed it.
+			// EC2 may omit ImpairedSince, in which case the observation time is used.
+			impairedSince := lo.Ternary(hs.ImpairedSince.IsZero(), c.clock.Now(), hs.ImpairedSince)
+			// EC2 keeps reporting a reboot's outage after the node returns, so tolerate it only from the end of the grace.
+			if succeededAt, ok := rebootSucceededAt(nodeClaims[i]); ok && current.Status != corev1.ConditionFalse &&
+				(hs.ImpairedSince.IsZero() || !hs.ImpairedSince.After(succeededAt)) {
+				// Bare metal instances have no hypervisor.
+				hypervisor, ok := nodeClaims[i].Labels[v1.LabelInstanceHypervisor]
+				graceEnd := succeededAt.Add(lo.Ternary(ok && hypervisor == "", postRebootGraceBareMetal, postRebootGrace))
+				if c.clock.Now().Before(graceEnd) {
+					return
+				}
+				impairedSince = lo.Latest(impairedSince, graceEnd)
+			}
 			condition.Status = corev1.ConditionFalse
 			// A system failure takes precedence because it requires moving off the host, which also resolves an
 			// instance failure.
 			condition.Reason = lo.Ternary(lo.ContainsBy(hs.Details, func(d instancestatus.Details) bool { return d.Category == instancestatus.SystemStatus }),
 				instancestatus.ReasonSystemReachabilityFailed, instancestatus.ReasonInstanceReachabilityFailed)
 			condition.Message = fmt.Sprintf("EC2 reports failing reachability checks: %s", strings.Join(lo.Uniq(lo.Map(hs.Details, func(d instancestatus.Details, _ int) string { return string(d.Category) })), ", "))
-			// Toleration is measured from when EC2 first reported the impairment, not from when Karpenter observed it.
-			// EC2 may omit ImpairedSince, in which case the observation time is used.
-			condition.LastTransitionTime = metav1.NewTime(lo.Ternary(hs.ImpairedSince.IsZero(), c.clock.Now(), hs.ImpairedSince))
+			condition.LastTransitionTime = metav1.NewTime(impairedSince)
 		}
-		current := nodeutils.GetCondition(node, condition.Type)
 		if current.Status == condition.Status {
 			condition.LastTransitionTime = current.LastTransitionTime
 		}
@@ -152,6 +171,15 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 		return reconciler.Result{}, err
 	}
 	return reconciler.Result{RequeueAfter: pollInterval}, nil
+}
+
+// rebootSucceededAt returns when the NodeClaim's latest reboot succeeded.
+func rebootSucceededAt(nodeClaim *karpv1.NodeClaim) (time.Time, bool) {
+	cond := nodeClaim.StatusConditions(status.WithObservedOnly()).Get(karpv1.ConditionTypeRebooting)
+	if cond == nil || !cond.IsFalse() || cond.Reason != karpv1.RebootReasonSucceeded {
+		return time.Time{}, false
+	}
+	return cond.LastTransitionTime.Time, true
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
