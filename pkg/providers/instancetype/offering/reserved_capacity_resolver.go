@@ -64,7 +64,8 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 	zoneInfo := rc.ZoneInfo
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
+	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg,
+		compatibility.WithWindowsSupport(r.PricingProvider.SupportsWindows))
 
 	capacityReservations := nodeClass.CapacityReservations()
 	for i := range capacityReservations {

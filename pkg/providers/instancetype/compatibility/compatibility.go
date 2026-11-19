@@ -37,11 +37,31 @@ type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+// Option configures the compatibility check.
+type Option func(*options)
+
+type options struct {
+	supportsWindows func(ec2types.InstanceType) bool
+}
+
+// WithWindowsSupport provides a function that reports whether a given instance
+// type supports Windows. When the AMI family is a Windows variant, instance types
+// for which this function returns false are filtered out.
+func WithWindowsSupport(fn func(ec2types.InstanceType) bool) Option {
+	return func(o *options) {
+		o.supportsWindows = fn
+	}
+}
+
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup, opts ...Option) bool {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
 	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
 	for _, check := range []CompatibleCheck{
 		networkInterfaceCompatibility(networkInterfaces),
-		amiFamilyCompatibility(nodeClass.AMIFamily()),
+		amiFamilyCompatibility(nodeClass.AMIFamily(), o.supportsWindows),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
 		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
 		placementGroupCompatibility(pg),
@@ -55,12 +75,14 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 }
 
 type amiFamilyCheck struct {
-	amiFamily string
+	amiFamily       string
+	supportsWindows func(ec2types.InstanceType) bool
 }
 
-func amiFamilyCompatibility(amiFamily string) CompatibleCheck {
+func amiFamilyCompatibility(amiFamily string, supportsWindows func(ec2types.InstanceType) bool) CompatibleCheck {
 	return &amiFamilyCheck{
-		amiFamily: amiFamily,
+		amiFamily:       amiFamily,
+		supportsWindows: supportsWindows,
 	}
 }
 
@@ -69,7 +91,24 @@ func (c amiFamilyCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
 	if c.amiFamily == v1.AMIFamilyAL2023 && strings.HasPrefix(string(info.InstanceType), "a1.") {
 		return false
 	}
+	// Filter instance types that do not support Windows, as determined at runtime from
+	// the EC2 Pricing API. Instance types without Windows pricing fail RunInstances with
+	// UnsupportedOperation when paired with a Windows AMI.
+	if c.supportsWindows != nil && isWindowsFamily(c.amiFamily) {
+		if !c.supportsWindows(info.InstanceType) {
+			return false
+		}
+	}
 	return true
+}
+
+// isWindowsFamily reports whether the given AMI family name is a Windows variant.
+func isWindowsFamily(amiFamily string) bool {
+	switch amiFamily {
+	case v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2025:
+		return true
+	}
+	return false
 }
 
 type networkInterfaceCheck struct {
