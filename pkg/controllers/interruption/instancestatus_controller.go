@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	instancestatusmsg "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/instancestatus"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 )
 
@@ -51,10 +52,6 @@ type unhealthyKey struct {
 var (
 	// InstanceStatusInterval is the polling interval for the EC2 DescribeInstanceStatus API.
 	InstanceStatusInterval = 1 * time.Minute
-	// InstanceStatusDryRun controls whether the instance status controller takes action on
-	// unhealthy instances. When true, the controller only emits metrics without cordoning
-	// and draining affected nodes. Default is false (full remediation enabled).
-	InstanceStatusDryRun = false
 	// categoryToKind maps EC2 DescribeInstanceStatus categories to message kinds.
 	categoryToKind = map[instancestatus.Category]messages.Kind{
 		instancestatus.InstanceStatus: messages.InstanceStatusKind,
@@ -160,7 +157,7 @@ func (c *InstanceStatusController) handleHealthStatus(ctx context.Context, hs in
 		if !ok {
 			continue
 		}
-		f, err := c.handleMessage(ctx, instancestatusmsg.New(hs.InstanceID, kind, hs.ImpairedSince), InstanceStatusDryRun)
+		f, err := c.handleMessage(ctx, instancestatusmsg.New(hs.InstanceID, kind, hs.ImpairedSince), options.FromContext(ctx).InstanceStatusDryRun)
 		if err != nil {
 			return fmt.Errorf("handling instance status check message, %w", err)
 		}
