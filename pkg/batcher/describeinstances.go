@@ -103,7 +103,7 @@ func execDescribeInstancesBatch(ec2api sdk.EC2API) BatchExecutor[ec2.DescribeIns
 
 		// Some or all instances may have failed to be described due to eventual consistency or transient zonal issue.
 		// A single instance lookup failure can result in all of an availability zone's instances failing to describe.
-		// So we try to describe them individually now. This should be rare and only results in a handfull of extra calls per batch than without batching.
+		// So we try to describe them individually now. This should be rare and only results in a handful of extra calls per batch than without batching.
 		var wg sync.WaitGroup
 		for instanceID := range missingInstanceIDs {
 			wg.Go(func() {

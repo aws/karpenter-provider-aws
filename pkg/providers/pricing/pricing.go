@@ -240,7 +240,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 	err := multierr.Append(onDemandErr, onDemandMetalErr)
 	if err != nil {
-		return fmt.Errorf("retreiving on-demand pricing data, %w", err)
+		return fmt.Errorf("retrieving on-demand pricing data, %w", err)
 	}
 
 	if len(onDemandPrices) == 0 || len(onDemandMetalPrices) == 0 {
