@@ -423,6 +423,21 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
+		It("should resolve the root snapshot and product codes of AMIs", func() {
+			img.RootDeviceName = aws.String("/dev/xvda")
+			img.BlockDeviceMappings = []ec2types.BlockDeviceMapping{
+				{DeviceName: aws.String("/dev/xvdb"), Ebs: &ec2types.EbsBlockDevice{SnapshotId: aws.String("snap-data")}},
+				{DeviceName: aws.String("/dev/xvda"), Ebs: &ec2types.EbsBlockDevice{SnapshotId: aws.String("snap-root")}},
+			}
+			img.ProductCodes = []ec2types.ProductCode{{ProductCodeId: aws.String("product-code"), ProductCodeType: ec2types.ProductCodeValuesMarketplace}}
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{img}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].RootSnapshotID).To(Equal("snap-root"))
+			Expect(amis[0].HasProductCodes).To(BeTrue())
+		})
 	})
 	Context("AMI List requirements", func() {
 		BeforeEach(func() {

@@ -48,33 +48,37 @@ type CapacityPool struct {
 // EC2Behavior must be reset between tests otherwise tests will
 // pollute each other.
 type EC2Behavior struct {
-	DescribeCapacityReservationsOutput   AtomicPtr[ec2.DescribeCapacityReservationsOutput]
-	DescribePlacementGroupsOutput        AtomicPtr[ec2.DescribePlacementGroupsOutput]
-	DescribeImagesOutput                 AtomicPtr[ec2.DescribeImagesOutput]
-	DescribeLaunchTemplatesOutput        AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
-	DescribeInstanceTypesOutput          AtomicPtr[ec2.DescribeInstanceTypesOutput]
-	DescribeInstanceTypeOfferingsOutput  AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
-	DescribeInstanceStatusOutput         AtomicPtr[ec2.DescribeInstanceStatusOutput]
-	DescribeAvailabilityZonesOutput      AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
-	DescribeInstanceStatusBehavior       MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
-	DescribeSubnetsBehavior              MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
-	DescribeSecurityGroupsBehavior       MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
-	DescribeSpotPriceHistoryBehavior     MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
-	CreateFleetBehavior                  MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
-	TerminateInstancesBehavior           MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
-	RebootInstancesBehavior              MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
-	DescribeInstancesBehavior            MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
-	CreateTagsBehavior                   MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
-	RunInstancesBehavior                 MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
-	CreateLaunchTemplateBehavior         MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
-	CalledWithDescribeImagesInput        AtomicPtrSlice[ec2.DescribeImagesInput]
-	NotFoundDescribeLaunchTemplatesInput AtomicPtrSlice[ec2.DescribeLaunchTemplatesInput]
-	Instances                            sync.Map
-	InsufficientCapacityPools            atomic.Slice[CapacityPool]
-	NextError                            AtomicError
+	DescribeCapacityReservationsOutput     AtomicPtr[ec2.DescribeCapacityReservationsOutput]
+	DescribePlacementGroupsOutput          AtomicPtr[ec2.DescribePlacementGroupsOutput]
+	DescribeImagesOutput                   AtomicPtr[ec2.DescribeImagesOutput]
+	DescribeLaunchTemplatesOutput          AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeInstanceTypesOutput            AtomicPtr[ec2.DescribeInstanceTypesOutput]
+	DescribeInstanceTypeOfferingsOutput    AtomicPtr[ec2.DescribeInstanceTypeOfferingsOutput]
+	DescribeInstanceStatusOutput           AtomicPtr[ec2.DescribeInstanceStatusOutput]
+	DescribeAvailabilityZonesOutput        AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
+	DescribeInstanceStatusBehavior         MockedFunction[ec2.DescribeInstanceStatusInput, ec2.DescribeInstanceStatusOutput]
+	DescribeSubnetsBehavior                MockedFunction[ec2.DescribeSubnetsInput, ec2.DescribeSubnetsOutput]
+	DescribeSecurityGroupsBehavior         MockedFunction[ec2.DescribeSecurityGroupsInput, ec2.DescribeSecurityGroupsOutput]
+	DescribeSpotPriceHistoryBehavior       MockedFunction[ec2.DescribeSpotPriceHistoryInput, ec2.DescribeSpotPriceHistoryOutput]
+	CreateFleetBehavior                    MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
+	TerminateInstancesBehavior             MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
+	RebootInstancesBehavior                MockedFunction[ec2.RebootInstancesInput, ec2.RebootInstancesOutput]
+	CreateReplaceRootVolumeTaskBehavior    MockedFunction[ec2.CreateReplaceRootVolumeTaskInput, ec2.CreateReplaceRootVolumeTaskOutput]
+	DescribeReplaceRootVolumeTasksBehavior MockedFunction[ec2.DescribeReplaceRootVolumeTasksInput, ec2.DescribeReplaceRootVolumeTasksOutput]
+	DescribeSnapshotsBehavior              MockedFunction[ec2.DescribeSnapshotsInput, ec2.DescribeSnapshotsOutput]
+	DescribeInstancesBehavior              MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
+	CreateTagsBehavior                     MockedFunction[ec2.CreateTagsInput, ec2.CreateTagsOutput]
+	RunInstancesBehavior                   MockedFunction[ec2.RunInstancesInput, ec2.RunInstancesOutput]
+	CreateLaunchTemplateBehavior           MockedFunction[ec2.CreateLaunchTemplateInput, ec2.CreateLaunchTemplateOutput]
+	CalledWithDescribeImagesInput          AtomicPtrSlice[ec2.DescribeImagesInput]
+	NotFoundDescribeLaunchTemplatesInput   AtomicPtrSlice[ec2.DescribeLaunchTemplatesInput]
+	Instances                              sync.Map
+	InsufficientCapacityPools              atomic.Slice[CapacityPool]
+	NextError                              AtomicError
 
 	Subnets                               sync.Map
 	LaunchTemplates                       sync.Map
+	ReplaceRootVolumeTasks                sync.Map // map[task-id]ec2types.ReplaceRootVolumeTask
 	launchTemplatesToCapacityReservations sync.Map // map[lt-name]cr-id
 }
 
@@ -105,6 +109,9 @@ func (e *EC2API) Reset() {
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.RebootInstancesBehavior.Reset()
+	e.CreateReplaceRootVolumeTaskBehavior.Reset()
+	e.DescribeReplaceRootVolumeTasksBehavior.Reset()
+	e.DescribeSnapshotsBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
 	e.CreateLaunchTemplateBehavior.Reset()
 	e.CalledWithDescribeImagesInput.Reset()
@@ -120,6 +127,10 @@ func (e *EC2API) Reset() {
 	})
 	e.LaunchTemplates.Range(func(k, v any) bool {
 		e.LaunchTemplates.Delete(k)
+		return true
+	})
+	e.ReplaceRootVolumeTasks.Range(func(k, v any) bool {
+		e.ReplaceRootVolumeTasks.Delete(k)
 		return true
 	})
 	e.InsufficientCapacityPools.Reset()
@@ -277,6 +288,58 @@ func (e *EC2API) RebootInstances(_ context.Context, input *ec2.RebootInstancesIn
 	return e.RebootInstancesBehavior.Invoke(input, func(input *ec2.RebootInstancesInput) (*ec2.RebootInstancesOutput, error) {
 		// A reboot preserves the instance, so unlike TerminateInstances the fake leaves e.Instances intact.
 		return &ec2.RebootInstancesOutput{}, nil
+	})
+}
+
+func (e *EC2API) CreateReplaceRootVolumeTask(_ context.Context, input *ec2.CreateReplaceRootVolumeTaskInput, _ ...func(*ec2.Options)) (*ec2.CreateReplaceRootVolumeTaskOutput, error) {
+	return e.CreateReplaceRootVolumeTaskBehavior.Invoke(input, func(input *ec2.CreateReplaceRootVolumeTaskInput) (*ec2.CreateReplaceRootVolumeTaskOutput, error) {
+		task := ec2types.ReplaceRootVolumeTask{
+			ReplaceRootVolumeTaskId:  aws.String(fmt.Sprintf("replacevol-%s", randomdata.Alphanumeric(17))),
+			InstanceId:               input.InstanceId,
+			ImageId:                  input.ImageId,
+			DeleteReplacedRootVolume: input.DeleteReplacedRootVolume,
+			TaskState:                ec2types.ReplaceRootVolumeTaskStatePending,
+			StartTime:                aws.String(time.Now().UTC().Format(time.RFC3339Nano)),
+		}
+		e.ReplaceRootVolumeTasks.Store(*task.ReplaceRootVolumeTaskId, task)
+		return &ec2.CreateReplaceRootVolumeTaskOutput{ReplaceRootVolumeTask: &task}, nil
+	})
+}
+
+func (e *EC2API) DescribeReplaceRootVolumeTasks(_ context.Context, input *ec2.DescribeReplaceRootVolumeTasksInput, _ ...func(*ec2.Options)) (*ec2.DescribeReplaceRootVolumeTasksOutput, error) {
+	return e.DescribeReplaceRootVolumeTasksBehavior.Invoke(input, func(input *ec2.DescribeReplaceRootVolumeTasksInput) (*ec2.DescribeReplaceRootVolumeTasksOutput, error) {
+		instanceIDs := sets.New[string]()
+		for _, filter := range input.Filters {
+			if lo.FromPtr(filter.Name) == "instance-id" {
+				instanceIDs.Insert(filter.Values...)
+			}
+		}
+		var tasks []ec2types.ReplaceRootVolumeTask
+		e.ReplaceRootVolumeTasks.Range(func(_, v any) bool {
+			task := v.(ec2types.ReplaceRootVolumeTask)
+			if len(input.ReplaceRootVolumeTaskIds) > 0 && !lo.Contains(input.ReplaceRootVolumeTaskIds, lo.FromPtr(task.ReplaceRootVolumeTaskId)) {
+				return true
+			}
+			if instanceIDs.Len() > 0 && !instanceIDs.Has(lo.FromPtr(task.InstanceId)) {
+				return true
+			}
+			tasks = append(tasks, task)
+			return true
+		})
+		return &ec2.DescribeReplaceRootVolumeTasksOutput{ReplaceRootVolumeTasks: tasks}, nil
+	})
+}
+
+// DescribeSnapshots returns every requested snapshot by default, so the caller can create volumes from all of them.
+func (e *EC2API) DescribeSnapshots(_ context.Context, input *ec2.DescribeSnapshotsInput, _ ...func(*ec2.Options)) (*ec2.DescribeSnapshotsOutput, error) {
+	return e.DescribeSnapshotsBehavior.Invoke(input, func(input *ec2.DescribeSnapshotsInput) (*ec2.DescribeSnapshotsOutput, error) {
+		return &ec2.DescribeSnapshotsOutput{
+			Snapshots: lo.Map(append(input.SnapshotIds, lo.FlatMap(input.Filters, func(f ec2types.Filter, _ int) []string {
+				return lo.Ternary(lo.FromPtr(f.Name) == "snapshot-id", f.Values, nil)
+			})...), func(id string, _ int) ec2types.Snapshot {
+				return ec2types.Snapshot{SnapshotId: aws.String(id), State: ec2types.SnapshotStateCompleted}
+			}),
+		}, nil
 	})
 }
 
