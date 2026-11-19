@@ -827,4 +827,72 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
 		})
 	})
+	Context("In-place upgrade", func() {
+		BeforeEach(func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			image := func(name string, arch ec2types.ArchitectureValues, snapshotID string, productCodes ...ec2types.ProductCode) ec2types.Image {
+				return ec2types.Image{
+					Name:           aws.String(name),
+					ImageId:        aws.String("ami-" + name),
+					CreationDate:   aws.String(time.Now().Format(time.RFC3339)),
+					Architecture:   arch,
+					RootDeviceName: aws.String("/dev/xvda"),
+					BlockDeviceMappings: []ec2types.BlockDeviceMapping{{
+						DeviceName: aws.String("/dev/xvda"),
+						Ebs:        &ec2types.EbsBlockDevice{SnapshotId: aws.String(snapshotID)},
+					}},
+					ProductCodes: productCodes,
+					Tags:         []ec2types.Tag{{Key: aws.String("Name"), Value: aws.String(name)}},
+					State:        ec2types.ImageStateAvailable,
+				}
+			}
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+				image("amd64", ec2types.ArchitectureValuesX8664, "snap-amd64"),
+				image("arm64", ec2types.ArchitectureValuesArm64, "snap-arm64", ec2types.ProductCode{ProductCodeId: aws.String("code"), ProductCodeType: ec2types.ProductCodeValuesMarketplace}),
+			}})
+		})
+		inPlaceUpgrades := func(nodeClass *v1.EC2NodeClass) map[string]*v1.InPlaceUpgrade {
+			return lo.SliceToMap(nodeClass.Status.AMIs, func(ami v1.AMI) (string, *v1.InPlaceUpgrade) {
+				return ami.ID, ami.InPlaceUpgrade
+			})
+		}
+		It("should not check AMIs when amiDriftPolicy is ReplaceInstance", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(inPlaceUpgrades(nodeClass)).To(Equal(map[string]*v1.InPlaceUpgrade{"ami-amd64": nil, "ami-arm64": nil}))
+			Expect(awsEnv.EC2API.DescribeSnapshotsBehavior.Calls()).To(Equal(0))
+		})
+		It("should report the in-place upgrade result of each AMI when amiDriftPolicy is ReplaceRootVolume", func() {
+			nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(inPlaceUpgrades(nodeClass)).To(Equal(map[string]*v1.InPlaceUpgrade{
+				"ami-amd64": {Supported: true},
+				"ami-arm64": {Reason: v1.InPlaceUpgradeReasonProductCodes},
+			}))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+		It("should check AMIs again on every reconcile", func() {
+			nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			awsEnv.EC2API.DescribeSnapshotsBehavior.Output.Set(&ec2.DescribeSnapshotsOutput{})
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(inPlaceUpgrades(nodeClass)["ami-amd64"]).To(Equal(&v1.InPlaceUpgrade{Reason: v1.InPlaceUpgradeReasonSnapshotNotReadable}))
+			Expect(awsEnv.EC2API.DescribeSnapshotsBehavior.Calls()).To(Equal(2))
+		})
+		It("should keep the last results when the checks fail", func() {
+			nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			awsEnv.EC2API.DescribeSnapshotsBehavior.Error.Set(fmt.Errorf("unable to describe snapshots"))
+			_ = ExpectObjectReconcileFailed(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(inPlaceUpgrades(nodeClass)["ami-amd64"]).To(Equal(&v1.InPlaceUpgrade{Supported: true}))
+			Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeAMIsReady)).To(BeTrue())
+		})
+	})
 })

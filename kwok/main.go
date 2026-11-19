@@ -110,6 +110,7 @@ func main() {
 			op.InstanceTypesProvider,
 			op.CapacityReservationProvider,
 			op.PlacementGroupProvider,
+			op.RootVolumeProvider,
 			op.AMIResolver,
 			op.ZonalShiftProvider,
 			op.InstanceStatusProvider,

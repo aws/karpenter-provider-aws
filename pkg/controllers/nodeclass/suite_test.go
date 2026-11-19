@@ -101,6 +101,7 @@ var _ = BeforeEach(func() {
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.PlacementGroupProvider,
+		awsEnv.RootVolumeProvider,
 		awsEnv.EC2API,
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,

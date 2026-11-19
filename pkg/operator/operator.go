@@ -71,6 +71,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -105,6 +106,7 @@ type Operator struct {
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            instance.Provider
 	InstanceStatusProvider      *instancestatus.DefaultProvider
+	RootVolumeProvider          rootvolume.Provider
 	SSMProvider                 ssmp.Provider
 	CapacityReservationProvider capacityreservation.Provider
 	PlacementGroupProvider      placementgroup.Provider
@@ -274,6 +276,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		instance.WithEFAProvider(efaProvider),
 	)
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
+	rootVolumeProvider := rootvolume.NewDefaultProvider(ec2api, versionProvider, cache.New(awscache.RootVolumeReplacementTaskTTL, awscache.DefaultCleanupInterval))
 
 	// Setup field indexers on instanceID -- used by the interruption and instance status controllers
 	SetupIndexers(ctx, operator.Manager)
@@ -295,6 +298,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceTypesProvider:       instanceTypeProvider,
 		InstanceProvider:            instanceProvider,
 		InstanceStatusProvider:      instanceStatusProvider,
+		RootVolumeProvider:          rootVolumeProvider,
 		SSMProvider:                 ssmProvider,
 		CapacityReservationProvider: capacityReservationProvider,
 		PlacementGroupProvider:      placementGroupProvider,
