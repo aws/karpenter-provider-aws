@@ -404,7 +404,7 @@ var _ = Describe("CloudProvider", func() {
 		}
 		It("should return the 1.14 repair policies with WithLegacyRepairPolicies", func() {
 			replace := func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus, toleration time.Duration) corecloudprovider.RepairPolicy {
-				return corecloudprovider.RepairPolicy{ConditionType: conditionType, ConditionStatus: status, TolerationDuration: toleration, Action: corecloudprovider.ReplaceNode}
+				return corecloudprovider.RepairPolicy{ConditionType: conditionType, ConditionStatus: status, TolerationDuration: toleration, Action: corecloudprovider.Replace}
 			}
 			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(true)).RepairPolicies()).To(Equal([]corecloudprovider.RepairPolicy{
 				replace(corev1.NodeReady, corev1.ConditionFalse, 30*time.Minute),
@@ -419,7 +419,7 @@ var _ = Describe("CloudProvider", func() {
 		It("should return the default repair policies without WithLegacyRepairPolicies", func() {
 			Expect(newCloudProvider(cloudprovider.WithLegacyRepairPolicies(false)).RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
 			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
-			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
+			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.Reboot)))
 		})
 	})
 	// Core validates RepairPolicies at startup, so this repeats main.go's wiring to catch a stricter contract before e2e
@@ -491,7 +491,7 @@ var _ = Describe("CloudProvider", func() {
 			}
 		})
 		DescribeTable("should resolve AcceleratedHardwareReady by reason",
-			func(reason string, elapsed time.Duration, action corecloudprovider.RepairAction, terminationGracePeriod time.Duration, fallback bool) {
+			func(reason string, elapsed time.Duration, action corecloudprovider.DisruptionAction, terminationGracePeriod time.Duration, fallback bool) {
 				result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, reason, elapsed)
 				Expect(result.Action).To(Equal(action))
 				if action == "" {
@@ -500,54 +500,54 @@ var _ = Describe("CloudProvider", func() {
 				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(terminationGracePeriod))
 				Expect(result.Fallback).To(Equal(fallback))
 			},
-			Entry("reboot-clearable XID within toleration", "NvidiaXID48Error", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
-			Entry("reboot-clearable XID", "NvidiaXID48Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("reboot-clearable XID past the fallback toleration", "NvidiaXID158Error", 31*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("reboot-clearable XID119", "NvidiaXID119Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("reboot-clearable XID120", "NvidiaXID120Error", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("unresponsive driver", "NvidiaDriverUnresponsive", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("Fabric Manager not started", "FabricManagerNotStarted", 10*time.Minute, corecloudprovider.RebootNode, 5*time.Minute, false),
-			Entry("fatal XID", "NvidiaXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
-			Entry("fatal XID142", "NvidiaXID142Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
-			Entry("fatal XID151", "NvidiaXID151Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
-			Entry("well-known XID without a family", "NvidiaXID13Error", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
-			Entry("non-XID GPU fault within toleration", "NvidiaDoubleBitError", 9*time.Minute, corecloudprovider.RepairAction(""), time.Duration(0), false),
-			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 10*time.Minute, corecloudprovider.ReplaceNode, 10*time.Minute, true),
-			Entry("DCGM fault", "DCGMDiagnosticFailure", 24*365*time.Hour, corecloudprovider.RepairAction(""), time.Duration(0), false),
-			Entry("DCGM fault naming a fatal XID", "DCGMXID79Error", 10*time.Minute, corecloudprovider.ReplaceNode, 5*time.Minute, false),
+			Entry("reboot-clearable XID within toleration", "NvidiaXID48Error", 9*time.Minute, corecloudprovider.NoOp, time.Duration(0), false),
+			Entry("reboot-clearable XID", "NvidiaXID48Error", 10*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("reboot-clearable XID past the fallback toleration", "NvidiaXID158Error", 31*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("reboot-clearable XID119", "NvidiaXID119Error", 10*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("reboot-clearable XID120", "NvidiaXID120Error", 10*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("unresponsive driver", "NvidiaDriverUnresponsive", 10*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("Fabric Manager not started", "FabricManagerNotStarted", 10*time.Minute, corecloudprovider.Reboot, 5*time.Minute, false),
+			Entry("fatal XID", "NvidiaXID79Error", 10*time.Minute, corecloudprovider.Replace, 5*time.Minute, false),
+			Entry("fatal XID142", "NvidiaXID142Error", 10*time.Minute, corecloudprovider.Replace, 5*time.Minute, false),
+			Entry("fatal XID151", "NvidiaXID151Error", 10*time.Minute, corecloudprovider.Replace, 5*time.Minute, false),
+			Entry("well-known XID without a family", "NvidiaXID13Error", 10*time.Minute, corecloudprovider.Replace, 10*time.Minute, true),
+			Entry("non-XID GPU fault within toleration", "NvidiaDoubleBitError", 9*time.Minute, corecloudprovider.NoOp, time.Duration(0), false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", 10*time.Minute, corecloudprovider.Replace, 10*time.Minute, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", 24*365*time.Hour, corecloudprovider.NoOp, time.Duration(0), false),
+			Entry("DCGM fault naming a fatal XID", "DCGMXID79Error", 10*time.Minute, corecloudprovider.Replace, 5*time.Minute, false),
 		)
 		DescribeTable("should resolve AcceleratedHardwareReady=Unknown by reason",
-			func(reason string, action corecloudprovider.RepairAction, fallback bool) {
+			func(reason string, action corecloudprovider.DisruptionAction, fallback bool) {
 				Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 9*time.Minute).Action).To(BeEmpty())
 				result := evaluate("AcceleratedHardwareReady", corev1.ConditionUnknown, reason, 10*time.Minute)
 				Expect(result.Action).To(Equal(action))
 				Expect(result.Fallback).To(Equal(fallback))
 			},
-			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.RebootNode, false),
-			Entry("unresponsive driver", "NvidiaDriverUnresponsive", corecloudprovider.RebootNode, false),
-			Entry("Fabric Manager not started", "FabricManagerNotStarted", corecloudprovider.RebootNode, false),
-			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.ReplaceNode, false),
-			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.ReplaceNode, true),
-			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.RepairAction(""), false),
+			Entry("reboot-clearable XID", "NvidiaXID48Error", corecloudprovider.Reboot, false),
+			Entry("unresponsive driver", "NvidiaDriverUnresponsive", corecloudprovider.Reboot, false),
+			Entry("Fabric Manager not started", "FabricManagerNotStarted", corecloudprovider.Reboot, false),
+			Entry("fatal XID", "NvidiaXID79Error", corecloudprovider.Replace, false),
+			Entry("non-XID GPU fault", "NvidiaDoubleBitError", corecloudprovider.Replace, true),
+			Entry("DCGM fault", "DCGMDiagnosticFailure", corecloudprovider.NoOp, false),
 		)
 		It("should replace reboot-clearable XIDs on the same timing without RebootForRepair", func() {
 			matcher = newMatcher(false)
 			Expect(evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 9*time.Minute).Action).To(BeEmpty())
 			result := evaluate("AcceleratedHardwareReady", corev1.ConditionFalse, "NvidiaXID48Error", 10*time.Minute)
-			Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+			Expect(result.Action).To(Equal(corecloudprovider.Replace))
 			Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
 			Expect(result.Fallback).To(BeFalse())
 		})
 		It("should not select reboot for any policy without RebootForRepair", func() {
 			for _, policy := range cloudProvider.RepairPolicies() {
-				Expect(policy.Action).To(Equal(corecloudprovider.ReplaceNode), "%s=%s %s", policy.ConditionType, policy.ConditionStatus, policy.ReasonRegex)
+				Expect(policy.Action).To(Equal(corecloudprovider.Replace), "%s=%s %s", policy.ConditionType, policy.ConditionStatus, policy.ReasonRegex)
 			}
 		})
 		DescribeTable("should replace other supported conditions after 30m",
 			func(conditionType corev1.NodeConditionType, status corev1.ConditionStatus) {
 				Expect(evaluate(conditionType, status, "AnyReason", 29*time.Minute).Action).To(BeEmpty())
 				result := evaluate(conditionType, status, "AnyReason", 30*time.Minute)
-				Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+				Expect(result.Action).To(Equal(corecloudprovider.Replace))
 				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(10 * time.Minute))
 				Expect(result.Fallback).To(BeFalse())
 			},
@@ -566,7 +566,7 @@ var _ = Describe("CloudProvider", func() {
 			func(reason string) {
 				Expect(evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute-time.Second).Action).To(BeEmpty())
 				result := evaluate(instancestatus.ConditionTypeEC2StatusReady, corev1.ConditionFalse, reason, 2*time.Minute)
-				Expect(result.Action).To(Equal(corecloudprovider.ReplaceNode))
+				Expect(result.Action).To(Equal(corecloudprovider.Replace))
 				Expect(lo.FromPtr(result.TerminationGracePeriod)).To(Equal(5 * time.Minute))
 				Expect(result.Fallback).To(BeFalse())
 			},
@@ -1374,21 +1374,21 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should not fail if NodeClass does not exist", func() {
 			ExpectDeleted(ctx, env.Client, nodeClass)
-			drifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			drifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeEmpty())
+			Expect(drifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should not fail if NodePool does not exist", func() {
 			ExpectDeleted(ctx, env.Client, nodePool)
-			drifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			drifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(drifted).To(BeEmpty())
+			Expect(drifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should return drifted if the AMI is not valid", func() {
 			nodeClaim.Status.ImageID = fake.ImageID()
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.AMIDrift}))
 		})
 		It("should return drifted if there are multiple drift reasons", func() {
 			// Instance is a reference to what we return in the GetInstances call
@@ -1403,37 +1403,37 @@ var _ = Describe("CloudProvider", func() {
 				v1.AnnotationEC2NodeClassHash: "abcdefghijkl",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.NodeClassDrift}))
 		})
 		It("should return drifted if the subnet is not valid", func() {
 			instance.SubnetId = aws.String(fake.SubnetID())
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
 			})
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.SubnetDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.SubnetDrift}))
 		})
 		It("should return an error if subnets are empty", func() {
 			awsEnv.SubnetCache.Flush()
 			nodeClass.Status.Subnets = []v1.Subnet{}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			_, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should not return drifted if the NodeClaim is valid", func() {
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeEmpty())
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should return an error if the security groups are empty", func() {
 			nodeClass.Status.SecurityGroups = []v1.SecurityGroup{}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []ec2types.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
-			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			_, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the instance security groups doesn't match the discovered values", func() {
@@ -1442,9 +1442,9 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
 			})
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.SecurityGroupDrift}))
 		})
 		It("should return drifted if there are more instance security groups present than in the discovered values", func() {
 			// Instance is a reference to what we return in the GetInstances call
@@ -1452,9 +1452,9 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
 			})
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.SecurityGroupDrift}))
 		})
 		It("should return drifted if more security groups are present than instance security groups then discovered from nodeclass", func() {
 			nodeClass.Status.SecurityGroups = []v1.SecurityGroup{
@@ -1468,9 +1468,9 @@ var _ = Describe("CloudProvider", func() {
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.SecurityGroupDrift}))
 		})
 		It("should dynamically drift nodeclaims for capacity reservations", func() {
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{
@@ -1495,14 +1495,14 @@ var _ = Describe("CloudProvider", func() {
 			}
 			setReservationID("cr-foo")
 			ExpectApplied(ctx, env.Client, nodeClass)
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 			setReservationID("cr-bar")
 			awsEnv.InstanceCache.Flush()
-			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err = cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.CapacityReservationDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.CapacityReservationDrift}))
 		})
 		It("should not drift when capacity reservation falls back to on-demand", func() {
 			// Reflect capacity reservation and in the instance
@@ -1527,9 +1527,9 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 
 			// Populate instance cache
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 
 			// Remove capacity reservation from NodeClass status and in the instance
 			nodeClass.Status.CapacityReservations = []v1.CapacityReservation{}
@@ -1540,25 +1540,25 @@ var _ = Describe("CloudProvider", func() {
 			out.Reservations[0].Instances[0].CapacityReservationSpecification = nil
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(out)
 
-			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err = cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(corecloudprovider.DriftReason("")))
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should not return drifted if the security groups match", func() {
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeEmpty())
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should error if the NodeClaim doesn't have the instance-type label", func() {
 			delete(nodeClaim.Labels, corev1.LabelInstanceTypeStable)
-			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			_, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error if the NodeClaim's instance type is unknown", func() {
 			nodeClaim.Labels[corev1.LabelInstanceTypeStable] = "unknown.large"
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
-			Expect(isDrifted).To(BeEmpty())
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should map the AMI using the NodeClaim's own instance type", func() {
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
@@ -1573,32 +1573,32 @@ var _ = Describe("CloudProvider", func() {
 
 			// An arm64 instance type running the arm64 AMI is not drifted
 			nodeClaim.Status.ImageID = armAMIID
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(BeEmpty())
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 
 			// An arm64 instance type running the amd64 AMI is drifted
 			nodeClaim.Status.ImageID = amdAMIID
-			isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err = cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.AMIDrift}))
 		})
 		It("should error if the NodeClaim doesn't have ImageID", func() {
 			nodeClaim.Status.ImageID = ""
-			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			_, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error drift if NodeClaim doesn't have provider id", func() {
 			nodeClaim.Status = karpv1.NodeClaimStatus{}
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
-			Expect(isDrifted).To(BeEmpty())
+			Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 		})
 		It("should error if the underlying NodeClaim doesn't exist", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{}}},
 			})
-			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			_, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
@@ -1614,9 +1614,9 @@ var _ = Describe("CloudProvider", func() {
 			}
 			nodeClaim.Status.ImageID = armAMIID
 			ExpectApplied(ctx, env.Client, nodeClass)
-			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+			Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.AMIDrift}))
 		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
@@ -1700,17 +1700,17 @@ var _ = Describe("CloudProvider", func() {
 			DescribeTable("should return drifted if a statically drifted EC2NodeClass.Spec field is updated",
 				func(changes v1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-					isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+					isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeEmpty())
+					Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
 					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash(testCABundle)})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
-					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+					isDrifted, err = cloudProvider.GetDriftStatus(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
+					Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.NodeClassDrift}))
 				},
 				Entry("UserData", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: lo.ToPtr("userdata-test-2")}}),
 				Entry("Tags", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
@@ -1739,24 +1739,24 @@ var _ = Describe("CloudProvider", func() {
 				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash(testCABundle)})
 
 				ExpectApplied(ctx, env.Client, nodeClass)
-				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
+				Expect(isDrifted).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.NodeClassDrift}))
 			})
 			DescribeTable("should not return drifted if dynamic fields are updated",
 				func(changes v1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-					isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+					isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeEmpty())
+					Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
 					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash(testCABundle)})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
-					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
+					isDrifted, err = cloudProvider.GetDriftStatus(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(isDrifted).To(BeEmpty())
+					Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 				},
 				Entry("AMI Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
 					AMIFamily:        lo.ToPtr(v1.AMIFamilyAL2023),
@@ -1773,9 +1773,9 @@ var _ = Describe("CloudProvider", func() {
 					"Test Key": "Test Value",
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(BeEmpty())
+				Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 			})
 			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
 				nodeClass.Annotations = map[string]string{
@@ -1787,9 +1787,9 @@ var _ = Describe("CloudProvider", func() {
 					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(BeEmpty())
+				Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
 				nodeClass.Annotations = map[string]string{
@@ -1804,9 +1804,9 @@ var _ = Describe("CloudProvider", func() {
 					"Test Key": "Test Value",
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(BeEmpty())
+				Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
 				nodeClass.Annotations = map[string]string{
@@ -1821,9 +1821,9 @@ var _ = Describe("CloudProvider", func() {
 					"Test Key": "Test Value",
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(isDrifted).To(BeEmpty())
+				Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
 			})
 		})
 		Context("Reboot after AMI drift", func() {

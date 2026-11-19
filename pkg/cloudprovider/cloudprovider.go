@@ -353,33 +353,36 @@ func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
 	return nil
 }
 
-func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) GetDriftStatus(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftStatus, error) {
 	// Not needed when GetInstanceTypes removes nodepool dependency
 	nodePoolName, ok := nodeClaim.Labels[karpv1.NodePoolLabelKey]
 	if !ok {
-		return "", nil
+		return cloudprovider.DriftStatus{}, nil
 	}
 	nodePool := &karpv1.NodePool{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
-		return "", client.IgnoreNotFound(err)
+		return cloudprovider.DriftStatus{}, client.IgnoreNotFound(err)
 	}
 	if nodePool.Spec.Template.Spec.NodeClassRef == nil {
-		return "", nil
+		return cloudprovider.DriftStatus{}, nil
 	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// We can't determine the drift status for the NodeClaim if we can no longer resolve the NodeClass
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
-			return "", nil
+			return cloudprovider.DriftStatus{}, nil
 		}
-		return "", fmt.Errorf("resolving nodeclass, %w", err)
+		return cloudprovider.DriftStatus{}, fmt.Errorf("resolving nodeclass, %w", err)
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
-		return "", err
+		return cloudprovider.DriftStatus{}, err
 	}
-	return driftReason, nil
+	if driftReason == "" {
+		return cloudprovider.DriftStatus{}, nil
+	}
+	return cloudprovider.DriftStatus{Action: cloudprovider.Replace, Reason: driftReason}, nil
 }
 
 // Name returns the CloudProvider implementation name.
@@ -403,7 +406,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     instancestatus.UnhealthyThreshold,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		// Supported Kubelet Node Conditions
 		//
@@ -417,7 +420,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			// exists so repair is never the unbounded (~19-day) drain hang that a nil NodeClaim TerminationGracePeriod
 			// would otherwise permit.
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          corev1.NodeReady,
@@ -425,7 +428,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		// Support Node Monitoring Agent Conditions
 		//
@@ -441,7 +444,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|119|120|136|140|143|155|156|158).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.Reboot, cloudprovider.Replace),
 		},
 		{
 			ConditionType:          "AcceleratedHardwareReady",
@@ -449,7 +452,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `.*XID(46|48|54|62|63|95|109|110|119|120|136|140|143|155|156|158).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.Reboot, cloudprovider.Replace),
 		},
 		{
 			// NMA reports these only after its own window (a hung driver, or a fabric Fabric Manager never trained), and
@@ -460,7 +463,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.Reboot, cloudprovider.Replace),
 		},
 		{
 			ConditionType:          "AcceleratedHardwareReady",
@@ -468,7 +471,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `^(NvidiaDriverUnresponsive|FabricManagerNotStarted)$`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.RebootNode, cloudprovider.ReplaceNode),
+			Action:                 lo.Ternary(c.rebootForRepair, cloudprovider.Reboot, cloudprovider.Replace),
 		},
 		{
 			// Fatal / uncorrectable GPU errors — replace fast, a reboot would only waste time on dead hardware.
@@ -477,7 +480,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `.*XID(64|74|79|142|151).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "AcceleratedHardwareReady",
@@ -485,7 +488,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `.*XID(64|74|79|142|151).*`,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(5 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			// DCGM health check failures are not repaired, matching managed node groups. The repair policy schema has no
@@ -497,7 +500,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `^DCGM`,
 			TolerationDuration:     time.Duration(math.MaxInt64),
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "AcceleratedHardwareReady",
@@ -505,7 +508,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            `^DCGM`,
 			TolerationDuration:     time.Duration(math.MaxInt64),
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			// Default fallback (empty ReasonRegex, the only one allowed per policy set): an unrecognized GPU fault is
@@ -514,7 +517,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ConditionStatus:        corev1.ConditionFalse,
 			TolerationDuration:     10 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "StorageReady",
@@ -522,7 +525,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "StorageReady",
@@ -530,7 +533,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "NetworkingReady",
@@ -538,7 +541,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "NetworkingReady",
@@ -546,7 +549,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "KernelReady",
@@ -554,7 +557,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "KernelReady",
@@ -562,7 +565,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "ContainerRuntimeReady",
@@ -570,7 +573,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 		{
 			ConditionType:          "ContainerRuntimeReady",
@@ -578,7 +581,7 @@ func (c *CloudProvider) RepairPolicies() []cloudprovider.RepairPolicy {
 			ReasonRegex:            ".*",
 			TolerationDuration:     30 * time.Minute,
 			TerminationGracePeriod: lo.ToPtr(10 * time.Minute),
-			Action:                 cloudprovider.ReplaceNode,
+			Action:                 cloudprovider.Replace,
 		},
 	}
 }
@@ -757,43 +760,43 @@ var legacyRepairPolicies = []cloudprovider.RepairPolicy{
 		ConditionType:      corev1.NodeReady,
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	{
 		ConditionType:      corev1.NodeReady,
 		ConditionStatus:    corev1.ConditionUnknown,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	// Support Node Monitoring Agent Conditions
 	{
 		ConditionType:      "AcceleratedHardwareReady",
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 10 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	{
 		ConditionType:      "StorageReady",
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	{
 		ConditionType:      "NetworkingReady",
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	{
 		ConditionType:      "KernelReady",
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 	{
 		ConditionType:      "ContainerRuntimeReady",
 		ConditionStatus:    corev1.ConditionFalse,
 		TolerationDuration: 30 * time.Minute,
-		Action:             cloudprovider.ReplaceNode,
+		Action:             cloudprovider.Replace,
 	},
 }
