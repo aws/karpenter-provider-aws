@@ -28,6 +28,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -217,5 +218,186 @@ var _ = Describe("ARCZonalShiftController", func() {
 		ExpectSingletonReconciled(ctx, controller)
 
 		Expect(recorder.Calls(detectedReason)).To(Equal(1))
+	})
+})
+
+var _ = Describe("do-not-repair veto", func() {
+	doNotRepairKey := karpv1.DoNotRepairAnnotationKey
+	preShiftKey := arczonalshift.PreShiftDoNotRepairAnnotation
+	preShiftUnset := arczonalshift.PreShiftUnset
+
+	// karpenterNode builds a Karpenter-managed node (carries the nodepool label) in the
+	// zone with the given zone ID, plus optional pre-existing annotations.
+	karpenterNode := func(zoneID string, annotations map[string]string) *corev1.Node {
+		return coretest.Node(coretest.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					karpv1.NodePoolLabelKey: nodePool.Name,
+					v1.LabelTopologyZoneID:  zoneID,
+				},
+				Annotations: annotations,
+			},
+		})
+	}
+
+	It("sets do-not-repair on a Karpenter node in a shifted zone", func() {
+		node := karpenterNode("tstz1-1a", nil)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		// No prior value, so the marker records the "unset" sentinel.
+		Expect(node.Annotations).To(HaveKeyWithValue(preShiftKey, preShiftUnset))
+	})
+
+	It("marks nodes across multiple shifted zones and leaves unshifted ones alone", func() {
+		nodeA := karpenterNode("tstz1-1a", nil)
+		nodeB := karpenterNode("tstz1-1b", nil)
+		nodeC := karpenterNode("tstz1-1c", nil)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeA, nodeB, nodeC)
+		setShiftedZones("tstz1-1a", "tstz1-1b")
+		ExpectSingletonReconciled(ctx, controller)
+
+		Expect(ExpectExists(ctx, env.Client, nodeA).Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(ExpectExists(ctx, env.Client, nodeB).Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(ExpectExists(ctx, env.Client, nodeC).Annotations).NotTo(HaveKey(doNotRepairKey))
+	})
+
+	It("does not touch a non-Karpenter node in a shifted zone", func() {
+		node := coretest.Node(coretest.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				// No karpenter.sh/nodepool label: not a Karpenter-managed node.
+				Labels: map[string]string{v1.LabelTopologyZoneID: "tstz1-1a"},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).NotTo(HaveKey(doNotRepairKey))
+	})
+
+	It("removes the controller-added veto on weigh-back", func() {
+		node := karpenterNode("tstz1-1a", nil)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+		Expect(ExpectExists(ctx, env.Client, node).Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+
+		setShiftedZones()
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).NotTo(HaveKey(doNotRepairKey))
+		Expect(node.Annotations).NotTo(HaveKey(preShiftKey))
+	})
+
+	It("forces then restores a user's own do-not-repair=false", func() {
+		node := karpenterNode("tstz1-1a", map[string]string{doNotRepairKey: "false"})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(node.Annotations).To(HaveKeyWithValue(preShiftKey, "false"))
+
+		setShiftedZones()
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "false"))
+		Expect(node.Annotations).NotTo(HaveKey(preShiftKey))
+	})
+
+	It("restores a user's own do-not-repair=true inside a shifted zone across a full cycle", func() {
+		node := karpenterNode("tstz1-1a", map[string]string{doNotRepairKey: "true"})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		// The user's own "true" is recorded so it survives weigh-back.
+		Expect(node.Annotations).To(HaveKeyWithValue(preShiftKey, "true"))
+
+		setShiftedZones()
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(node.Annotations).NotTo(HaveKey(preShiftKey))
+	})
+
+	It("does not re-capture the prior value on repeated reconciles while shifted", func() {
+		node := karpenterNode("tstz1-1a", nil)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+		setShiftedZones("tstz1-1a")
+
+		ExpectSingletonReconciled(ctx, controller)
+		Expect(ExpectExists(ctx, env.Client, node).Annotations).To(HaveKeyWithValue(preShiftKey, preShiftUnset))
+
+		// A second reconcile must not overwrite the recorded prior value with the
+		// controller's own forced "true".
+		ExpectSingletonReconciled(ctx, controller)
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(node.Annotations).To(HaveKeyWithValue(preShiftKey, preShiftUnset))
+	})
+
+	It("leaves a user's own do-not-repair on a node outside the shifted zone untouched", func() {
+		node := karpenterNode("tstz1-1b", map[string]string{doNotRepairKey: "true"})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+		setShiftedZones("tstz1-1a")
+		ExpectSingletonReconciled(ctx, controller)
+
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
+		Expect(node.Annotations).NotTo(HaveKey(preShiftKey))
+	})
+
+	It("does not veto a node missing the zone-id label when the shifted set has an empty entry", func() {
+		// A Karpenter-managed node with no topology.k8s.aws/zone-id label.
+		node := coretest.Node(coretest.NodeOptions{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{karpv1.NodePoolLabelKey: nodePool.Name},
+			},
+		})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, node)
+		setShiftedZones("") // a stray empty AwayFrom puts "" in the shifted set
+		ExpectSingletonReconciled(ctx, controller)
+
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).NotTo(HaveKey(doNotRepairKey))
+		Expect(node.Annotations).NotTo(HaveKey(preShiftKey))
+	})
+
+	It("applies the veto even when event publishing fails on a missing NodeClass", func() {
+		// A NodePool referencing a NodeClass that does not exist makes zoneInfosByNodePool
+		// (used only for event publishing) fail. The veto is the primary protective action
+		// and must still be applied, so it runs before the event-publish block.
+		badPool := coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimTemplateSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  "does-not-exist",
+						},
+					},
+				},
+			},
+		})
+		node := karpenterNode("tstz1-1a", nil)
+		ExpectApplied(ctx, env.Client, badPool, node) // deliberately no NodeClass named "does-not-exist"
+		setShiftedZones("tstz1-1a")
+
+		// The event-publish path errors on the missing NodeClass, so the reconcile fails...
+		_ = ExpectSingletonReconcileFailed(ctx, controller)
+		// ...but the veto was already applied first.
+		node = ExpectExists(ctx, env.Client, node)
+		Expect(node.Annotations).To(HaveKeyWithValue(doNotRepairKey, "true"))
 	})
 })
