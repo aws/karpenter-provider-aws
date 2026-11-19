@@ -375,14 +375,7 @@ func (c *CloudProvider) GetDriftStatus(ctx context.Context, nodeClaim *karpv1.No
 		}
 		return cloudprovider.DriftStatus{}, fmt.Errorf("resolving nodeclass, %w", err)
 	}
-	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodeClass)
-	if err != nil {
-		return cloudprovider.DriftStatus{}, err
-	}
-	if driftReason == "" {
-		return cloudprovider.DriftStatus{}, nil
-	}
-	return cloudprovider.DriftStatus{Action: cloudprovider.Replace, Reason: driftReason}, nil
+	return c.driftStatus(ctx, nodeClaim, nodeClass)
 }
 
 // Name returns the CloudProvider implementation name.

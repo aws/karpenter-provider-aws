@@ -45,6 +45,7 @@ const (
 	ReasonNodeNotFound             = "NodeNotFound"
 	ReasonInstanceNotRunning       = "InstanceNotRunning"
 	ReasonKubernetesVersionChanged = "KubernetesVersionChanged"
+	ReasonTaskFailed               = "RootVolumeReplacementFailed"
 )
 
 // retryableErrorCodes are CreateReplaceRootVolumeTask errors that don't reject the task, so the call is retried.

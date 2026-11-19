@@ -71,3 +71,15 @@ func NodePoolZonalShiftCleared(nodePool *karpv1.NodePool, zoneName, zoneID strin
 		DedupeValues:   []string{string(nodePool.UID), zoneID},
 	}
 }
+
+// NodeClaimInPlaceUpgradeUnsupported is emitted when AMI drift on a ReplaceRootVolume EC2NodeClass replaces the node
+// instead of its root volume, naming the check that failed.
+func NodeClaimInPlaceUpgradeUnsupported(nodeClaim *karpv1.NodeClaim, reason string) events.Event {
+	return events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           corev1.EventTypeWarning,
+		Reason:         "InPlaceUpgradeUnsupported",
+		Message:        fmt.Sprintf("Replacing the node instead of its root volume, %s", reason),
+		DedupeValues:   []string{string(nodeClaim.UID), reason},
+	}
+}

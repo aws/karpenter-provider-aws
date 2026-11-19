@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(
 		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(test.RemoveNodeClassTagValidation(apis.CRDs))...),
 		coretest.WithCRDs(v1alpha1.CRDs...),
-		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
+		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx), coretest.NodeProviderIDFieldIndexer(ctx)),
 	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
 	ctx = options.ToContext(ctx, test.Options())
@@ -1824,6 +1824,148 @@ var _ = Describe("CloudProvider", func() {
 				isDrifted, err := cloudProvider.GetDriftStatus(ctx, nodeClaim)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(isDrifted.Action).To(Equal(corecloudprovider.NoOp))
+			})
+		})
+		Context("In-place AMI drift", func() {
+			var eventRecorder *coretest.EventRecorder
+			var provider *cloudprovider.CloudProvider
+			var node *corev1.Node
+			reboot := corecloudprovider.DriftStatus{Action: corecloudprovider.Reboot, Reason: cloudprovider.AMIDrift}
+			replace := corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.AMIDrift}
+			storeTask := func(imageID string, state ec2types.ReplaceRootVolumeTaskState) {
+				awsEnv.EC2API.ReplaceRootVolumeTasks.Store("replacevol-1", ec2types.ReplaceRootVolumeTask{
+					ReplaceRootVolumeTaskId: aws.String("replacevol-1"),
+					InstanceId:              instance.InstanceId,
+					ImageId:                 aws.String(imageID),
+					TaskState:               state,
+					StartTime:               aws.String(time.Now().UTC().Format(time.RFC3339)),
+				})
+			}
+			BeforeEach(func() {
+				eventRecorder = coretest.NewEventRecorder()
+				provider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, eventRecorder, env.Client, awsEnv.AMIProvider,
+					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
+					lo.ToPtr("test-ca-bundle"))
+				nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)
+				for i := range nodeClass.Status.AMIs {
+					nodeClass.Status.AMIs[i].InPlaceUpgrade = &v1.InPlaceUpgrade{Supported: true}
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				nodeClaim.Status.ImageID = fake.ImageID()
+				node = coretest.Node(coretest.NodeOptions{ProviderID: nodeClaim.Status.ProviderID})
+				node.Status.NodeInfo.KubeletVersion = fmt.Sprintf("v%s.0-eks-1234", awsEnv.VersionProvider.Get(ctx))
+				ExpectApplied(ctx, env.Client, node)
+			})
+			It("should not drift a NodeClaim on the EC2NodeClass AMI", func() {
+				nodeClaim.Status.ImageID = amdAMIID
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus.Action).To(Equal(corecloudprovider.NoOp))
+			})
+			It("should reboot a NodeClaim drifted only by its AMI", func() {
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(reboot))
+			})
+			It("should replace a NodeClaim drifted only by its AMI when amiDriftPolicy is ReplaceInstance", func() {
+				nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceInstance)
+				ExpectApplied(ctx, env.Client, nodeClass)
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(replace))
+			})
+			It("should replace a NodeClaim drifted by its AMI and its subnet", func() {
+				instance.SubnetId = aws.String(fake.SubnetID())
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+					Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+				})
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.SubnetDrift}))
+			})
+			It("should replace a NodeClaim when its EC2NodeClass is statically drifted", func() {
+				nodeClaim.Annotations[v1.AnnotationEC2NodeClassHash] = "other-hash"
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: cloudprovider.NodeClassDrift}))
+			})
+			It("should replace a NodeClaim when the AMI can't be used in place", func() {
+				for i := range nodeClass.Status.AMIs {
+					nodeClass.Status.AMIs[i].InPlaceUpgrade = &v1.InPlaceUpgrade{Reason: v1.InPlaceUpgradeReasonSnapshotNotReadable}
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(replace))
+				Expect(eventRecorder.Calls("InPlaceUpgradeUnsupported")).To(Equal(1))
+				Expect(eventRecorder.DetectedEvent("Replacing the node instead of its root volume, SnapshotNotReadable")).To(BeTrue())
+			})
+			It("should return an error until the AMI's in-place upgrade support is known", func() {
+				for i := range nodeClass.Status.AMIs {
+					nodeClass.Status.AMIs[i].InPlaceUpgrade = nil
+				}
+				ExpectApplied(ctx, env.Client, nodeClass)
+				_, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).To(HaveOccurred())
+			})
+			It("should replace a NodeClaim whose kubelet runs another Kubernetes minor version", func() {
+				node.Status.NodeInfo.KubeletVersion = "v1.20.0-eks-1234"
+				ExpectApplied(ctx, env.Client, node)
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(replace))
+				Expect(eventRecorder.DetectedEvent("Replacing the node instead of its root volume, KubernetesVersionChanged")).To(BeTrue())
+			})
+			It("should replace a NodeClaim whose instance isn't running", func() {
+				instance.State = &ec2types.InstanceState{Name: ec2types.InstanceStateNameStopped}
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+					Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+				})
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(replace))
+			})
+			DescribeTable("should keep rebooting while the root volume replacement is unfinished",
+				func(state ec2types.ReplaceRootVolumeTaskState) {
+					storeTask(amdAMIID, state)
+					driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(driftStatus).To(Equal(reboot))
+				},
+				Entry("pending", ec2types.ReplaceRootVolumeTaskStatePending),
+				Entry("in-progress", ec2types.ReplaceRootVolumeTaskStateInProgress),
+				Entry("failing", ec2types.ReplaceRootVolumeTaskStateFailing),
+			)
+			DescribeTable("should replace a NodeClaim whose root volume replacement failed",
+				func(state ec2types.ReplaceRootVolumeTaskState) {
+					storeTask(amdAMIID, state)
+					driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(driftStatus).To(Equal(replace))
+					Expect(eventRecorder.DetectedEvent("Replacing the node instead of its root volume, RootVolumeReplacementFailed")).To(BeTrue())
+				},
+				Entry("failed", ec2types.ReplaceRootVolumeTaskStateFailed),
+				Entry("failed-detached", ec2types.ReplaceRootVolumeTaskStateFailedDetached),
+			)
+			It("should not drift a NodeClaim whose root volume was replaced with the EC2NodeClass AMI", func() {
+				storeTask(amdAMIID, ec2types.ReplaceRootVolumeTaskStateSucceeded)
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus.Action).To(Equal(corecloudprovider.NoOp))
+			})
+			It("should reboot a NodeClaim whose root volume was replaced with an older AMI", func() {
+				storeTask(fake.ImageID(), ec2types.ReplaceRootVolumeTaskStateSucceeded)
+				driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(driftStatus).To(Equal(reboot))
+			})
+			It("should not call EC2 again for a cached unfinished task", func() {
+				storeTask(amdAMIID, ec2types.ReplaceRootVolumeTaskStateInProgress)
+				_, err := provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				_, err = provider.GetDriftStatus(ctx, nodeClaim)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(awsEnv.EC2API.DescribeReplaceRootVolumeTasksBehavior.Calls()).To(Equal(1))
 			})
 		})
 		Context("Reboot after AMI drift", func() {

@@ -26,10 +26,13 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	nodeclaimutils "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
@@ -42,18 +45,104 @@ const (
 	NodeClassDrift           cloudprovider.DriftReason = "NodeClassDrift"
 )
 
+func (c *CloudProvider) driftStatus(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftStatus, error) {
+	reason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodeClass)
+	if err != nil {
+		return cloudprovider.DriftStatus{}, err
+	}
+	if reason == "" {
+		return cloudprovider.DriftStatus{}, nil
+	}
+	if reason != AMIDrift || nodeClass.AMIDriftPolicy() != v1.AMIDriftPolicyReplaceRootVolume {
+		return cloudprovider.DriftStatus{Action: cloudprovider.Replace, Reason: reason}, nil
+	}
+	return c.amiDriftStatus(ctx, nodeClaim, nodeClass)
+}
+
+// amiDriftStatus resolves AMI drift by replacing the instance's root volume unless the instance's latest root volume
+// replacement failed or an in-place upgrade check fails.
+func (c *CloudProvider) amiDriftStatus(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftStatus, error) {
+	reboot := cloudprovider.DriftStatus{Action: cloudprovider.Reboot, Reason: AMIDrift}
+	replace := cloudprovider.DriftStatus{Action: cloudprovider.Replace, Reason: AMIDrift}
+	imageID, err := c.resolveAMI(ctx, nodeClaim, nodeClass)
+	if err != nil {
+		return cloudprovider.DriftStatus{}, fmt.Errorf("calculating ami drift, %w", err)
+	}
+	instanceID, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
+	if err != nil {
+		return cloudprovider.DriftStatus{}, err
+	}
+	task, err := c.rootVolumeProvider.LatestTask(ctx, instanceID)
+	if err != nil {
+		return cloudprovider.DriftStatus{}, fmt.Errorf("getting root volume replacement task, %w", err)
+	}
+	switch {
+	case task == nil:
+	// Staying drifted keeps core from committing another disruption, and a repeated Reboot joins the task.
+	case !task.Finished():
+		return reboot, nil
+	case task.Failed():
+		c.recorder.Publish(cloudproviderevents.NodeClaimInPlaceUpgradeUnsupported(nodeClaim, rootvolume.ReasonTaskFailed))
+		return replace, nil
+	// The instance already runs the AMI. status.imageID is updated once the task is observed.
+	case task.ImageID == imageID:
+		return cloudprovider.DriftStatus{}, nil
+	}
+	reason, err := c.unsupportedInPlaceUpgradeReason(ctx, nodeClaim, nodeClass, imageID)
+	if err != nil {
+		return cloudprovider.DriftStatus{}, err
+	}
+	if reason != "" {
+		c.recorder.Publish(cloudproviderevents.NodeClaimInPlaceUpgradeUnsupported(nodeClaim, reason))
+		return replace, nil
+	}
+	return reboot, nil
+}
+
+// unsupportedInPlaceUpgradeReason returns the AMI-level or node-level check that keeps the NodeClaim from moving to
+// the AMI in place, or "" when every check passes.
+func (c *CloudProvider) unsupportedInPlaceUpgradeReason(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass, imageID string) (string, error) {
+	ami, ok := lo.Find(nodeClass.Status.AMIs, func(ami v1.AMI) bool { return ami.ID == imageID })
+	if !ok || ami.InPlaceUpgrade == nil {
+		return "", serrors.Wrap(fmt.Errorf("in-place upgrade support for the ami isn't known yet"), "ami-id", imageID)
+	}
+	if !ami.InPlaceUpgrade.Supported {
+		return string(ami.InPlaceUpgrade.Reason), nil
+	}
+	node, err := nodeclaimutils.NodeForNodeClaim(ctx, c.kubeClient, nodeClaim)
+	if err != nil && !nodeclaimutils.IsNodeNotFoundError(err) {
+		return "", fmt.Errorf("getting node, %w", err)
+	}
+	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
+	if err != nil {
+		return "", err
+	}
+	return c.rootVolumeProvider.UnsupportedNodeReason(ctx, node, instance.State), nil
+}
+
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	// First check if the node class is statically drifted to save on API calls.
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
+	// AMI drift can only be resolved in place when it is the only drift, so it is checked last.
+	if nodeClass.AMIDriftPolicy() == v1.AMIDriftPolicyReplaceRootVolume {
+		if drifted, err := c.isInstanceDrifted(ctx, nodeClaim, nodeClass); err != nil || drifted != "" {
+			return drifted, err
+		}
+		return c.isAMIDrifted(ctx, nodeClaim, nodeClass)
+	}
 	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodeClass)
 	if err != nil {
-		return "", fmt.Errorf("calculating ami drift, %w", err)
+		return "", err
 	}
 	if amiDrifted != "" {
 		return amiDrifted, nil
 	}
+	return c.isInstanceDrifted(ctx, nodeClaim, nodeClass)
+}
+
+func (c *CloudProvider) isInstanceDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
@@ -85,11 +174,11 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	imageID, err := c.resolveAMI(ctx, nodeClaim, nodeClass)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
 	// Should never happen as ImageID is resolved when setting Launched status condition
 	if nodeClaim.Status.ImageID == "" {
-		return "", fmt.Errorf("no ami ID found in nodeClaim status")
+		return "", fmt.Errorf("calculating ami drift, no ami ID found in nodeClaim status")
 	}
 	if imageID != nodeClaim.Status.ImageID {
 		return AMIDrift, nil
