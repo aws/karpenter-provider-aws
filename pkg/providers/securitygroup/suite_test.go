@@ -134,6 +134,17 @@ var _ = Describe("SecurityGroupProvider", func() {
 			},
 		}, securityGroups)
 	})
+	It("should not query security groups for a term without filters", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{
+				Tags: map[string]string{},
+			},
+		}
+		securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		Expect(securityGroups).To(BeEmpty())
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(BeZero())
+	})
 	It("should discover security groups by multiple tag values", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
