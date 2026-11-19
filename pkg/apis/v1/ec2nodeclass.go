@@ -89,7 +89,10 @@ type EC2NodeClassSpec struct {
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
-	// Role is the AWS identity that nodes use.
+	// Role is the AWS identity that nodes use. Accepts an IAM role name, a role name
+	// with path prefix (e.g., "my-path/my-role"), or a full IAM role ARN. When an ARN or
+	// path-prefixed name is provided, only the role name component is used for instance
+	// profile association.
 	// This field is mutually exclusive from instanceProfile.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +optional
