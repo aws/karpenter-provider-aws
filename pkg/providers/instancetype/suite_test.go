@@ -2668,6 +2668,72 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
+		It("should use the volume size from blockDeviceMappings when device name does not match AMI family default", func() {
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/sda1"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(400, resource.Giga),
+						VolumeType: aws.String("gp3"),
+						Encrypted:  aws.Bool(true),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("400G")))
+		})
+		It("should use the volume size from the first blockDeviceMapping with volumeSize when multiple non-matching devices exist", func() {
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/sda1"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(400, resource.Giga),
+						VolumeType: aws.String("gp3"),
+						Encrypted:  aws.Bool(true),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/sdb"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+						VolumeType: aws.String("gp3"),
+						Encrypted:  aws.Bool(true),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("400G")))
+		})
+		It("should prefer the AMI family device name match over the fallback", func() {
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/sda1"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+						VolumeType: aws.String("gp3"),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(100, resource.Giga),
+						VolumeType: aws.String("gp3"),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			// Should use /dev/xvda (100G) since it matches AL2's EphemeralBlockDevice, not /dev/sda1 (50G)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("100G")))
+		})
 	})
 	Context("Volume Attachment Limits", func() {
 		DescribeTable("should only launch nodes that can attach every EBS volume a pod uses",
