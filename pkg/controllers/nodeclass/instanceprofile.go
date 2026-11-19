@@ -87,7 +87,7 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeC
 				ctx,
 				newProfileName,
 				nodeClass.InstanceProfileRole(),
-				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, ip.region),
+				nodeClass.InstanceProfileTags(options.FromContext(ctx).ClusterName, options.FromContext(ctx).ClusterNameTagKey, ip.region),
 				instanceprofile.FormatPath("karpenter", ip.region, options.FromContext(ctx).ClusterName, string(nodeClass.UID)),
 			); err != nil {
 				// If we failed Create, we may have successfully created the instance profile but failed to either attach the new

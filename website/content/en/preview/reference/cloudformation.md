@@ -34,6 +34,20 @@ A lot of the object naming that is done by `cloudformation.yaml` is based on the
 * Cluster name: With a username of `bob` the Getting Started Guide would name your cluster `bob-karpenter-demo`
 That name would then be appended to any name below where `${ClusterName}` is included.
 
+* Cluster name tag key: The `${ClusterNameTagKey}` parameter controls the tag key Karpenter uses to associate AWS resources with your cluster. It defaults to `eks:eks-cluster-name`, which matches Karpenter's default behavior on EKS.
+
+{{% alert title="Warning" color="warning" %}}
+Leave `${ClusterNameTagKey}` as the default `eks:eks-cluster-name` when running on EKS. Only override it if you run Karpenter outside of EKS and have set the controller's `--cluster-name-tag-key` flag (env `CLUSTER_NAME_TAG_KEY`) to a matching value. The CloudFormation parameter and the controller flag must always agree, otherwise the IAM conditions below will not match the tags Karpenter applies and node provisioning will fail.
+{{% /alert %}}
+
+{{% alert title="Do not change this on an existing cluster" color="danger" %}}
+Only set `--cluster-name-tag-key` when installing Karpenter on a new cluster. Do not change it after Karpenter has already launched resources with a different key. Karpenter discovers its instances and launch templates by this tag, and it does not retag resources it has already tagged, so any existing resources become invisible to it:
+
+* Existing NodeClaims can be garbage collected (and their instances terminated) whenever their Node is not `Ready`, because Karpenter can no longer find the backing instance.
+* Instances whose NodeClaim is gone are no longer garbage collected, and leak.
+* Existing launch templates are no longer cleaned up when their EC2NodeClass is deleted, and leak.
+{{% /alert %}}
+
 * Partition: Any time an ARN is used, it includes the [partition name](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/partitions.html) to identify where the object is found. In most cases, that partition name is `aws`. However, it could also be `aws-cn` (for China Regions) or `aws-us-gov` (for AWS GovCloud US Regions).
 
 ## Node Authorization
@@ -165,7 +179,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
 
 The AllowScopedEC2InstanceActionsWithTags Sid allows the
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, `launch-template` or `spot-instances-request` EC2 resources (for the partition and region). It also requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned`, `aws:RequestTag/eks:eks-cluster-name` be set to `"${ClusterName}`, and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
+actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, `launch-template` or `spot-instances-request` EC2 resources (for the partition and region). It also requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned`, `aws:RequestTag/${ClusterNameTagKey}` be set to `"${ClusterName}`, and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
 
 ```json
 {
@@ -187,7 +201,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+      "aws:RequestTag/${ClusterNameTagKey}": "${ClusterName}"
     },
     "StringLike": {
       "aws:RequestTag/karpenter.sh/nodepool": "*"
@@ -200,7 +214,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
 
 The AllowScopedResourceCreationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)
 actions on `fleet`, `instance`, `volume`, `network-interface`, `launch-template` and `spot-instances-request` resources, While making `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate` calls. Additionally, this ensures that resources can't be tagged arbitrarily by Karpenter after they are created.
-Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/${ClusterName}` be set to `owned` and `aws:RequestTag/eks:eks-cluster-name` be set to `${ClusterName}`.
+Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/${ClusterName}` be set to `owned` and `aws:RequestTag/${ClusterNameTagKey}` be set to `${ClusterName}`.
 
 ```json
 {
@@ -218,7 +232,7 @@ Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/$
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
+      "aws:RequestTag/${ClusterNameTagKey}": "${ClusterName}",
       "ec2:CreateAction": [
         "RunInstances",
         "CreateFleet",
@@ -235,7 +249,7 @@ Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/$
 #### AllowScopedResourceTagging
 
 The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on all instances created by Karpenter after their creation. It enforces that Karpenter is only able to update the tags on cluster instances it is operating on through the `kubernetes.io/cluster/${ClusterName}`" and `karpenter.sh/nodepool` tags.
-Likewise, `RequestTag/eks:eks-cluster-name` must be set to `${ClusterName}`, if it exists, and `TagKeys` must equal `eks:eks-cluster-name`, `karpenter.sh/nodeclaim`, and `Name`, for all values.
+Likewise, `RequestTag/${ClusterNameTagKey}` must be set to `${ClusterName}`, if it exists, and `TagKeys` must equal `${ClusterNameTagKey}`, `karpenter.sh/nodeclaim`, and `Name`, for all values.
 ```json
 {
   "Sid": "AllowScopedResourceTagging",
@@ -250,11 +264,11 @@ Likewise, `RequestTag/eks:eks-cluster-name` must be set to `${ClusterName}`, if 
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
     },
     "StringEqualsIfExists": {
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+      "aws:RequestTag/${ClusterNameTagKey}": "${ClusterName}"
     },
     "ForAllValues:StringEquals": {
       "aws:TagKeys": [
-        "eks:eks-cluster-name",
+        "${ClusterNameTagKey}",
         "karpenter.sh/nodeclaim",
         "Name"
       ]
@@ -332,7 +346,7 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
 #### AllowScopedInstanceProfileCreationActions
 
 The AllowScopedInstanceProfileCreationActions Sid gives the Karpenter controller permission to create a new instance profile with [`iam:CreateInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html),
-provided that the request is made to a cluster with `RequestTag` `kubernetes.io/cluster/${ClusterName}` set to `owned`, the `eks:eks-cluster-name` set to `${ClusterName}`, and `topology.kubernetes.io/region` set to the current region.
+provided that the request is made to a cluster with `RequestTag` `kubernetes.io/cluster/${ClusterName}` set to `owned`, the `${ClusterNameTagKey}` set to `${ClusterName}`, and `topology.kubernetes.io/region` set to the current region.
 Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter can generate instance profiles on your behalf based on roles specified in your `EC2NodeClasses` that you use to configure Karpenter.
 
 ```json
@@ -346,7 +360,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
+      "aws:RequestTag/${ClusterNameTagKey}": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {
@@ -358,7 +372,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 
 #### AllowScopedInstanceProfileTagActions
 
-The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), provided that `ResourceTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned` and `topology.kubernetes.io/region` is set to the current region and `RequestTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned`, `eks:eks-cluster-name` is set to `${ClusterName}`, and `topology.kubernetes.io/region` is set to the current region.
+The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), provided that `ResourceTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned` and `topology.kubernetes.io/region` is set to the current region and `RequestTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned`, `${ClusterNameTagKey}` is set to `${ClusterName}`, and `topology.kubernetes.io/region` is set to the current region.
 Also, `ResourceTag/karpenter.k8s.aws/ec2nodeclass` and `RequestTag/karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter is only able to act on instance profiles that it provisions for this cluster.
 
 ```json
@@ -374,7 +388,7 @@ Also, `ResourceTag/karpenter.k8s.aws/ec2nodeclass` and `RequestTag/karpenter.k8s
       "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
       "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
+      "aws:RequestTag/${ClusterNameTagKey}": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {

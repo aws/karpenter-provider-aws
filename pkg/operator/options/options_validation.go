@@ -17,10 +17,15 @@ package options
 import (
 	"fmt"
 	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 func (o *Options) Validate() error {
@@ -29,6 +34,7 @@ func (o *Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
+		o.validateClusterNameTagKey(),
 		o.validateAMIRefreshInterval(),
 		o.validateSubnetRefreshInterval(),
 		o.validateSecurityGroupRefreshInterval(),
@@ -86,6 +92,30 @@ func (o *Options) validateReservedENIs() error {
 func (o *Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
+	}
+	return nil
+}
+
+func (o *Options) validateClusterNameTagKey() error {
+	// AWS tag keys are limited to 128 characters and may not be empty.
+	if o.ClusterNameTagKey == "" {
+		return fmt.Errorf("cluster-name-tag-key cannot be empty")
+	}
+	if len(o.ClusterNameTagKey) > 128 {
+		return fmt.Errorf("cluster-name-tag-key cannot be longer than 128 characters")
+	}
+	// AWS reserves the "aws:" prefix and rejects user-created tags that use it.
+	if strings.HasPrefix(strings.ToLower(o.ClusterNameTagKey), "aws:") {
+		return fmt.Errorf("cluster-name-tag-key cannot use the reserved \"aws:\" prefix")
+	}
+	// The default key is itself one of the restricted patterns, so it is allowed explicitly.
+	if o.ClusterNameTagKey == v1.EKSClusterNameTagKey {
+		return nil
+	}
+	if o.ClusterNameTagKey == v1.NameTagKey || lo.ContainsBy(v1.RestrictedTagPatterns, func(r *regexp.Regexp) bool {
+		return r.MatchString(o.ClusterNameTagKey)
+	}) {
+		return fmt.Errorf("cluster-name-tag-key %q conflicts with a tag key managed by Karpenter", o.ClusterNameTagKey)
 	}
 	return nil
 }
