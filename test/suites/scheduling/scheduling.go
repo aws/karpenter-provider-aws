@@ -973,7 +973,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 			var interruptibleReservationID string
 			BeforeAll(func() {
 				sourceReservation, xlargeReservation = Env.ExpectCapacityReservationPairCreated(2, 1)
-				interruptibleReservationID = environmentaws.ExpectInterruptibleCapacityAllocationCreated(Env.Context, Env.EC2API, sourceReservation.ID, 1)
+				interruptibleReservationID = Env.ExpectInterruptibleCapacityAllocationCreated(sourceReservation.ID, 1)
 			})
 			AfterAll(func() {
 				environmentaws.ExpectInterruptibleAndSourceCapacityCanceled(Env.Context, Env.EC2API, sourceReservation.ID, interruptibleReservationID)
