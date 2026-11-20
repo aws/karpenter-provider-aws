@@ -446,6 +446,7 @@ Once a node is disrupted, via either a [graceful](#automated-graceful-methods) o
 At this point, the countdown for `terminationGracePeriod` begins.
 Once the `terminationGracePeriod` elapses, remaining pods will be forcibly deleted and the underlying instance will be terminated.
 A node may be terminated before the `terminationGracePeriod` has elapsed if all disruptable pods have been drained.
+Disruption budget windows don't bound the drain. A node disrupted inside a budget's `schedule` and `duration` keeps draining after the window ends (see [Duration](#duration)).
 
 In conjunction with `expireAfter`, `terminationGracePeriod` can be used to enforce an absolute maximum node lifetime.
 The node will begin to drain once its `expireAfter` has elapsed, and it will be forcibly terminated once its `terminationGracePeriod` has elapsed, making the maximum node lifetime the sum of the two fields.
@@ -524,7 +525,7 @@ Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/worklo
 Duration allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours.
 
 {{% alert title="Note" color="primary" %}}
-Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced.
+Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced. The window only controls when Karpenter starts disrupting nodes. A node that starts draining inside the window keeps draining after the window ends, until its pods are evicted or its [`terminationGracePeriod`](#terminationgraceperiod) elapses. To keep drains inside the window, set `terminationGracePeriod` shorter than `duration`.
 {{% /alert %}}
 
 ### Pod-Level Controls
