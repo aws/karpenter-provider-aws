@@ -192,17 +192,35 @@ websiteVersionDirectories() {
   find website/content/en/* -maxdepth 0 -type d -name "v*" -print0 | xargs -0 -r -n 1 basename | sort -V
 }
 
+# newerVersions prints the versions read from stdin (e.g. v1.15) that are newer than the given version
+newerVersions() {
+  local floor="${1}" version newest
+
+  while read -r version; do
+    newest="$(printf '%s\n%s\n' "${floor}" "${version}" | sort -V | tail -n 1)"
+    if [[ "${version}" != "${floor}" ]] && [[ "${newest}" == "${version}" ]]; then
+      echo "${version}"
+    fi
+  done
+}
+
 # removeOldWebsiteDirectories removes the docs version directories that are no longer kept, and redirects their pages
 # to the same pages in the latest docs so that links to them keep working. The rule uses the Amplify <*> wildcard,
 # which hack/docs/parse-redirects passes through unexpanded. It keeps the last n minors, the supported
-# LTS minors in params.lts_versions, and the preview, docs, and v1.0 directories.
+# LTS minors in params.lts_versions, every minor newer than the newest of them, and the preview, docs, and v1.0
+# directories. The next LTS minor is always newer than the newest one listed, so its docs are kept until it is.
 removeOldWebsiteDirectories() {
-  local n=3 keep dir version
+  local n=3 lts newest_lts keep dir version
 
+  lts="$(yq '.params.lts_versions[].version' website/hugo.yaml)"
+  newest_lts="$(sort -V <<< "${lts}" | tail -n 1)"
   # Keep the v1.0 version around while we are supporting v1beta1 migration
   # Drop it once we no longer want to maintain the v1.0 version in the docs
   keep="$(websiteVersionDirectories | grep -v -x 'v1\.0' | tail -n "${n}")"
-  keep+=$'\n'"$(yq '.params.lts_versions[].version' website/hugo.yaml)"
+  keep+=$'\n'"${lts}"
+  if [[ -n "${newest_lts}" ]]; then
+    keep+=$'\n'"$(websiteVersionDirectories | newerVersions "${newest_lts}")"
+  fi
   keep+=$'\n'"v1.0"$'\n'"preview"$'\n'"docs"
 
   for dir in website/content/en/*/; do
