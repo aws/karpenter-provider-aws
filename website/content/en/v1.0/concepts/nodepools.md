@@ -460,6 +460,10 @@ spec:
 ```
 In order for a pod to run on a node defined in this NodePool, it must tolerate `nvidia.com/gpu` in its pod spec.
 
+{{% alert title="Important" color="warning" %}}
+Taints and tolerations are **scheduling preferences**, not security boundaries. Any user who can create a pod in the cluster can add a toleration to bypass a taint and schedule onto tainted nodes. If you need to enforce that only specific teams or workloads can use certain NodePools, use Kubernetes RBAC, namespace restrictions, or admission controllers (e.g., OPA Gatekeeper, Kyverno) to control which tolerations pods are allowed to specify.
+{{% /alert %}}
+
 ### Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects), it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
