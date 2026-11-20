@@ -48,6 +48,7 @@ Each LTS release is supported for **12 months** from its release date. At any po
 
 | Phase | Duration | Coverage |
 | --- | --- | --- |
+| **Latest release** | Until the next minor release is published | Bug fixes, security patches, and other targeted changes |
 | **Active Support** | First 6 months (until the next LTS is released) | Security patches, workload availability fixes, correctness fixes with availability impact |
 | **Maintenance Mode** | Last 6 months (overlaps with the newer LTS) | Security patches only |
 | **End of Life (EOL)** | After 12 months | No further patches |
