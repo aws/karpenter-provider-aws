@@ -78,7 +78,7 @@ func registerSubnet() bool {
 			Env.EventuallyExpectHealthy(pod)
 			Env.ExpectCreatedNodeCount("==", 1)
 
-			ExceptNodeNameToContainInstanceID(pod.Spec.NodeName)
+			ExpectNodeNameToContainInstanceID(pod.Spec.NodeName)
 		})
 		It("should use the subnet tag selector with multiple tag values", func() {
 			// Get all the subnets for the cluster
@@ -180,10 +180,11 @@ func ExpectResourceBasedNamingDisabled(subnetIDs ...string) {
 	}
 }
 
-func ExceptNodeNameToContainInstanceID(nodeName string) {
+func ExpectNodeNameToContainInstanceID(nodeName string) {
+	GinkgoHelper()
 	instance := Env.GetInstance(nodeName)
 	Expect(nodeName).To(Not(Equal(lo.FromPtr(instance.InstanceId))))
-	ContainSubstring(nodeName, lo.FromPtr(instance.InstanceId))
+	Expect(nodeName).To(ContainSubstring(lo.FromPtr(instance.InstanceId)))
 }
 
 // SubnetInfo is a simple struct for testing
@@ -202,6 +203,6 @@ func EventuallyExpectSubnets(env *aws.Environment, nodeClass *v1.EC2NodeClass) {
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), temp)).To(Succeed())
 		g.Expect(sets.New(lo.Map(temp.Status.Subnets, func(s v1.Subnet, _ int) string {
 			return s.ID
-		})...).Equal(ids))
+		})...).Equal(ids)).To(BeTrue())
 	}).WithTimeout(10 * time.Second).Should(Succeed())
 }
