@@ -113,7 +113,7 @@ v1.14.0 (LTS)
 | v1.14   | Jul 2026 | Jul 2027 |
 | v1.9    | Feb 2026 | Feb 2027 |
 
-> **Note:** Karpenter releases patches for the latest minor version and for each supported LTS version.
+> **Note:** Karpenter releases patches for the latest minor version and all supported LTS versions. A non-LTS minor version stops receiving patches when the next minor version is released.
 
 ## Upgrade Guidance
 
