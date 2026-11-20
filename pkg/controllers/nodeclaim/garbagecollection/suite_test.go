@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,7 +29,9 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpcloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -69,7 +72,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
-	garbageCollectionController = garbagecollection.NewController(env.Client, cloudProvider)
+	garbageCollectionController = garbagecollection.NewController(env.Client, env.Client, cloudProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -137,8 +140,8 @@ var _ = Describe("GarbageCollection", func() {
 	})
 
 	It("should delete an instance if there is no NodeClaim owner", func() {
-		// Launch time was 1m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-10 * time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
@@ -148,8 +151,8 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
 	It("should delete an instance along with the node if there is no NodeClaim owner (to quicken scheduling)", func() {
-		// Launch time was 1m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-10 * time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
 		node := coretest.Node(coretest.NodeOptions{
@@ -198,8 +201,8 @@ var _ = Describe("GarbageCollection", func() {
 					Placement: &ec2types.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					// Launch time was 10m ago
+					LaunchTime:   aws.Time(time.Now().Add(-10 * time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: "m5.large",
 				},
@@ -242,8 +245,8 @@ var _ = Describe("GarbageCollection", func() {
 					Placement: &ec2types.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					// Launch time was 10m ago
+					LaunchTime:   aws.Time(time.Now().Add(-10 * time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: "m5.large",
 				},
@@ -280,23 +283,28 @@ var _ = Describe("GarbageCollection", func() {
 			ExpectExists(ctx, env.Client, nodeClaim)
 		}
 	})
-	It("should not delete an instance if it is within the NodeClaim resolution window (1m)", func() {
-		// Launch time just happened
-		instance.LaunchTime = aws.Time(time.Now())
-		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
+	DescribeTable("should not delete an instance if it is within the NodeClaim resolution window (5m)",
+		func(age time.Duration) {
+			instance.LaunchTime = aws.Time(time.Now().Add(-age))
+			awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
-		ExpectSingletonReconciled(ctx, garbageCollectionController)
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).NotTo(HaveOccurred())
-	})
+			ExpectSingletonReconciled(ctx, garbageCollectionController)
+			awsEnv.InstanceCache.Flush()
+			_, err := cloudProvider.Get(ctx, providerID)
+			Expect(err).NotTo(HaveOccurred())
+		},
+		Entry("launched just now", time.Duration(0)),
+		Entry("launched 1m ago", time.Minute),
+		Entry("launched 4m ago", 4*time.Minute),
+	)
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
 		// Remove the "karpenter.sh/nodepool" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t ec2types.Tag, _ int) bool {
 			return aws.ToString(t.Key) == karpv1.NodePoolLabelKey
 		})
 
-		// Launch time was 1m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-10 * time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
@@ -304,8 +312,8 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete the instance or node if it already has a NodeClaim that matches it", func() {
-		// Launch time was 1m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
+		// Launch time was 10m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-10 * time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.ToString(instance.InstanceId), *instance)
 
 		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
@@ -360,8 +368,8 @@ var _ = Describe("GarbageCollection", func() {
 					Placement: &ec2types.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					// Launch time was 10m ago
+					LaunchTime:   aws.Time(time.Now().Add(-10 * time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: "m5.large",
 				},
@@ -399,4 +407,165 @@ var _ = Describe("GarbageCollection", func() {
 		}
 		wg.Wait()
 	})
+	Context("Stale Cache", func() {
+		var staleKubeClient *staleClient
+		var apiReader *countingReader
+		var controller *garbagecollection.Controller
+
+		BeforeEach(func() {
+			staleKubeClient = &staleClient{Client: env.Client}
+			apiReader = &countingReader{Reader: env.Client}
+			controller = garbagecollection.NewController(staleKubeClient, apiReader, cloudProvider)
+		})
+		// newInstance returns an instance launched 10m ago, so it is past the age guard
+		newInstance := func() (ec2types.Instance, string) {
+			id := fake.InstanceID()
+			i := *instance
+			i.InstanceId = aws.String(id)
+			i.PrivateDnsName = aws.String(fake.PrivateDNSName())
+			i.LaunchTime = aws.Time(time.Now().Add(-10 * time.Minute))
+			awsEnv.EC2API.Instances.Store(id, i)
+			return i, fake.ProviderID(id)
+		}
+		newNodeClaim := func(providerID string) *karpv1.NodeClaim {
+			return coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: object.GVK(nodeClass).Group,
+						Kind:  object.GVK(nodeClass).Kind,
+						Name:  nodeClass.Name,
+					},
+				},
+				Status: karpv1.NodeClaimStatus{ProviderID: providerID},
+			})
+		}
+		expectInstanceExists := func(providerID string) {
+			GinkgoHelper()
+			awsEnv.InstanceCache.Flush()
+			_, err := cloudProvider.Get(ctx, providerID)
+			Expect(err).ToNot(HaveOccurred())
+		}
+		expectInstanceDeleted := func(providerID string) {
+			GinkgoHelper()
+			awsEnv.InstanceCache.Flush()
+			_, err := cloudProvider.Get(ctx, providerID)
+			Expect(karpcloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
+		}
+
+		It("should not delete an instance or node when the cached NodeClaim has no providerID yet", func() {
+			_, providerID := newInstance()
+			nodeClaim := newNodeClaim(providerID)
+			node := coretest.Node(coretest.NodeOptions{ProviderID: providerID})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			// The cache holds the NodeClaim from before the launch status write
+			stale := nodeClaim.DeepCopy()
+			stale.Status.ProviderID = ""
+			staleKubeClient.nodeClaims = &karpv1.NodeClaimList{Items: []karpv1.NodeClaim{*stale}}
+
+			ExpectSingletonReconciled(ctx, controller)
+			expectInstanceExists(providerID)
+			ExpectExists(ctx, env.Client, node)
+			Expect(awsEnv.EC2API.TerminateInstancesBehavior.Calls()).To(BeZero())
+			Expect(apiReader.lists.Load()).To(BeEquivalentTo(1))
+		})
+		It("should not delete an instance when its NodeClaim is not in the cache yet", func() {
+			_, providerID := newInstance()
+			ExpectApplied(ctx, env.Client, newNodeClaim(providerID))
+			staleKubeClient.nodeClaims = &karpv1.NodeClaimList{}
+
+			ExpectSingletonReconciled(ctx, controller)
+			expectInstanceExists(providerID)
+			Expect(awsEnv.EC2API.TerminateInstancesBehavior.Calls()).To(BeZero())
+		})
+		It("should only delete the orphaned instances in a burst where the cache has seen no providerIDs", func() {
+			var owned, orphaned []string
+			for i := 0; i < 100; i++ {
+				_, providerID := newInstance()
+				if i%2 == 0 {
+					ExpectApplied(ctx, env.Client, newNodeClaim(providerID))
+					owned = append(owned, providerID)
+				} else {
+					orphaned = append(orphaned, providerID)
+				}
+			}
+			staleKubeClient.nodeClaims = &karpv1.NodeClaimList{}
+
+			ExpectSingletonReconciled(ctx, controller)
+			for _, providerID := range owned {
+				expectInstanceExists(providerID)
+			}
+			for _, providerID := range orphaned {
+				expectInstanceDeleted(providerID)
+			}
+			// A single uncached list covers every candidate
+			Expect(apiReader.lists.Load()).To(BeEquivalentTo(1))
+		})
+		It("should still delete an orphaned instance and its node", func() {
+			_, providerID := newInstance()
+			node := coretest.Node(coretest.NodeOptions{ProviderID: providerID})
+			ExpectApplied(ctx, env.Client, node)
+
+			ExpectSingletonReconciled(ctx, controller)
+			expectInstanceDeleted(providerID)
+			ExpectNotFound(ctx, env.Client, node)
+		})
+		It("should not delete a newer node that reused the name of a cached node", func() {
+			_, providerID := newInstance()
+			cached := coretest.Node(coretest.NodeOptions{ProviderID: providerID})
+			ExpectApplied(ctx, env.Client, cached)
+			ExpectDeleted(ctx, env.Client, cached)
+			current := coretest.Node(coretest.NodeOptions{
+				ObjectMeta: metav1.ObjectMeta{Name: cached.Name},
+				ProviderID: fake.ProviderID(fake.InstanceID()),
+			})
+			ExpectApplied(ctx, env.Client, current)
+			staleKubeClient.nodes = &corev1.NodeList{Items: []corev1.Node{*cached}}
+
+			ExpectSingletonReconciled(ctx, controller)
+			expectInstanceDeleted(providerID)
+			ExpectExists(ctx, env.Client, current)
+		})
+		It("should not read from the api server when the cache shows no candidates", func() {
+			_, providerID := newInstance()
+			ExpectApplied(ctx, env.Client, newNodeClaim(providerID))
+
+			ExpectSingletonReconciled(ctx, controller)
+			expectInstanceExists(providerID)
+			Expect(apiReader.lists.Load()).To(BeZero())
+		})
+	})
 })
+
+// staleClient serves NodeClaim and Node lists from a fixed snapshot when one is set, like an informer cache that has
+// not yet observed recent writes. All other calls go to the API server.
+type staleClient struct {
+	client.Client
+	nodeClaims *karpv1.NodeClaimList
+	nodes      *corev1.NodeList
+}
+
+func (s *staleClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	switch l := list.(type) {
+	case *karpv1.NodeClaimList:
+		if s.nodeClaims != nil {
+			s.nodeClaims.DeepCopyInto(l)
+			return nil
+		}
+	case *corev1.NodeList:
+		if s.nodes != nil {
+			s.nodes.DeepCopyInto(l)
+			return nil
+		}
+	}
+	return s.Client.List(ctx, list, opts...)
+}
+
+type countingReader struct {
+	client.Reader
+	lists atomic.Int32
+}
+
+func (r *countingReader) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	r.lists.Add(1)
+	return r.Reader.List(ctx, list, opts...)
+}

@@ -104,7 +104,7 @@ func NewControllers(
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient, caBundle),
 		nodeclass.NewController(clk, kubeClient, cloudProvider, recorder, cfg.Region, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, instanceTypeProvider, launchTemplateProvider, capacityReservationProvider, placementGroupProvider, ec2api, validationCache, recreationCache, amiResolver, celEnv, options.FromContext(ctx).DisableDryRun),
-		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
+		nodeclaimgarbagecollection.NewController(kubeClient, mgr.GetAPIReader(), cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, cloudProvider, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
 		controllersinstancetype.NewController(instanceTypeProvider),
