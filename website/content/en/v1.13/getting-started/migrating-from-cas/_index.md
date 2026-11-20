@@ -16,14 +16,15 @@ We will make the following assumptions in this guide
 * Your workloads have pod disruption budgets that adhere to [EKS best practices](https://aws.github.io/aws-eks-best-practices/karpenter/)
 * Your cluster has an [OIDC provider](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) for service accounts
 
-This guide will also assume you have the `aws` CLI installed.
+This guide also assumes you have the `aws` CLI, `kubectl`, and Helm installed.
 You can also perform many of these steps in the console, but we will use the command line for simplicity.
 
-Set a variable for your cluster name.
+Set variables for your cluster and an existing node group that will host the Karpenter controller.
 
 ```bash
 KARPENTER_NAMESPACE=kube-system
 CLUSTER_NAME=<your cluster name>
+NODEGROUP=<your existing node group name>
 ```
 
 Set other variables from your cluster configuration.
@@ -95,16 +96,16 @@ First set the Karpenter release you want to deploy.
 export KARPENTER_VERSION="1.13.0"
 ```
 
-We can now generate a full Karpenter deployment yaml from the Helm chart.
+Create a Helm values file containing the controller settings and node affinity for your existing node group.
 
-{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-generate-chart.sh" language="bash" %}}
+{{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-create-values.sh" language="bash" %}}
 
-Modify the following lines in the karpenter.yaml file.
+Keep `karpenter-values.yaml` for subsequent Helm upgrades so that your settings are preserved.
 
 ### Set node affinity
 
-Edit the karpenter.yaml file and find the karpenter deployment affinity rules.
-Modify the affinity so karpenter will run on one of the existing node group nodes.
+The generated `affinity` values keep Karpenter on your existing node group, rather than on nodes that Karpenter provisions.
+If you use multiple node groups for the controller, edit `karpenter-values.yaml` to include their names.
 
 The rules should look something like this.
 Modify the value to match your `$NODEGROUP`, one node group per line.
@@ -126,7 +127,10 @@ affinity:
       - topologyKey: "kubernetes.io/hostname"
 ```
 
-Now that our deployment is ready we can create the karpenter namespace, create the NodePool CRD, and then deploy the rest of the karpenter resources.
+Install Karpenter as a Helm release. Helm creates the namespace and installs the chart's CRDs on the first installation.
+The `--wait` flag waits for the controller deployment to become ready.
+
+For later upgrades, follow the [Upgrade Guide]({{<ref "../../upgrading/upgrade-guide" >}}), including its CRD upgrade instructions; Helm does not upgrade CRDs from a chart's `crds/` directory automatically.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-deploy.sh" language="bash" %}}
 
