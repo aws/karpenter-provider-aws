@@ -306,7 +306,35 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if reservationID := nodeClaim.Labels[cloudprovider.ReservationIDLabel]; reservationID != "" && cloudprovider.IsNodeClaimNotFoundError(err) {
 		c.capacityReservationProvider.MarkTerminated(reservationID, id)
 	}
+	c.logUnregisteredDelete(ctx, nodeClaim, id, err)
 	return err
+}
+
+// logUnregisteredDelete records the instance state when a NodeClaim that never registered is deleted. It tells an
+// instance that was already gone from one that ran but never joined the cluster.
+func (c *CloudProvider) logUnregisteredDelete(ctx context.Context, nodeClaim *karpv1.NodeClaim, id string, deleteErr error) {
+	// GC deletes NodeClaims built from instances, which carry no conditions
+	if !nodeClaim.StatusConditions().Get(karpv1.ConditionTypeLaunched).IsTrue() {
+		return
+	}
+	registered := nodeClaim.StatusConditions().Get(karpv1.ConditionTypeRegistered)
+	// InstanceTerminating is set after the first Delete, so this usually logs once per NodeClaim. Cache lag can
+	// repeat it with instance-state=shutting-down.
+	if registered.IsTrue() || nodeClaim.StatusConditions().Get(karpv1.ConditionTypeInstanceTerminating).IsTrue() {
+		return
+	}
+	logger := log.FromContext(ctx).WithValues("registered-reason", lo.FromPtr(registered).Reason)
+	if cloudprovider.IsNodeClaimNotFoundError(deleteErr) {
+		logger.Info("deleting nodeclaim that never registered, instance not found")
+		return
+	}
+	if deleteErr != nil {
+		return
+	}
+	// Delete just refreshed the cache entry, so this doesn't call EC2
+	if inst, err := c.instanceProvider.Get(ctx, id); err == nil {
+		logger.WithValues("instance-state", inst.State, "launch-time", inst.LaunchTime).Info("terminating instance for nodeclaim that never registered")
+	}
 }
 
 func (c *CloudProvider) Reboot(ctx context.Context, nodeClaim *karpv1.NodeClaim, operationID string) error {
