@@ -59,6 +59,9 @@ var dynamicResources = buildDynamicResources()
 func buildDynamicResources() map[string]Resources {
 	resources := make(map[string]Resources, len(drametadata.EFAMetadataByInstanceType))
 	for instanceType, metadata := range drametadata.EFAMetadataByInstanceType {
+		if drametadata.UnusableEFAInstanceTypes.Has(instanceType) {
+			continue
+		}
 		resources[instanceType] = Resources{
 			Set: &cloudprovider.DynamicResources{
 				ResourceSliceTemplates: []*cloudprovider.ResourceSliceTemplate{{

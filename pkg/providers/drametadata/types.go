@@ -16,7 +16,12 @@ package drametadata
 
 import (
 	resourcev1 "k8s.io/api/resource/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+// UnusableEFAInstanceTypes have EFAs the driver can't bind, so Karpenter doesn't advertise them.
+// https://github.com/aws/karpenter-provider-aws/issues/9902
+var UnusableEFAInstanceTypes = sets.New("g4dn.metal")
 
 type DRADevice struct {
 	Attributes map[resourcev1.QualifiedName]resourcev1.DeviceAttribute

@@ -111,6 +111,16 @@ var _ = Describe("CompatibilityTest", func() {
 				false,
 			),
 		)
+		It("should reject instance types with unusable EFAs only when EFA interfaces are configured", func() {
+			info := makeInstanceTypeInfo("g4dn.metal", makeNetworkInfo(1, 2, aws.Int32(1)))
+			Expect(compatibility.IsCompatibleWithNodeClass(info, newMockNodeClass(v1.AMIFamilyAL2023, []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}), nil)).To(BeFalse())
+			Expect(compatibility.IsCompatibleWithNodeClass(info, newMockNodeClass(v1.AMIFamilyAL2023, []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+			}), nil)).To(BeTrue())
+		})
 	})
 	Context("PlacementGroupCompatibility", func() {
 		DescribeTable("should handle placement group strategy compatibility",

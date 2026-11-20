@@ -45,8 +45,16 @@ var _ = Describe("EFA DRA Provider", func() {
 			_, ok := efadra.DynamicResourcesFor("m5.large")
 			Expect(ok).To(BeFalse())
 		})
+		It("should return false for an instance type whose EFAs are unusable", func() {
+			Expect(drametadata.EFAMetadataByInstanceType).To(HaveKey("g4dn.metal"))
+			_, ok := efadra.DynamicResourcesFor("g4dn.metal")
+			Expect(ok).To(BeFalse())
+		})
 		It("should return the same unscoped set and bindings the provider resolves", func() {
 			for name := range drametadata.EFAMetadataByInstanceType {
+				if drametadata.UnusableEFAInstanceTypes.Has(name) {
+					continue
+				}
 				r, ok := efadra.DynamicResourcesFor(name)
 				Expect(ok).To(BeTrue(), name)
 				Expect(r.Set.Requirements).To(BeEmpty(), name)
@@ -91,9 +99,13 @@ var _ = Describe("EFA DRA Provider", func() {
 			return &cloudprovider.InstanceType{Name: name}
 		})
 		resources := provider.ResolveDynamicResources(context.Background(), instanceTypes)
-		Expect(resources).To(HaveLen(len(drametadata.EFAMetadataByInstanceType)))
+		Expect(resources).To(HaveLen(len(drametadata.EFAMetadataByInstanceType) - drametadata.UnusableEFAInstanceTypes.Len()))
 
 		for name, metadata := range drametadata.EFAMetadataByInstanceType {
+			if drametadata.UnusableEFAInstanceTypes.Has(name) {
+				Expect(resources).ToNot(HaveKey(name))
+				continue
+			}
 			// Count and the device list have to agree, or the template understates the node.
 			Expect(metadata.Devices).To(HaveLen(metadata.Count), name)
 			Expect(resources[name].Set.ResourceSliceTemplates[0].Devices).To(HaveLen(metadata.Count), name)
@@ -118,8 +130,8 @@ var _ = Describe("EFA DRA Provider", func() {
 		}))
 		Expect(maxDevices).To(BeNumerically(">", 1),
 			"every EFA type has a single device, so the naming assertion below cannot fail -- add a multi-device type")
-		for name := range drametadata.EFAMetadataByInstanceType {
-			for i, device := range resources[name].Set.ResourceSliceTemplates[0].Devices {
+		for name, r := range resources {
+			for i, device := range r.Set.ResourceSliceTemplates[0].Devices {
 				Expect(device.Name.Value()).To(Equal(fmt.Sprintf("efa-%d", i)), name)
 			}
 		}
