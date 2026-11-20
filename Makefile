@@ -248,6 +248,12 @@ release: ## Builds and publishes stable release
 latest-release: ## Mark the highest stable release as GitHub's Latest release
 	./hack/release/latest.sh
 
+check-lts: ## Fail a new minor release when no LTS minor has been designated in the last 6 months
+	./hack/release/check-lts.sh
+
+release-banners: ## Update the old patch and LTS banners on every GitHub release
+	./hack/release/banners.sh
+
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 

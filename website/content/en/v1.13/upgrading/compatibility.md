@@ -23,7 +23,7 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 ## Support Policy
 
-Patch releases contain bug fixes, security patches, and other targeted changes backported to supported releases.
+Patch releases contain bug fixes, security patches, and other targeted changes backported to supported releases. Use the newest patch of your minor version. On GitHub, an older patch release has a banner at the top of its release notes that links to the newest patch.
 
 ### Regular Releases
 
@@ -37,10 +37,7 @@ Every **6 months**, a minor release is designated as a Long-Term Support (LTS) r
 
 LTS releases are identified on GitHub by an `(LTS)` suffix in the release title (e.g. `v1.14.0 (LTS)`) and a banner at the top of the release notes.
 
-| Version | Released | EOL      |
-| ---     | ---      | ---      |
-| v1.14   | Jul 2026 | Jul 2027 |
-| v1.9    | Feb 2026 | Feb 2027 |
+{{< lts-versions >}}
 
 ### Support Timeline
 
