@@ -123,7 +123,6 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 				if !errors.IsNotFound(err) {
 					return []DescribeImageQuery{}, fmt.Errorf("resolving ssm parameter, %w", err)
 				}
-				log.FromContext(ctx).WithValues("ssmParameter", term.SSMParameter).V(1).Error(err, "parameter not found")
 				continue
 			}
 			if !strings.HasPrefix(imageID, "ami-") {
