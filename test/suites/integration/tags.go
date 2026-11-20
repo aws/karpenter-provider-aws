@@ -77,7 +77,7 @@ func registerTags() bool {
 				pod := coretest.Pod()
 				Env.ExpectCreated(pod, NodeClass, NodePool)
 				Env.EventuallyExpectHealthy(pod)
-				Env.ExpectCreatedNodeCount("==", 1)
+				Env.EventuallyExpectCreatedNodeCount("==", 1)
 				instance := Env.GetInstance(pod.Spec.NodeName)
 				Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
 				spotInstanceRequest := Env.GetSpotInstance(lo.FromPtr(instance.SpotInstanceRequestId))
