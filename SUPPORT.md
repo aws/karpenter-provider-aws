@@ -26,6 +26,7 @@ Each LTS release is supported for **12 months** from its release date. At any po
 
 | Phase | Duration | Coverage |
 | --- | --- | --- |
+| **Latest release** | Until the next minor release is published | Bug fixes, security patches, and other targeted changes |
 | **Active Support** | First 6 months (until the next LTS is released) | Security patches, workload availability fixes, correctness fixes with availability impact |
 | **Maintenance Mode** | Last 6 months (overlaps with the newer LTS) | Security patches only |
 | **End of Life (EOL)** | After 12 months | No further patches |
@@ -112,7 +113,7 @@ v1.14.0 (LTS)
 | v1.14   | Jul 2026 | Jul 2027 |
 | v1.9    | Feb 2026 | Feb 2027 |
 
-> **Note:** Regular (non-LTS) releases are supported only until the next minor release is published. Only LTS releases receive backported patches beyond their initial release.
+> **Note:** Karpenter releases patches for the latest minor version and for each supported LTS version.
 
 ## Upgrade Guidance
 
