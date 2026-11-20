@@ -16,8 +16,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"slices"
 	"time"
 
@@ -61,6 +63,13 @@ func main() {
 
 	metricsClient := metrics.Client(metrics.NewTimeStream(cfg))
 
+	var failedTypes []string
+	live := resourcetypes.SnapshotLiveClusters(ctx, ec2Client, resourcetypes.EKSClusterLister(cfg), cfg.Region)
+	if err := live.Err(); err != nil {
+		logger.Errorf("failed to list live clusters, sweeps that need them are skipped, %v", err)
+		failedTypes = append(failedTypes, "LiveClusters")
+	}
+
 	// These resources are intentionally ordered so that instances that are using ENIs
 	// will be cleaned before ENIs are attempted to be cleaned up. Likewise, instances and ENIs
 	// are cleaned up before security groups are cleaned up to ensure that everything is detached and doesn't
@@ -69,13 +78,15 @@ func main() {
 		resourcetypes.NewInstance(ec2Client),
 		resourcetypes.NewCapacityReservation(ec2Client),
 		resourcetypes.NewVPCEndpoint(ec2Client),
-		resourcetypes.NewENI(ec2Client),
+		resourcetypes.NewENI(ec2Client, live),
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),
-		resourcetypes.NewInstanceProfile(iamClient),
-		resourcetypes.NewStack(cloudFormationClient),
+		resourcetypes.NewInstanceProfile(iamClient, live, cfg.Region),
+		resourcetypes.NewStack(cloudFormationClient, iamClient, ec2Client, live),
 		resourcetypes.NewVPCPeeringConnection(ec2Client),
+		// Roles go last so that the stacks and instance profiles that hold them are already gone
+		resourcetypes.NewRole(iamClient, live),
 	}
 
 	for i := range resourceTypes {
@@ -88,23 +99,44 @@ func main() {
 		} else if !slices.Contains(excludedClusters, lo.FromPtr(clusterName)) {
 			ids, err = resourceTypes[i].Get(ctx, lo.FromPtr(clusterName))
 		}
+		discovered := err == nil
 		if err != nil {
 			resourceLogger.Errorf("%v", err)
+			if resourcetypes.Fatal(err) {
+				failedTypes = append(failedTypes, resourceTypes[i].String())
+			}
 		}
 		cleaned := []string{}
+		var stuck *resourcetypes.StuckStacksError
 		resourceLogger.With("ids", ids, "count", len(ids)).Infof("discovered resourceTypes")
 		if len(ids) > 0 {
 			cleaned, err = resourceTypes[i].Cleanup(ctx, ids)
 			if err != nil {
 				resourceLogger.Errorf("%v", err)
+				if resourcetypes.Fatal(err) {
+					failedTypes = append(failedTypes, resourceTypes[i].String())
+				}
 			}
+			errors.As(err, &stuck)
 			resourceLogger.With("ids", cleaned, "count", len(cleaned)).Infof("deleted resourceTypes")
+		}
+		if _, ok := resourceTypes[i].(*resourcetypes.Stack); ok && discovered && lo.FromPtr(clusterName) == "" {
+			if err = metricsClient.FireMetric(ctx, sweeperCleanedResourcesTableName, fmt.Sprintf("%sDeleteFailed", resourceTypes[i].String()), float64(stuck.Count()), cfg.Region); err != nil {
+				resourceLogger.Errorf("%v", err)
+			}
 		}
 		// Should only fire metrics if the resource have expired
 		if lo.FromPtr(clusterName) == "" {
 			if err = metricsClient.FireMetric(ctx, sweeperCleanedResourcesTableName, fmt.Sprintf("%sDeleted", resourceTypes[i].String()), float64(len(cleaned)), lo.Ternary(resourceTypes[i].Global(), "global", cfg.Region)); err != nil {
 				resourceLogger.Errorf("%v", err)
 			}
+		}
+	}
+	// A single cluster cleanup only logs, so that it doesn't change the result of the e2e job that runs it
+	if len(failedTypes) > 0 {
+		logger.With("types", lo.Uniq(failedTypes)).Errorf("failed to clean up some resources, see the errors above")
+		if lo.FromPtr(clusterName) == "" {
+			os.Exit(1)
 		}
 	}
 }
