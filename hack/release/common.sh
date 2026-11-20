@@ -192,16 +192,38 @@ websiteVersionDirectories() {
   find website/content/en/* -maxdepth 0 -type d -name "v*" -print0 | xargs -0 -r -n 1 basename | sort -V
 }
 
+# recentWebsiteVersionDirectories prints the docs version directories (e.g. v1.14) whose minor was first released
+# (vX.Y.0 tagged) in the last 12 months, the longest a release is supported (an LTS release), or that have no such
+# tag. DOCS_RETENTION_NOW (YYYY-MM-DD) overrides today, for testing.
+recentWebsiteVersionDirectories() {
+  local cutoff versions version released
+
+  cutoff="$(date -u -d "${DOCS_RETENTION_NOW:-today} -12 months" +%Y-%m-%d)"
+  versions="$(websiteVersionDirectories)"
+  while read -r version; do
+    if [[ -z "${version}" ]]; then
+      continue
+    fi
+    released="$(git log -1 --format=%cs "${version}.0" 2>/dev/null || true)"
+    if [[ -z "${released}" ]] || [[ ! "${released}" < "${cutoff}" ]]; then
+      echo "${version}"
+    fi
+  done <<< "${versions}"
+}
+
 # removeOldWebsiteDirectories removes the docs version directories that are no longer kept, and redirects their pages
 # to the same pages in the latest docs so that links to them keep working. The rule uses the Amplify <*> wildcard,
-# which hack/docs/parse-redirects passes through unexpanded. It keeps the last n minors, the supported
-# LTS minors in params.lts_versions, and the preview, docs, and v1.0 directories.
+# which hack/docs/parse-redirects passes through unexpanded. It keeps every minor released in the last 12 months
+# (at least the last n), the supported LTS minors in params.lts_versions, and the preview, docs, and v1.0 directories.
+# A new LTS minor is designated at most 6 months after the last one (hack/release/check-lts.sh), so the next LTS
+# minor's docs are still kept when it is listed.
 removeOldWebsiteDirectories() {
   local n=3 keep dir version
 
   # Keep the v1.0 version around while we are supporting v1beta1 migration
   # Drop it once we no longer want to maintain the v1.0 version in the docs
   keep="$(websiteVersionDirectories | grep -v -x 'v1\.0' | tail -n "${n}")"
+  keep+=$'\n'"$(recentWebsiteVersionDirectories)"
   keep+=$'\n'"$(yq '.params.lts_versions[].version' website/hugo.yaml)"
   keep+=$'\n'"v1.0"$'\n'"preview"$'\n'"docs"
 
@@ -240,29 +262,18 @@ requireLTSWebsiteDirectories() {
   fi
 }
 
-# editWebsiteVersionsMenu sets the version dropdown menu of the website to the supported docs versions: the latest
-# minor, the supported LTS minors in params.lts_versions, v1.0 (kept for v1beta1 migration), and preview.
-# Other version directories that are still kept are left out of the menu. Their pages show a banner that they are no
-# longer maintained (website/layouts/partials/version-banner.html).
+# editWebsiteVersionsMenu sets the version dropdown menu of the website to every kept docs version, newest first, then
+# preview. The website labels the latest minor "(latest)" and the minors in params.lts_versions "(LTS)", and pages of
+# other versions show a banner that they are no longer maintained (website/layouts/partials/version-banner.html).
 editWebsiteVersionsMenu() {
-  local latest versions version
+  local versions version
 
   requireLTSWebsiteDirectories
-  latest="$(websiteVersionDirectories | tail -n 1)"
-  versions=("${latest}")
-  while read -r version; do
-    if [[ -n "${version}" ]] && [[ "${version}" != "${latest}" ]]; then
-      versions+=("${version}")
-    fi
-  done < <(yq '.params.lts_versions[].version' website/hugo.yaml | sort -r -V)
-  if [[ "${latest}" != "v1.0" ]] && [[ -d website/content/en/v1.0 ]]; then
-    versions+=('v1.0')
-  fi
-  versions+=('preview')
+  versions="$(websiteVersionDirectories | sort -r -V)"
 
   yq -i '.params.versions = []' website/hugo.yaml
 
-  for version in "${versions[@]}"; do
+  for version in ${versions} preview; do
     yq -i ".params.versions += \"${version}\"" website/hugo.yaml
   done
 }
