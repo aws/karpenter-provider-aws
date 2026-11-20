@@ -28,6 +28,7 @@ jobs:
           go-version-file: test/hack/resource/go.mod
           check-latest: true
           cache-dependency-path: "test/hack/resource/go.sum"
-      - run: go run main.go
+      # Account-wide resources like IAM roles only need to be counted once
+      - run: go run main.go --global=${{ matrix.region == 'us-east-2' }}
         working-directory: ./test/hack/resource/count
         name: "Run resource count script"
