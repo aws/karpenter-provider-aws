@@ -467,6 +467,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test1"),
 						GroupName: lo.ToPtr("securityGroup-test1"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -481,6 +482,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test2"),
 						GroupName: lo.ToPtr("securityGroup-test2"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
@@ -495,6 +497,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 					{
 						GroupId:   lo.ToPtr("sg-test3"),
 						GroupName: lo.ToPtr("securityGroup-test3"),
+						VpcId:     lo.ToPtr("vpc-test1"),
 						Tags: []ec2types.Tag{
 							{
 								Key:   lo.ToPtr("Name"),
