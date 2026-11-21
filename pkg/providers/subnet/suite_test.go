@@ -16,6 +16,7 @@ package subnet_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"testing"
@@ -602,3 +603,80 @@ func ExpectConsistsOfSubnets(expected, actual []ec2types.Subnet) {
 		Expect(ok).To(BeTrue(), `Expected subnet with {"SubnetId": %q, "AvailabilityZone": %q, "AvailableIpAddressCount": %q} to exist`, lo.FromPtr(elem.SubnetId), lo.FromPtr(elem.AvailabilityZone), lo.FromPtr(elem.AvailableIpAddressCount))
 	}
 }
+
+var _ = Describe("SubnetProvider cache sharing (test gaps)", func() {
+	ids := func(subnets []ec2types.Subnet) []string {
+		return lo.Map(subnets, func(s ec2types.Subnet, _ int) string { return lo.FromPtr(s.SubnetId) })
+	}
+	It("should share a cache entry across NodeClasses with distinct UIDs and Generations", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.UID, nc1.Generation = "uid-1", 1
+		nc1.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+		nc2 := test.EC2NodeClass()
+		nc2.UID, nc2.Generation = "uid-2", 7
+		nc2.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+		_, err := awsEnv.SubnetProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(subnets)).To(ConsistOf("subnet-test1"))
+		Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(1))
+	})
+	It("should return the union of per-term results for partially overlapping NodeClasses", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(subnets)).To(ConsistOf("subnet-test1"))
+
+		nc2 := test.EC2NodeClass()
+		nc2.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+			{Tags: map[string]string{"Name": "test-subnet-1"}},
+			{Tags: map[string]string{"Name": "test-subnet-2"}},
+		}
+		subnets, err = awsEnv.SubnetProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(subnets)).To(ConsistOf("subnet-test1", "subnet-test2"))
+
+		subnets, err = awsEnv.SubnetProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(subnets)).To(ConsistOf("subnet-test1"))
+		Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(2))
+	})
+	It("should dedupe subnets matched by overlapping terms on both the uncached and cached paths", func() {
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+			{Tags: map[string]string{"Name": "test-subnet-1"}},
+			{ID: "subnet-test1"},
+			{ID: "subnet-test2"},
+			{Tags: map[string]string{"Name": "test-subnet-2"}},
+		}
+		for range 2 {
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ids(subnets)).To(ConsistOf("subnet-test1", "subnet-test2"))
+		}
+	})
+	It("should not cache a failed filter set, and should keep the filter sets resolved before the failure", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+		_, err := awsEnv.SubnetProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+
+		nc2 := test.EC2NodeClass()
+		nc2.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+			{Tags: map[string]string{"Name": "test-subnet-1"}},
+			{Tags: map[string]string{"Name": "test-subnet-2"}},
+		}
+		awsEnv.EC2API.DescribeSubnetsBehavior.Error.Set(fmt.Errorf("throttled"))
+		_, err = awsEnv.SubnetProvider.List(ctx, nc2)
+		Expect(err).To(HaveOccurred())
+		Expect(awsEnv.SubnetCache.Items()).To(HaveLen(1))
+
+		subnets, err := awsEnv.SubnetProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(subnets)).To(ConsistOf("subnet-test1", "subnet-test2"))
+	})
+	// Behavior change: before the PR a new NodeClass (new UID) or a spec change on an existing
+	// NodeClass (new Generation) missed the cache, so List refreshed availableIPAddressCache and
+	// cleared inflightIPs. Now a shared entry is hit and IP counts are only refreshed on TTL expiry.
+})

@@ -16,6 +16,7 @@ package securitygroup_test
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"testing"
@@ -637,3 +638,88 @@ func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
 		Expect(ok).To(BeTrue(), `Expected security group with {"GroupId": %q, "GroupName": %q} to exist`, lo.FromPtr(elem.GroupId), lo.FromPtr(elem.GroupName))
 	}
 }
+
+var _ = Describe("SecurityGroupProvider cache sharing (test gaps)", func() {
+	ids := func(sgs []ec2types.SecurityGroup) []string {
+		return lo.Map(sgs, func(s ec2types.SecurityGroup, _ int) string { return lo.FromPtr(s.GroupId) })
+	}
+	It("should share a cache entry across NodeClasses with distinct UIDs and Generations", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.UID, nc1.Generation = "uid-1", 1
+		nc1.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "test-security-group-1"}}}
+		nc2 := test.EC2NodeClass()
+		nc2.UID, nc2.Generation = "uid-2", 7
+		nc2.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "test-security-group-1"}}}
+		_, err := awsEnv.SecurityGroupProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1"))
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(1))
+	})
+	It("should return the union of per-term results for partially overlapping NodeClasses", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "test-security-group-1"}}}
+		sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1"))
+
+		nc2 := test.EC2NodeClass()
+		nc2.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{Tags: map[string]string{"Name": "test-security-group-1"}},
+			{Tags: map[string]string{"Name": "test-security-group-2"}},
+		}
+		sgs, err = awsEnv.SecurityGroupProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1", "sg-test2"))
+
+		// nc1 is not polluted by nc2's extra term
+		sgs, err = awsEnv.SecurityGroupProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1"))
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(2))
+	})
+	It("should dedupe security groups matched by overlapping terms on both the uncached and cached paths", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{Tags: map[string]string{"foo": "bar"}},
+			{ID: "sg-test1"},
+			{Tags: map[string]string{"Name": "test-security-group-1"}},
+		}
+		for range 2 {
+			sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ids(sgs)).To(ConsistOf("sg-test1", "sg-test2", "sg-test3"))
+		}
+		Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(3))
+	})
+	It("should not cache a failed filter set, and should keep the filter sets resolved before the failure", func() {
+		nc1 := test.EC2NodeClass()
+		nc1.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"Name": "test-security-group-1"}}}
+		_, err := awsEnv.SecurityGroupProvider.List(ctx, nc1)
+		Expect(err).ToNot(HaveOccurred())
+
+		nc2 := test.EC2NodeClass()
+		nc2.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
+			{Tags: map[string]string{"Name": "test-security-group-1"}},
+			{Tags: map[string]string{"Name": "test-security-group-2"}},
+		}
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Error.Set(fmt.Errorf("throttled"))
+		_, err = awsEnv.SecurityGroupProvider.List(ctx, nc2)
+		Expect(err).To(HaveOccurred())
+		Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(1))
+
+		sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nc2)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1", "sg-test2"))
+		Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(2))
+	})
+	It("should not let callers mutate the cached slice", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"foo": "bar"}}}
+		sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		sgs[0] = ec2types.SecurityGroup{GroupId: aws.String("mutated")}
+		sgs, err = awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(ids(sgs)).To(ConsistOf("sg-test1", "sg-test2", "sg-test3"))
+	})
+})

@@ -68,3 +68,38 @@ var _ = Describe("FilterSetHash", func() {
 		Expect(hash(filter("tag:a", "1"))).ToNot(Equal(hash(filter("tag:a", "2"))))
 	})
 })
+
+var _ = Describe("FilterSetHash (test gaps)", func() {
+	filter := func(name string, values ...string) ec2types.Filter {
+		return ec2types.Filter{Name: aws.String(name), Values: values}
+	}
+	hash := func(filters ...ec2types.Filter) uint64 {
+		return utils.FilterSetHash(filters)
+	}
+	// Tags {a: 1, b: 2} vs {a: 2, b: 1} select different resources
+	It("distinguishes filter sets that swap values between filter names", func() {
+		Expect(hash(filter("tag:a", "1"), filter("tag:b", "2"))).
+			ToNot(Equal(hash(filter("tag:a", "2"), filter("tag:b", "1"))))
+	})
+	// Tags {a: "*", b: x} vs {x: "*", b: a}
+	It("distinguishes tag-key and tag filters that swap values", func() {
+		Expect(hash(filter("tag-key", "a"), filter("tag:b", "x"))).
+			ToNot(Equal(hash(filter("tag-key", "x"), filter("tag:b", "a"))))
+	})
+	It("distinguishes one filter with two values (OR) from two filters with the same name (AND)", func() {
+		Expect(hash(filter("tag:a", "1", "2"))).ToNot(Equal(hash(filter("tag:a", "1"), filter("tag:a", "2"))))
+	})
+	It("distinguishes filter sets whose filters differ only by name", func() {
+		Expect(hash(filter("tag:a", "1"), filter("tag:a", "2"))).ToNot(Equal(hash(filter("tag:b", "1"), filter("tag:b", "2"))))
+	})
+	It("distinguishes subnet-id from tag filters with the same value", func() {
+		Expect(hash(filter("subnet-id", "x"))).ToNot(Equal(hash(filter("tag:Name", "x"))))
+	})
+	It("treats nil and empty Values the same, and nil and empty filter sets the same", func() {
+		Expect(hash(ec2types.Filter{Name: aws.String("tag:a")})).To(Equal(hash(filter("tag:a"))))
+		Expect(utils.FilterSetHash(nil)).To(Equal(utils.FilterSetHash([]ec2types.Filter{})))
+	})
+	It("distinguishes an empty filter set from a filter set with an empty filter", func() {
+		Expect(utils.FilterSetHash(nil)).ToNot(Equal(hash(filter("tag:a"))))
+	})
+})

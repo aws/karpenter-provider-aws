@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -256,12 +257,21 @@ func mergeAMIs(into map[uint64]AMI, amis AMIs) {
 	}
 }
 
-// imageQueryCacheKey keys a DescribeImages query on its owners as well as its filters.
+// imageQueryCacheKey keys a DescribeImages query on its owners, filters, and known requirements.
 // Sharing an entry between queries that differ only by owner would surface AMIs from an
-// account the user never authorized.
+// account the user never authorized. Known requirements (e.g. from an alias's SSM parameters)
+// are baked into the cached AMIs, so an alias query must not share an entry with an ID query
+// for the same image.
 func imageQueryCacheKey(query DescribeImageQuery) string {
 	ownersHash := lo.Must(hashstructure.Hash(lo.Uniq(query.Owners), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%016x-%016x", ownersHash, utils.FilterSetHash(query.Filters))
+	// scheduling.Requirements has no exported fields, so hash its NodeSelectorRequirements instead
+	knownRequirements := lo.MapValues(query.KnownRequirements, func(reqs []scheduling.Requirements, _ string) [][]karpv1.NodeSelectorRequirementWithMinValues {
+		return lo.Map(reqs, func(r scheduling.Requirements, _ int) []karpv1.NodeSelectorRequirementWithMinValues {
+			return r.NodeSelectorRequirements()
+		})
+	})
+	knownRequirementsHash := lo.Must(hashstructure.Hash(knownRequirements, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+	return fmt.Sprintf("%016x-%016x-%016x", ownersHash, utils.FilterSetHash(query.Filters), knownRequirementsHash)
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
