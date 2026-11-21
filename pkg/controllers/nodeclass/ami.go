@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 )
 
@@ -54,6 +55,9 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 		if amifamily.IsAl2DeprecationError(err) || amifamily.IsWS2025UnsupportedVersionError(err) {
 			nodeClass.StatusConditions(status.WithClock(a.clk)).SetFalse(v1.ConditionTypeAMIsReady, "UnsupportedAlias", err.Error())
 			return reconcile.Result{}, reconcile.TerminalError(fmt.Errorf("getting amis, %w", err))
+		}
+		if reason, msg, retryable := awserrors.ClassifyError(err); !retryable {
+			nodeClass.StatusConditions(status.WithClock(a.clk)).SetFalse(v1.ConditionTypeAMIsReady, reason, msg)
 		}
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
