@@ -45,6 +45,7 @@ func RegisterTests() bool {
 	registerMetrics()
 	registerNetworkInterface()
 	registerNodeclass()
+	registerRegistries()
 	registerSecurityGroup()
 	registerSubnet()
 	registerTags()
