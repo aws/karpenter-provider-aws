@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -32,7 +31,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -53,9 +51,9 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 	offerings cloudprovider.Offerings,
 	instanceTypeInfo ec2types.InstanceTypeInfo,
 	nodeClass NodeClass,
-	allZones sets.Set[string],
-	shiftedZones sets.Set[string],
-	pg *placementgroup.PlacementGroup,
+	_ sets.Set[string],
+	_ sets.Set[string],
+	_ *placementgroup.PlacementGroup,
 	rc *ResolveContext,
 ) cloudprovider.Offerings {
 	if !options.FromContext(ctx).FeatureGates.ReservedCapacity {
@@ -63,8 +61,7 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 	}
 
 	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
-	zoneInfo := rc.ZoneInfo
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
+	isCompatibleWithNodeClass := rc.Compatibility.IsCompatible(instanceTypeInfo)
 
 	capacityReservations := nodeClass.CapacityReservations()
 	for i := range capacityReservations {
@@ -81,9 +78,7 @@ func (r *ReservedCapacityResolver) ResolveOfferings(
 			price = odPrice / 10_000_000.0
 		}
 		isZonalShifted := false
-		zonalInfo, zoneFound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
-			return i.Zone == reservation.AvailabilityZone
-		})
+		zonalInfo, zoneFound := rc.ZoneInfoByZone[reservation.AvailabilityZone]
 		if zoneFound {
 			isZonalShifted = r.ZonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
 		}

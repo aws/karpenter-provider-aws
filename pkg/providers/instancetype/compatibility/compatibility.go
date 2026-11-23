@@ -37,21 +37,35 @@ type CompatibleCheck interface {
 	compatibleCheck(info ec2types.InstanceTypeInfo) bool
 }
 
-func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
-	networkInterfaces := amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())
-	for _, check := range []CompatibleCheck{
-		networkInterfaceCompatibility(networkInterfaces),
-		amiFamilyCompatibility(nodeClass.AMIFamily()),
-		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
-		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
-		placementGroupCompatibility(pg),
-		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
-	} {
+// Checker holds the compatibility checks for one NodeClass and placement group, so they can be reused across instance types.
+type Checker struct {
+	checks []CompatibleCheck
+}
+
+func NewChecker(nodeClass NodeClass, pg *placementgroup.PlacementGroup) *Checker {
+	return &Checker{
+		checks: []CompatibleCheck{
+			networkInterfaceCompatibility(amifamily.ResolveNetworkInterfaces(nodeClass.NetworkInterfaces())),
+			amiFamilyCompatibility(nodeClass.AMIFamily()),
+			nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
+			nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
+			placementGroupCompatibility(pg),
+			connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
+		},
+	}
+}
+
+func (c *Checker) IsCompatible(info ec2types.InstanceTypeInfo) bool {
+	for _, check := range c.checks {
 		if !check.compatibleCheck(info) {
 			return false
 		}
 	}
 	return true
+}
+
+func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeClass, pg *placementgroup.PlacementGroup) bool {
+	return NewChecker(nodeClass, pg).IsCompatible(info)
 }
 
 type amiFamilyCheck struct {

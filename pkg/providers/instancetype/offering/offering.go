@@ -37,6 +37,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
@@ -56,8 +57,24 @@ type OfferingResolver interface {
 // across every instance type and resolver. Passing it explicitly (rather than recomputing it
 // inside each resolver for every instance type) avoids redundant work.
 type ResolveContext struct {
-	ZoneInfo        []v1.ZoneInfo    // NodeClass zonal information
-	cacheKeyBuilder *cacheKeyBuilder // pre-computed NodeClass cache key components
+	ZoneInfo        []v1.ZoneInfo           // NodeClass zonal information
+	ZoneInfoByZone  map[string]*v1.ZoneInfo // ZoneInfo indexed by zone name
+	Compatibility   *compatibility.Checker  // NodeClass compatibility checks
+	cacheKeyBuilder *cacheKeyBuilder        // pre-computed NodeClass cache key components
+}
+
+func newResolveContext(nodeClass NodeClass, shiftedZones sets.Set[string], pg *placementgroup.PlacementGroup) *ResolveContext {
+	zoneInfo := nodeClass.ZoneInfo()
+	zoneInfoByZone := make(map[string]*v1.ZoneInfo, len(zoneInfo))
+	for i := range zoneInfo {
+		zoneInfoByZone[zoneInfo[i].Zone] = &zoneInfo[i]
+	}
+	return &ResolveContext{
+		ZoneInfo:        zoneInfo,
+		ZoneInfoByZone:  zoneInfoByZone,
+		Compatibility:   compatibility.NewChecker(nodeClass, pg),
+		cacheKeyBuilder: newCacheKeyBuilder(nodeClass, zoneInfo, shiftedZones, pg),
+	}
 }
 
 type NodeClass interface {
@@ -149,11 +166,7 @@ func (p *DefaultProvider) InjectOfferings(
 	var its []*cloudprovider.InstanceType
 	shiftedZones := p.zonalshiftProvider.ShiftedZones()
 
-	zoneInfo := nodeClass.ZoneInfo()
-	rc := &ResolveContext{
-		ZoneInfo:        zoneInfo,
-		cacheKeyBuilder: newCacheKeyBuilder(nodeClass, zoneInfo, shiftedZones, pg),
-	}
+	rc := newResolveContext(nodeClass, shiftedZones, pg)
 
 	for _, it := range instanceTypes {
 		info := instanceTypeInfo[ec2types.InstanceType(it.Name)]
