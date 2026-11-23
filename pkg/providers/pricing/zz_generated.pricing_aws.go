@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2026-10-12T13:44:40Z for us-east-1
+// generated at 2026-11-23T13:19:41Z for us-east-1
 
 import ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
@@ -588,6 +588,8 @@ var InitialOnDemandPricesAWS = map[string]map[ec2types.InstanceType]float64{
 		"t4g.nano": 0.004200, "t4g.small": 0.016800, "t4g.xlarge": 0.134400,
 		// t8i family
 		"t8i.medium": 0.049920, "t8i.micro": 0.012480, "t8i.nano": 0.006240, "t8i.small": 0.024960,
+		// t9g family
+		"t9g.medium": 0.041660, "t9g.micro": 0.010420, "t9g.nano": 0.005210, "t9g.small": 0.020830,
 		// trn1 family
 		"trn1.2xlarge": 1.343750, "trn1.32xlarge": 21.500000,
 		// trn1n family
