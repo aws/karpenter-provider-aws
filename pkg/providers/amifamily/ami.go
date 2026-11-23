@@ -215,6 +215,10 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 						Requirements:    reqs,
 						RootSnapshotID:  rootSnapshotID(image),
 						HasProductCodes: len(image.ProductCodes) > 0,
+						EnaSupport:      lo.FromPtr(image.EnaSupport),
+						SriovNetSupport: lo.FromPtr(image.SriovNetSupport) == "simple",
+						TpmSupport:      image.TpmSupport == ec2types.TpmSupportValuesV20,
+						BootMode:        image.BootMode,
 					}
 					if v, ok := images[reqsHash]; ok {
 						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {

@@ -41,6 +41,10 @@ type AMI struct {
 	Requirements    scheduling.Requirements
 	RootSnapshotID  string
 	HasProductCodes bool
+	EnaSupport      bool
+	SriovNetSupport bool
+	TpmSupport      bool
+	BootMode        ec2types.BootModeValues
 }
 
 type AMIs []AMI

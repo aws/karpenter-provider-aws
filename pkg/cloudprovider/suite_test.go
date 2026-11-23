@@ -54,6 +54,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/efadra"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/nvidiadra"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -1847,10 +1848,17 @@ var _ = Describe("CloudProvider", func() {
 					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore,
 					lo.ToPtr("test-ca-bundle"))
 				nodeClass.Spec.AMIDriftPolicy = lo.ToPtr(v1.AMIDriftPolicyReplaceRootVolume)
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: armAMIID}, {ID: amdAMIID}}
 				for i := range nodeClass.Status.AMIs {
 					nodeClass.Status.AMIs[i].InPlaceUpgrade = &v1.InPlaceUpgrade{Supported: true}
 				}
 				ExpectApplied(ctx, env.Client, nodeClass)
+				instance.InstanceType = "m5.large"
+				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+					Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+				})
+				nodeClaim.Labels[corev1.LabelInstanceTypeStable] = "m5.large"
 				nodeClaim.Status.ImageID = fake.ImageID()
 				node = coretest.Node(coretest.NodeOptions{ProviderID: nodeClaim.Status.ProviderID})
 				node.Status.NodeInfo.KubeletVersion = fmt.Sprintf("v%s.0-eks-1234", awsEnv.VersionProvider.Get(ctx))
@@ -1916,6 +1924,21 @@ var _ = Describe("CloudProvider", func() {
 				Expect(driftStatus).To(Equal(replace))
 				Expect(eventRecorder.DetectedEvent("Replacing the node instead of its root volume, KubernetesVersionChanged")).To(BeTrue())
 			})
+			DescribeTable("should replace a NodeClaim whose instance settings the AMI doesn't support",
+				func(override ec2types.Instance, reason string) {
+					instance = test.EC2Instance(instance, override)
+					awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
+						Reservations: []ec2types.Reservation{{Instances: []ec2types.Instance{instance}}},
+					})
+					driftStatus, err := provider.GetDriftStatus(ctx, nodeClaim)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(driftStatus).To(Equal(replace))
+					Expect(eventRecorder.DetectedEvent(fmt.Sprintf("Replacing the node instead of its root volume, %s", reason))).To(BeTrue())
+				},
+				Entry("ENA", ec2types.Instance{EnaSupport: aws.Bool(true)}, rootvolume.ReasonEnaSupport),
+				Entry("sriov-net", ec2types.Instance{SriovNetSupport: aws.String("simple")}, rootvolume.ReasonSriovNetSupport),
+				Entry("NitroTPM", ec2types.Instance{TpmSupport: aws.String("v2.0")}, rootvolume.ReasonTpmSupport),
+			)
 			It("should replace a NodeClaim whose instance isn't running", func() {
 				instance.State = &ec2types.InstanceState{Name: ec2types.InstanceStateNameStopped}
 				awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{

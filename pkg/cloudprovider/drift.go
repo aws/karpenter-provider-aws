@@ -117,7 +117,15 @@ func (c *CloudProvider) unsupportedInPlaceUpgradeReason(ctx context.Context, nod
 	if err != nil {
 		return "", err
 	}
-	return c.rootVolumeProvider.UnsupportedNodeReason(ctx, node, instance.State), nil
+	amis, err := c.amiProvider.List(ctx, nodeClass)
+	if err != nil {
+		return "", fmt.Errorf("listing amis, %w", err)
+	}
+	image, ok := lo.Find(amis, func(ami amifamily.AMI) bool { return ami.AmiID == imageID })
+	if !ok {
+		return "", serrors.Wrap(fmt.Errorf("ami not found"), "ami-id", imageID)
+	}
+	return c.rootVolumeProvider.UnsupportedNodeReason(ctx, node, instance, image), nil
 }
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (cloudprovider.DriftReason, error) {

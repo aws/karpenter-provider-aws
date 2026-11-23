@@ -33,6 +33,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -130,23 +131,86 @@ var _ = Describe("RootVolumeProvider", func() {
 	})
 	Context("UnsupportedNodeReason", func() {
 		var node *corev1.Node
+		var inst *instance.Instance
+		var ami amifamily.AMI
 		BeforeEach(func() {
 			node = coretest.Node()
 			node.Status.NodeInfo.KubeletVersion = fmt.Sprintf("v%s.4-eks-1234", awsEnv.VersionProvider.Get(ctx))
+			inst = &instance.Instance{
+				ID:                      instanceID,
+				State:                   ec2types.InstanceStateNameRunning,
+				Type:                    "m5.large",
+				EnaSupport:              true,
+				CurrentInstanceBootMode: ec2types.InstanceBootModeValuesLegacyBios,
+			}
+			ami = amifamily.AMI{AmiID: "ami-1", EnaSupport: true}
 		})
 		It("should pass a running node on the cluster's Kubernetes minor version", func() {
-			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, ec2types.InstanceStateNameRunning)).To(BeEmpty())
+			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(BeEmpty())
 		})
 		It("should reject a missing node", func() {
-			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, nil, ec2types.InstanceStateNameRunning)).To(Equal(rootvolume.ReasonNodeNotFound))
+			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, nil, inst, ami)).To(Equal(rootvolume.ReasonNodeNotFound))
 		})
 		It("should reject an instance that isn't running", func() {
-			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, ec2types.InstanceStateNameStopping)).To(Equal(rootvolume.ReasonInstanceNotRunning))
+			inst.State = ec2types.InstanceStateNameStopping
+			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(rootvolume.ReasonInstanceNotRunning))
 		})
 		It("should reject a node on another Kubernetes minor version", func() {
 			node.Status.NodeInfo.KubeletVersion = "v1.20.4-eks-1234"
-			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, ec2types.InstanceStateNameRunning)).To(Equal(rootvolume.ReasonKubernetesVersionChanged))
+			Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(rootvolume.ReasonKubernetesVersionChanged))
 		})
+		DescribeTable("should check the instance type isn't bare metal",
+			func(instanceType ec2types.InstanceType, reason string) {
+				inst.Type = instanceType
+				Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(reason))
+			},
+			Entry("virtualized", ec2types.InstanceType("m5.large"), ""),
+			Entry("bare metal", ec2types.InstanceType("m5.metal"), rootvolume.ReasonBareMetal),
+			Entry("bare metal with a size suffix", ec2types.InstanceType("c7i.metal-24xl"), rootvolume.ReasonBareMetal),
+		)
+		DescribeTable("should check the AMI supports ENA when the instance has it enabled",
+			func(instanceEnaSupport, amiEnaSupport bool, reason string) {
+				inst.EnaSupport = instanceEnaSupport
+				ami.EnaSupport = amiEnaSupport
+				Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(reason))
+			},
+			Entry("both support it", true, true, ""),
+			Entry("only the AMI supports it", false, true, ""),
+			Entry("only the instance has it enabled", true, false, rootvolume.ReasonEnaSupport),
+		)
+		DescribeTable("should check the AMI supports sriov-net when the instance has it enabled",
+			func(instanceSriovNetSupport, amiSriovNetSupport bool, reason string) {
+				inst.SriovNetSupport = instanceSriovNetSupport
+				ami.SriovNetSupport = amiSriovNetSupport
+				Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(reason))
+			},
+			Entry("both support it", true, true, ""),
+			Entry("only the AMI supports it", false, true, ""),
+			Entry("only the instance has it enabled", true, false, rootvolume.ReasonSriovNetSupport),
+		)
+		DescribeTable("should check the AMI supports NitroTPM when the instance has it enabled",
+			func(instanceTpmSupport, amiTpmSupport bool, reason string) {
+				inst.TpmSupport = instanceTpmSupport
+				ami.TpmSupport = amiTpmSupport
+				Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(reason))
+			},
+			Entry("both support it", true, true, ""),
+			Entry("only the AMI supports it", false, true, ""),
+			Entry("only the instance has it enabled", true, false, rootvolume.ReasonTpmSupport),
+		)
+		DescribeTable("should check the AMI boot mode matches the instance boot mode",
+			func(instanceBootMode ec2types.InstanceBootModeValues, amiBootMode ec2types.BootModeValues, reason string) {
+				inst.CurrentInstanceBootMode = instanceBootMode
+				ami.BootMode = amiBootMode
+				Expect(awsEnv.RootVolumeProvider.UnsupportedNodeReason(ctx, node, inst, ami)).To(Equal(reason))
+			},
+			Entry("both uefi", ec2types.InstanceBootModeValuesUefi, ec2types.BootModeValuesUefi, ""),
+			Entry("both legacy-bios", ec2types.InstanceBootModeValuesLegacyBios, ec2types.BootModeValuesLegacyBios, ""),
+			Entry("uefi-preferred AMI", ec2types.InstanceBootModeValuesLegacyBios, ec2types.BootModeValuesUefiPreferred, ""),
+			Entry("AMI without a boot mode", ec2types.InstanceBootModeValuesUefi, ec2types.BootModeValues(""), ""),
+			Entry("uefi AMI on a legacy-bios instance", ec2types.InstanceBootModeValuesLegacyBios, ec2types.BootModeValuesUefi, rootvolume.ReasonBootMode),
+			Entry("legacy-bios AMI on a uefi instance", ec2types.InstanceBootModeValuesUefi, ec2types.BootModeValuesLegacyBios, rootvolume.ReasonBootMode),
+		)
 	})
 	Context("Replace", func() {
 		It("should create a task that restores the root volume from the AMI and deletes the replaced volume", func() {

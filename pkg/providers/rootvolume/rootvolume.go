@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -37,6 +38,7 @@ import (
 	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
@@ -44,7 +46,12 @@ import (
 const (
 	ReasonNodeNotFound             = "NodeNotFound"
 	ReasonInstanceNotRunning       = "InstanceNotRunning"
+	ReasonBareMetal                = "BareMetal"
 	ReasonKubernetesVersionChanged = "KubernetesVersionChanged"
+	ReasonEnaSupport               = "EnaSupport"
+	ReasonSriovNetSupport          = "SriovNetSupport"
+	ReasonTpmSupport               = "TpmSupport"
+	ReasonBootMode                 = "BootMode"
 	ReasonTaskFailed               = "RootVolumeReplacementFailed"
 )
 
@@ -80,7 +87,7 @@ type Provider interface {
 	// InPlaceUpgrades returns the result of the AMI-level checks for each AMI, keyed by AMI ID.
 	InPlaceUpgrades(context.Context, []amifamily.AMI) (map[string]*v1.InPlaceUpgrade, error)
 	// UnsupportedNodeReason returns the node-level check the node fails, or "" when it passes every check.
-	UnsupportedNodeReason(context.Context, *corev1.Node, ec2types.InstanceStateName) string
+	UnsupportedNodeReason(context.Context, *corev1.Node, *instance.Instance, amifamily.AMI) string
 	// Replace starts a task that replaces the instance's root volume with one restored from the AMI, or returns the
 	// instance's unfinished task so the caller waits for it instead.
 	Replace(ctx context.Context, instanceID, imageID, operationID string) (*Task, error)
@@ -141,15 +148,19 @@ func (p *DefaultProvider) InPlaceUpgrades(ctx context.Context, amis []amifamily.
 	}), nil
 }
 
-// UnsupportedNodeReason checks what the AMI-level checks can't: the instance must be running and its kubelet must
-// match the Kubernetes minor version the EC2NodeClass resolves AMIs for. The AMI family and variant need no check
-// here: a family change drifts the EC2NodeClass hash, and the AMI for the node's instance type keeps its variant.
-func (p *DefaultProvider) UnsupportedNodeReason(ctx context.Context, node *corev1.Node, state ec2types.InstanceStateName) string {
+// UnsupportedNodeReason checks what the AMI-level checks can't: the instance must be running and not bare metal, its
+// kubelet must match the Kubernetes minor version the EC2NodeClass resolves AMIs for, and the AMI must support the
+// instance's ENA, sriov-net, NitroTPM and boot mode settings. The AMI family and variant need no check here: a family
+// change drifts the EC2NodeClass hash, and the AMI for the node's instance type keeps its variant.
+func (p *DefaultProvider) UnsupportedNodeReason(ctx context.Context, node *corev1.Node, instance *instance.Instance, ami amifamily.AMI) string {
 	if node == nil {
 		return ReasonNodeNotFound
 	}
-	if state != ec2types.InstanceStateNameRunning {
+	if instance.State != ec2types.InstanceStateNameRunning {
 		return ReasonInstanceNotRunning
+	}
+	if strings.Contains(string(instance.Type), ".metal") {
+		return ReasonBareMetal
 	}
 	kubeletVersion, err := k8sversion.ParseGeneric(node.Status.NodeInfo.KubeletVersion)
 	if err != nil {
@@ -158,6 +169,22 @@ func (p *DefaultProvider) UnsupportedNodeReason(ctx context.Context, node *corev
 	clusterVersion, err := k8sversion.ParseGeneric(p.versionProvider.Get(ctx))
 	if err != nil || kubeletVersion.Major() != clusterVersion.Major() || kubeletVersion.Minor() != clusterVersion.Minor() {
 		return ReasonKubernetesVersionChanged
+	}
+	return unsupportedAMIReason(instance, ami)
+}
+
+// unsupportedAMIReason returns the instance setting the AMI doesn't support, or "" when it supports all of them.
+func unsupportedAMIReason(instance *instance.Instance, ami amifamily.AMI) string {
+	switch {
+	case instance.EnaSupport && !ami.EnaSupport:
+		return ReasonEnaSupport
+	case instance.SriovNetSupport && !ami.SriovNetSupport:
+		return ReasonSriovNetSupport
+	case instance.TpmSupport && !ami.TpmSupport:
+		return ReasonTpmSupport
+	case (ami.BootMode == ec2types.BootModeValuesUefi || ami.BootMode == ec2types.BootModeValuesLegacyBios) &&
+		string(ami.BootMode) != string(instance.CurrentInstanceBootMode):
+		return ReasonBootMode
 	}
 	return ""
 }

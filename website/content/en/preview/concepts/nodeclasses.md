@@ -1062,9 +1062,15 @@ Karpenter replaces the root volume only when AMI drift is the node's only drift 
 - The account can create a volume from the AMI's root snapshot (`SnapshotNotReadable`). AMIs shared from another account need their snapshots shared too: launch permission on the AMI is not enough.
 - The node's kubelet runs the same Kubernetes minor version that the EC2NodeClass resolves AMIs for (`KubernetesVersionChanged`).
 - The instance is running (`InstanceNotRunning`).
+- The instance type isn't bare metal (`BareMetal`).
+- The AMI supports ENA when the instance has it enabled (`EnaSupport`).
+- The AMI supports enhanced networking with the Intel 82599 VF interface when the instance has it enabled (`SriovNetSupport`).
+- The AMI supports NitroTPM when the instance has it enabled (`TpmSupport`).
+- The AMI's boot mode matches the instance's current boot mode when the AMI sets it to `uefi` or `legacy-bios` (`BootMode`).
 
 The AMI checks are reported in [`status.amis`]({{< ref "#statusamis" >}}) and run again every time Karpenter refreshes the EC2NodeClass AMIs.
-EC2 has [further requirements](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html) that Karpenter doesn't check ahead of time.
+These checks cover the EC2 [requirements](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html) that Karpenter can verify ahead of time.
+The root volume keeps its encryption and KMS key, so encryption isn't checked.
 When EC2 rejects the root volume replacement, or the replacement fails, Karpenter replaces the node.
 Karpenter deletes the replaced root volume once the replacement succeeds.
 
