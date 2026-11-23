@@ -639,7 +639,7 @@ func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
 	}
 }
 
-var _ = Describe("SecurityGroupProvider cache sharing (test gaps)", func() {
+var _ = Describe("SecurityGroupProvider cache sharing", func() {
 	ids := func(sgs []ec2types.SecurityGroup) []string {
 		return lo.Map(sgs, func(s ec2types.SecurityGroup, _ int) string { return lo.FromPtr(s.GroupId) })
 	}

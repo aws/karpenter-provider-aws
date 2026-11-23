@@ -166,7 +166,7 @@ func deprecateAMIs(amiIDs ...string) {
 	})
 }
 
-var _ = Describe("SSM Invalidation Controller (test gaps)", func() {
+var _ = Describe("SSM Invalidation Controller", func() {
 	It("should invalidate deprecated AMIs on a later reconcile even when an earlier reconcile cached them as non-deprecated", func() {
 		nodeClass := &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "al2023@latest"}}}}
 		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)

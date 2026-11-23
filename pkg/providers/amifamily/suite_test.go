@@ -1399,7 +1399,7 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery)
 	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) any { return q })...))
 }
 
-var _ = Describe("AMIProvider cache sharing (test gaps)", func() {
+var _ = Describe("AMIProvider cache sharing", func() {
 	var k8sVersion string
 	windowsParam := func() string {
 		return fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", k8sVersion)
@@ -1412,7 +1412,7 @@ var _ = Describe("AMIProvider cache sharing (test gaps)", func() {
 		k8sVersion = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
-	Context("KnownRequirements are not part of the cache key", func() {
+	Context("KnownRequirements in the cache key", func() {
 		var aliasNC, idNC *v1.EC2NodeClass
 		BeforeEach(func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{windowsParam(): amd64AMI}
@@ -1450,6 +1450,26 @@ var _ = Describe("AMIProvider cache sharing (test gaps)", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
 			Expect(amis[0].Requirements.Has(corev1.LabelOSStable)).To(BeFalse(), "ID-term AMI picked up alias requirements: %s", amis[0].Requirements)
+		})
+		It("should not share a cache entry between aliases whose requirements differ for the same AMI", func() {
+			// Both Windows aliases resolve to the same AMI ID, so their queries share owners and filters and
+			// differ only in the values of their known requirements (windows-build)
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				windowsParam(): amd64AMI,
+				fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.List(ctx, aliasNC)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].Requirements.Get(corev1.LabelWindowsBuild).Has(v1.Windows2022Build)).To(BeTrue())
+
+			windows2019NC := test.EC2NodeClass()
+			windows2019NC.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}
+			amis, err = awsEnv.AMIProvider.List(ctx, windows2019NC)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].Requirements.Get(corev1.LabelWindowsBuild).Has(v1.Windows2019Build)).To(BeTrue(),
+				"windows2019 alias resolved with windows2022 requirements: %s", amis[0].Requirements)
 		})
 		It("should keep AL2023 alias variant requirements when only one variant resolves and it is listed by ID", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{

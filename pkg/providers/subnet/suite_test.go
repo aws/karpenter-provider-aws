@@ -27,6 +27,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -604,7 +609,7 @@ func ExpectConsistsOfSubnets(expected, actual []ec2types.Subnet) {
 	}
 }
 
-var _ = Describe("SubnetProvider cache sharing (test gaps)", func() {
+var _ = Describe("SubnetProvider cache sharing", func() {
 	ids := func(subnets []ec2types.Subnet) []string {
 		return lo.Map(subnets, func(s ec2types.Subnet, _ int) string { return lo.FromPtr(s.SubnetId) })
 	}
@@ -679,4 +684,56 @@ var _ = Describe("SubnetProvider cache sharing (test gaps)", func() {
 	// Behavior change: before the PR a new NodeClass (new UID) or a spec change on an existing
 	// NodeClass (new Generation) missed the cache, so List refreshed availableIPAddressCache and
 	// cleared inflightIPs. Now a shared entry is hit and IP counts are only refreshed on TTL expiry.
+})
+
+var _ = Describe("SubnetProvider inflight IPs (mutation killers)", func() {
+	var pick func() string
+	BeforeEach(func() {
+		awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
+			{SubnetId: aws.String("subnet-a"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(100)},
+			{SubnetId: aws.String("subnet-b"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int32(90)},
+		}})
+		nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"foo": "bar"}}}
+		nodeClass.Status.Subnets = []v1.Subnet{
+			{ID: "subnet-a", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+			{ID: "subnet-b", Zone: "test-zone-1a", ZoneID: "tstz1-1a"},
+		}
+		instanceTypes := []*cloudprovider.InstanceType{{
+			Name:     "fake-it",
+			Capacity: corev1.ResourceList{corev1.ResourcePods: resource.MustParse("50")},
+			Offerings: cloudprovider.Offerings{{
+				Requirements: scheduling.NewLabelRequirements(map[string]string{
+					karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeOnDemand,
+					corev1.LabelTopologyZone:    "test-zone-1a",
+				}),
+				Available: true,
+			}},
+		}}
+		pick = func() string {
+			zonal, err := awsEnv.SubnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, karpv1.CapacityTypeOnDemand)
+			Expect(err).To(BeNil())
+			return zonal["test-zone-1a"].ID
+		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		// Each launch deducts 50 inflight IPs: a(100) -> b(90) -> a(50), leaving a=0 and b=40 tracked
+		Expect([]string{pick(), pick(), pick()}).To(Equal([]string{"subnet-a", "subnet-b", "subnet-a"}))
+	})
+	It("should reset inflight IP tracking when List refreshes subnets from EC2", func() {
+		awsEnv.SubnetCache.Flush()
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		// The refresh replaces the inflight estimates with the observed counts
+		Expect(pick()).To(Equal("subnet-a"))
+	})
+	It("should keep inflight IP tracking when List is served from the subnet cache", func() {
+		// e.g. another NodeClass sharing the selector term: no EC2 call, so the inflight estimates still apply
+		nodeClass2 := test.EC2NodeClass()
+		nodeClass2.UID = "nodeclass-2-uid"
+		nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2)
+		Expect(err).To(BeNil())
+		Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(1))
+		Expect(pick()).To(Equal("subnet-b"))
+	})
 })

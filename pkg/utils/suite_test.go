@@ -69,7 +69,7 @@ var _ = Describe("FilterSetHash", func() {
 	})
 })
 
-var _ = Describe("FilterSetHash (test gaps)", func() {
+var _ = Describe("FilterSetHash", func() {
 	filter := func(name string, values ...string) ec2types.Filter {
 		return ec2types.Filter{Name: aws.String(name), Values: values}
 	}
@@ -98,6 +98,20 @@ var _ = Describe("FilterSetHash (test gaps)", func() {
 	It("treats nil and empty Values the same, and nil and empty filter sets the same", func() {
 		Expect(hash(ec2types.Filter{Name: aws.String("tag:a")})).To(Equal(hash(filter("tag:a"))))
 		Expect(utils.FilterSetHash(nil)).To(Equal(utils.FilterSetHash([]ec2types.Filter{})))
+	})
+	// Duplicate filters must be recognised as duplicates regardless of value order, otherwise the outer
+	// SlicesAsSets XOR cancels them and the set aliases the empty filter set
+	It("ignores duplicate filters whose values differ only in order", func() {
+		Expect(hash(filter("tag:a", "1", "2"), filter("tag:a", "2", "1"))).To(Equal(hash(filter("tag:a", "1", "2"))))
+		Expect(hash(filter("tag:a", "1", "2"), filter("tag:a", "2", "1"))).ToNot(Equal(utils.FilterSetHash(nil)))
+	})
+	// Same-name filters with different values are ANDed, so neither may be dropped as a duplicate
+	It("distinguishes two same-name filters from either filter alone", func() {
+		Expect(lo.Uniq([]uint64{
+			hash(filter("tag:a", "1"), filter("tag:a", "2")),
+			hash(filter("tag:a", "1")),
+			hash(filter("tag:a", "2")),
+		})).To(HaveLen(3))
 	})
 	It("distinguishes an empty filter set from a filter set with an empty filter", func() {
 		Expect(utils.FilterSetHash(nil)).ToNot(Equal(hash(filter("tag:a"))))
