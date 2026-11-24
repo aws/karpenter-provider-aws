@@ -60,7 +60,7 @@ An EC2NodeClass can resolve several AMIs (per architecture or variant), and each
 An AMI cannot be swapped in place, and `reason` names the check, when:
 
 - `ProductCodes`: the AMI carries Marketplace product codes. EC2 requires the new AMI to have the same product code and billing information as the instance, so Karpenter only swaps AMIs without product codes. Karpenter reads this from the image's `ProductCodes` in `DescribeImages`.
-- `SnapshotNotReadable`: the node's account cannot create a volume from the AMI's root snapshot (`createVolumePermission`), which is common when AMIs are published from a central account. Karpenter reads this from `DescribeSnapshots` by snapshot ID. It does not pass `RestorableByUserIds=self`, which leaves out public snapshots.
+- `SnapshotNotReadable`: the node's account cannot create a volume from the AMI's root snapshot (`createVolumePermission`), which is common when AMIs are published from a central account. Karpenter reads this from `DescribeSnapshots` with a `snapshot-id` filter, which leaves out snapshots the account can't see. Passing `SnapshotIds` instead fails the whole call with `InvalidSnapshot.NotFound` when any one of them isn't shared, and `RestorableByUserIds=self` leaves out public snapshots.
 
 Node-level checks run per NodeClaim and are not reported in `status.amis`, because they compare the AMI with the running instance. They cover every deterministic EC2 [requirement](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html), so a swap EC2 would reject never drains the node.
 The AMI family, variant and Kubernetes minor version must be unchanged, which also keeps the architecture and virtualization type EC2 requires, and the instance must be running and not bare metal.
