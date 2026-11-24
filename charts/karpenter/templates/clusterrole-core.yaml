@@ -50,6 +50,12 @@ rules:
   - apiGroups: ["autoscaling.k8s.io"]
     resources: ["verticalpodautoscalers"]
     verbs: ["get", "list", "watch"]
+  # VPA predictions read the VPA CRD by name whenever a VPA list isn't returning VPAs, and after a list fails, to tell whether VPA was uninstalled.
+  # Granted unconditionally like the rule above: it reads a single named CRD.
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    resourceNames: ["verticalpodautoscalers.autoscaling.k8s.io"]
+    verbs: ["get"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "watch"]
