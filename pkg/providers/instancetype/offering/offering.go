@@ -78,7 +78,7 @@ type DefaultProvider struct {
 	zonalshiftProvider             arczonalshiftProvider.Provider
 	placementGroupProvider         placementgroup.Provider
 	unavailableOfferings           *awscache.UnavailableOfferings
-	lastUnavailableOfferingsSeqNum sync.Map // instance type -> seqNum
+	lastUnavailableOfferingsSeqNum sync.Map // offering cache key -> seqNum
 	cache                          *cache.Cache
 	kubeClient                     client.Client
 	overlayPrices                  map[string]float64
