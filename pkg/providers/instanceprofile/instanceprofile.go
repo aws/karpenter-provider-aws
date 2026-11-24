@@ -68,6 +68,15 @@ func GetProfileCacheKey(profileName string) string {
 	return "instance-profile:" + profileName
 }
 
+// ResolveRoleName extracts the IAM role name from a role reference that may be a plain name,
+// a path-prefixed name (e.g. "custom-path/MyRole"), or a full ARN
+// (e.g. "arn:aws:iam::123456789012:role/MyRole" or "arn:aws:iam::123456789012:role/path/MyRole").
+// For any of these formats, the last path component after "/" is returned.
+// If the input contains no "/", it is returned as-is.
+func ResolveRoleName(role string) string {
+	return lo.LastOr(strings.Split(role, "/"), role)
+}
+
 // FormatPath builds an IAM path from segments, e.g. FormatPath("karpenter", region, clusterName, nodeClassUID)
 // returns "/karpenter/{region}/{clusterName}/{nodeClassUID}/".
 func FormatPath(segments ...string) string {
@@ -99,9 +108,12 @@ func (p *DefaultProvider) Create(
 	tags map[string]string,
 	path string,
 ) error {
+	// Resolve the role name up-front so that cache lookups and comparisons work consistently
+	// regardless of whether the caller passes a plain name, a path-prefixed name, or a full ARN.
+	resolvedRoleName := ResolveRoleName(roleName)
 	// Don't attempt to create an instance profile if the role hasn't been found. This prevents runaway instance profile
 	// creation by the NodeClass controller when there's a missing role.
-	if err, ok := p.roleNotFoundErrorCache.HasError(roleName); ok {
+	if err, ok := p.roleNotFoundErrorCache.HasError(resolvedRoleName); ok {
 		return fmt.Errorf("role not found, %w", err)
 	}
 
@@ -127,13 +139,13 @@ func (p *DefaultProvider) Create(
 		shouldUpdate = true
 	}
 
-	updatedRole, err := p.ensureRole(ctx, instanceProfile, roleName)
+	updatedRole, err := p.ensureRole(ctx, instanceProfile, resolvedRoleName)
 	if err != nil {
 		return fmt.Errorf("ensuring role attached, %w", err)
 	}
 	// Add the role to the cached instance profile for detection in the ensureRole check based on the cache entry
 	instanceProfile.Roles = []iamtypes.Role{{
-		RoleName: lo.ToPtr(roleName),
+		RoleName: lo.ToPtr(resolvedRoleName),
 	}}
 
 	if shouldUpdate || updatedRole {
@@ -145,10 +157,13 @@ func (p *DefaultProvider) Create(
 // ensureRole ensures that the correct role is attached to the provided instance profile. If a non-matching role is
 // found already attached, it's removed.
 func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamtypes.InstanceProfile, roleName string) (bool, error) {
+	// Resolve the role name from a potential ARN or path-prefixed input so that comparisons
+	// against the existing role (which is always a plain name) work correctly.
+	resolvedName := ResolveRoleName(roleName)
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
-		if lo.FromPtr(instanceProfile.Roles[0].RoleName) == roleName {
+		if lo.FromPtr(instanceProfile.Roles[0].RoleName) == resolvedName {
 			return false, nil
 		}
 		// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
@@ -165,9 +180,8 @@ func (p *DefaultProvider) ensureRole(ctx context.Context, instanceProfile *iamty
 		}
 	}
 
-	// If the role has a path, ignore the path and take the role name only since AddRoleToInstanceProfile
-	// does not support paths in the role name.
-	roleName = lo.LastOr(strings.Split(roleName, "/"), roleName)
+	// Use the resolved name since AddRoleToInstanceProfile does not support paths or ARNs.
+	roleName = resolvedName
 	if _, err := p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: instanceProfile.InstanceProfileName,
 		RoleName:            lo.ToPtr(roleName),

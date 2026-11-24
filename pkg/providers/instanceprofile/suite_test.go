@@ -117,13 +117,15 @@ var _ = Describe("InstanceProfileProvider", func() {
 		func(roleWithPath, role string) {
 			const profileName = "profile-A"
 			nodeClass.Spec.Role = roleWithPath
-			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, role, nil, karpenterPath(string(nodeClass.UID)))).To(Succeed())
+			Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleWithPath, nil, karpenterPath(string(nodeClass.UID)))).To(Succeed())
 			Expect(profileName).ToNot(BeNil())
 			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
 			Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(role))
 		},
 		Entry("with custom paths", fmt.Sprintf("CustomPath/%s", nodeRole), nodeRole),
 		Entry("without custom paths", nodeRole, nodeRole),
+		Entry("with ARN", fmt.Sprintf("arn:aws:iam::123456789012:role/%s", nodeRole), nodeRole),
+		Entry("with ARN and path", fmt.Sprintf("arn:aws:iam::123456789012:role/custom-path/%s", nodeRole), nodeRole),
 	)
 
 	It("should create an instance profile without a path when path is empty", func() {
@@ -339,6 +341,22 @@ var _ = Describe("InstanceProfileProvider", func() {
 		Expect(awsEnv.InstanceProfileProvider.IsProtected(profileName)).To(BeFalse())
 	})
 
+	It("should not recreate instance profile when role is specified as an ARN", func() {
+		profileName := "profile-arn-test"
+		roleARN := fmt.Sprintf("arn:aws:iam::123456789012:role/%s", nodeRole)
+
+		// First Create with ARN
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleARN, nil, karpenterPath("test-uid"))).To(Succeed())
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+		Expect(aws.ToString(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName)).To(Equal(nodeRole))
+
+		// Second Create with the same ARN should not remove and re-add the role
+		Expect(awsEnv.InstanceProfileProvider.Create(ctx, profileName, roleARN, nil, karpenterPath("test-uid"))).To(Succeed())
+		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+		// The AddRoleToInstanceProfile API should only have been called once (during the first Create)
+		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(Equal(1))
+	})
 	It("should not update instance profile cache item on multiple create calls", func() {
 		roleName := "test-role"
 		profileName := "test-profile"
@@ -387,6 +405,19 @@ var _ = Describe("InstanceProfileProvider", func() {
 			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 		})
 	})
+})
+
+var _ = Describe("ResolveRoleName", func() {
+	DescribeTable("should extract the role name from various formats",
+		func(input, expected string) {
+			Expect(instanceprofile.ResolveRoleName(input)).To(Equal(expected))
+		},
+		Entry("plain name", "MyRole", "MyRole"),
+		Entry("path-prefixed", "custom-path/MyRole", "MyRole"),
+		Entry("ARN without path", "arn:aws:iam::123456789012:role/MyRole", "MyRole"),
+		Entry("ARN with path", "arn:aws:iam::123456789012:role/custom-path/MyRole", "MyRole"),
+		Entry("ARN with multi-level path", "arn:aws:iam::123456789012:role/org/team/MyRole", "MyRole"),
+	)
 })
 
 var _ = Describe("FormatPath", func() {
