@@ -547,7 +547,7 @@ These requirements represent the final constraints that were used to select the 
 
 Resource requests represent the minimum resources needed to schedule the pods that triggered this NodeClaim. Karpenter uses these to right-size the instance.
 
-* `spec.resources.requests`: The aggregate resource requests (e.g., `cpu`, `memory`, `pods`) from the pods being scheduled onto this NodeClaim.
+* `spec.resources.requests`: The aggregate resource requests (e.g., `cpu`, `memory`, `pods`) from the pods being scheduled onto this NodeClaim, plus the minimum DaemonSet overhead across the instance types the NodeClaim can still launch as.
 
 ### status.nodeName
 

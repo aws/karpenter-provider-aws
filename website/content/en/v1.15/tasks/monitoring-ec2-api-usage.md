@@ -23,8 +23,8 @@ practices.
 |-----|----------|-------------------------|
 | `CreateFleet` | Launch (hot path) | Launching nodes to satisfy pending pods |
 | `CreateLaunchTemplate` | Launch (hot path) | Preparing launch configuration for new nodes |
-| `RunInstances` | Launch (hot path) | Launching nodes |
-| `CreateTags` | Launch (hot path) | Tagging instances, fleets, and launch templates as they are created |
+| `RunInstances` | Validation | Karpenter calls it only as a dry-run authorization check when validating an `EC2NodeClass`. It launches nodes with `CreateFleet`, so monitor `CreateFleet` for launch volume |
+| `CreateTags` | Launch (hot path) | Tagging each launched instance (fleets and launch templates are tagged in their `CreateFleet` and `CreateLaunchTemplate` requests) |
 | `TerminateInstances` | Terminate | Removing nodes during consolidation, drift, or expiration |
 | `RebootInstances` | Reboot | Rebooting unhealthy nodes in place during [Node Auto Repair]({{<ref "../concepts/disruption#repair-actions" >}}) with the `RebootForRepair` AWS feature gate |
 | `DeleteLaunchTemplate` | Cleanup | Removing launch templates Karpenter manages |
@@ -60,11 +60,11 @@ For example, to graph Karpenter's Amazon EC2 request rate by operation:
 sum by (action) (rate(aws_sdk_go_request_total{service="EC2"}[5m]))
 ```
 
-To graph the throttled fraction of Karpenter's Amazon EC2 requests:
+To graph the throttled fraction of Karpenter's Amazon EC2 request attempts (`aws_sdk_go_request_total` is labeled with each request's final status, so it misses throttled attempts that a retry resolved):
 
 ```
-sum(rate(aws_sdk_go_request_total{service="EC2", code="503"}[5m]))
-  / sum(rate(aws_sdk_go_request_total{service="EC2"}[5m]))
+sum(rate(aws_sdk_go_request_attempt_total{service="EC2", code="503"}[5m]))
+  / sum(rate(aws_sdk_go_request_attempt_total{service="EC2"}[5m]))
 ```
 
 ### See also
