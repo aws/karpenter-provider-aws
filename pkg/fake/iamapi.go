@@ -84,7 +84,8 @@ func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstancePro
 		defer s.Unlock()
 
 		if i, ok := s.InstanceProfiles[aws.ToString(input.InstanceProfileName)]; ok {
-			return &iam.GetInstanceProfileOutput{InstanceProfile: i}, nil
+			out := *i
+			return &iam.GetInstanceProfileOutput{InstanceProfile: &out}, nil
 		}
 		return nil, &smithy.GenericAPIError{
 			Code: "NoSuchEntity",
@@ -114,7 +115,8 @@ func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInsta
 			Tags:                input.Tags,
 		}
 		s.InstanceProfiles[aws.ToString(input.InstanceProfileName)] = instanceProfile
-		return &iam.CreateInstanceProfileOutput{InstanceProfile: instanceProfile}, nil
+		out := *instanceProfile
+		return &iam.CreateInstanceProfileOutput{InstanceProfile: &out}, nil
 	})
 }
 
