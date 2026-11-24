@@ -183,6 +183,31 @@ var _ = Describe("CompatibilityTest", func() {
 		)
 	})
 
+	Context("BandwidthWeightingCompatibility", func() {
+		DescribeTable("should gate instance types on NetworkInfo.BandwidthWeightings when bandwidthWeighting is set",
+			func(weighting *string, supported []ec2types.BandwidthWeightingType, expected bool) {
+				info := makeInstanceTypeInfo("", &ec2types.NetworkInfo{BandwidthWeightings: supported})
+				nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+				if weighting != nil {
+					nc.networkPerformanceOptions = &v1.NetworkPerformanceOptions{BandwidthWeighting: weighting}
+				}
+				result := compatibility.IsCompatibleWithNodeClass(info, nc, nil)
+				Expect(result).To(Equal(expected))
+			},
+			Entry("nil NetworkPerformanceOptions passes regardless of support", nil, nil, true),
+			Entry("vpc-1 + supported list containing vpc-1", lo.ToPtr("vpc-1"), []ec2types.BandwidthWeightingType{ec2types.BandwidthWeightingTypeDefault, ec2types.BandwidthWeightingTypeVpc1, ec2types.BandwidthWeightingTypeEbs1}, true),
+			Entry("ebs-1 + supported list containing ebs-1", lo.ToPtr("ebs-1"), []ec2types.BandwidthWeightingType{ec2types.BandwidthWeightingTypeDefault, ec2types.BandwidthWeightingTypeVpc1, ec2types.BandwidthWeightingTypeEbs1}, true),
+			Entry("vpc-1 + empty list (type does not support weighting)", lo.ToPtr("vpc-1"), nil, false),
+			Entry("vpc-1 + list without vpc-1", lo.ToPtr("vpc-1"), []ec2types.BandwidthWeightingType{ec2types.BandwidthWeightingTypeDefault}, false),
+		)
+		It("should reject when NetworkInfo is nil and bandwidthWeighting is set", func() {
+			info := makeInstanceTypeInfo("", nil)
+			nc := newMockNodeClass(v1.AMIFamilyAL2023, nil)
+			nc.networkPerformanceOptions = &v1.NetworkPerformanceOptions{BandwidthWeighting: lo.ToPtr("vpc-1")}
+			Expect(compatibility.IsCompatibleWithNodeClass(info, nc, nil)).To(BeFalse())
+		})
+	})
+
 	Context("ConnectionTrackingCompatibility", func() {
 		DescribeTable("should filter non-Nitro instances when ConnectionTracking is set",
 			func(hypervisor ec2types.InstanceTypeHypervisor, connTrack *v1.ConnectionTracking, expected bool) {
@@ -213,11 +238,12 @@ func newMockNodeClass(amiFamily string, networkInterfaces []*v1.NetworkInterface
 }
 
 type mockNodeClass struct {
-	amiFamily          string
-	networkInterfaces  []*v1.NetworkInterface
-	cpuOptions         *v1.CPUOptions
-	enclaveOptions     *v1.EnclaveOptions
-	connectionTracking *v1.ConnectionTracking
+	amiFamily                 string
+	networkInterfaces         []*v1.NetworkInterface
+	cpuOptions                *v1.CPUOptions
+	enclaveOptions            *v1.EnclaveOptions
+	connectionTracking        *v1.ConnectionTracking
+	networkPerformanceOptions *v1.NetworkPerformanceOptions
 }
 
 func (m mockNodeClass) AMIFamily() string {
@@ -234,6 +260,10 @@ func (m *mockNodeClass) CPUOptions() *v1.CPUOptions {
 
 func (m *mockNodeClass) EnclaveOptions() *v1.EnclaveOptions {
 	return m.enclaveOptions
+}
+
+func (m *mockNodeClass) NetworkPerformanceOptions() *v1.NetworkPerformanceOptions {
+	return m.networkPerformanceOptions
 }
 
 func (m *mockNodeClass) ConnectionTracking() *v1.ConnectionTracking {
