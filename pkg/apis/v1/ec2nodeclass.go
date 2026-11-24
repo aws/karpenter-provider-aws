@@ -122,7 +122,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	Kubelet KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
-	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
+	// +kubebuilder:validation:XValidation:message="each blockDeviceMapping with rootVolume must set ebs.volumeSize when more than one sets rootVolume",rule="self.filter(x, has(x.rootVolume) && x.rootVolume).size() <= 1 || self.filter(x, has(x.rootVolume) && x.rootVolume).all(x, has(x.ebs) && has(x.ebs.volumeSize))"
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
@@ -403,8 +403,11 @@ type BlockDeviceMapping struct {
 	// +kubebuilder:validation:XValidation:message="snapshotID must be set when volumeInitializationRate is set",rule="!has(self.volumeInitializationRate) || (has(self.snapshotID) && self.snapshotID != '')"
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
-	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
-	// configure at most one root volume in BlockDeviceMappings.
+	// RootVolume is a flag indicating if this device holds, or is part of the filesystem that holds,
+	// the kubelet root dir. If more than one device sets this flag, Karpenter assumes that the
+	// devices are combined into one filesystem (for example, RAID0) and uses the sum of their
+	// volume sizes as the node ephemeral-storage capacity. Each of these devices must then set
+	// ebs.volumeSize.
 	// +optional
 	RootVolume bool `json:"rootVolume,omitempty"`
 }
