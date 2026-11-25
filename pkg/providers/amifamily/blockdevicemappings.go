@@ -88,8 +88,11 @@ var volumeSizeLimitsGiB = map[string]struct{ min, max int64 }{
 	"standard": {1, 1024},
 }
 
-// defaultVolumeType is assumed when a blockDeviceMapping doesn't set volumeType.
-const defaultVolumeType = "gp3"
+// defaultVolumeType is assumed when a blockDeviceMapping doesn't set volumeType. No type is sent to EC2 in that case, so
+// EC2 picks one: gp2 for devices not in the AMI (see CreateVolume), and the AMI's own type for devices it defines.
+// gp2 has the narrowest range of the types EC2 may pick by default, so validating against it guarantees the size
+// is accepted at launch whichever applies.
+const defaultVolumeType = "gp2"
 
 // validateVolumeSizeForType rejects a resolved volume size that falls outside the limits of its volume type, so an
 // expression that only exceeds them on the largest instance types fails validation rather than at launch.

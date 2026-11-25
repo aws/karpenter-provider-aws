@@ -3968,6 +3968,22 @@ var _ = Describe("InstanceTypeProvider", func() {
 			err := awsEnv.InstanceTypesProvider.ValidateBlockDeviceMappingExpressions(ctx, nodeClass)
 			Expect(err).To(MatchError(ContainSubstring("outside the 1-16384 GiB range supported by gp2 volumes")))
 		})
+		It("should validate the volumeSize CEL expression against gp2's limit when volumeType is unset", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(true)},
+			}))
+			// With no volumeType, EC2 picks the type and creates devices not in the AMI as gp2, so a size within gp3's
+			// range but above gp2's 16384 GiB cap must be rejected rather than failing at launch.
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/xvdb"),
+				EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr("vcpus * 100")},
+			}}
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+			err := awsEnv.InstanceTypesProvider.ValidateBlockDeviceMappingExpressions(ctx, nodeClass)
+			Expect(err).To(MatchError(ContainSubstring("outside the 1-16384 GiB range supported by gp2 volumes")))
+		})
 		It("should fall back to the default ephemeral-storage when a volumeSize CEL expression is set but the gate is disabled", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				FeatureGates: test.FeatureGates{NodeClassCEL: lo.ToPtr(false)},
