@@ -22,6 +22,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/drametadata"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 )
 
@@ -122,6 +123,10 @@ func (c networkInterfaceCheck) compatibleCheck(info ec2types.InstanceTypeInfo) b
 		return nic.InterfaceType == v1.InterfaceTypeEFAOnly
 	})
 	if numEfas > 0 {
+		// EC2 reports EFA support for these, but their EFAs can't be used from pods.
+		if drametadata.UnusableEFAInstanceTypes.Has(string(info.InstanceType)) {
+			return false
+		}
 		if info.NetworkInfo.EfaInfo == nil || info.NetworkInfo.EfaInfo.MaximumEfaInterfaces == nil {
 			return false
 		}

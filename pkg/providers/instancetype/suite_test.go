@@ -1025,6 +1025,33 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
+	Context("EFA", func() {
+		// g4dn.metal's EC2 info is otherwise ordinary, so a fake single-EFA type renamed to it stands in.
+		efaInstanceType := func(name string) *corecloudprovider.InstanceType {
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
+			Expect(err).To(BeNil())
+			info, ok := lo.Find(instanceInfo.InstanceTypes, func(i ec2types.InstanceTypeInfo) bool {
+				return i.InstanceType == "g4dn.8xlarge"
+			})
+			Expect(ok).To(BeTrue())
+			Expect(lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)).To(BeEquivalentTo(1))
+			info.InstanceType = ec2types.InstanceType(name)
+			return instancetype.NewInstanceType(ctx, info, fake.DefaultRegion, nil, nil, nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy, nodeClass.Spec.NetworkInterfaces, nil, nil, nil, nil, nil, nil, nodeClass.AMIFamily(), nil)
+		}
+		It("should not advertise EFAs on g4dn.metal", func() {
+			Expect(efaInstanceType("g4dn.8xlarge").Capacity[v1.ResourceEFA]).To(Equal(resource.MustParse("1")))
+			Expect(efaInstanceType("g4dn.metal").Capacity[v1.ResourceEFA]).To(Equal(resource.MustParse("0")))
+		})
+		It("should not advertise EFAs on g4dn.metal when configured on the EC2NodeClass", func() {
+			nodeClass.Spec.NetworkInterfaces = []*v1.NetworkInterface{
+				{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+				{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly},
+			}
+			Expect(efaInstanceType("g4dn.8xlarge").Capacity[v1.ResourceEFA]).To(Equal(resource.MustParse("1")))
+			Expect(efaInstanceType("g4dn.metal").Capacity[v1.ResourceEFA]).To(Equal(resource.MustParse("0")))
+		})
+	})
 	Context("Cache", func() {
 		newCountingProvider := func() (*instancetype.DefaultProvider, *countingResolver) {
 			resolver := &countingResolver{Resolver: instancetype.NewDefaultResolver(fake.DefaultRegion, awsEnv.CELEnvironment)}
