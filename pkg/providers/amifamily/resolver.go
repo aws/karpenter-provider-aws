@@ -539,14 +539,15 @@ func isRestrictedLabel(label string) bool {
 // celVarsFromInstanceType builds CEL evaluation variables from a cloudprovider.InstanceType
 // using its requirements (CPU, memory labels) and an ENI lookup function.
 func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup) (kubeletcel.InstanceTypeVars, error) {
-	req := it.Requirements.Get(v1.LabelInstanceCPU)
-	if req == nil {
+	// Requirements.Get returns an Exists requirement for missing keys, so check for presence explicitly
+	if !it.Requirements.Has(v1.LabelInstanceCPU) {
 		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
 			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
 			"instance-type", it.Name,
 			"label", v1.LabelInstanceCPU,
 		)
 	}
+	req := it.Requirements.Get(v1.LabelInstanceCPU)
 	vcpus, err := strconv.ParseInt(req.Any(), 10, 64)
 	if err != nil {
 		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
@@ -556,14 +557,14 @@ func celVarsFromInstanceType(it *cloudprovider.InstanceType, eniLookup ENILookup
 			"value", req.Any(),
 		)
 	}
-	req = it.Requirements.Get(v1.LabelInstanceMemory)
-	if req == nil {
+	if !it.Requirements.Has(v1.LabelInstanceMemory) {
 		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(
 			fmt.Errorf("instance type is missing the label required for CEL evaluation"),
 			"instance-type", it.Name,
 			"label", v1.LabelInstanceMemory,
 		)
 	}
+	req = it.Requirements.Get(v1.LabelInstanceMemory)
 	memoryMiB, err := strconv.ParseInt(req.Any(), 10, 64)
 	if err != nil {
 		return kubeletcel.InstanceTypeVars{}, serrors.Wrap(

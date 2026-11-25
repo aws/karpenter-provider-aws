@@ -644,6 +644,9 @@ func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.Ins
 			Requirements: scheduling.NewRequirements(append(
 				lo.Values(amifamily.VariantStandard.Requirements()),
 				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				// CEL expressions (e.g. volumeSize) are evaluated against these labels during the dry-run
+				scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, "2"),
+				scheduling.NewRequirement(v1.LabelInstanceMemory, corev1.NodeSelectorOpIn, "8192"),
 				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
 				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
 			)...),
@@ -653,6 +656,9 @@ func (v *Validation) getFallbackInstanceTypes(instanceTypes []*cloudprovider.Ins
 			Requirements: scheduling.NewRequirements(append(
 				lo.Values(amifamily.VariantStandard.Requirements()),
 				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
+				// CEL expressions (e.g. volumeSize) are evaluated against these labels during the dry-run
+				scheduling.NewRequirement(v1.LabelInstanceCPU, corev1.NodeSelectorOpIn, "2"),
+				scheduling.NewRequirement(v1.LabelInstanceMemory, corev1.NodeSelectorOpIn, "8192"),
 				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpExists),
 				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpExists),
 			)...),

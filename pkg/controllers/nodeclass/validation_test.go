@@ -540,6 +540,18 @@ var _ = Describe("NodeClass Validation Status Controller", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
 		})
+		It("should succeed validation of a volumeSize CEL expression when no NodePool references the NodeClass", func() {
+			// Without a NodePool, the launch template dry-run falls back to synthetic instance types. Those must carry the
+			// labels CEL variables are built from, or the expression is evaluated against random values and overflows.
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+				DeviceName: aws.String("/dev/xvdb"),
+				EBS:        &v1.BlockDevice{VolumeSize: aws.String("vcpus * 10")},
+			}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.StatusConditions().Get(v1.ConditionTypeValidationSucceeded).IsTrue()).To(BeTrue())
+		})
 		It("should requeue instead of marking the NodeClass invalid when the instance-type cache is transiently empty", func() {
 			// Simulate the instance-type cache not yet being hydrated (e.g. before the first UpdateInstanceTypes
 			// refresh completes on startup). A valid expression should not be terminally failed in this case.
