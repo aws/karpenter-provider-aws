@@ -708,12 +708,12 @@ The number of a condition for a given object, type and status. e.g. Alarm := Ava
 ### `operator_node_termination_duration_seconds`
 The amount of time taken by an object to terminate completely.
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
-- Stability Level: ALPHA
+- Stability Level: BETA
 
 ### `operator_node_termination_current_time_seconds`
 The current amount of time in seconds that an object has been in terminating state.
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: ALPHA
+- Stability Level: BETA
 - Dimensions:
   - `namespace` — The namespace of the object the metric describes.
   - `name` — The name of the object the metric describes.
@@ -723,7 +723,7 @@ The current amount of time in seconds that an object has been in terminating sta
 ### `operator_node_status_condition_transitions_total`
 The count of transitions of a given object, type and status.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
-- Stability Level: ALPHA
+- Stability Level: BETA
 - Dimensions:
   - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
   - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
@@ -735,7 +735,7 @@ The count of transitions of a given object, type and status.
 ### `operator_node_status_condition_transition_seconds`
 The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
 - Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
-- Stability Level: ALPHA
+- Stability Level: BETA
 - Dimensions:
   - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
   - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
@@ -750,7 +750,7 @@ The amount of time a condition was in a given state (status) before transitionin
 ### `operator_node_status_condition_current_status_seconds`
 The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: ALPHA
+- Stability Level: BETA
 - Dimensions:
   - `namespace` — The namespace of the object the metric describes.
   - `name` — The name of the object the metric describes.
@@ -764,7 +764,7 @@ The current amount of time in seconds that a status condition has been in a spec
 ### `operator_node_status_condition_count`
 The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
-- Stability Level: ALPHA
+- Stability Level: BETA
 - Dimensions:
   - `namespace` — The namespace of the object the metric describes.
   - `name` — The name of the object the metric describes.

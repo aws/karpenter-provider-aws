@@ -254,6 +254,7 @@ var (
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
 		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total",
+		"node_status_condition", "node_termination",
 		"nodeclaim_status_condition", "nodeclaim_termination",
 		"nodepool_status_condition", "nodepool_termination",
 		"ec2nodeclass_status_condition", "ec2nodeclass_termination"}
