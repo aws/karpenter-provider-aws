@@ -100,7 +100,7 @@ This enables the `DRANVIDIAGPU` and `DRAEFA` feature gates and sets `settings.ig
 The chart always grants Karpenter read access to DeviceClasses, ResourceClaims, and ResourceSlices.
 
 `settings.enableDRA` assumes both drivers run on your DRA nodes. If a driver isn't running, Karpenter launches nodes for its claims that can never serve them.
-If you only run one of the drivers, [enable its gate individually]({{< relref "#enabling-drivers-individually" >}}) instead.
+If you only run one of the drivers, [enable its gate individually]({{< relref "../reference/settings#aws-specific-feature-gates" >}}) instead.
 
 {{% alert title="Note" color="primary" %}}
 When you upgrade an existing release with `helm upgrade --reuse-values`, Helm also reuses the default values of the chart version you installed before.

@@ -14,16 +14,32 @@ function getECRTag() {
   echo "${tag}"
 }
 
+# Retries a command a few times so a single transient network error (e.g. "dial tcp ...: i/o timeout"
+# against public.ecr.aws) doesn't page as a canary failure. A persistently unavailable image still fails.
+function retry() {
+  local attempts=3 i
+  for ((i = 1; i <= attempts; i++)); do
+    if "$@"; then
+      return 0
+    fi
+    if ((i < attempts)); then
+      printf "command failed (attempt %d/%d), retrying in %ds: %s\n" "${i}" "${attempts}" "$((i * 10))" "$*"
+      sleep $((i * 10))
+    fi
+  done
+  return 1
+}
+
 # Pull the OCI artifacts / controller images for the latest releases
 while IFS= read -r tag; do
   tag="$(getECRTag "${tag}")"
   for artifact in "karpenter" "karpenter-crd"; do
-    if ! helm pull "oci://public.ecr.aws/karpenter/${artifact}" --version "${tag}"; then
-      printf "failed to pull OCI artifact from ECR (artifact: %s, tag: %s)\n" "${image}" "${tag}"
+    if ! retry helm pull "oci://public.ecr.aws/karpenter/${artifact}" --version "${tag}"; then
+      printf "failed to pull OCI artifact from ECR (artifact: %s, tag: %s)\n" "${artifact}" "${tag}"
       exit 1
     fi
   done
-  if ! docker pull "public.ecr.aws/karpenter/controller:${tag}"; then
+  if ! retry docker pull "public.ecr.aws/karpenter/controller:${tag}"; then
     printf "failed to pull controller image from ECR (tag: %s)\n" "${tag}"
     exit 1
   fi
@@ -32,7 +48,7 @@ done < <(gh release list --repo "${GH_REPO}" --json tagName -L "${RELEASE_COUNT}
 # Check that the charts.karpenter.sh repo is still working until removed
 helm repo add karpenter https://charts.karpenter.sh/
 helm repo update
-if ! helm pull karpenter/karpenter; then
+if ! retry helm pull karpenter/karpenter; then
   printf "failed to pull chart from charts.karpenter.sh"
   exit 1
 fi

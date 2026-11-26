@@ -1,7 +1,10 @@
 name: Sweeper
 on:
   schedule:
-    - cron: '0 */12 * * *'
+    # The us-east-2 cleanup can saturate the CloudFormation operation limit for ~20 minutes and fail cluster setup,
+    # so run in the gaps between E2E matrix runs (e2e-matrix-trigger.yaml), which typically occupy 00:30-04:50,
+    # 08:10-12:40 and 16:10-20:45 UTC. Re-check this slot if the matrix, perf, scale or private cluster crons change.
+    - cron: '30 5,13 * * *'
   workflow_dispatch:
 jobs:
   sweeper:
@@ -21,7 +24,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ matrix.region }}
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: test/hack/resource/go.mod
           check-latest: true

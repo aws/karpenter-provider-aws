@@ -235,6 +235,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*karpv1.Nod
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.NodePool) ([]*cloudprovider.InstanceType, error) {
+	c.warnOnLikelyIncorrectRequirements(nodePool)
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -252,6 +253,22 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 	// Populate DRA DynamicResources for the instance types, based on the DRA drivers we support.
 	c.populateDynamicResources(ctx, nodeClass, instanceTypes)
 	return instanceTypes, nil
+}
+
+var likelyIncorrectRequirementHints = map[string]string{
+	"eks.amazonaws.com/capacityType": fmt.Sprintf("Use requirement %q instead", karpv1.CapacityTypeLabelKey),
+	"eks.amazonaws.com/nodegroup":    fmt.Sprintf("To target this NodePool, select on the %q node label from your pods instead", karpv1.NodePoolLabelKey),
+}
+
+func (c *CloudProvider) warnOnLikelyIncorrectRequirements(nodePool *karpv1.NodePool) {
+	for _, requirement := range nodePool.Spec.Template.Spec.Requirements {
+		if requirement.Operator == corev1.NodeSelectorOpDoesNotExist {
+			continue
+		}
+		if hint, ok := likelyIncorrectRequirementHints[requirement.Key]; ok {
+			c.recorder.Publish(cloudproviderevents.NodePoolLikelyIncorrectRequirement(nodePool, requirement.Key, hint))
+		}
+	}
 }
 
 // getInstanceType returns a specific instance type to avoid re-constructing all InstanceTypes

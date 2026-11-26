@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -101,6 +101,27 @@ var _ = Describe("CEL/Validation", func() {
 		unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
 		Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
 	})
+	// The typed client drops empty values through omitempty, so these terms are submitted as raw JSON
+	DescribeTable("should reject selector terms with empty values",
+		func(field string, term map[string]any) {
+			data, err := json.Marshal(nc)
+			Expect(err).ToNot(HaveOccurred())
+			object := map[string]any{}
+			Expect(json.Unmarshal(data, &object)).To(Succeed())
+			Expect(unstructured.SetNestedSlice(object, []any{term}, "spec", field)).To(Succeed())
+			unstructuredNC := &unstructured.Unstructured{Object: object}
+			unstructuredNC.SetGroupVersionKind(schema.GroupVersion{Group: apis.Group, Version: "v1"}.WithKind("EC2NodeClass"))
+			Expect(env.Client.Create(ctx, unstructuredNC)).ToNot(Succeed())
+		},
+		Entry("subnet tags", "subnetSelectorTerms", map[string]any{"tags": map[string]any{}}),
+		Entry("subnet tags with a null value", "subnetSelectorTerms", map[string]any{"tags": map[string]any{"Name": nil}}),
+		Entry("security group tags", "securityGroupSelectorTerms", map[string]any{"tags": map[string]any{}}),
+		Entry("security group name", "securityGroupSelectorTerms", map[string]any{"name": ""}),
+		Entry("capacity reservation tags", "capacityReservationSelectorTerms", map[string]any{"tags": map[string]any{}}),
+		Entry("ami tags", "amiSelectorTerms", map[string]any{"tags": map[string]any{}}),
+		Entry("ami name", "amiSelectorTerms", map[string]any{"name": ""}),
+		Entry("ami ssmParameter", "amiSelectorTerms", map[string]any{"ssmParameter": ""}),
+	)
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
@@ -1124,6 +1145,29 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
+		DescribeTable("should validate VolumeSize against the 64Ti gp3 maximum",
+			func(size string, valid bool) {
+				nc.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{{
+					DeviceName: aws.String("map-device-1"),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(size)},
+				}}
+				if valid {
+					Expect(env.Client.Create(ctx, nc)).To(Succeed())
+				} else {
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				}
+			},
+			Entry("18Ti", "18Ti", true),
+			Entry("59Ti", "59Ti", true),
+			Entry("64Ti", "64Ti", true),
+			Entry("65535Gi", "65535Gi", true),
+			Entry("70368G", "70368G", true),
+			Entry("70T", "70T", true),
+			Entry("65Ti", "65Ti", false),
+			Entry("65537Gi", "65537Gi", false),
+			Entry("70369G", "70369G", false),
+			Entry("71T", "71T", false),
+		)
 		It("should fail for VolumeSize that do not parse into quantity values", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),

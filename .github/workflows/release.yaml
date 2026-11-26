@@ -19,6 +19,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # A new minor release is when the next LTS minor is designated, so stop before anything is published if the LTS
+      # list on the default branch is overdue for an entry
+      - run: make check-lts
       - name: Create GitHub Release
         uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
         with:

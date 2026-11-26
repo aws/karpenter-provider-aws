@@ -1,7 +1,7 @@
 version: "2"
 run:
   tests: true
-  timeout: 5m
+  timeout: 10m
 linters:
   enable:
     - asciicheck

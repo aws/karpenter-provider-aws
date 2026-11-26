@@ -115,10 +115,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
-	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPI(cfg), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock)
+	pricingEndpointRegion := options.FromContext(ctx).PricingEndpointRegion
+	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPIWithEndpointRegion(cfg, pricingEndpointRegion), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock)
 
 	eksapi := eks.NewFromConfig(cfg)
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
+	if pricingEndpointRegion != "" {
+		log.FromContext(ctx).WithValues("cluster-region", cfg.Region, "pricing-endpoint-region", pricingEndpointRegion).V(1).Info("configured pricing endpoint region")
+	}
 	clusterEndpoint := lo.Must(ResolveClusterEndpoint(ctx, eksapi))
 	log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
@@ -158,7 +162,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 	)
 	pricingProvider := pricing.NewDefaultProvider(
-		pricing.NewAPI(cfg),
+		pricing.NewAPIWithEndpointRegion(cfg, pricingEndpointRegion),
 		ec2api,
 		cfg.Region,
 		false,
@@ -371,7 +375,10 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
 	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, err := eksAPI.DescribeCluster(ctx, &inputDC)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster for zonal shift enablement, %w", err)
+	}
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)

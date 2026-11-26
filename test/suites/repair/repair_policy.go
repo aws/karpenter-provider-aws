@@ -107,6 +107,10 @@ func registerRepairPolicy() bool {
 			Env.EventuallyExpectHealthyPodCount(selector, numPods)
 		})
 		It("should terminate the unhealthy nodeclaim before launching its replacement when the reservation is full", func() {
+			// Specs turn this gate on only when they need it, because it also changes repair for static NodePools at their node limit
+			featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+			Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstRepair=true"})
+
 			capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 			DeferCleanup(func() {
 				aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)
@@ -141,6 +145,10 @@ func registerRepairPolicy() bool {
 		// reservation is full: a pre-spun replacement can't launch until the unhealthy node frees its slot. Repair must
 		// terminate first rather than retry a replacement that never launches.
 		It("should terminate the unhealthy static nodeclaim before launching its replacement when the reservation is full", func() {
+			// Specs turn this gate on only when they need it, because it also changes repair for static NodePools at their node limit
+			featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+			Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstRepair=true"})
+
 			capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 			DeferCleanup(func() {
 				aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)
@@ -160,8 +168,7 @@ func registerRepairPolicy() bool {
 			nodeClaim := Env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 
 			// Hold the node so the window between the unhealthy nodeclaim's deletion and its refill stays observable
-			node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-			Env.ExpectUpdated(node)
+			Env.ExpectTestingFinalizerAdded(node)
 			node = common.ReplaceNodeConditions(node, corev1.NodeCondition{
 				Type:               "AcceleratedHardwareReady",
 				Status:             corev1.ConditionFalse,

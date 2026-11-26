@@ -48,12 +48,14 @@ type Options struct {
 	ClusterCABundle              string
 	ClusterName                  string
 	ClusterEndpoint              string
+	PricingEndpointRegion        string
 	IsolatedVPC                  bool
 	EKSControlPlane              bool
 	VMMemoryOverheadPercent      float64
 	InterruptionQueue            string
 	ReservedENIs                 int
 	DisableDryRun                bool
+	AWSSDKDebugLog               bool
 	EnableZonalShift             bool
 	AMIRefreshInterval           time.Duration
 	SubnetRefreshInterval        time.Duration
@@ -65,12 +67,14 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.ClusterCABundle, "cluster-ca-bundle", env.WithDefaultString("CLUSTER_CA_BUNDLE", ""), "Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.")
 	fs.StringVar(&o.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "[REQUIRED] The kubernetes cluster name for resource discovery.")
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
+	fs.StringVar(&o.PricingEndpointRegion, "pricing-endpoint-region", env.WithDefaultString("PRICING_ENDPOINT_REGION", ""), "The AWS region containing the Price List Query API endpoint. If not specified, Karpenter selects an endpoint region based on the cluster region. This does not change the region for which prices are retrieved and has no effect when isolated-vpc is enabled. NOTE: This flag is ALPHA and can be changed or removed at any time.")
 	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.")
 	fs.BoolVarWithEnv(&o.EKSControlPlane, "eks-control-plane", "EKS_CONTROL_PLANE", false, "Marking this true means that your cluster is running with an EKS control plane and Karpenter should attempt to discover cluster details from the DescribeCluster API ")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", utils.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types when cached information is unavailable.")
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 	fs.BoolVarWithEnv(&o.DisableDryRun, "disable-dry-run", "DISABLE_DRY_RUN", false, "If true, then disable dry run validation for EC2NodeClasses.")
+	fs.BoolVarWithEnv(&o.AWSSDKDebugLog, "aws-sdk-debug-log", "AWS_SDK_DEBUG_LOG", false, "If true, then log AWS SDK requests, responses and retries, including bodies, under the aws-sdk logger. Credential headers are redacted, but bodies can contain sensitive data such as user data and the cluster CA bundle. Intended for troubleshooting only.")
 	fs.BoolVarWithEnv(&o.EnableZonalShift, "enable-zonal-shift", "ENABLE_ZONAL_SHIFT", false, "If true, then enable zonal shifting feature.")
 	fs.DurationVar(&o.AMIRefreshInterval, "ami-refresh-interval", env.WithDefaultDuration("AMI_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m.")
 	fs.DurationVar(&o.SubnetRefreshInterval, "subnet-refresh-interval", env.WithDefaultDuration("SUBNET_REFRESH_INTERVAL", time.Minute), "How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m.")

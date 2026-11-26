@@ -247,6 +247,7 @@ func RegisterTests(minValuesPolicy options.MinValuesPolicy) bool {
 					v1.LabelInstanceGPUMemory:       "16384",
 					v1.LabelInstanceGPUManufacturer: "nvidia",
 					v1.LabelInstanceGPUCount:        "1",
+					v1.LabelNvidiaGPUPresent:        "true",
 				}
 				selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 				requirements := lo.MapToSlice(nodeSelector, func(key string, value string) corev1.NodeSelectorRequirement {

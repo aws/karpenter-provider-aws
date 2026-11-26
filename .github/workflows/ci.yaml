@@ -8,14 +8,17 @@ on:
   pull_request:
   merge_group:
   workflow_dispatch:
-# A new push to a pull request cancels that pull request's in-flight run.
+# A new push to a pull request cancels that pull request's in-flight run. On a branch, a
+# newer commit replaces any older run still waiting to start; in-flight runs finish.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   ci:
     runs-on: ubuntu-latest
     if: github.repository == 'aws/karpenter-provider-aws'
+    permissions:
+      contents: read
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - uses: ./.github/actions/install-deps
@@ -23,3 +26,13 @@ jobs:
       run: echo "::add-matcher::.github/actionlint-matcher.json"
     - run: make ci-non-test
       shell: bash
+  # Catches a suite or flag the pinned core lacks before the e2e matrix does
+  e2e-dryrun:
+    runs-on: ubuntu-latest
+    if: github.repository == 'aws/karpenter-provider-aws' && github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - uses: ./.github/actions/install-deps
+    - run: make e2e-dryrun

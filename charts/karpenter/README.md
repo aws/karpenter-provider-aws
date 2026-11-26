@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 1.15.1](https://img.shields.io/badge/Version-1.15.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.15.1](https://img.shields.io/badge/AppVersion-1.15.1-informational?style=flat-square)
+![Version: 1.15.3](https://img.shields.io/badge/Version-1.15.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.15.3](https://img.shields.io/badge/AppVersion-1.15.3-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 1.15.1 \
+  --version 1.15.3 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -27,13 +27,13 @@ helm upgrade --install --namespace karpenter --create-namespace \
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```shell
-cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
+cosign verify public.ecr.aws/karpenter/karpenter:1.15.3 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v1.15.1 \
-  --annotations version=1.15.1
+  --certificate-github-workflow-ref=refs/tags/v1.15.3 \
+  --annotations version=1.15.3
 ```
 
 ## Values
@@ -49,9 +49,10 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller container. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:8314ff9c6bca66372031e80532c18025bbe6d34eae2443849d9ff02796fb09c8"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:37ae6d1349563d71c2fae7de721dece50b5cf9701e48aa4646f95be7297b4814"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"1.15.1"` | Tag of the controller image. |
+| controller.image.tag | string | `"1.15.3"` | Tag of the controller image. |
+| controller.memoryLimit | string | `""` | Memory limit in bytes passed to the controller as MEMORY_LIMIT (GOMEMLIMIT is set to 90% of it), e.g. 1073741824 for 1Gi. Leave empty to use the container's limits.memory, or set to -1 to disable GOMEMLIMIT. |
 | controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller container. |
 | controller.securityContext.appArmorProfile | object | `{}` | AppArmor profile for the controller container. |
@@ -91,7 +92,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
 | serviceMonitor.metricRelabelings | list | `[]` | Metric relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on metric relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs |
 | serviceMonitor.relabelings | list | `[]` | Relabelings for the `http-metrics` endpoint on the ServiceMonitor. For more details on relabelings, see: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config |
 | serviceMonitor.sampleLimit | string | `nil` | Specifies the sampleLimit for prometheus scrapes. Per-scrape limit on the number of scraped samples that will be accepted. If more than this number of samples are present after metric relabeling the entire scrape will be treated as failed. 0 means no limit. |
-| settings | object | `{"amiRefreshInterval":"1m","awsFeatureGates":{"draEFA":null,"draNVIDIAGPU":null,"nodeClassCEL":false,"rebootForRepair":false},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableDRA":false,"enableZonalShift":false,"featureGates":{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"podDeletionCostManagement":false,"predictionEnabled":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false},"ignoreDRARequests":null,"interruptionQueue":"","isolatedVPC":false,"legacyNodeRepair":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","reservedENIs":"0","securityGroupRefreshInterval":"1m","subnetRefreshInterval":"1m","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"amiRefreshInterval":"1m","awsFeatureGates":{"draEFA":null,"draNVIDIAGPU":null,"nodeClassCEL":false,"rebootForRepair":false},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","disableClusterStateObservability":false,"disableDryRun":false,"eksControlPlane":false,"enableDRA":false,"enableZonalShift":false,"featureGates":{"capacityBuffer":false,"nodeOverlay":false,"nodeRepair":false,"podDeletionCostManagement":false,"predictionEnabled":false,"reservedCapacity":true,"spotToSpotConsolidation":false,"staticCapacity":false,"terminateFirstDrift":false,"terminateFirstRepair":false},"ignoreDRARequests":null,"interruptionQueue":"","isolatedVPC":false,"legacyNodeRepair":false,"minValuesPolicy":"Strict","preferencePolicy":"Respect","pricingEndpointRegion":"","reservedENIs":"0","securityGroupRefreshInterval":"1m","subnetRefreshInterval":"1m","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.amiRefreshInterval | string | `"1m"` | How often Karpenter refreshes AMI data from EC2. Increasing this value will reduce the number of DescribeImages API calls at the cost of increased staleness in AMI discovery and drift detection. Must be at least 1m. |
 | settings.awsFeatureGates | object | `{"draEFA":null,"draNVIDIAGPU":null,"nodeClassCEL":false,"rebootForRepair":false}` | AWS-specific Feature Gate configuration values. |
 | settings.awsFeatureGates.draEFA | bool | `false` | draEFA is ALPHA and is disabled by default. Setting this to true will make Karpenter calculate the DRA devices the dranet driver publishes for EFA interfaces, so it can account for dra.net claims when it sizes new nodes. Can't be combined with settings.enableDRA. |
@@ -125,6 +126,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.15.1 \
 | settings.legacyNodeRepair | bool | `false` | Run the legacy node repair controller instead of node repair as a disruption method. Only takes effect with featureGates.nodeRepair, and can't be combined with featureGates.terminateFirstRepair, which the legacy controller doesn't support. The legacy node repair controller is planned for deprecation. |
 | settings.minValuesPolicy | string | `"Strict"` | How the Karpenter scheduler treats min values. Options include 'Strict' (fails scheduling when min values can't be met) and 'BestEffort' (relaxes min values when they can't be met). |
 | settings.preferencePolicy | string | `"Respect"` | How the Karpenter scheduler should treat preferences. Preferences include preferredDuringSchedulingIgnoreDuringExecution node and pod affinities/anti-affinities and ScheduleAnyways topologySpreadConstraints. Can be one of 'Ignore' and 'Respect' |
+| settings.pricingEndpointRegion | string | `""` | pricingEndpointRegion is ALPHA. AWS region containing the Price List Query API endpoint. If not set, Karpenter selects an endpoint region based on the cluster region. This does not change the region for which prices are retrieved and has no effect when isolatedVPC is enabled. |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html. |
 | settings.securityGroupRefreshInterval | string | `"1m"` | How often Karpenter refreshes security group data from EC2. Increasing this value will reduce the number of DescribeSecurityGroups API calls at the cost of increased staleness in security group discovery. Must be at least 1m. |
 | settings.subnetRefreshInterval | string | `"1m"` | How often Karpenter refreshes subnet data from EC2. Increasing this value will reduce the number of DescribeSubnets API calls at the cost of increased staleness in subnet discovery. Must be at least 1m. |

@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -34,12 +34,14 @@ type OptionsFields struct {
 	ClusterCABundle              *string
 	ClusterName                  *string
 	ClusterEndpoint              *string
+	PricingEndpointRegion        *string
 	IsolatedVPC                  *bool
 	EKSControlPlane              *bool
 	VMMemoryOverheadPercent      *float64
 	InterruptionQueue            *string
 	ReservedENIs                 *int
 	DisableDryRun                *bool
+	AWSSDKDebugLog               *bool
 	AMIRefreshInterval           *time.Duration
 	SubnetRefreshInterval        *time.Duration
 	SecurityGroupRefreshInterval *time.Duration
@@ -58,12 +60,14 @@ func Options(overrides ...OptionsFields) *options.Options {
 		ClusterCABundle:              lo.FromPtrOr(opts.ClusterCABundle, ""),
 		ClusterName:                  lo.FromPtrOr(opts.ClusterName, "test-cluster"),
 		ClusterEndpoint:              lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
+		PricingEndpointRegion:        lo.FromPtrOr(opts.PricingEndpointRegion, ""),
 		IsolatedVPC:                  lo.FromPtrOr(opts.IsolatedVPC, false),
 		EKSControlPlane:              lo.FromPtrOr(opts.EKSControlPlane, false),
 		VMMemoryOverheadPercent:      lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueue:            lo.FromPtrOr(opts.InterruptionQueue, ""),
 		ReservedENIs:                 lo.FromPtrOr(opts.ReservedENIs, 0),
 		DisableDryRun:                lo.FromPtrOr(opts.DisableDryRun, false),
+		AWSSDKDebugLog:               lo.FromPtrOr(opts.AWSSDKDebugLog, false),
 		AMIRefreshInterval:           lo.FromPtrOr(opts.AMIRefreshInterval, time.Minute),
 		SubnetRefreshInterval:        lo.FromPtrOr(opts.SubnetRefreshInterval, time.Minute),
 		SecurityGroupRefreshInterval: lo.FromPtrOr(opts.SecurityGroupRefreshInterval, time.Minute),

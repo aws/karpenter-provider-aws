@@ -1,0 +1,22 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+
+#cloud-config
+bootcmd:
+  - dnf install aws-nitro-enclaves-cli -y
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash -e
+# Node resources reserved for Nitro Enclaves.
+# Must match the NodeOverlay capacity (aws.ec2.nitro/nitro_enclaves_cpus and hugepages-1Gi).
+cat > /etc/nitro_enclaves/allocator.yaml <<'EOF'
+---
+memory_mib: 4096
+cpu_count: 2
+EOF
+systemctl enable --now nitro-enclaves-allocator.service
+--//--

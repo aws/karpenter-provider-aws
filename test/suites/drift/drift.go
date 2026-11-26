@@ -39,7 +39,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
-	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
 var Env *aws.Environment
@@ -315,10 +314,10 @@ func RegisterTests() bool {
 			roleName := fmt.Sprintf("KarpenterNodeRole-%s", Env.ClusterName)
 
 			for _, name := range []string{instanceProfileName, instanceProfileDriftName} {
-				Env.ExpectInstanceProfileCreated(name, roleName)
 				DeferCleanup(func() {
-					Env.ExpectInstanceProfileDeleted(name, roleName)
+					Env.ExpectInstanceProfileDeleted(name)
 				})
+				Env.ExpectInstanceProfileCreated(name, roleName)
 			}
 			NodeClass.Spec.Role = ""
 			NodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileName)
@@ -359,10 +358,10 @@ func RegisterTests() bool {
 
 			// Change role
 			secondRoleName := fmt.Sprintf("KarpenterNodeRole-%s-%s", Env.ClusterName, uuid.New().String()[:8])
-			Env.EventuallyExpectNodeRoleCreated(secondRoleName)
 			DeferCleanup(func() {
 				Env.ExpectNodeRoleDeleted(secondRoleName)
 			})
+			Env.EventuallyExpectNodeRoleCreated(secondRoleName)
 
 			NodeClass.Spec.Role = secondRoleName
 			Env.ExpectCreatedOrUpdated(NodeClass)
@@ -596,6 +595,10 @@ func RegisterTests() bool {
 				Env.EventuallyExpectDrifted(nc)
 			})
 			It("should terminate the drifted nodeclaim before launching its replacement when the reservation is full", func() {
+				// Specs turn this gate on only when they need it, because it also changes drift for static NodePools at their node limit
+				featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+				Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstDrift=true"})
+
 				capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 				DeferCleanup(func() {
 					aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)
@@ -620,6 +623,10 @@ func RegisterTests() bool {
 			// limits.nodes above replicas leaves headroom, but a reserved-only static pool can't launch a replacement while
 			// its reservation is full, so static drift must terminate first rather than retry a replacement that never launches
 			It("should terminate the drifted static nodeclaim before launching its replacement when the reservation is full", func() {
+				// Specs turn this gate on only when they need it, because it also changes drift for static NodePools at their node limit
+				featureGates, _ := lo.Find(Env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "FEATURE_GATES" })
+				Env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: featureGates.Value + ",TerminateFirstDrift=true"})
+
 				capacityReservationID := Env.ExpectCapacityReservationCreated(1).ID
 				DeferCleanup(func() {
 					aws.ExpectCapacityReservationsCanceled(Env.Context, Env.EC2API, capacityReservationID)
@@ -635,8 +642,7 @@ func RegisterTests() bool {
 				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelCapacityReservationID, capacityReservationID))
 
 				// Hold the node so the window between the drifted nodeclaim's deletion and its refill stays observable
-				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				Env.ExpectUpdated(node)
+				Env.ExpectTestingFinalizerAdded(node)
 				NodeClass.Spec.Tags = lo.Assign(NodeClass.Spec.Tags, map[string]string{"test-key": "test-value"})
 				Env.ExpectUpdated(NodeClass)
 

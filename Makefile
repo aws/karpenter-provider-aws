@@ -41,7 +41,12 @@ KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
+# E2E_TEST_FLAGS appends go test and ginkgo flags after the e2e targets' own flags
+E2E_TEST_FLAGS ?=
 TMPFILE := $(shell mktemp)
+
+# perftests-v2 writes performancev2's per-phase reports, summaries and profiles to OUTPUT_DIR
+OUTPUT_DIR ?= $(shell pwd)/test/perf-output
 
 # Filename when building the binary controller only
 GOARCH ?= $(shell go env GOARCH)
@@ -70,7 +75,7 @@ run: ## Run Karpenter controller binary against your local cluster with latest C
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
-	go test ./pkg/... \
+	go test ./pkg/... ./kwok/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.skip="${SKIP}" \
@@ -85,7 +90,7 @@ deflake: ## Run randomized, racing tests until the test fails to catch flakes
 		--randomize-all \
 		--until-it-fails \
 		-v \
-		./pkg/...
+		./pkg/... ./kwok/...
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
@@ -102,7 +107,8 @@ e2etests: ## Run the e2e suite against your local cluster
 		--ginkgo.skip="${SKIP}" \
 		--ginkgo.timeout=3h20m \
 		--ginkgo.grace-period=3m \
-		--ginkgo.vv
+		--ginkgo.vv \
+		$(E2E_TEST_FLAGS)
 
 upstream-e2etests: tidy download
 	CLUSTER_NAME=${CLUSTER_NAME} envsubst < $(shell pwd)/test/pkg/environment/aws/default_ec2nodeclass.yaml > ${TMPFILE}
@@ -121,7 +127,34 @@ upstream-e2etests: tidy download
 		--default-nodeclass="$(TMPFILE)"\
 		--default-nodepool="$(shell pwd)/test/pkg/environment/aws/default_nodepool.yaml" \
 		--repair-condition="AcceleratedHardwareReady=False/NvidiaXID79Error" \
-		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error"
+		--reboot-condition="AcceleratedHardwareReady=False/NvidiaXID46Error" \
+		$(E2E_TEST_FLAGS)
+
+perftests-v2: ## Run test/suites/performancev2 (core's scenarios through the AWS plugin) against the KWOK controller in your cluster
+	mkdir -p "$(OUTPUT_DIR)"
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} OUTPUT_DIR="$(abspath $(OUTPUT_DIR))" \
+		go test \
+		-count 1 \
+		-timeout 3h \
+		-v \
+		./suites/performancev2 \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.fail-on-empty \
+		--ginkgo.timeout=150m \
+		--ginkgo.grace-period=10m \
+		--ginkgo.vv \
+		$(E2E_TEST_FLAGS)
+
+# A dry-run needs no cluster, so the later -p overrides the targets' -p 1. -k runs every target even if one fails
+e2e-dryrun: ## Build every e2e suite and walk its specs with the flags CI passes, without a cluster
+	$(MAKE) -k e2etests upstream-e2etests perftests-v2 CLUSTER_NAME=dryrun CLUSTER_ENDPOINT=https://dryrun.invalid \
+		E2E_TEST_FLAGS="-p=$(shell getconf _NPROCESSORS_ONLN) --ginkgo.dry-run"
+
+perf-inventory: ## Print the performancev2 gates and levels for the AWS plugin
+	go run ./test/suites/performancev2/cmd/inventory
+
+perf-verify: perf-inventory ## Check the performancev2 plugin's seams and levels without a cluster
+	go test -count 1 ./test/suites/performancev2/seams/...
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
@@ -151,6 +184,10 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/mutation/crd_annotations.sh
 	hack/github/dependabot.sh
+	# Regenerate the reference pages that are derived purely from source (no AWS credentials needed), so a
+	# change that adds/changes a metric or annotation (including a sigs.k8s.io/karpenter bump) fails presubmit
+	# instead of the post-merge DryRunGen drift check.
+	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh metrics annotations
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -211,6 +248,12 @@ release: ## Builds and publishes stable release
 latest-release: ## Mark the highest stable release as GitHub's Latest release
 	./hack/release/latest.sh
 
+check-lts: ## Fail a new minor release when no LTS minor has been designated in the last 6 months
+	./hack/release/check-lts.sh
+
+release-banners: ## Update the old patch and LTS banners on every GitHub release
+	./hack/release/banners.sh
+
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 
@@ -245,7 +288,7 @@ deploy-cfn: ## Deploys the cloudformation stack defined in the docs preview dire
 		--parameter-overrides "ClusterName=${CLUSTER_NAME}"
 
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests perftests-v2 e2e-dryrun perf-inventory perf-verify e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 

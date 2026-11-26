@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
@@ -48,6 +49,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -259,6 +261,41 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	dnio, err := env.EC2API.DescribeNetworkInterfaces(env.Context, &ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
 	Expect(err).ToNot(HaveOccurred())
 	return dnio.NetworkInterfaces
+}
+
+// EventuallyExpectBranchENIsDeleted deletes the cluster's detached branch ENIs and waits until none remain.
+// The VPC resource controller only reclaims them every 30m, and they block deleting the cluster's subnets.
+func (env *Environment) EventuallyExpectBranchENIsDeleted() {
+	GinkgoHelper()
+	By("waiting for the cluster's branch ENIs to be deleted")
+	Eventually(func(g Gomega) {
+		var enis []ec2types.NetworkInterface
+		paginator := ec2.NewDescribeNetworkInterfacesPaginator(env.EC2API, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{Name: aws.String("description"), Values: []string{"aws-k8s-branch-eni"}},
+				{Name: aws.String("tag:eks:eni:owner"), Values: []string{"eks-vpc-resource-controller"}},
+				{Name: aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", env.ClusterName)), Values: []string{"owned"}},
+			},
+		})
+		for paginator.HasMorePages() {
+			out, err := paginator.NextPage(env.Context)
+			g.Expect(err).ToNot(HaveOccurred())
+			enis = append(enis, out.NetworkInterfaces...)
+		}
+		for _, eni := range enis {
+			if eni.Status != ec2types.NetworkInterfaceStatusAvailable {
+				continue
+			}
+			_, err := env.EC2API.DeleteNetworkInterface(env.Context, &ec2.DeleteNetworkInterfaceInput{NetworkInterfaceId: eni.NetworkInterfaceId})
+			if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "InvalidNetworkInterfaceID.NotFound" {
+				continue
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+		g.Expect(lo.Map(enis, func(eni ec2types.NetworkInterface, _ int) string {
+			return fmt.Sprintf("%s (%s)", aws.ToString(eni.NetworkInterfaceId), eni.Status)
+		})).To(BeEmpty())
+	}).WithTimeout(5 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
 }
 
 func FindNetworkInterface(interfaces []ec2types.InstanceNetworkInterface, networkCardIndex, deviceIndex int32) (ec2types.InstanceNetworkInterface, bool) {
@@ -634,7 +671,10 @@ func (env *Environment) ExpectAccountID() string {
 	return aws.ToString(identity.Account)
 }
 
+// ExpectInstanceProfileCreated creates an instance profile holding roleName. Register ExpectInstanceProfileDeleted
+// before calling it, so that a failure partway through doesn't leak the profile.
 func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleName string) {
+	GinkgoHelper()
 	By("creating an instance profile")
 	createInstanceProfile := &iam.CreateInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
@@ -642,6 +682,11 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 			{
 				Key:   aws.String(coretest.DiscoveryLabel),
 				Value: aws.String(env.ClusterName),
+			},
+			// The sweeper only selects expired instance profiles tagged with its region
+			{
+				Key:   aws.String(corev1.LabelTopologyRegion),
+				Value: aws.String(env.Region),
 			},
 		},
 	}
@@ -656,20 +701,35 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
 }
 
-func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleName string) {
-	By("deleting an instance profile")
-	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-		RoleName:            aws.String(roleName),
-	}
-	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, removeRoleFromInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
+// ExpectInstanceProfileDeleted removes every role from the instance profile and deletes it. It's a no-op if the
+// profile doesn't exist. The variadic argument is ignored. It keeps the old (name, roleName) calls compiling.
+func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("deleting instance profile %s", instanceProfileName))
+	Eventually(func(g Gomega) {
+		g.Expect(env.deleteInstanceProfile(instanceProfileName)).To(Succeed())
+	}).WithTimeout(time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+}
 
-	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
+func (env *Environment) deleteInstanceProfile(instanceProfileName string) error {
+	out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
+	})
+	if err != nil {
+		return awserrors.IgnoreNotFound(err)
 	}
-	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, deleteInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	for _, role := range out.InstanceProfile.Roles {
+		if _, err = env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, &iam.RemoveRoleFromInstanceProfileInput{
+			InstanceProfileName: aws.String(instanceProfileName),
+			RoleName:            role.RoleName,
+		}); awserrors.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+	})
+	return awserrors.IgnoreNotFound(err)
 }
 
 func ignoreAlreadyContainsRole(err error) error {
@@ -948,38 +1008,90 @@ func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 }
 
-// Deletes a role and cleans up associated resources. This includes removing the EKS access entry that authorizes nodes
-// to join the cluster, detaching standard node policies (container registry, CNI, worker node, and SSM policies), and
-// finally deleting the IAM role itself.
+// ExpectNodeRoleDeleted deletes a role made by EventuallyExpectNodeRoleCreated, its access entry, and everything that
+// would block DeleteRole. It's a no-op for parts that don't exist, so register it before creating the role.
 func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 	GinkgoHelper()
+	By(fmt.Sprintf("deleting node role %s", roleName))
+	// Checked last, so an STS or EKS error can't stop the IAM cleanup
+	accessEntryErr := env.deleteNodeRoleAccessEntry(roleName)
+	// Retried because DeleteRole can conflict with a profile Karpenter is still creating or deleting
+	Eventually(func(g Gomega) {
+		g.Expect(env.deleteRole(roleName)).To(Succeed())
+	}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	Expect(accessEntryErr).ToNot(HaveOccurred())
+}
 
-	_, err := env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
+func (env *Environment) deleteNodeRoleAccessEntry(roleName string) error {
+	identity, err := env.STSAPI.GetCallerIdentity(env.Context, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return err
+	}
+	_, err = env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
 		ClusterName:  aws.String(env.ClusterName),
-		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
+		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", aws.ToString(identity.Account), roleName)),
 	})
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
-
-	requiredPolicies := []string{
-		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
-		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
-		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
-		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	if _, ok := lo.ErrorsAs[*ekstypes.ResourceNotFoundException](err); ok {
+		return nil
 	}
-	// Detach all policies
-	for _, policyArn := range requiredPolicies {
-		_, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
-			RoleName:  aws.String(roleName),
-			PolicyArn: &policyArn,
-		})
-		Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
-	}
+	return err
+}
 
-	// Delete role
-	_, err = env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{
-		RoleName: aws.String(roleName),
+// EventuallyExpectNodeRoleCreated never adds inline policies, so there are none to delete.
+func (env *Environment) deleteRole(roleName string) error {
+	if err := env.deleteRoleInstanceProfiles(roleName); err != nil {
+		return err
+	}
+	if err := env.detachRolePolicies(roleName); err != nil {
+		return err
+	}
+	_, err := env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{RoleName: aws.String(roleName)})
+	return awserrors.IgnoreNotFound(err)
+}
+
+// A spec that fails before its EC2NodeClass is finalized leaves Karpenter's instance profile holding the role.
+// The role is unique to the spec, so any profile holding it is safe to delete. Karpenter creates its profiles under
+// the cluster's path, so listing that path finds them without ListInstanceProfilesForRole.
+func (env *Environment) deleteRoleInstanceProfiles(roleName string) error {
+	profiles := iam.NewListInstanceProfilesPaginator(env.IAMAPI, &iam.ListInstanceProfilesInput{
+		PathPrefix: aws.String(instanceprofile.FormatPath("karpenter", env.Region, env.ClusterName)),
 	})
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	for profiles.HasMorePages() {
+		out, err := profiles.NextPage(env.Context)
+		if err != nil {
+			return err
+		}
+		for _, profile := range out.InstanceProfiles {
+			if !lo.ContainsBy(profile.Roles, func(r iamtypes.Role) bool { return lo.FromPtr(r.RoleName) == roleName }) {
+				continue
+			}
+			if err = env.deleteInstanceProfile(lo.FromPtr(profile.InstanceProfileName)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// detachRolePolicies detaches the role's managed policies. The CI role can only detach the four node policies that
+// EventuallyExpectNodeRoleCreated attaches, so any other policy fails with AccessDenied.
+func (env *Environment) detachRolePolicies(roleName string) error {
+	attached := iam.NewListAttachedRolePoliciesPaginator(env.IAMAPI, &iam.ListAttachedRolePoliciesInput{RoleName: aws.String(roleName)})
+	for attached.HasMorePages() {
+		out, err := attached.NextPage(env.Context)
+		if err != nil {
+			return awserrors.IgnoreNotFound(err)
+		}
+		for _, policy := range out.AttachedPolicies {
+			if _, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
+				RoleName:  aws.String(roleName),
+				PolicyArn: policy.PolicyArn,
+			}); awserrors.IgnoreNotFound(err) != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (env *Environment) ExpectSecurityGroupDeleted(groupID *string) {

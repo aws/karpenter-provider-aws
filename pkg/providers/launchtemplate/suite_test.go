@@ -403,7 +403,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod1)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts1 := sets.NewString()
+			lts1 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts1.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
@@ -419,11 +419,39 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod2)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts2 := sets.NewString()
+			lts2 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts2.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
 			Expect(lts1.Equal(lts2)).To(BeTrue())
+		})
+		It("should create uncached launch templates without a failed DescribeLaunchTemplates call", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			Expect(awsEnv.EC2API.NotFoundDescribeLaunchTemplatesInput.Len()).To(Equal(0))
+		})
+		It("should reuse a launch template that exists in EC2 but not in the cache", func() {
+			labels := map[string]string{"test-group": "uncached-reuse"}
+			podOpts := coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				PodAntiRequirements: []corev1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+					TopologyKey:   corev1.LabelHostname,
+				}},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.LaunchTemplateCache.Flush()
+			pod = coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateFleetBehavior.SuccessfulCalls()).To(BeNumerically("==", 2))
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
 			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(1))})
@@ -2413,6 +2441,7 @@ eviction-max-pod-grace-period = 10
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
 				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
 				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
+				Entry("MIME with cloud-config", lo.ToPtr("al2023_nitro_enclaves_userdata_input.golden"), "al2023_nitro_enclaves_userdata_merged.golden"),
 				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
 			)
 			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
@@ -3028,6 +3057,112 @@ eviction-max-pod-grace-period = 10
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
 			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
 		})
+		DescribeTable("ResolvedNetworkInterface fields",
+			func(setup func(*amifamily.LaunchTemplate), ipFamily corev1.IPFamily, assertFn func(*ec2.CreateLaunchTemplateInput)) {
+				opts := &amifamily.LaunchTemplate{
+					Options: &amifamily.Options{
+						SecurityGroups: []v1.SecurityGroup{{ID: "sg-default1"}, {ID: "sg-default2"}},
+						IPPrefixCount:  lo.ToPtr(int32(1)),
+					},
+					MetadataOptions: &v1.MetadataOptions{
+						HTTPEndpoint:            lo.ToPtr("enabled"),
+						HTTPProtocolIPv6:        lo.ToPtr("disabled"),
+						HTTPPutResponseHopLimit: lo.ToPtr(int64(2)),
+						HTTPTokens:              lo.ToPtr("required"),
+					},
+				}
+				setup(opts)
+				input := launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, ipFamily, "").Build(ctx)
+				assertFn(input)
+			},
+			Entry("should fallback to IPPrefixCount when SecondaryIPPrefixCount is nil for IPv4",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPPrefixCount: lo.ToPtr(int32(5))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(1)))
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].Ipv4PrefixCount)).To(Equal(int32(5)))
+				},
+			),
+			Entry("should not set Ipv6AddressCount when Ipv6PrefixCount is non-nil",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount).To(BeNil())
+				},
+			),
+			Entry("should set Ipv6AddressCount to 1 when no prefix counts are configured",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.IPPrefixCount = nil
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount).To(BeNil())
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+				},
+			),
+			Entry("should set SecondaryPrivateIpAddressCount from SecondaryIPCount for ENA interfaces only",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPCount: lo.ToPtr(int32(10))},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly, SecondaryIPCount: lo.ToPtr(int32(10))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SecondaryPrivateIpAddressCount)).To(Equal(int32(10)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[1].SecondaryPrivateIpAddressCount).To(BeNil())
+				},
+			),
+			Entry("should use SecondaryENISecurityGroups on non-primary interface",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryENISecurityGroups: []v1.SecurityGroup{{ID: "sg-sec1"}}},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal([]string{"sg-default1", "sg-default2"}))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[1].Groups).To(Equal([]string{"sg-sec1"}))
+				},
+			),
+			Entry("should set SubnetId when configured",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SubnetID: "subnet-custom"},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SubnetId)).To(Equal("subnet-custom"))
+				},
+			),
+			Entry("should not set AssociatePublicIpAddress on EFA-only interfaces",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.AssociatePublicIPAddress = lo.ToPtr(true)
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeNil())
+				},
+			),
+		)
 	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",

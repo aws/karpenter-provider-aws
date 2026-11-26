@@ -1033,6 +1033,8 @@ func makeOffering(capacityType string, available bool, opts ...mockOfferingOptio
 		capacityType,
 	))
 	offering.Available = available
+	// Fixtures model offerings the NodeClass can launch; core requires Compatible for an offering to be Launchable.
+	offering.Compatible = true
 	// A reserved offering models a real capacity reservation, which is only launchable when it has remaining capacity.
 	// Since availability and capacity are independent axes, default a reserved fixture to a positive ReservationCapacity
 	// (a launchable reservation). Tests that want a FULL reservation set ReservationCapacity=0 explicitly on the result.

@@ -78,6 +78,13 @@ Limits specified on the nodepool that restrict the quantity of resources provisi
   - `resource_type` — The Kubernetes resource type, e.g. `cpu`, `memory`, `pods`.
   - `nodepool` — The name of the NodePool that owns the resource.
 
+### `karpenter_nodepools_drift_backoff_seconds`
+Seconds remaining in the current drift replacement back-off window for a NodePool. The series is present only while the NodePool is backed off and is removed once it becomes eligible again (absent == not backing off). Labeled by NodePool.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
 ### `karpenter_nodepools_cost_tracker_errors_total`
 Number of errors encountered during cost tracking operations. Labeled by nodepool.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
@@ -762,6 +769,13 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption reas
     - `drifted` — The node drifted from its desired specification.
     - `unhealthy` — The node failed a node-repair health check.
 
+### `karpenter_voluntary_disruption_drift_backoffs_total`
+The number of times a NodePool entered or escalated drift replacement back-off after an unrecoverable failure. Labeled by NodePool.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `nodepool` — The name of the NodePool that owns the resource.
+
 ### `karpenter_voluntary_disruption_decisions_total`
 Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.
 - Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
@@ -846,6 +860,13 @@ How many seconds of work has been done that is in progress and hasn't been obser
 - Dimensions:
   - `controller` — The name of the controller that emitted the metric.
   - `scheduling_id` — A unique identifier for a scheduling simulation run.
+
+### `karpenter_scheduler_topology_build_duration_seconds`
+Duration of building the cluster topology used by scheduling simulations in seconds.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `controller` — The name of the controller that emitted the metric.
 
 ### `karpenter_scheduler_scheduling_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.

@@ -55,7 +55,8 @@ var _ = Describe("updateUnavailableOfferingsCache (reserved launch failures)", f
 		instanceTypes = []*cloudprovider.InstanceType{{
 			Name: instanceType,
 			Offerings: cloudprovider.Offerings{{
-				Available: true,
+				Available:  true,
+				Compatible: true,
 				Requirements: scheduling.NewLabelRequirements(map[string]string{
 					karpv1.CapacityTypeLabelKey:      karpv1.CapacityTypeReserved,
 					corev1.LabelTopologyZone:         zone,

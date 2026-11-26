@@ -47,6 +47,12 @@ inputs:
   cleanup:
     description: "Whether to cleanup resources on failure"
     default: 'false'
+  install_karpenter:
+    description: "Whether to install the Karpenter snapshot chart. Valid values are 'true' or 'false'"
+    default: 'true'
+  availability_zones:
+    description: "Space-separated availability zones for the cluster. Empty lets eksctl pick"
+    default: ''
   codebuild_role:
     description: "Codebuild Role that must be given an access entry in case of private cluster"
 runs:
@@ -63,7 +69,12 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
+      # Rides out short CloudFormation throttles. eksctl uses its own retryer and ignores these.
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: "10"
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
 
@@ -74,12 +85,23 @@ runs:
       awk '{gsub(/"Resource": "\${KarpenterNodeRole.Arn}"/, "\"Resource\": \"arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*\"")}1' $CLOUDFORMATION_PATH > $CLOUDFORMATION_PATH.tmp && mv $CLOUDFORMATION_PATH.tmp $CLOUDFORMATION_PATH
 
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
-      aws cloudformation deploy \
-        --stack-name "iam-$CLUSTER_NAME" \
-        --template-file $CLOUDFORMATION_PATH \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides "ClusterName=$CLUSTER_NAME" \
-        --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
+      # deploy leaves a new stack untagged in REVIEW_IN_PROGRESS if its change set never runs. create-stack tags it up front.
+      if aws cloudformation describe-stacks --stack-name "iam-$CLUSTER_NAME" > /dev/null 2>&1; then
+        aws cloudformation deploy \
+          --stack-name "iam-$CLUSTER_NAME" \
+          --template-file $CLOUDFORMATION_PATH \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameter-overrides "ClusterName=$CLUSTER_NAME" \
+          --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
+      else
+        aws cloudformation create-stack \
+          --stack-name "iam-$CLUSTER_NAME" \
+          --template-body "file://$CLOUDFORMATION_PATH" \
+          --capabilities CAPABILITY_NAMED_IAM \
+          --parameters "ParameterKey=ClusterName,ParameterValue=$CLUSTER_NAME" \
+          --tags "Key=testing/type,Value=e2e" "Key=testing/cluster,Value=$CLUSTER_NAME" "Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "Key=karpenter.sh/discovery,Value=$CLUSTER_NAME"
+        aws cloudformation wait stack-create-complete --stack-name "iam-$CLUSTER_NAME"
+      fi
   - name: create or upgrade cluster
     shell: bash
     env:
@@ -91,9 +113,12 @@ runs:
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       GIT_REF:  ${{ inputs.git_ref }}
       ENABLE_LOCAL_ZONES: ${{ inputs.enable_local_zones }}
+      AVAILABILITY_ZONES: ${{ inputs.availability_zones }}
       CLEANUP: ${{ inputs.cleanup }}
       CODEBUILD_ROLE: ${{ inputs.codebuild_role }}
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       if [[ "$GIT_REF" == '' ]]; then
         GIT_REF=$(git rev-parse HEAD)
       fi
@@ -207,6 +232,10 @@ runs:
       $POD_IDENTITY
       EOF
 
+      for zone in $AVAILABILITY_ZONES; do
+        yq -i ".availabilityZones += [\"$zone\"]" clusterconfig.yaml
+      done
+
       if [[ $ENABLE_LOCAL_ZONES == "true" ]]; then
         local_zones=$(AWS_REGION=$REGION aws ec2 describe-availability-zones | yq '.AvailabilityZones | filter(.ZoneType == "local-zone") | [.[].ZoneName] | join(" ")')
         for zone in $local_zones; do
@@ -259,6 +288,8 @@ runs:
     env:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
+      # Copy the output to the log that "classify setup failure" greps
+      exec > >(tee -a "$RUNNER_TEMP/e2e-setup.log") 2>&1
       stack_names=$(aws cloudformation describe-stacks --query "Stacks[?Tags[?Key == 'karpenter.sh/discovery' && Value == '$CLUSTER_NAME']].{StackName: StackName}" --output text)
       for stack_name in $stack_names; do
         echo "Stack Events for $stack_name:"
@@ -275,8 +306,13 @@ runs:
       cluster_name: ${{ inputs.cluster_name }}
       workspace_id: ${{ inputs.prometheus_workspace_id }}
       git_ref: ${{ inputs.git_ref }}
+  # Callers read E2E_SETUP_PHASE so a failed Karpenter install isn't counted as infra
+  - name: mark karpenter install phase
+    if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
+    shell: bash
+    run: echo "E2E_SETUP_PHASE=install-karpenter" >> "$GITHUB_ENV"
   - name: install karpenter
-    if: ${{ inputs.private_cluster == 'false' }}
+    if: ${{ inputs.private_cluster == 'false' && inputs.install_karpenter == 'true' }}
     uses: ./.github/actions/e2e/install-karpenter
     with:
       account_id: ${{ inputs.account_id  }}
@@ -288,3 +324,20 @@ runs:
       k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.karpenter_git_ref || inputs.git_ref }}
       private_cluster: ${{ inputs.private_cluster }}
+  - name: classify setup failure
+    if: failure()
+    shell: bash
+    run: |
+      log="$RUNNER_TEMP/e2e-setup.log"
+      signature="other"
+      if [[ -f "$log" ]]; then
+        if grep -q "RolesPerAccount" "$log"; then
+          signature="iam-roles-quota"
+        elif grep -q "OpenIdConnectProvidersPerAccount" "$log"; then
+          signature="oidc-quota"
+        elif grep -q "Concurrent resource level operations" "$log"; then
+          signature="cfn-throttle"
+        fi
+      fi
+      echo "cluster setup failure signature: $signature"
+      echo "E2E_SETUP_FAILURE=$signature" >> "$GITHUB_ENV"

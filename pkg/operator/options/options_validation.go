@@ -17,6 +17,7 @@ package options
 import (
 	"fmt"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/awslabs/operatorpkg/serrors"
@@ -26,6 +27,7 @@ import (
 func (o *Options) Validate() error {
 	return multierr.Combine(
 		o.validateEndpoint(),
+		o.validatePricingEndpointRegion(),
 		o.validateVMMemoryOverheadPercent(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
@@ -67,6 +69,31 @@ func (o *Options) validateEndpoint() error {
 		return serrors.Wrap(fmt.Errorf("cluster endpoint URL is not valid"), "cluster-endpoint", o.ClusterEndpoint)
 	}
 	return nil
+}
+
+func (o *Options) validatePricingEndpointRegion() error {
+	if o.PricingEndpointRegion == "" {
+		return nil
+	}
+	regions := supportedPricingEndpointRegions()
+	if !slices.Contains(regions, o.PricingEndpointRegion) {
+		return serrors.Wrap(fmt.Errorf("pricing endpoint region must be one of %v", regions), "pricing-endpoint-region", o.PricingEndpointRegion)
+	}
+	return nil
+}
+
+func supportedPricingEndpointRegions() []string {
+	return []string{
+		"ap-south-1",
+		"cn-northwest-1",
+		"eu-central-1",
+		"eu-isoe-west-1",
+		"eusc-de-east-1",
+		"us-east-1",
+		"us-iso-east-1",
+		"us-isob-east-1",
+		"us-isof-south-1",
+	}
 }
 
 func (o *Options) validateVMMemoryOverheadPercent() error {

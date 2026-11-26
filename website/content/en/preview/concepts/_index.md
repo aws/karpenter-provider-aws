@@ -37,7 +37,7 @@ Here are some things to know about Karpenter's NodePools:
 
 * [**Defining Constraints**]({{<ref "nodepools" >}}): Karpenter defines a Custom Resource called a NodePool to specify configuration. Each NodePool manages a distinct set of nodes, but pods can be scheduled to any NodePool that supports its scheduling constraints. A NodePool defines constraints that determine which nodes can be provisioned and specifies the attributes these nodes will have. See the [NodePools Documentation]({{<ref "nodepools" >}}) docs for a description of configuration and NodePool examples.
 
-* [**Defining Disruption**]({{<ref "disruption" >}}): A NodePool can also include values to indicate when nodes should be disrupted. This includes configuration around concepts like [Consolidation]({{<ref "disruption#consolidation" >}}), [Drift]({{<ref "disruption#drift" >}}), and [Expiration]({{<ref "disruption#automated-methods" >}}).
+* [**Defining Disruption**]({{<ref "disruption" >}}): A NodePool can also include values to indicate when nodes should be disrupted. This includes configuration around concepts like [Consolidation]({{<ref "disruption#consolidation" >}}), [Drift]({{<ref "disruption#drift" >}}), and [Expiration]({{<ref "disruption#expiration" >}}).
 
 * **Well-known labels**: The NodePool can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes. See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details. Keep in mind that only a subset of these labels are supported in Karpenter, as described later.
 
@@ -57,7 +57,7 @@ Karpenter handles all clean-up work needed to properly delete the node.
   * Nodes can be removed because the node is empty
   * Nodes can be removed as their workloads will run on other nodes in the cluster.
   * Nodes can be replaced with cheaper variants due to a change in the workloads.
-* [**Drift**]({{<ref "disruption#drift" >}}): Karpenter will mark nodes as drifted and disrupt nodes that have drifted from their desired specification. See [Drift]({{<ref "#drift" >}}) to see which fields are considered.
+* [**Drift**]({{<ref "disruption#drift" >}}): Karpenter will mark nodes as drifted and disrupt nodes that have drifted from their desired specification. See [Drift]({{<ref "disruption#drift" >}}) to see which fields are considered.
 * [**Interruption**]({{<ref "disruption#interruption" >}}): Karpenter will watch for upcoming interruption events that could affect your nodes (health events, spot interruption, etc.) and will cordon, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 For more details on how Karpenter deletes nodes, see the [Disruption Documentation]({{<ref "disruption" >}}).

@@ -31,19 +31,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
+	"dario.cat/mergo"
 	"github.com/aws/smithy-go"
 	opstatus "github.com/awslabs/operatorpkg/status"
-	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider/registrationhooks"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -55,8 +58,12 @@ import (
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
+	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
 	"sigs.k8s.io/karpenter/pkg/controllers/node/health"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeclaim/lifecycle"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -65,6 +72,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/state/prediction"
 	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test/schedulingproperties"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -334,6 +342,60 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
+	Context("Likely Incorrect Requirements", func() {
+		var eventRecorder *coretest.EventRecorder
+		var provider *cloudprovider.CloudProvider
+		BeforeEach(func() {
+			eventRecorder = coretest.NewEventRecorder()
+			provider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, eventRecorder, env.Client, awsEnv.AMIProvider,
+				awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+				lo.ToPtr("test-ca-bundle"))
+		})
+		DescribeTable("should warn when a requirement uses a managed node group label",
+			func(key string, operator corev1.NodeSelectorOperator, hint string, values ...string) {
+				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+					karpv1.NodeSelectorRequirementWithMinValues{Key: key, Operator: operator, Values: values})
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				_, err := provider.GetInstanceTypes(ctx, nodePool)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(1))
+				Expect(eventRecorder.DetectedEvent(fmt.Sprintf("Karpenter doesn't use requirement %q to choose instances, it only sets it as a node label. %s", key, hint))).To(BeTrue())
+			},
+			Entry("eks.amazonaws.com/capacityType In", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpIn,
+				`Use requirement "karpenter.sh/capacity-type" instead`, "ON_DEMAND", "SPOT"),
+			Entry("eks.amazonaws.com/capacityType NotIn", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpNotIn,
+				`Use requirement "karpenter.sh/capacity-type" instead`, "SPOT"),
+			Entry("eks.amazonaws.com/capacityType Exists", "eks.amazonaws.com/capacityType", corev1.NodeSelectorOpExists,
+				`Use requirement "karpenter.sh/capacity-type" instead`),
+			Entry("eks.amazonaws.com/nodegroup In", "eks.amazonaws.com/nodegroup", corev1.NodeSelectorOpIn,
+				`To target this NodePool, select on the "karpenter.sh/nodepool" node label from your pods instead`, "my-nodegroup"),
+		)
+		It("should not warn for DoesNotExist on a managed node group label", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/capacityType", Operator: corev1.NodeSelectorOpDoesNotExist},
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/nodegroup", Operator: corev1.NodeSelectorOpDoesNotExist})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(0))
+		})
+		It("should warn even when the NodeClass can't be resolved", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "eks.amazonaws.com/capacityType", Operator: corev1.NodeSelectorOpIn, Values: []string{"SPOT"}})
+			ExpectApplied(ctx, env.Client, nodePool)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(1))
+		})
+		It("should not warn for karpenter.sh/capacity-type or custom labels", func() {
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
+				karpv1.NodeSelectorRequirementWithMinValues{Key: "example.com/team", Operator: corev1.NodeSelectorOpIn, Values: []string{"a"}})
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			_, err := provider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(eventRecorder.Calls("LikelyIncorrectRequirement")).To(Equal(0))
+		})
+	})
 	Context("Legacy RepairPolicies", func() {
 		newCloudProvider := func(opts ...cloudprovider.Option) *cloudprovider.CloudProvider {
 			return cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
@@ -359,6 +421,42 @@ var _ = Describe("CloudProvider", func() {
 			Expect(newCloudProvider().RepairPolicies()).To(Equal(cloudProvider.RepairPolicies()))
 			Expect(newCloudProvider(cloudprovider.WithRebootForRepair(true)).RepairPolicies()).To(ContainElement(HaveField("Action", corecloudprovider.RebootNode)))
 		})
+	})
+	// Core validates RepairPolicies at startup, so this repeats main.go's wiring to catch a stricter contract before e2e
+	Context("Startup", func() {
+		DescribeTable("should build the core controllers from the AWS repair policies",
+			func(legacyNodeRepair, rebootForRepair bool) {
+				startupCtx := coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+					LegacyNodeRepair: lo.ToPtr(legacyNodeRepair),
+					// The e2e install's gates, minus prediction: building the VPA controller mutates the global scheme and races envtest
+					FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true), NodeOverlay: lo.ToPtr(true), StaticCapacity: lo.ToPtr(true),
+						CapacityBuffer: lo.ToPtr(true)},
+					// Observability controllers register metrics on construction, which can only happen once per process
+					DisableClusterStateObservability: lo.ToPtr(true),
+				}))
+				awsCloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder, env.Client, awsEnv.AMIProvider,
+					awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore,
+					testCABundle, cloudprovider.WithLegacyRepairPolicies(legacyNodeRepair), cloudprovider.WithRebootForRepair(rebootForRepair))
+				overlayUndecoratedCloudProvider := metrics.Decorate(awsCloudProvider)
+				startupCloudProvider := overlay.Decorate(overlayUndecoratedCloudProvider, env.Client, awsEnv.InstanceTypeStore)
+
+				matcher, err := health.NewRepairPolicyMatcher(startupCtx, startupCloudProvider)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(matcher == nil).To(Equal(legacyNodeRepair))
+
+				// Only used for event recorders, never started
+				mgr, err := manager.New(env.Config, manager.Options{Scheme: env.Client.Scheme(), Metrics: metricsserver.Options{BindAddress: "0"}})
+				Expect(err).ToNot(HaveOccurred())
+				startupCluster := state.NewCluster(fakeClock, env.Client, startupCloudProvider, state.WithRepairPolicyMatcher(matcher))
+				Expect(corecontrollers.NewControllers(startupCtx, mgr, fakeClock, env.Client, recorder, startupCloudProvider,
+					overlayUndecoratedCloudProvider, startupCluster, awsEnv.InstanceTypeStore, prediction.NewStore(env.Client),
+					corecontrollers.WithRegistrationHook(registrationhooks.NewPlacementGroupRegistrationHook(awsEnv.InstanceProvider)))).ToNot(BeEmpty())
+			},
+			Entry("node repair", false, false),
+			Entry("node repair with RebootForRepair", false, true),
+			Entry("legacy node repair", true, false),
+			Entry("legacy node repair with RebootForRepair", true, true),
+		)
 	})
 	Context("RepairPolicies", func() {
 		var matcher *health.RepairPolicyMatcher
@@ -2055,6 +2153,42 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
 			ltInput := awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Pop()
 			ExpectLaunchTemplateNetworkInterfaces(ltInput, false, nodeClass.Spec.NetworkInterfaces)
+		})
+	})
+	Context("Scheduling Properties", func() {
+		var cfg schedulingproperties.Config
+		BeforeEach(func() {
+			// Let generated pods select any capacity type the instance types offer.
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).ToNot(HaveOccurred())
+			cfg = schedulingproperties.Config{
+				CloudProvider: cloudProvider,
+				InstanceTypes: instanceTypes,
+				NodePool:      nodePool,
+				// Mirrors the launch controller, which merges the NodeClaim's labels over the ones Create resolves.
+				Launch: func(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
+					created, err := cloudProvider.Create(ctx, nodeClaim)
+					if err != nil {
+						return nil, err
+					}
+					return lifecycle.PopulateNodeClaimDetails(nodeClaim.DeepCopy(), created), nil
+				},
+				// Karpenter rejects pods selecting the NodeClass label because its domain is restricted, even though it
+				// stamps that label on every node. See kubernetes-sigs/karpenter#3422.
+				KnownDeviations: sets.New(v1.LabelNodeClass),
+				Checks:          20,
+			}
+		})
+		It("should place pods that a launchable node satisfies", func() {
+			schedulingproperties.ExpectSatisfiablePodsArePlaced(ctx, GinkgoT(), cfg)
+		})
+		It("should only place pods on nodes that fit them", func() {
+			schedulingproperties.ExpectPlacementsFitNodes(ctx, GinkgoT(), cfg)
+		})
+		It("should schedule equivalent pods alike", func() {
+			schedulingproperties.ExpectEquivalentPodsScheduleAlike(ctx, GinkgoT(), cfg)
 		})
 	})
 	Context("Capacity Reservations", func() {
