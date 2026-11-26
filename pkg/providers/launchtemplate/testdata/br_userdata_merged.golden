@@ -14,6 +14,7 @@ custom-node-label = 'custom'
 'karpenter.sh/do-not-sync-taints' = 'true'
 '%s' = '%s'
 'testing/cluster' = 'unspecified'
+'topology.kubernetes.io/region' = 'us-west-2'
 
 [settings.kubernetes.node-taints]
 baz = ['bin:NoExecute']
