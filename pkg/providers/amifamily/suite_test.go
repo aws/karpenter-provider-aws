@@ -940,20 +940,19 @@ var _ = Describe("AMIProvider", func() {
 				Expect(awsEnv.EC2API.CalledWithDescribeImagesInput.Len()).To(Equal(2))
 			})
 			It("should cache queries resolved before a failure in the same List, and not the failed one", func() {
-				failing := &failingNameEC2API{EC2API: awsEnv.EC2API, failName: "fail-me"}
-				amiCache := cache.New(time.Hour, time.Hour)
-				provider := amifamily.NewDefaultProvider(awsEnv.Clock, awsEnv.VersionProvider, awsEnv.SSMProvider, failing, amiCache)
+				// Queries are described in term order: the first succeeds, the second fails
+				awsEnv.EC2API.NextError.Set(fmt.Errorf("throttled"), fake.SkipCalls(1))
 				nc := test.EC2NodeClass()
-				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Name: amd64AMI}, {Name: "fail-me"}}
-				_, err := provider.List(ctx, nc)
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Name: amd64AMI}, {Name: arm64AMI}}
+				_, err := awsEnv.AMIProvider.List(ctx, nc)
 				Expect(err).To(HaveOccurred())
-				Expect(amiCache.Items()).To(HaveLen(1))
+				Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
 				Expect(awsEnv.EC2API.CalledWithDescribeImagesInput.Len()).To(Equal(1))
 
 				// The query resolved before the failure is served from the cache
 				other := test.EC2NodeClass()
 				other.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Name: amd64AMI}}
-				amis, err := provider.List(ctx, other)
+				amis, err := awsEnv.AMIProvider.List(ctx, other)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(amiIDs(amis)).To(ConsistOf("ami-id-amd64"))
 				Expect(awsEnv.EC2API.CalledWithDescribeImagesInput.Len()).To(Equal(1))
@@ -1549,19 +1548,4 @@ func (p *pagedImagesEC2API) DescribeImages(_ context.Context, in *ec2.DescribeIm
 		out.NextToken = aws.String(strconv.Itoa(idx + 1))
 	}
 	return out, nil
-}
-
-// failingNameEC2API fails DescribeImages for one name filter value and delegates every other call.
-type failingNameEC2API struct {
-	*fake.EC2API
-	failName string
-}
-
-func (f *failingNameEC2API) DescribeImages(ctx context.Context, in *ec2.DescribeImagesInput, opts ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
-	for _, flt := range in.Filters {
-		if aws.ToString(flt.Name) == "name" && lo.Contains(flt.Values, f.failName) {
-			return nil, fmt.Errorf("throttled")
-		}
-	}
-	return f.EC2API.DescribeImages(ctx, in, opts...)
 }

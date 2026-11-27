@@ -20,21 +20,18 @@ import (
 	"sort"
 	"sync"
 	"testing"
-	"time"
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -507,22 +504,23 @@ var _ = Describe("SecurityGroupProvider", func() {
 				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(3))
 			})
 			It("should cache filter sets resolved before a failure in the same List, and not the failed one", func() {
-				sgCache := cache.New(time.Hour, time.Hour)
-				provider := securitygroup.NewDefaultProvider(&failingTagEC2API{EC2API: awsEnv.EC2API, failValue: "fail-me"}, sgCache)
+				// Filter sets are described in term order: the first succeeds, the second fails
+				awsEnv.EC2API.DescribeSecurityGroupsBehavior.Error.Set(fmt.Errorf("throttled"), fake.SkipCalls(1))
 				nc := test.EC2NodeClass()
-				nc.Spec.SecurityGroupSelectorTerms = terms("test-security-group-1", "fail-me")
-				_, err := provider.List(ctx, nc)
+				nc.Spec.SecurityGroupSelectorTerms = terms("test-security-group-1", "test-security-group-2")
+				_, err := awsEnv.SecurityGroupProvider.List(ctx, nc)
 				Expect(err).To(HaveOccurred())
-				Expect(sgCache.Items()).To(HaveLen(1))
-				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(1))
+				Expect(awsEnv.SecurityGroupCache.Items()).To(HaveLen(1))
+				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.SuccessfulCalls()).To(Equal(1))
+				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.FailedCalls()).To(Equal(1))
 
 				// The filter set resolved before the failure is served from the cache
 				other := test.EC2NodeClass()
 				other.Spec.SecurityGroupSelectorTerms = terms("test-security-group-1")
-				sgs, err := provider.List(ctx, other)
+				sgs, err := awsEnv.SecurityGroupProvider.List(ctx, other)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ids(sgs)).To(ConsistOf("sg-test1"))
-				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.Calls()).To(Equal(1))
+				Expect(awsEnv.EC2API.DescribeSecurityGroupsBehavior.SuccessfulCalls()).To(Equal(1))
 			})
 			It("should return the new selector's security groups after a NodeClass changes its selector", func() {
 				nc := test.EC2NodeClass()
@@ -716,19 +714,4 @@ func ExpectConsistsOfSecurityGroups(expected, actual []ec2types.SecurityGroup) {
 		})
 		Expect(ok).To(BeTrue(), `Expected security group with {"GroupId": %q, "GroupName": %q} to exist`, lo.FromPtr(elem.GroupId), lo.FromPtr(elem.GroupName))
 	}
-}
-
-// failingTagEC2API fails DescribeSecurityGroups for one tag value and delegates every other call.
-type failingTagEC2API struct {
-	*fake.EC2API
-	failValue string
-}
-
-func (f *failingTagEC2API) DescribeSecurityGroups(ctx context.Context, in *ec2.DescribeSecurityGroupsInput, opts ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error) {
-	for _, flt := range in.Filters {
-		if lo.Contains(flt.Values, f.failValue) {
-			return nil, fmt.Errorf("throttled")
-		}
-	}
-	return f.EC2API.DescribeSecurityGroups(ctx, in, opts...)
 }

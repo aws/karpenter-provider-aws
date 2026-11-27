@@ -414,9 +414,9 @@ func (e *EC2API) DescribeCapacityReservations(ctx context.Context, input *ec2.De
 }
 
 func (e *EC2API) DescribeImages(ctx context.Context, input *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return nil, e.NextError.Get()
+	if err := e.NextError.Get(); err != nil {
+		e.NextError.Reset()
+		return nil, err
 	}
 	e.CalledWithDescribeImagesInput.Add(input)
 	if !e.DescribeImagesOutput.IsNil() {
