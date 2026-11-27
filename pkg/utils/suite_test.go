@@ -44,7 +44,7 @@ var _ = Describe("FilterSetHash", func() {
 		Entry("filter and value order", set(f("tag:a", "1", "2"), f("tag:b", "3")), set(f("tag:b", "3"), f("tag:a", "2", "1"))),
 		Entry("duplicate values", set(f("subnet-id", "s-1", "s-2", "s-2")), set(f("subnet-id", "s-1", "s-2"))),
 		Entry("duplicate filters", set(f("tag:a", "1"), f("tag:a", "1")), set(f("tag:a", "1"))),
-		// Duplicates must be recognised regardless of value order, otherwise the outer
+		// Duplicates must be recognized regardless of value order, otherwise the outer
 		// SlicesAsSets XOR cancels them and the set aliases the empty filter set
 		Entry("duplicate filters with reordered values", set(f("tag:a", "1", "2"), f("tag:a", "2", "1")), set(f("tag:a", "1", "2"))),
 		Entry("nil and empty values", set(ec2types.Filter{Name: aws.String("tag:a")}), set(f("tag:a"))),

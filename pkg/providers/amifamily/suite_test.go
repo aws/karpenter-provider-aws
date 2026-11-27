@@ -823,13 +823,9 @@ var _ = Describe("AMIProvider", func() {
 				Expect(awsEnv.AMICache.Items()).To(HaveLen(2))
 			})
 			Context("Known requirements", func() {
-				var k8sVersion string
 				windowsParam := func(version string) string {
 					return fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-Core-EKS_Optimized-%s/image_id", version, k8sVersion)
 				}
-				BeforeEach(func() {
-					k8sVersion = awsEnv.VersionProvider.Get(ctx)
-				})
 				It("should share a cache entry between an alias and an ID term for the same AMI while each derives its own requirements", func() {
 					awsEnv.SSMAPI.Parameters = map[string]string{windowsParam("2022"): amd64AMI}
 					aliasNC := test.EC2NodeClass()
