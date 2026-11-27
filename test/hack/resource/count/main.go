@@ -44,12 +44,12 @@ func main() {
 	resourceTypes := []resourcetypes.Type{
 		resourcetypes.NewInstance(ec2Client),
 		resourcetypes.NewVPCEndpoint(ec2Client),
-		resourcetypes.NewENI(ec2Client),
+		resourcetypes.NewENI(ec2Client, nil),
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),
-		resourcetypes.NewInstanceProfile(iamClient),
-		resourcetypes.NewStack(cloudFormationClient),
+		resourcetypes.NewInstanceProfile(iamClient, nil, cfg.Region),
+		resourcetypes.NewStack(cloudFormationClient, iamClient, ec2Client, nil),
 		resourcetypes.NewVPCPeeringConnection(ec2Client),
 	}
 
