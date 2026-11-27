@@ -32,19 +32,22 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 )
 
 type AMI struct {
-	amiProvider amifamily.Provider
-	clk         clock.Clock
-	cm          *pretty.ChangeMonitor
+	amiProvider        amifamily.Provider
+	rootVolumeProvider rootvolume.Provider
+	clk                clock.Clock
+	cm                 *pretty.ChangeMonitor
 }
 
-func NewAMIReconciler(clk clock.Clock, provider amifamily.Provider) *AMI {
+func NewAMIReconciler(clk clock.Clock, provider amifamily.Provider, rootVolumeProvider rootvolume.Provider) *AMI {
 	return &AMI{
-		amiProvider: provider,
-		clk:         clk,
-		cm:          pretty.NewChangeMonitor(),
+		amiProvider:        provider,
+		rootVolumeProvider: rootVolumeProvider,
+		clk:                clk,
+		cm:                 pretty.NewChangeMonitor(),
 	}
 }
 
@@ -69,6 +72,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 	})); a.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), uniqueAMIs) {
 		log.FromContext(ctx).WithValues("ids", uniqueAMIs).V(1).Info("discovered amis")
 	}
+	inPlaceUpgrades, inPlaceUpgradesErr := a.inPlaceUpgrades(ctx, nodeClass, amis)
 
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
 		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
@@ -86,13 +90,29 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconc
 			return reqs[i].Key < reqs[j].Key
 		})
 		return v1.AMI{
-			Name:         ami.Name,
-			ID:           ami.AmiID,
-			Deprecated:   ami.Deprecated,
-			Requirements: reqs,
+			Name:           ami.Name,
+			ID:             ami.AmiID,
+			Deprecated:     ami.Deprecated,
+			Requirements:   reqs,
+			InPlaceUpgrade: inPlaceUpgrades[ami.AmiID],
 		}
 	})
 
 	nodeClass.StatusConditions(status.WithClock(a.clk)).SetTrue(v1.ConditionTypeAMIsReady)
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, inPlaceUpgradesErr
+}
+
+// inPlaceUpgrades runs the AMI-level in-place upgrade checks on every reconcile, since snapshot sharing and product
+// codes can change outside Karpenter. When the checks fail to run, the AMIs keep their last results.
+func (a *AMI) inPlaceUpgrades(ctx context.Context, nodeClass *v1.EC2NodeClass, amis amifamily.AMIs) (map[string]*v1.InPlaceUpgrade, error) {
+	if nodeClass.AMIDriftPolicy() != v1.AMIDriftPolicyReplaceRootVolume {
+		return nil, nil
+	}
+	inPlaceUpgrades, err := a.rootVolumeProvider.InPlaceUpgrades(ctx, amis)
+	if err != nil {
+		return lo.SliceToMap(nodeClass.Status.AMIs, func(ami v1.AMI) (string, *v1.InPlaceUpgrade) {
+			return ami.ID, ami.InPlaceUpgrade
+		}), fmt.Errorf("checking in-place upgrade support, %w", err)
+	}
+	return inPlaceUpgrades, nil
 }

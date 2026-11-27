@@ -208,11 +208,17 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
 					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
 					ami := AMI{
-						Name:         lo.FromPtr(image.Name),
-						AmiID:        lo.FromPtr(image.ImageId),
-						CreationDate: lo.FromPtr(image.CreationDate),
-						Deprecated:   candidateDeprecated,
-						Requirements: reqs,
+						Name:            lo.FromPtr(image.Name),
+						AmiID:           lo.FromPtr(image.ImageId),
+						CreationDate:    lo.FromPtr(image.CreationDate),
+						Deprecated:      candidateDeprecated,
+						Requirements:    reqs,
+						RootSnapshotID:  rootSnapshotID(image),
+						HasProductCodes: len(image.ProductCodes) > 0,
+						EnaSupport:      lo.FromPtr(image.EnaSupport),
+						SriovNetSupport: lo.FromPtr(image.SriovNetSupport) == "simple",
+						TpmSupport:      image.TpmSupport == ec2types.TpmSupportValuesV20,
+						BootMode:        image.BootMode,
 					}
 					if v, ok := images[reqsHash]; ok {
 						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
@@ -226,6 +232,16 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	}
 	p.cache.SetDefault(hash, AMIs(lo.Values(images)))
 	return lo.Values(images), nil
+}
+
+func rootSnapshotID(image ec2types.Image) string {
+	bdm, ok := lo.Find(image.BlockDeviceMappings, func(bdm ec2types.BlockDeviceMapping) bool {
+		return bdm.Ebs != nil && lo.FromPtr(bdm.DeviceName) == lo.FromPtr(image.RootDeviceName)
+	})
+	if !ok {
+		return ""
+	}
+	return lo.FromPtr(bdm.Ebs.SnapshotId)
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes

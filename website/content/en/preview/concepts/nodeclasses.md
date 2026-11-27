@@ -60,6 +60,9 @@ spec:
   # May be omitted when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
+  # Optional, how nodes drifted only by their AMI are updated, defaults to ReplaceInstance
+  amiDriftPolicy: ReplaceInstance
+
   # Required, discovers subnets to attach to instances
   # Each term in the array of subnetSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
@@ -1035,6 +1038,44 @@ Specify using custom ssm parameter name or ARN:
 When using a custom SSM parameter, you'll need to expand the `ssm:GetParameter` permissions on the Karpenter IAM role to include your custom parameter, as the default policy only allows access to the AWS public parameters.
 {{% /alert %}}
 
+## spec.amiDriftPolicy
+
+`amiDriftPolicy` controls how Karpenter updates nodes that are [drifted]({{<ref "./disruption/#drift" >}}) only because the EC2NodeClass resolves a new AMI.
+
+- `ReplaceInstance` (default): Karpenter replaces the node, as it does for every other drift.
+- `ReplaceRootVolume`: Karpenter drains the node and replaces the root volume of the running instance with one restored from the new AMI, through a reboot. The instance, its instance-store volumes, its other EBS volumes and its capacity reservation are kept.
+
+```yaml
+spec:
+  amiDriftPolicy: ReplaceRootVolume
+```
+
+{{% alert title="Note" color="warning" %}}
+Replacing the root volume keeps the instance at the cost of a longer pod outage.
+When Karpenter replaces a node, it launches the replacement first, so evicted pods can start right away.
+When it replaces the root volume, pods are drained or the node's `terminationGracePeriod` elapses, the instance reboots, and pods can only schedule on the node again once it is `Ready`.
+{{% /alert %}}
+
+Karpenter replaces the root volume only when AMI drift is the node's only drift and the following checks pass. Otherwise it replaces the node and records an `InPlaceUpgradeUnsupported` event on the NodeClaim naming the check that failed.
+
+- The AMI has no AWS Marketplace product codes (`ProductCodes`).
+- The account can create a volume from the AMI's root snapshot (`SnapshotNotReadable`). AMIs shared from another account need their snapshots shared too: launch permission on the AMI is not enough.
+- The node's kubelet runs the same Kubernetes minor version that the EC2NodeClass resolves AMIs for (`KubernetesVersionChanged`).
+- The instance is running (`InstanceNotRunning`).
+- The instance type isn't bare metal (`BareMetal`).
+- The AMI supports ENA when the instance has it enabled (`EnaSupport`).
+- The AMI supports enhanced networking with the Intel 82599 VF interface when the instance has it enabled (`SriovNetSupport`).
+- The AMI supports NitroTPM when the instance has it enabled (`TpmSupport`).
+- The AMI's boot mode matches the instance's current boot mode when the AMI sets it to `uefi` or `legacy-bios` (`BootMode`).
+
+The AMI checks are reported in [`status.amis`]({{< ref "#statusamis" >}}) and run again every time Karpenter refreshes the EC2NodeClass AMIs.
+These checks cover the EC2 [requirements](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html) that Karpenter can verify ahead of time.
+The root volume keeps its encryption and KMS key, so encryption isn't checked.
+When EC2 rejects the root volume replacement, or the replacement fails, Karpenter replaces the node.
+Karpenter deletes the replaced root volume once the replacement succeeds.
+
+Replacing root volumes requires additional IAM permissions, see [`AllowScopedReplaceRootVolume`]({{<ref "../reference/cloudformation#allowscopedreplacerootvolume" >}}).
+
 ## spec.capacityReservationSelectorTerms
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> [Beta]({{<ref "../reference/settings#feature-gates" >}})
@@ -1920,6 +1961,24 @@ status:
 ## status.amis
 
 [`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, `requirements`, and the `deprecated` status of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified. The `deprecated` status will be shown for resolved AMIs that are deprecated.
+
+When [`spec.amiDriftPolicy`]({{< ref "#specamidriftpolicy" >}}) is `ReplaceRootVolume`, each AMI also reports `inPlaceUpgrade`: whether nodes can move to it by replacing their root volume, and the `reason` naming the check it failed when they can't.
+
+```yaml
+status:
+  amis:
+  - id: ami-0abc
+    name: custom-ami-amd64
+    requirements: [...]
+    inPlaceUpgrade:
+      supported: true
+  - id: ami-0def
+    name: custom-ami-arm64
+    requirements: [...]
+    inPlaceUpgrade:
+      supported: false
+      reason: SnapshotNotReadable
+```
 
 #### Examples
 

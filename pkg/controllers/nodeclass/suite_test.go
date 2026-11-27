@@ -73,7 +73,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 })
 
 var _ = AfterSuite(func() {
@@ -101,6 +101,7 @@ var _ = BeforeEach(func() {
 		awsEnv.LaunchTemplateProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.PlacementGroupProvider,
+		awsEnv.RootVolumeProvider,
 		awsEnv.EC2API,
 		awsEnv.ValidationCache,
 		awsEnv.RecreationCache,

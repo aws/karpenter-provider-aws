@@ -92,6 +92,7 @@ var _ = BeforeSuite(func() {
 		awsEnv.SecurityGroupProvider,
 		awsEnv.CapacityReservationProvider,
 		awsEnv.PlacementGroupProvider,
+		awsEnv.RootVolumeProvider,
 		awsEnv.InstanceTypeStore,
 		lo.ToPtr(""),
 	)

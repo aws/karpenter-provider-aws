@@ -1128,6 +1128,13 @@ Current count of nodes in cluster state
 
 ## Cloudprovider Metrics
 
+### `karpenter_cloudprovider_root_volume_replacement_tasks_total`
+Number of root volume replacement tasks Karpenter observed finishing, dimensioned by final state.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `state` — The final state of the root volume replacement task: `succeeded`, `failed` or `failed-detached`. See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/replace-root.html.
+
 ### `karpenter_cloudprovider_instance_type_offering_price_estimate`
 Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.
 - Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)

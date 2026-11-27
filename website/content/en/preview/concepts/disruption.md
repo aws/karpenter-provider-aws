@@ -196,6 +196,12 @@ Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim
 1. The `Drift` feature gate is not enabled but the NodeClaim is drifted, Karpenter will remove the status condition.
 2. The NodeClaim isn't drifted, but has the status condition, Karpenter will remove it.
 
+#### In-Place AMI Updates
+By default, drift replaces the node.
+When an EC2NodeClass sets [`amiDriftPolicy: ReplaceRootVolume`]({{<ref "./nodeclasses#specamidriftpolicy" >}}), a node drifted only by its AMI keeps its instance instead: Karpenter drains it, replaces its root volume with one restored from the new AMI through a reboot, and waits for it to become `Ready`.
+This keeps instance-store data and capacity at the cost of a longer pod outage, since no replacement is launched first.
+These reboots count against the `Drifted` [disruption budget]({{<ref "#nodepool-disruption-budgets" >}}) until the node is initialized again.
+
 ### Terminate-First Disruption
 
 <i class="fa-solid fa-circle-info"></i> <b>Feature State: </b> Karpenter v1.15.0 [alpha]({{<ref "../reference/settings#feature-gates" >}})
@@ -274,7 +280,7 @@ To opt a node out of repair, annotate it with `karpenter.sh/do-not-repair: "true
 
 Each [monitored condition](#monitored-node-conditions) has a repair action, and can match on the condition's reason. For example, a transient GPU error is rebooted while a fatal one is replaced. When a node matches several conditions, Karpenter takes the most disruptive action.
 
-Rebooting for repair is opt-in through the `RebootForRepair` [AWS feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}) (alpha, disabled by default), which needs the `ec2:RebootInstances` permission. Without it, policies with the `RebootNode` action replace the node instead, on the same toleration duration and termination grace period.
+Rebooting for repair is opt-in through the `RebootForRepair` [AWS feature gate]({{<ref "../reference/settings#aws-specific-feature-gates" >}}) (alpha, disabled by default), which needs the `ec2:RebootInstances` permission. Without it, policies with the `Reboot` action replace the node instead, on the same toleration duration and termination grace period.
 
 * **Replace:** Karpenter replaces the node, as described above.
 * **Reboot:** Karpenter reboots the node's instance in place, keeping the instance, its capacity, and its local storage. This suits faults that a reboot clears, on instances that are scarce or slow to replace.
@@ -305,32 +311,32 @@ Karpenter records reboot outcomes in the `karpenter_nodes_reboots_total` [metric
 #### Monitored Node Conditions
 
 Karpenter repairs nodes that report the following node status conditions. `Ready` is reported by the kubelet. `EC2StatusReady` is reported by Karpenter from [EC2 DescribeInstanceStatus](#interruption). The other conditions are reported by the [EKS Node Monitoring Agent](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html).
-A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above. Policies with the `RebootNode` action reboot the node only with the `RebootForRepair` AWS feature gate enabled; otherwise they replace it on the same toleration duration and termination grace period.
+A policy matches the condition's reason with a [Go regular expression](https://pkg.go.dev/regexp/syntax); a reason that no other policy matches uses the default policy. The toleration duration is how long a node must report the condition before Karpenter repairs it. The termination grace period bounds the drain, as described above. Policies with the `Reboot` action reboot the node only with the `RebootForRepair` AWS feature gate enabled; otherwise they replace it on the same toleration duration and termination grace period.
 
 [comment]: <> (the content below is generated from hack/docs/repairpolicies_gen/main.go)
 
 | Condition Type | Status | Reason | Toleration Duration | Termination Grace Period | Action |
 |---|---|---|---|---|---|
-| `EC2StatusReady` | `False` | Any | 2 minutes | 5 minutes | `ReplaceNode` |
-| `Ready` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
-| `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `RebootNode` |
-| `AcceleratedHardwareReady` | `False` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
-| `AcceleratedHardwareReady` | `Unknown` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `RebootNode` |
-| `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
-| `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `ReplaceNode` |
-| `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
-| `AcceleratedHardwareReady` | `Unknown` | `^DCGM` | Never | 10 minutes | `ReplaceNode` |
-| `AcceleratedHardwareReady` | `False` | Any reason not matched by another policy for the condition | 10 minutes | 10 minutes | `ReplaceNode` |
-| `StorageReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `StorageReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `NetworkingReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `NetworkingReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `KernelReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `KernelReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `ContainerRuntimeReady` | `False` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
-| `ContainerRuntimeReady` | `Unknown` | Any | 30 minutes | 10 minutes | `ReplaceNode` |
+| `EC2StatusReady` | `False` | Any | 2 minutes | 5 minutes | `Replace` |
+| `Ready` | `False` | Any | 30 minutes | 10 minutes | `Replace` |
+| `Ready` | `Unknown` | Any | 30 minutes | 10 minutes | `Replace` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `Reboot` |
+| `AcceleratedHardwareReady` | `Unknown` | `.*XID(46\|48\|54\|62\|63\|95\|109\|110\|119\|120\|136\|140\|143\|155\|156\|158).*` | 10 minutes | 5 minutes | `Reboot` |
+| `AcceleratedHardwareReady` | `False` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `Reboot` |
+| `AcceleratedHardwareReady` | `Unknown` | `^(NvidiaDriverUnresponsive\|FabricManagerNotStarted)$` | 10 minutes | 5 minutes | `Reboot` |
+| `AcceleratedHardwareReady` | `False` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `Replace` |
+| `AcceleratedHardwareReady` | `Unknown` | `.*XID(64\|74\|79\|142\|151).*` | 10 minutes | 5 minutes | `Replace` |
+| `AcceleratedHardwareReady` | `False` | `^DCGM` | Never | 10 minutes | `Replace` |
+| `AcceleratedHardwareReady` | `Unknown` | `^DCGM` | Never | 10 minutes | `Replace` |
+| `AcceleratedHardwareReady` | `False` | Any reason not matched by another policy for the condition | 10 minutes | 10 minutes | `Replace` |
+| `StorageReady` | `False` | Any | 30 minutes | 10 minutes | `Replace` |
+| `StorageReady` | `Unknown` | Any | 30 minutes | 10 minutes | `Replace` |
+| `NetworkingReady` | `False` | Any | 30 minutes | 10 minutes | `Replace` |
+| `NetworkingReady` | `Unknown` | Any | 30 minutes | 10 minutes | `Replace` |
+| `KernelReady` | `False` | Any | 30 minutes | 10 minutes | `Replace` |
+| `KernelReady` | `Unknown` | Any | 30 minutes | 10 minutes | `Replace` |
+| `ContainerRuntimeReady` | `False` | Any | 30 minutes | 10 minutes | `Replace` |
+| `ContainerRuntimeReady` | `Unknown` | Any | 30 minutes | 10 minutes | `Replace` |
 
 [comment]: <> (end docs generated content from hack/docs/repairpolicies_gen/main.go)
 
@@ -358,7 +364,7 @@ When a node reports one of these conditions for longer than its toleration durat
 
 The legacy controller does not support:
 * [Terminate-First Disruption]({{<ref "#terminate-first-disruption" >}}) (`TerminateFirstRepair`)
-* The `RebootNode` action, or reason granularity for policies. For example, an `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes regardless of the reason, including reasons the default policies would reboot.
+* The `Reboot` action, or reason granularity for policies. For example, an `AcceleratedHardwareReady` GPU fault is replaced after 10 minutes regardless of the reason, including reasons the default policies would reboot.
 * Repair policy priority
 * Per-condition termination grace periods
 * NodePool Disruption Budgets

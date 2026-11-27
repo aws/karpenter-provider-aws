@@ -66,8 +66,8 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *karpv1.NodePool) 
 	}, nil
 }
 
-func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *karpv1.NodeClaim) (corecloudprovider.DriftReason, error) {
-	return "drifted", nil
+func (c *CloudProvider) GetDriftStatus(_ context.Context, nodeClaim *karpv1.NodeClaim) (corecloudprovider.DriftStatus, error) {
+	return corecloudprovider.DriftStatus{Action: corecloudprovider.Replace, Reason: "drifted"}, nil
 }
 
 func (c *CloudProvider) Get(context.Context, string) (*karpv1.NodeClaim, error) {

@@ -423,6 +423,36 @@ var _ = Describe("AMIProvider", func() {
 				),
 			}))
 		})
+		It("should resolve the root snapshot and product codes of AMIs", func() {
+			img.RootDeviceName = aws.String("/dev/xvda")
+			img.BlockDeviceMappings = []ec2types.BlockDeviceMapping{
+				{DeviceName: aws.String("/dev/xvdb"), Ebs: &ec2types.EbsBlockDevice{SnapshotId: aws.String("snap-data")}},
+				{DeviceName: aws.String("/dev/xvda"), Ebs: &ec2types.EbsBlockDevice{SnapshotId: aws.String("snap-root")}},
+			}
+			img.ProductCodes = []ec2types.ProductCode{{ProductCodeId: aws.String("product-code"), ProductCodeType: ec2types.ProductCodeValuesMarketplace}}
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{img}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].RootSnapshotID).To(Equal("snap-root"))
+			Expect(amis[0].HasProductCodes).To(BeTrue())
+		})
+		It("should resolve the ENA, sriov-net, NitroTPM and boot mode support of AMIs", func() {
+			img.EnaSupport = aws.Bool(true)
+			img.SriovNetSupport = aws.String("simple")
+			img.TpmSupport = ec2types.TpmSupportValuesV20
+			img.BootMode = ec2types.BootModeValuesUefi
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{img}})
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].EnaSupport).To(BeTrue())
+			Expect(amis[0].SriovNetSupport).To(BeTrue())
+			Expect(amis[0].TpmSupport).To(BeTrue())
+			Expect(amis[0].BootMode).To(Equal(ec2types.BootModeValuesUefi))
+		})
 	})
 	Context("AMI List requirements", func() {
 		BeforeEach(func() {

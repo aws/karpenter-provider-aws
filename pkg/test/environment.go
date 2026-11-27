@@ -44,6 +44,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/rootvolume"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -92,6 +93,7 @@ type Environment struct {
 	CapacityReservationCache             *cache.Cache
 	CapacityReservationAvailabilityCache *cache.Cache
 	PlacementGroupCache                  *cache.Cache
+	RootVolumeTaskCache                  *cache.Cache
 	ValidationCache                      *cache.Cache
 	RecreationCache                      *cache.Cache
 	ProtectedProfilesCache               *cache.Cache
@@ -103,6 +105,7 @@ type Environment struct {
 	InstanceTypesProvider       *instancetype.DefaultProvider
 	InstanceProvider            *instance.DefaultProvider
 	InstanceStatusProvider      *instancestatus.DefaultProvider
+	RootVolumeProvider          *rootvolume.DefaultProvider
 	SubnetProvider              *subnet.DefaultProvider
 	SecurityGroupProvider       *securitygroup.DefaultProvider
 	InstanceProfileProvider     *instanceprofile.DefaultProvider
@@ -189,6 +192,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypes(ctx))
 	lo.Must0(instanceTypesProvider.UpdateInstanceTypeOfferings(ctx))
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, clock)
+	rootVolumeTaskCache := cache.New(awscache.RootVolumeReplacementTaskTTL, awscache.DefaultCleanupInterval)
+	rootVolumeProvider := rootvolume.NewDefaultProvider(ec2api, versionProvider, rootVolumeTaskCache)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		launchTemplateCache,
@@ -252,6 +257,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		CapacityReservationCache:             capacityReservationCache,
 		CapacityReservationAvailabilityCache: capacityReservationAvailabilityCache,
 		PlacementGroupCache:                  placementGroupCache,
+		RootVolumeTaskCache:                  rootVolumeTaskCache,
 		ValidationCache:                      validationCache,
 		RecreationCache:                      recreationCache,
 		ProtectedProfilesCache:               protectedProfilesCache,
@@ -262,6 +268,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		InstanceTypesProvider:       instanceTypesProvider,
 		InstanceProvider:            instanceProvider,
 		InstanceStatusProvider:      instanceStatusProvider,
+		RootVolumeProvider:          rootVolumeProvider,
 		SubnetProvider:              subnetProvider,
 		SecurityGroupProvider:       securityGroupProvider,
 		LaunchTemplateProvider:      launchTemplateProvider,
@@ -302,6 +309,7 @@ func (env *Environment) Reset() {
 	env.DiscoveredCapacityCache.Flush()
 	env.CapacityReservationCache.Flush()
 	env.PlacementGroupCache.Flush()
+	env.RootVolumeTaskCache.Flush()
 	env.ValidationCache.Flush()
 	env.RecreationCache.Flush()
 	env.ProtectedProfilesCache.Flush()

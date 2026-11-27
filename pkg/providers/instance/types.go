@@ -51,6 +51,10 @@ type Instance struct {
 	CapacityReservationDetails *CapacityReservationDetails
 	Tenancy                    string
 	PartitionNumber            *int32
+	EnaSupport                 bool
+	SriovNetSupport            bool
+	TpmSupport                 bool
+	CurrentInstanceBootMode    ec2types.InstanceBootModeValues
 }
 
 type CapacityReservationDetails struct {
@@ -95,6 +99,10 @@ func NewInstance(ctx context.Context, instance ec2types.Instance) *Instance {
 		CapacityReservationDetails: capacityReservationDetails,
 		Tenancy:                    tenancyFromInstance(instance),
 		PartitionNumber:            partitionNumberFromInstance(instance),
+		EnaSupport:                 lo.FromPtr(instance.EnaSupport),
+		SriovNetSupport:            lo.FromPtr(instance.SriovNetSupport) == "simple",
+		TpmSupport:                 lo.FromPtr(instance.TpmSupport) == string(ec2types.TpmSupportValuesV20),
+		CurrentInstanceBootMode:    instance.CurrentInstanceBootMode,
 	}
 }
 

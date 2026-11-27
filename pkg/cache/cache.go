@@ -59,6 +59,9 @@ const (
 	ProtectedProfilesTTL = 1 * time.Hour
 	// OverlayPricedTypesTTL is the duration for checking overlays
 	OverlayPricedTypesTTL = 5 * time.Minute
+	// RootVolumeReplacementTaskTTL is the time before we drop an instance's latest root volume replacement task. An
+	// unfinished task is described again on every read regardless.
+	RootVolumeReplacementTaskTTL = 1 * time.Hour
 )
 
 const (

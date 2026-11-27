@@ -34,11 +34,17 @@ import (
 )
 
 type AMI struct {
-	Name         string
-	AmiID        string
-	CreationDate string
-	Deprecated   bool
-	Requirements scheduling.Requirements
+	Name            string
+	AmiID           string
+	CreationDate    string
+	Deprecated      bool
+	Requirements    scheduling.Requirements
+	RootSnapshotID  string
+	HasProductCodes bool
+	EnaSupport      bool
+	SriovNetSupport bool
+	TpmSupport      bool
+	BootMode        ec2types.BootModeValues
 }
 
 type AMIs []AMI

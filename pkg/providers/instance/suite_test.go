@@ -78,7 +78,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.RootVolumeProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 })
 
 var _ = AfterSuite(func() {
@@ -713,6 +713,22 @@ var _ = Describe("InstanceProvider", func() {
 		Expect(nodeClaims[0].Status.ProviderID).To(ContainSubstring(id))
 		Expect(nodeClaims[0].Labels).To(HaveKeyWithValue(karpv1.CapacityTypeLabelKey, karpv1.CapacityTypeOnDemand))
 		Expect(nodeClaims[0].Labels).ToNot(HaveKey(v1.LabelCapacityReservationID))
+	})
+	It("should resolve the ENA, sriov-net, NitroTPM and boot mode settings of instances", func() {
+		ec2Instance := test.EC2Instance(ec2types.Instance{
+			EnaSupport:              aws.Bool(true),
+			SriovNetSupport:         aws.String("simple"),
+			TpmSupport:              aws.String("v2.0"),
+			CurrentInstanceBootMode: ec2types.InstanceBootModeValuesUefi,
+		})
+		id := aws.ToString(ec2Instance.InstanceId)
+		awsEnv.EC2API.Instances.Store(id, ec2Instance)
+		inst, err := awsEnv.InstanceProvider.Get(ctx, id)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(inst.EnaSupport).To(BeTrue())
+		Expect(inst.SriovNetSupport).To(BeTrue())
+		Expect(inst.TpmSupport).To(BeTrue())
+		Expect(inst.CurrentInstanceBootMode).To(Equal(ec2types.InstanceBootModeValuesUefi))
 	})
 	It("should return all NodePool-owned instances from List", func() {
 		ids := sets.New[string]()
