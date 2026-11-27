@@ -69,6 +69,7 @@ type NodeClass interface {
 	PlacementGroupSelector() *v1.PlacementGroupSelector
 	ConnectionTracking() *v1.ConnectionTracking
 	CPUOptions() *v1.CPUOptions
+	EnclaveOptions() *v1.EnclaveOptions
 }
 
 type DefaultProvider struct {
@@ -118,6 +119,7 @@ func NewDefaultProvider(
 		&ReservedCapacityResolver{
 			PricingProvider:             pricingProvider,
 			CapacityReservationProvider: capacityReservationProvider,
+			UnavailableOfferings:        unavailableOfferingsCache,
 			ZonalshiftProvider:          zonalshiftProvider,
 		},
 		&PlacementGroupResolver{},
@@ -179,11 +181,14 @@ func (p *DefaultProvider) InjectOfferings(
 			}
 		}
 		its = append(its, &cloudprovider.InstanceType{
-			Name:         it.Name,
-			Requirements: reqs,
-			Offerings:    offerings,
-			Capacity:     it.Capacity,
-			Overhead:     it.Overhead,
+			Name:                   it.Name,
+			Requirements:           reqs,
+			Offerings:              offerings,
+			Capacity:               it.Capacity,
+			Overhead:               it.Overhead,
+			VolumeAttachmentLimits: it.VolumeAttachmentLimits,
+			DynamicResources:       it.DynamicResources,
+			AttributeBindings:      it.AttributeBindings,
 		})
 	}
 	return its

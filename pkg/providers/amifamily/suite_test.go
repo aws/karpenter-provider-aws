@@ -1072,6 +1072,22 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}, queries)
 		})
+		It("should not query for a term without filters", func() {
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{Tags: map[string]string{}},
+						{Name: ""},
+						{SSMParameter: ""},
+						{Owner: "123456789012"},
+						{Owner: "aws-marketplace", Name: ""},
+						{Owner: "123456789012", Tags: map[string]string{}},
+					},
+				},
+			})
+			Expect(err).To(BeNil())
+			Expect(queries).To(BeEmpty())
+		})
 		It("should have default owners and use name when prefixed", func() {
 			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
@@ -1118,29 +1134,6 @@ var _ = Describe("AMIProvider", func() {
 							Values: []string{"ami-abcd1234", "ami-cafeaced"},
 						},
 					},
-				},
-			}, queries)
-		})
-		It("should allow only specifying owners", func() {
-			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
-				Spec: v1.EC2NodeClassSpec{
-					AMISelectorTerms: []v1.AMISelectorTerm{
-						{
-							Owner: "abcdef",
-						},
-						{
-							Owner: "123456789012",
-						},
-					},
-				},
-			})
-			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
-				{
-					Owners: []string{"abcdef"},
-				},
-				{
-					Owners: []string{"123456789012"},
 				},
 			}, queries)
 		})
@@ -1482,10 +1475,8 @@ var _ = Describe("AMIResolver", func() {
 				Expect(lt.EnclaveEnabled).To(BeFalse())
 			})
 		})
-		It("should set EnclaveEnabled to true when ResourceNitroSandbox is in the NodeClaim's resource requests", func() {
-			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
-				v1.ResourceNitroSandbox: resource.MustParse("1"),
-			}
+		It("should set EnclaveEnabled to true when enabled on the EC2NodeClass", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
 			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
 			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
 			Expect(err).ToNot(HaveOccurred())
@@ -1494,10 +1485,21 @@ var _ = Describe("AMIResolver", func() {
 				Expect(lt.EnclaveEnabled).To(BeTrue())
 			})
 		})
-		It("should set EnclaveEnabled to false when only other resources are requested (not ResourceNitroSandbox)", func() {
+		It("should set EnclaveEnabled to false when disabled on the EC2NodeClass", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(launchTemplates).ToNot(BeEmpty())
+			lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+				Expect(lt.EnclaveEnabled).To(BeFalse())
+			})
+		})
+		It("should not set EnclaveEnabled based on the NodeClaim's resource requests", func() {
 			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse("2"),
 				corev1.ResourceMemory: resource.MustParse("4Gi"),
+				corev1.ResourceName("eks.amazonaws.com/nitro-sandbox"): resource.MustParse("1"),
 			}
 			amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
 			launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
@@ -1508,7 +1510,53 @@ var _ = Describe("AMIResolver", func() {
 			})
 		})
 	})
+	Context("EFA", func() {
+		BeforeEach(func() {
+			instanceTypes = []*corecloudprovider.InstanceType{
+				corecloudfake.NewInstanceType("p5.48xlarge", corecloudfake.WithResources(corev1.ResourceList{
+					v1.ResourceEFA: resource.MustParse("32"),
+				})),
+			}
+		})
+		DescribeTable("should decide the launch template's EFA count with the efa.Provider passed with WithEFAProvider",
+			func(enabled bool, requestEFA bool, expected int) {
+				if requestEFA {
+					nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
+				}
+				amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment, amifamily.WithEFAProvider(staticEFAProvider(enabled)))
+				launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(launchTemplates).ToNot(BeEmpty())
+				lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+					Expect(lt.EFACount).To(Equal(expected))
+				})
+			},
+			// When enabled, every EFA interface the instance type supports is attached, whatever the request.
+			Entry("enabled without an EFA request", true, false, 32),
+			Entry("disabled despite an EFA request", false, true, 0),
+		)
+		DescribeTable("should match efa.DefaultProvider by default",
+			func(requestEFA bool, expected int) {
+				if requestEFA {
+					nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
+				}
+				amiResolver := amifamily.NewDefaultResolver(fake.DefaultRegion, nil, awsEnv.CELEnvironment)
+				launchTemplates, err := amiResolver.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, string(ec2types.TenancyDefault), &amifamily.Options{ClusterName: "test"}, "", 0)
+				Expect(err).ToNot(HaveOccurred())
+				lo.ForEach(launchTemplates, func(lt *amifamily.LaunchTemplate, _ int) {
+					Expect(lt.EFACount).To(Equal(expected))
+				})
+			},
+			Entry("with an EFA request", true, 32),
+			Entry("without an EFA request", false, 0),
+		)
+	})
 })
+
+// staticEFAProvider is an efa.Provider that always returns its own value.
+type staticEFAProvider bool
+
+func (s staticEFAProvider) Enabled(*karpv1.NodeClaim, *v1.EC2NodeClass) bool { return bool(s) }
 
 func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {
 	GinkgoHelper()

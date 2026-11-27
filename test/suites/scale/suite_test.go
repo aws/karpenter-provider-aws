@@ -19,31 +19,32 @@ import (
 	"time"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/suites/scale"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var env *aws.Environment
-
 func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
-		env.ExpectPrefixDelegationEnabled()
+		scale.Env = aws.NewEnvironment(t)
+		scale.Env.ExpectPrefixDelegationEnabled()
 		SetDefaultEventuallyTimeout(time.Hour)
 	})
 	AfterSuite(func() {
-		env.ExpectPrefixDelegationDisabled()
-		env.Stop()
+		scale.Env.ExpectPrefixDelegationDisabled()
+		scale.Env.Stop()
 	})
 	RunSpecs(t, "Scale")
 }
 
 var _ = BeforeEach(func() {
-	env.BeforeEach()
+	scale.Env.BeforeEach()
 })
-var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { scale.Env.Cleanup() })
 var _ = AfterEach(func() {
-	env.AfterEach()
+	scale.Env.AfterEach()
 })
+
+var _ = scale.RegisterTests()

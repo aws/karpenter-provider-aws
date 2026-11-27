@@ -155,6 +155,12 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// EnclaveOptions specifies whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	// When enabled, instance types are restricted to those that support Nitro Enclaves.
+	// When enclaveOptions is omitted or enabled is false, Nitro Enclaves are disabled.
+	// When enclaveOptions is specified, enabled is required.
+	// +optional
+	EnclaveOptions *EnclaveOptions `json:"enclaveOptions,omitempty"`
 
 	// ConnectionTracking configures idle connection tracking timeouts for
 	// ENIs Karpenter provisions in the launch template. EFA-only interfaces
@@ -177,6 +183,7 @@ type SubnetSelectorTerm struct {
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -192,6 +199,7 @@ type SecurityGroupSelectorTerm struct {
 	// Tags is a map of key/value tags used to select security groups.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -201,6 +209,7 @@ type SecurityGroupSelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the security group name in EC2.
 	// This value is the name field, which is different from the name tag.
+	// +kubebuilder:validation:MinLength:=1
 	Name string `json:"name,omitempty"`
 }
 
@@ -208,6 +217,7 @@ type CapacityReservationSelectorTerm struct {
 	// Tags is a map of key/value tags used to select capacity reservations.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -254,6 +264,7 @@ type AMISelectorTerm struct {
 	// Tags is a map of key/value tags used to select amis.
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MinProperties:=1
 	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -263,6 +274,7 @@ type AMISelectorTerm struct {
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
 	// This value is the name field, which is different from the name tag.
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
@@ -270,6 +282,7 @@ type AMISelectorTerm struct {
 	// +optional
 	Owner string `json:"owner,omitempty"`
 	//SSMParameter is the name (or ARN) of the SSM parameter containing the Image ID.
+	// +kubebuilder:validation:MinLength:=1
 	// +optional
 	SSMParameter string `json:"ssmParameter,omitempty"`
 }
@@ -412,14 +425,14 @@ type BlockDevice struct {
 	//
 	// The following are the supported values for each volume type:
 	//
-	//    * gp3: 3,000-16,000 IOPS
+	//    * gp3: 3,000-80,000 IOPS
 	//
 	//    * io1: 100-64,000 IOPS
 	//
-	//    * io2: 100-64,000 IOPS
+	//    * io2: 100-256,000 IOPS
 	//
-	// For io1 and io2 volumes, we guarantee 64,000 IOPS only for Instances built
-	// on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
+	// For io1 volumes, we guarantee 64,000 IOPS and for io2 volumes 256,000 IOPS only
+	// for Instances built on the Nitro System (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-types.html#ec2-nitro-instances).
 	// Other instance families guarantee performance up to 32,000 IOPS.
 	//
 	// This parameter is supported for io1, io2, and gp3 volumes only. This parameter
@@ -432,8 +445,8 @@ type BlockDevice struct {
 	// SnapshotID is the ID of an EBS snapshot
 	// +optional
 	SnapshotID *string `json:"snapshotID,omitempty"`
-	// Throughput to provision for a gp3 volume, with a maximum of 1,000 MiB/s.
-	// Valid Range: Minimum value of 125. Maximum value of 1000.
+	// Throughput to provision for a gp3 volume, with a maximum of 2,000 MiB/s.
+	// Valid Range: Minimum value of 125. Maximum value of 2000.
 	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
 	// VolumeInitializationRate specifies the Amazon EBS Provisioned Rate for Volume Initialization,
@@ -449,16 +462,20 @@ type BlockDevice struct {
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
 	//
-	//    * gp2 and gp3: 1-16,384
+	//    * gp2: 1-16,384
 	//
-	//    * io1 and io2: 4-16,384
+	//    * gp3: 1-65,536
+	//
+	//    * io1: 4-16,384
+	//
+	//    * io2: 4-65,536
 	//
 	//    * st1 and sc1: 125-16,384
 	//
 	//    * standard: 1-1,024
 	// + TODO: Add the CEL resources.quantity type after k8s 1.29
 	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
-	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
+	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-6])Gi|(?:[1-9][0-9]{0,3}|[1-6][0-9]{4}|70[0-2][0-9]{2}|703[0-5][0-9]|7036[0-8])G|(?:[1-9]|[1-5][0-9]|6[0-4])Ti|(?:[1-9]|[1-6][0-9]|70)T)$"
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:Type:=string
 	// +optional
@@ -469,6 +486,12 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Enum:={standard,io1,io2,gp2,sc1,st1,gp3}
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
+}
+
+type EnclaveOptions struct {
+	// Enabled indicates whether the instance is enabled for Amazon Web Services Nitro Enclaves.
+	// +required
+	Enabled bool `json:"enabled"`
 }
 
 // InstanceStorePolicy enumerates options for configuring instance store disks.
@@ -601,6 +624,10 @@ func (in *EC2NodeClass) KubeletConfiguration() KubeletConfiguration {
 
 func (in *EC2NodeClass) CPUOptions() *CPUOptions {
 	return in.Spec.CPUOptions
+}
+
+func (in *EC2NodeClass) EnclaveOptions() *EnclaveOptions {
+	return in.Spec.EnclaveOptions
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:

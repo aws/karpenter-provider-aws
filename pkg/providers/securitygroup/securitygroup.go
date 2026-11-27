@@ -124,6 +124,10 @@ func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]ec2types.Filte
 					})
 				}
 			}
+			// A term without filters would match every security group
+			if len(filters) == 0 {
+				continue
+			}
 			res = append(res, filters)
 		}
 	}

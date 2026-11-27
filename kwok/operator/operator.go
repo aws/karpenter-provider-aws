@@ -61,6 +61,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
@@ -114,10 +115,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		region := lo.Must(imds.NewFromConfig(cfg).GetRegion(ctx, nil))
 		cfg.Region = region.Region
 	}
-	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPI(cfg), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock)
+	pricingEndpointRegion := options.FromContext(ctx).PricingEndpointRegion
+	ec2api := kwokec2.NewClient(cfg.Region, option.MustGetEnv("SYSTEM_NAMESPACE"), ec2.NewFromConfig(cfg), kwokec2.NewNopRateLimiterProvider(), strategy.NewLowestPrice(pricing.NewAPIWithEndpointRegion(cfg, pricingEndpointRegion), ec2.NewFromConfig(cfg), cfg.Region), operator.GetClient(), operator.Clock)
 
 	eksapi := eks.NewFromConfig(cfg)
 	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
+	if pricingEndpointRegion != "" {
+		log.FromContext(ctx).WithValues("cluster-region", cfg.Region, "pricing-endpoint-region", pricingEndpointRegion).V(1).Info("configured pricing endpoint region")
+	}
 	clusterEndpoint := lo.Must(ResolveClusterEndpoint(ctx, eksapi))
 	log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
@@ -148,7 +153,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	subnetRefreshInterval := options.FromContext(ctx).SubnetRefreshInterval
 	subnetIPCacheTTL := max(awscache.AvailableIPAddressTTL, subnetRefreshInterval+(awscache.AvailableIPAddressTTL-awscache.DefaultTTL))
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(subnetRefreshInterval, awscache.DefaultCleanupInterval), cache.New(subnetIPCacheTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(options.FromContext(ctx).SecurityGroupRefreshInterval, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(
 		iam.NewFromConfig(cfg),
 		cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval),
@@ -157,7 +162,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		cfg.Region,
 	)
 	pricingProvider := pricing.NewDefaultProvider(
-		pricing.NewAPI(cfg),
+		pricing.NewAPIWithEndpointRegion(cfg, pricingEndpointRegion),
 		ec2api,
 		cfg.Region,
 		false,
@@ -176,13 +181,15 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	// celEnv is the single shared CEL environment (and compilation cache) for kubelet expressionevaluation
 	celEnv := lo.Must(kubeletcel.NewEnvironment())
+	// The instance provider and the launch template resolver share one efa.Provider so their EFA counts agree.
+	efaProvider := efa.DefaultProvider{}
 	amiResolver := amifamily.NewDefaultResolver(cfg.Region, func(name string) (amifamily.ENILimits, bool) {
 		limits, ok := instancetype.Limits[name]
 		if !ok {
 			return amifamily.ENILimits{}, false
 		}
 		return amifamily.ENILimits{DefaultENIs: limits.Interface, IPv4PerENI: limits.IPv4PerInterface}, true
-	}, celEnv)
+	}, celEnv, amifamily.WithEFAProvider(efaProvider))
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -239,6 +246,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		// in zonally shifted AZs remain available for the zonal shift guards in Get(), Delete(),
 		// and CreateTags(), even if List() cannot return instances from the impaired AZ.
 		cache.New(cache.NoExpiration, cache.NoExpiration),
+		instance.WithEFAProvider(efaProvider),
 	)
 
 	instanceStatusProvider := instancestatus.NewDefaultProvider(ec2api, operator.Clock)
@@ -367,7 +375,10 @@ func SetupIndexers(ctx context.Context, mgr manager.Manager) {
 
 func ValidateZonalShiftEnablement(ctx context.Context, eksAPI sdk.EKSAPI, arczonalshiftAPI sdk.ARCZonalShiftAPI) (string, error) {
 	inputDC := eks.DescribeClusterInput{Name: &options.FromContext(ctx).ClusterName}
-	outputDC, _ := eksAPI.DescribeCluster(ctx, &inputDC)
+	outputDC, err := eksAPI.DescribeCluster(ctx, &inputDC)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe cluster for zonal shift enablement, %w", err)
+	}
 	clusterArn := outputDC.Cluster.Arn
 	inputGMR := arczonalshift.GetManagedResourceInput{ResourceIdentifier: clusterArn}
 	_, getManagedResourceErr := arczonalshiftAPI.GetManagedResource(ctx, &inputGMR)

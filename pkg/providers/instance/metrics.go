@@ -24,9 +24,20 @@ import (
 
 const (
 	cloudProviderSubsystem = "cloudprovider"
-	zoneLabel              = "zone"
+	zoneLabel              = metrics.ZoneLabel
 	zoneIDLabel            = "zone_id"
 )
+
+var ZoneID = opmetrics.Label{
+	Name: zoneIDLabel,
+	Help: "The availability zone ID of the instance, e.g. `usw2-az1` (stable across accounts, unlike the zone name). See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#availability-zones-describe.",
+}
+
+// value set is derived at runtime from EC2 error codes, so it is left unenumerated.
+var LaunchFailureReason = opmetrics.Label{
+	Name: metrics.ReasonLabel,
+	Help: "The categorized reason a CreateFleet offering launch failed, derived from the EC2 error code (see https://docs.aws.amazon.com/AWSEC2/latest/APIReference/errors-overview.html#CommonErrors).",
+}
 
 var (
 	// Counts per-offering CreateFleet errors, not per-NodeClaim attempts: one CreateFleet
@@ -39,12 +50,13 @@ var (
 			Name:      "instance_launch_failures_total",
 			Help:      "Number of instance launch (CreateFleet offering) failures, dimensioned by availability zone, zone ID, capacity type, and launch failure reason.",
 		},
-		[]string{
-			zoneLabel,
-			zoneIDLabel,
-			metrics.CapacityTypeLabel,
-			metrics.ReasonLabel,
+		[]opmetrics.Label{
+			metrics.Zone,
+			ZoneID,
+			metrics.CapacityType,
+			LaunchFailureReason,
 		},
+		opmetrics.Beta,
 	)
 	InstanceTerminationFailuresTotal = opmetrics.NewPrometheusCounter(
 		crmetrics.Registry,
@@ -54,9 +66,10 @@ var (
 			Name:      "instance_termination_failures_total",
 			Help:      "Number of instance termination (TerminateInstances) failures, dimensioned by availability zone and zone ID.",
 		},
-		[]string{
-			zoneLabel,
-			zoneIDLabel,
+		[]opmetrics.Label{
+			metrics.Zone,
+			ZoneID,
 		},
+		opmetrics.Beta,
 	)
 )

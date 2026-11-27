@@ -35,11 +35,18 @@ type UnavailableOfferingsOption = option.Function[unavailableOfferingsOptions]
 type unavailableOfferingsOptions struct {
 	placementGroupID        string
 	placementGroupPartition string
+	reservationID           string
 }
 
 // WithPlacementGroup scopes an ICE cache entry to a specific placement group ID.
 func WithPlacementGroup(id string) UnavailableOfferingsOption {
 	return func(o *unavailableOfferingsOptions) { o.placementGroupID = id }
+}
+
+// WithReservationID scopes a cache entry to one reservation, so an ICE/interruption on it doesn't mark sibling
+// reservations (same instance type + zone) unavailable.
+func WithReservationID(id string) UnavailableOfferingsOption {
+	return func(o *unavailableOfferingsOptions) { o.reservationID = id }
 }
 
 // WithPlacementGroupPartition further scopes an ICE cache entry to a specific partition.
@@ -75,7 +82,7 @@ func NewUnavailableOfferings() *UnavailableOfferings {
 	uo.offeringCache.OnEvicted(func(k string, _ any) {
 		elems := strings.Split(k, ":")
 		if len(elems) < 3 || len(elems) > 5 {
-			panic("unavailable offerings cache key is not of expected format <capacity-type>:<instance-type>:<zone>[:<pg-id>[:<partition>]]")
+			panic("unavailable offerings cache key is not of expected format <capacity-type>:<instance-type>:<zone>[:<reservation-id>|:<pg-id>[:<partition>]]")
 		}
 		uo.offeringCacheSeqNumMu.Lock()
 		uo.offeringCacheSeqNum[ec2types.InstanceType(elems[1])]++
@@ -174,6 +181,11 @@ func (u *UnavailableOfferings) Flush() {
 // Format: <capacityType>:<instanceType>:<zone>[:<pgID>[:<partition>]]
 func (u *UnavailableOfferings) key(instanceType ec2types.InstanceType, zone string, capacityType string, opts ...UnavailableOfferingsOption) string {
 	resolved := option.Resolve(opts...)
+	// Reserved offerings scope by capacity reservation ID (disjoint from placement groups, which apply to
+	// on-demand/spot fleet launches) so one reservation's unavailability doesn't poison other reservations.
+	if resolved.reservationID != "" {
+		return fmt.Sprintf("%s:%s:%s:%s", capacityType, instanceType, zone, resolved.reservationID)
+	}
 	if resolved.placementGroupID != "" {
 		if resolved.placementGroupPartition != "" {
 			return fmt.Sprintf("%s:%s:%s:%s:%s", capacityType, instanceType, zone, resolved.placementGroupID, resolved.placementGroupPartition)

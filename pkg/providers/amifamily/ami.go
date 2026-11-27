@@ -172,6 +172,10 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 					})
 				}
 			}
+			// A query without filters would match every AMI visible to its owners
+			if len(query.Filters) == 0 {
+				continue
+			}
 			queries = append(queries, query)
 		}
 	}

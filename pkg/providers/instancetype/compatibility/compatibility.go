@@ -30,6 +30,7 @@ type NodeClass interface {
 	AMIFamily() string
 	ConnectionTracking() *v1.ConnectionTracking
 	CPUOptions() *v1.CPUOptions
+	EnclaveOptions() *v1.EnclaveOptions
 }
 
 type CompatibleCheck interface {
@@ -42,6 +43,7 @@ func IsCompatibleWithNodeClass(info ec2types.InstanceTypeInfo, nodeClass NodeCla
 		networkInterfaceCompatibility(networkInterfaces),
 		amiFamilyCompatibility(nodeClass.AMIFamily()),
 		nestedVirtualizationCompatibility(nodeClass.CPUOptions()),
+		nitroEnclavesCompatibility(nodeClass.EnclaveOptions()),
 		placementGroupCompatibility(pg),
 		connectionTrackingCompatibility(nodeClass.ConnectionTracking()),
 	} {
@@ -148,6 +150,23 @@ func (c nestedVirtualizationCheck) compatibleCheck(info ec2types.InstanceTypeInf
 		return false
 	}
 	return lo.Contains(info.ProcessorInfo.SupportedFeatures, ec2types.SupportedAdditionalProcessorFeatureNestedVirtualization)
+}
+
+type nitroEnclavesCheck struct {
+	enclaveOptions *v1.EnclaveOptions
+}
+
+func nitroEnclavesCompatibility(enclaveOptions *v1.EnclaveOptions) CompatibleCheck {
+	return &nitroEnclavesCheck{
+		enclaveOptions: enclaveOptions,
+	}
+}
+
+func (c nitroEnclavesCheck) compatibleCheck(info ec2types.InstanceTypeInfo) bool {
+	if c.enclaveOptions == nil || !c.enclaveOptions.Enabled {
+		return true
+	}
+	return info.NitroEnclavesSupport == ec2types.NitroEnclavesSupportSupported
 }
 
 type placementGroupCheck struct {

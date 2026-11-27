@@ -1,6 +1,7 @@
 name: E2EMatrixTrigger
 on:
   schedule:
+    # The Sweeper cron (sweeper.yaml) is placed in the gaps between these runs. Update it if this changes.
     - cron: '7 */8 * * *'
   push:
     branches:
@@ -25,9 +26,17 @@ on:
         required: true
         default: true
         type: boolean
+# A newer push or scheduled run replaces any older one still waiting to start; in-flight
+# runs finish so their clusters are cleaned up. PR-triggered and manual runs never replace each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ (github.event_name == 'push' || github.event_name == 'schedule') && github.ref || github.run_id }}
 jobs:
   resolve:
     if: (github.repository == 'aws/karpenter-provider-aws' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "snapshot"
@@ -35,6 +44,8 @@ jobs:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
+      actions: read # e2e-matrix.yaml summary job (download-artifact)
+      contents: read # e2e-matrix.yaml summary job (checkout)
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml

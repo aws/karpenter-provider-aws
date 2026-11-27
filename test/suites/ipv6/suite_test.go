@@ -15,45 +15,37 @@ limitations under the License.
 package ipv6_test
 
 import (
-	"net"
 	"testing"
 
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
-
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/suites/ipv6"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var env *aws.Environment
-var nodeClass *v1.EC2NodeClass
-var nodePool *karpv1.NodePool
-
 func TestIPv6(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
+		ipv6.Env = aws.NewEnvironment(t)
 	})
 	AfterSuite(func() {
-		env.Stop()
+		ipv6.Env.Stop()
 	})
 	RunSpecs(t, "IPv6")
 }
 
 var _ = BeforeEach(func() {
-	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
-	nodePool = coretest.ReplaceRequirements(nodePool,
+	ipv6.Env.BeforeEach()
+	ipv6.NodeClass = ipv6.Env.DefaultEC2NodeClass()
+	ipv6.NodePool = ipv6.Env.DefaultNodePool(ipv6.NodeClass)
+	ipv6.NodePool = coretest.ReplaceRequirements(ipv6.NodePool,
 		karpv1.NodeSelectorRequirementWithMinValues{
 			Key:      v1.LabelInstanceCategory,
 			Operator: corev1.NodeSelectorOpExists,
@@ -65,50 +57,7 @@ var _ = BeforeEach(func() {
 		},
 	)
 })
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() { ipv6.Env.Cleanup() })
+var _ = AfterEach(func() { ipv6.Env.AfterEach() })
 
-var _ = Describe("IPv6", func() {
-	It("should provision an IPv6 node by discovering kube-dns IPv6", func() {
-		pod := coretest.Pod()
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		node := env.GetNode(pod.Spec.NodeName)
-		internalIPv6Addrs := lo.Filter(node.Status.Addresses, func(addr corev1.NodeAddress, _ int) bool {
-			return addr.Type == corev1.NodeInternalIP && net.ParseIP(addr.Address).To4() == nil
-		})
-		Expect(internalIPv6Addrs).To(HaveLen(1))
-	})
-	It("should provision an IPv6 node by discovering kubeletConfig kube-dns IP", func() {
-		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
-		pod := coretest.Pod()
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		node := env.GetNode(pod.Spec.NodeName)
-		internalIPv6Addrs := lo.Filter(node.Status.Addresses, func(addr corev1.NodeAddress, _ int) bool {
-			return addr.Type == corev1.NodeInternalIP && net.ParseIP(addr.Address).To4() == nil
-		})
-		Expect(internalIPv6Addrs).To(HaveLen(1))
-	})
-	It("should provision a static IPv6 prefix with node launch and set IPv6 as primary in the primary network interface", func() {
-		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(map[string]interface{}{"clusterDNS": []string{clusterDNSAddr}})
-		pod := coretest.Pod()
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		node := env.GetNode(pod.Spec.NodeName)
-		instance := env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
-		Expect(instance.NetworkInterfaces).ToNot(BeEmpty())
-		primaryNI, found := aws.FindNetworkInterface(instance.NetworkInterfaces, 0, 0)
-		Expect(found).To(BeTrue())
-		Expect(primaryNI.Ipv6Addresses).To(HaveLen(1))
-		_, hasIPv6Primary := lo.Find(primaryNI.Ipv6Addresses, func(ip types.InstanceIpv6Address) bool {
-			return lo.FromPtr(ip.IsPrimaryIpv6)
-		})
-		Expect(hasIPv6Primary).To(BeTrue())
-	})
-})
+var _ = ipv6.RegisterTests()

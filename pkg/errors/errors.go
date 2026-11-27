@@ -48,9 +48,12 @@ var (
 	)
 	alreadyExistsErrorCodes = sets.New(
 		"EntityAlreadyExists",
+		"InvalidLaunchTemplateName.AlreadyExistsException",
 	)
 
 	reservationCapacityExceededErrorCode = "ReservationCapacityExceeded"
+	// returned when launching into an interruptible capacity reservation that is being reclaimed
+	capacityReservationStateUnavailableErrorCode = "InvalidCapacityReservationState.Unavailable"
 
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
 	unfulfillableCapacityErrorCodes = sets.New(
@@ -61,7 +64,9 @@ var (
 		"Unsupported",
 		"InsufficientFreeAddressesInSubnet",
 		"MaxFleetCountExceeded",
+		"SpotMaxPriceTooLow",
 		reservationCapacityExceededErrorCode,
+		capacityReservationStateUnavailableErrorCode,
 	)
 )
 
@@ -229,8 +234,8 @@ func IsUserDataTooLarge(err error) bool {
 	return false
 }
 
-// ToReasonMessage converts an error message from AWS into a well-known condition reason
-// and well-known condition message that can be used for Launch failure classification
+// ToReasonMessage converts an instance launch error into a well-known condition reason
+// and well-known condition message that can be used for launch failure classification
 // nolint:gocyclo
 func ToReasonMessage(err error) (string, string) {
 	if strings.Contains(err.Error(), "AuthFailure.ServiceLinkedRoleCreationNotPermitted") {

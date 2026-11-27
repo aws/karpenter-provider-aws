@@ -29,7 +29,11 @@ A Cluster Developer has the ability to create pods via `Deployments`, `ReplicaSe
 
 ### Karpenter Controller
 
-Karpenter has permissions to create and manage cloud instances. Karpenter has Kubernetes API permissions to create, update, and remove nodes, as well as evict pods. For a full list of the permissions, see the RBAC rules in the helm chart template. Karpenter also has AWS IAM permissions to create instances with IAM roles.
+Karpenter has permissions to create and manage cloud instances. Karpenter has Kubernetes API permissions to create, update, and remove nodes, as well as evict and delete pods. Additionally:
+- When the `PodDeletionCostManagement` [feature gate]({{<ref "settings#feature-gates" >}}) is enabled, Karpenter can also patch pods to manage their `controller.kubernetes.io/pod-deletion-cost` annotation.
+- When the `NodeRepair` feature gate is enabled and `--legacy-node-repair` is not set, Karpenter can also patch node status to set the `EC2StatusReady` condition.
+
+For a full list of the permissions, see the RBAC rules in the helm chart template. Karpenter also has AWS IAM permissions to create instances with IAM roles.
 
 * [aggregate-clusterrole.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/aggregate-clusterrole.yaml)
 * [clusterrole-core.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole-core.yaml)
@@ -57,7 +61,7 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 **Threat**: A Cluster Developer attempts to have Karpenter create more instances than intended by creating a large number of pods or by using anti-affinity to schedule one pod per node.
 
-**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "../concepts/nodepools#spec-limits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
+**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "../concepts/nodepools#speclimits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
 
 ## Threats
 

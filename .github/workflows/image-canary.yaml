@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   schedule:
   - cron: '0 */1 * * *'
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   image-canary:
     runs-on: ubuntu-latest
@@ -12,13 +15,13 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
       with:
         role-to-assume: arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}
         aws-region: ${{ vars.READONLY_REGION }}
         role-duration-seconds: 900
     # Authenticate to public ECR to prevent rate limiting
-    - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+    - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
       with:
         registry: public.ecr.aws
         logout: true

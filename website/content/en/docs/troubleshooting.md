@@ -52,7 +52,7 @@ You have two mitigations to resolve this error:
 
 If you use a tool such as AWS CDK to generate your Kubernetes cluster name, when you add Karpenter to your cluster you could end up with a cluster name that is too long to incorporate into your KarpenterNodeRole name (which is limited to 64 characters).
 
-Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` in the [Create the KarpenterNode IAM Role]({{<ref "./getting-started/getting-started-with-karpenter/#create-the-karpenternode-iam-role" >}}) section of the getting started guide.
+Node role names for Karpenter are created in the form `KarpenterNodeRole-${Cluster_Name}` by the [CloudFormation template]({{<ref "./reference/cloudformation#karpenternoderole" >}}) used in the getting started guide.
 If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
 
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
@@ -247,14 +247,14 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 
 1. Enable [Prefix Delegation](https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your NodePods
-3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+3. Remove the `maxPods` value from your [`spec.kubelet`]({{<ref "./concepts/nodeclasses#speckubelet" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 4. Set [RESERVED_ENIS]({{<ref "./reference/settings" >}})=1 in your Karpenter configuration to account for the reserved ENI when using Security Groups for Pods.
 
 For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodeclasses#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
-When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`EC2NodeClass`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelectorTerms`]({{<ref "./concepts/nodeclasses#specsubnetselectorterms" >}}) value in your [`EC2NodeClass`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
 
 ##### Solutions
 
@@ -362,6 +362,22 @@ This can be spot checked like shown above, or monitored via the following metric
 operator_status_condition_count{type="ConsistentStateFound",kind="NodeClaim",status="False"}
 ```
 
+### `FailedConsistencyCheck` event: `expected X of resource Y, but found Z` is reported
+
+After a node is initialized, Karpenter periodically compares the capacity it expected the node to have (`nodeClaim.status.capacity`) with the capacity the node registered (`node.status.capacity`).
+If the node registers less than 90% of the expected amount of a resource in the NodeClaim's `spec.resources.requests` (the resources requested by the pods and DaemonSets the NodeClaim was launched for), Karpenter publishes a `FailedConsistencyCheck` warning event on the NodeClaim and sets its `ConsistentStateFound` status condition to `False`. For example:
+
+```
+expected 58 of resource pods, but found 29 (50.0% of expected)
+```
+
+The node keeps running, and once it is initialized Karpenter schedules against the capacity the node actually registered. However, the pods that Karpenter launched the node for may not fit on it, and Karpenter may make the same estimate for future nodes until the cause is fixed. Find the resource named in the message and check the matching cause below.
+
+* `memory`: Karpenter overestimated the memory available on the instance. See [Karpenter incorrectly computes available resources for a node](#karpenter-incorrectly-computes-available-resources-for-a-node) for how Karpenter computes memory and how to tune `VM_MEMORY_OVERHEAD_PERCENT`.
+* `pods`: The kubelet registered a lower max pods value than Karpenter computed. Karpenter uses `spec.kubelet.maxPods` from the EC2NodeClass if it's set; otherwise, for AMI families that support it, it computes the max pods from the instance type's ENI limits. This usually happens when max pods is lowered outside of Karpenter, for example in custom UserData or a custom AMI's bootstrap, which is common when using [VPC CNI custom networking](https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html). Set `spec.kubelet.maxPods` on the EC2NodeClass to the value the node uses, or, if you use custom networking, set [`RESERVED_ENIS`]({{< ref "./reference/settings" >}}) so that Karpenter excludes the reserved ENIs when computing max pods.
+* `ephemeral-storage`: The node's root volume is smaller than Karpenter expected. Karpenter uses the instance store size when `spec.instanceStorePolicy` is `RAID0`. Otherwise, it uses the size of the mapping in `spec.blockDeviceMappings` that sets `rootVolume: true`; if no mapping sets it, Karpenter uses the mapping for the AMI family's default root device name (or the last mapping, for the `Custom` AMI family), and falls back to a default size if there is no such mapping. Set `rootVolume: true` on the mapping for your root volume so that Karpenter uses its size.
+* Extended resources (for example, `nvidia.com/gpu`): The device plugin advertised fewer devices than the instance type has. Check the device plugin's configuration on the node.
+
 ### Karpenter Is Unable to Satisfy Topology Spread Constraint
 
 When scheduling pods with TopologySpreadConstraints, Karpenter will attempt to spread the pods across all eligible domains.
@@ -442,8 +458,9 @@ nodeAffinity:
 
 ### Log message of `no instance type met the scheduling requirements or had a required offering` is reported
 
-This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a Node Pool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
+This error suggests that there is no instance type available that meets the pod's scheduling requirements. A pod may have resource requests that necessitate a minimum instance size. If the pod is confined to a NodePool with a specific instance family and size, it might not find an instance type that aligns with its resource needs. Additionally, resource requests from daemonsets are considered when determining if an instance type is compatible with the pod.
 
+Combining `karpenter.k8s.aws/instance-family` with `karpenter.k8s.aws/instance-size` can also collapse the NodePool to a single instance type (for example family `g6` and size `xlarge` is only `g6.xlarge`). When EC2 returns `InsufficientInstanceCapacity` for that type in every configured AZ, Karpenter marks the offering unavailable and then logs `skipping, nodepool requirements filtered out all instance types` / emits `NoCompatibleInstanceTypes`. Include at least two sizes (or a second family that draws from a different capacity pool) so CreateFleet can fail over. `minValues` is not a substitute: under Strict it fails scheduling on a one-SKU pool.
 
 The phrase `had a required offering` pertains to the availability of an instance type in a specific location, such as an availability zone. This error can occur if a pod is restricted to a particular availability zone. For instance, consider a pod in a stateful set that previously had an EBS volume attached. If the subnet where the pod is scheduled changes, the pod might end up in a different availability zone than the EBS volume it needs to attach to. This mismatch in availability zones can lead to an error related to the required offering.
 
@@ -452,6 +469,7 @@ The phrase `had a required offering` pertains to the availability of an instance
 EC2's `g6f` instance family provides fractional NVIDIA L4 GPUs. However, the EC2 `DescribeInstanceTypes` API reports `Count=0` for g6f GPUs, which causes Karpenter to believe these instances have no GPU capacity. Pods requesting `nvidia.com/gpu: 1` will never be matched to g6f instances and remain Pending.
 
 To work around this, use a [NodeOverlay]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) to inject `nvidia.com/gpu: 1` into Karpenter's scheduling simulation for g6f instances. See the [Fractional GPU Instances (g6f)]({{<ref "./concepts/nodeoverlays#example-fractional-gpu-instances-g6f" >}}) section for a complete walkthrough with YAML examples.
+
 
 
 ## Deprovisioning
@@ -670,7 +688,7 @@ This means that your CNI plugin is out of date. You can find instructions on how
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the EC2NodeClass.
+This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses#specblockdevicemappings" >}}) specified in the EC2NodeClass.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
@@ -764,4 +782,4 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
-See [Environment Variables / CLI Flags]({{<ref "./reference/settings#environment-variables--cli-flags" >}}) for details.
+See [Environment Variables / CLI Flags]({{<ref "./reference/settings" >}}) for details.

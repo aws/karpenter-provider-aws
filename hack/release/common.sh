@@ -187,22 +187,56 @@ createNewWebsiteDirectory() {
   cp -r "website/content/en/v${short_version}/"* website/content/en/docs/
 }
 
+# websiteVersionDirectories prints the names of the docs version directories (e.g. v1.14), sorted by version
+websiteVersionDirectories() {
+  find website/content/en/* -maxdepth 0 -type d -name "v*" -print0 | xargs -0 -r -n 1 basename | sort -V
+}
+
+# recentWebsiteVersionDirectories prints the docs version directories (e.g. v1.14) whose minor was first released
+# (vX.Y.0 tagged) in the last 12 months, the longest a release is supported (an LTS release), or that have no such
+# tag. DOCS_RETENTION_NOW (YYYY-MM-DD) overrides today, for testing.
+recentWebsiteVersionDirectories() {
+  local cutoff versions version released
+
+  cutoff="$(date -u -d "${DOCS_RETENTION_NOW:-today} -12 months" +%Y-%m-%d)"
+  versions="$(websiteVersionDirectories)"
+  while read -r version; do
+    if [[ -z "${version}" ]]; then
+      continue
+    fi
+    released="$(git log -1 --format=%cs "${version}.0" 2>/dev/null || true)"
+    if [[ -z "${released}" ]] || [[ ! "${released}" < "${cutoff}" ]]; then
+      echo "${version}"
+    fi
+  done <<< "${versions}"
+}
+
+# removeOldWebsiteDirectories removes the docs version directories that are no longer kept, and redirects their pages
+# to the same pages in the latest docs so that links to them keep working. The rule uses the Amplify <*> wildcard,
+# which hack/docs/parse-redirects passes through unexpanded. It keeps every minor released in the last 12 months
+# (at least the last n), the supported LTS minors in params.lts_versions, and the preview, docs, and v1.0 directories.
+# A new LTS minor is designated at most 6 months after the last one (hack/release/check-lts.sh), so the next LTS
+# minor's docs are still kept when it is listed.
 removeOldWebsiteDirectories() {
-  local n=3 last_n_versions all
+  local n=3 keep dir version
 
-  # Get all the directories except the last n directories sorted from earliest to latest version
-  # preview, docs, and v1.0 are special directories that we always propagate into the set of directory options
   # Keep the v1.0 version around while we are supporting v1beta1 migration
-  # Drop it once we no longer want to maintain the v1.00 version in the docs
-  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v1.0" | sort -V | tail -n "${n}")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
-  last_n_versions+=$(echo -e "\nwebsite/content/en/v1.0")
-  all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
+  # Drop it once we no longer want to maintain the v1.0 version in the docs
+  keep="$(websiteVersionDirectories | grep -v -x 'v1\.0' | tail -n "${n}")"
+  keep+=$'\n'"$(recentWebsiteVersionDirectories)"
+  keep+=$'\n'"$(yq '.params.lts_versions[].version' website/hugo.yaml)"
+  keep+=$'\n'"v1.0"$'\n'"preview"$'\n'"docs"
 
-  ## symmetric difference
-  # shellcheck disable=SC2086
-  comm -3 <(sort <<< "${last_n_versions}") <(sort <<< "${all}") | tr -d '\t' | xargs -r -n 1 rm -r
+  for dir in website/content/en/*/; do
+    version="$(basename "${dir}")"
+    if grep -q -x -F -- "${version}" <<< "${keep}"; then
+      continue
+    fi
+    rm -r "${dir}"
+    if ! grep -q -F "/${version}/<*>  /docs/<*>" website/static/_redirects; then
+      printf '/%s/<*>  /docs/<*>\n' "${version}" >> website/static/_redirects
+    fi
+  done
 }
 
 editWebsiteConfig() {
@@ -211,19 +245,99 @@ editWebsiteConfig() {
   yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
-# editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
-# without increasing the size of the set.
-# It uses the current version directories (ignoring the docs directory) to generate this list
+# requireLTSWebsiteDirectories fails when a supported LTS minor in params.lts_versions has no docs version directory.
+# Pruning never removes them, so a missing directory means the docs were lost and have to be restored, rather than
+# the minor being left out of the version menu.
+requireLTSWebsiteDirectories() {
+  local version missing=()
+
+  while read -r version; do
+    if [[ -n "${version}" ]] && [[ ! -d "website/content/en/${version}" ]]; then
+      missing+=("${version}")
+    fi
+  done < <(yq '.params.lts_versions[].version' website/hugo.yaml)
+  if ((${#missing[@]} > 0)); then
+    echo "Supported LTS minors in params.lts_versions have no docs: ${missing[*]}. Restore website/content/en/<version>." >&2
+    return 1
+  fi
+}
+
+# editWebsiteVersionsMenu sets the version dropdown menu of the website to every kept docs version, newest first, then
+# preview. The website labels the latest minor "(latest)" and the minors in params.lts_versions "(LTS)", and pages of
+# other versions show a banner that they are no longer maintained (website/layouts/partials/version-banner.html).
 editWebsiteVersionsMenu() {
   local versions version
 
-  # shellcheck disable=SC2207
-  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview" | sort -r))
-  versions+=('preview')
+  requireLTSWebsiteDirectories
+  versions="$(websiteVersionDirectories | sort -r -V)"
 
   yq -i '.params.versions = []' website/hugo.yaml
 
-  for version in "${versions[@]}"; do
+  for version in ${versions} preview; do
     yq -i ".params.versions += \"${version}\"" website/hugo.yaml
   done
+}
+
+# requireRecentLTS fails when the newest LTS minor in a hugo.yaml (passed as its contents) was released more than 6
+# months ago. The support policy designates a new LTS minor every 6 months, so an older list means a designation was
+# missed, and pruning would delete the docs of the unlisted LTS minor like any other minor's. LTS_CHECK_NOW (YYYY-MM)
+# overrides the current month, for testing.
+requireRecentLTS() {
+  local hugo_config now newest=0 version released months entries
+
+  hugo_config="${1}"
+  now="${LTS_CHECK_NOW:-$(date -u +%Y-%m)}"
+  # Read the list before the loop, so that a parse failure fails the check instead of being hidden by the loop
+  entries="$(yq '.params.lts_versions[] | [.version, .released] | @tsv' <<< "${hugo_config}")"
+  while IFS=$'\t' read -r version released; do
+    if [[ -z "${version}" ]]; then
+      continue
+    fi
+    months=$(($(date -u -d "1 ${released}" +%Y) * 12 + 10#$(date -u -d "1 ${released}" +%m)))
+    if ((months > newest)); then
+      newest="${months}"
+    fi
+  done <<< "${entries}"
+  months=$((10#${now%-*} * 12 + 10#${now#*-}))
+  if ((months - newest > 6)); then
+    echo "No LTS minor has been designated in the last 6 months: the newest in params.lts_versions in website/hugo.yaml on main was released more than 6 months ago." >&2
+    echo "Add the new LTS minor there, with its release and end-of-life months, then re-run this release." >&2
+    return 1
+  fi
+}
+
+# isPatchRelease returns success when the version (e.g. 1.14.2) is a stable patch release rather than a new minor
+isPatchRelease() {
+  local version="${1}"
+
+  [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && [[ "${version##*.}" != "0" ]]
+}
+
+# isLatestMinor returns success when the version belongs to the minor of the highest stable release tag
+isLatestMinor() {
+  local version="${1}" latest
+
+  latest="$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1)"
+  latest="${latest#v}"
+  [[ "${version%.*}" == "${latest%.*}" ]]
+}
+
+# bumpPatchVersion replaces the previous patch version of a minor with the new patch version in a website content directory.
+# The previous version is read from KARPENTER_VERSION in the getting started guide. The upgrade guide and compatibility
+# matrix reference historical versions and are skipped, as are feature state annotations.
+bumpPatchVersion() {
+  local version dir previous previous_regex
+
+  version="${1}"
+  dir="${2}"
+
+  previous="$(sed -n -E 's/^export KARPENTER_VERSION="([0-9.]+)"$/\1/p' "${dir}/getting-started/getting-started-with-karpenter/_index.md")"
+  if [[ -z "${previous}" ]] || [[ "${previous}" == "${version}" ]]; then
+    return
+  fi
+  echo "Updating ${dir} from ${previous} to ${version}"
+
+  previous_regex="${previous//./\\.}"
+  # shellcheck disable=SC2038
+  find "${dir}" -type f ! -name "upgrade-guide.md" ! -name "compatibility.md" | xargs perl -i -p -e "s/(?<![0-9.])${previous_regex}(?![0-9])/${version}/g unless /Feature State/;"
 }

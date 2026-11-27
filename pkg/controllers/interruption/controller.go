@@ -38,7 +38,6 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/capacityreservation"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 )
 
@@ -61,16 +60,14 @@ func NewController(
 	sqsProvider sqs.Provider,
 	sqsAPI *sqsapi.Client,
 	unavailableOfferingsCache *cache.UnavailableOfferings,
-	capacityReservationProvider capacityreservation.Provider,
 ) *Controller {
 	return &Controller{
 		InterruptionHandler: InterruptionHandler{
-			kubeClient:                  kubeClient,
-			clk:                         clk,
-			cloudProvider:               cloudProvider,
-			recorder:                    recorder,
-			unavailableOfferingsCache:   unavailableOfferingsCache,
-			capacityReservationProvider: capacityReservationProvider,
+			kubeClient:                kubeClient,
+			clk:                       clk,
+			cloudProvider:             cloudProvider,
+			recorder:                  recorder,
+			unavailableOfferingsCache: unavailableOfferingsCache,
 		},
 		sqsProvider: sqsProvider,
 		sqsAPI:      sqsAPI,
@@ -116,7 +113,14 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 			errs[i] = fmt.Errorf("handling message, %w", e)
 			return
 		}
-		MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
+		// Skip messages that can't yield a meaningful queue latency:
+		//   - NoOpKind (empty body or unrecognized source/detail-type/version)
+		//   - a zero StartTime (a well-formed body missing the EventBridge `time` field)
+		// Observing time.Since(zeroTime) saturates at maxDuration and permanently
+		// skews the histogram.
+		if msg.Kind() != messages.NoOpKind && !msg.StartTime().IsZero() {
+			MessageLatency.Observe(time.Since(msg.StartTime()).Seconds(), nil)
+		}
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
 	if err = multierr.Combine(errs...); err != nil {

@@ -157,6 +157,9 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 
 func (env *Environment) ExpectSettings() (res []corev1.EnvVar) {
 	GinkgoHelper()
+	if env.ExternalController != nil {
+		return env.ExternalController.envVars()
+	}
 
 	d := &appsv1.Deployment{}
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
@@ -168,6 +171,10 @@ func (env *Environment) ExpectSettings() (res []corev1.EnvVar) {
 
 func (env *Environment) ExpectSettingsReplaced(vars ...corev1.EnvVar) {
 	GinkgoHelper()
+	if env.ExternalController != nil {
+		env.skipUnlessControllerSettings(vars, false)
+		return
+	}
 
 	d := &appsv1.Deployment{}
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
@@ -185,6 +192,10 @@ func (env *Environment) ExpectSettingsReplaced(vars ...corev1.EnvVar) {
 
 func (env *Environment) ExpectSettingsOverridden(vars ...corev1.EnvVar) {
 	GinkgoHelper()
+	if env.ExternalController != nil {
+		env.skipUnlessControllerSettings(vars, false)
+		return
+	}
 
 	d := &appsv1.Deployment{}
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
@@ -209,6 +220,10 @@ func (env *Environment) ExpectSettingsOverridden(vars ...corev1.EnvVar) {
 
 func (env *Environment) ExpectSettingsRemoved(vars ...corev1.EnvVar) {
 	GinkgoHelper()
+	if env.ExternalController != nil {
+		env.skipUnlessControllerSettings(vars, true)
+		return
+	}
 
 	varNames := sets.New(lo.Map(vars, func(v corev1.EnvVar, _ int) string { return v.Name })...)
 
@@ -277,24 +292,28 @@ func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, 
 
 func (env *Environment) ExpectPodENIEnabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("ENABLE_POD_ENI=true")
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_POD_ENI", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPodENIDisabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("ENABLE_POD_ENI=false")
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_POD_ENI", "false", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationEnabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("ENABLE_PREFIX_DELEGATION=true")
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_PREFIX_DELEGATION", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationDisabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("ENABLE_PREFIX_DELEGATION=false")
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
@@ -410,6 +429,7 @@ func (env *Environment) ConsistentlyExpectPendingPods(duration time.Duration, po
 
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
 	GinkgoHelper()
+	env.RequireInClusterController("restarting karpenter")
 	By("rolling out the new karpenter deployment")
 	env.EventuallyExpectRollout("karpenter", "kube-system")
 	env.ExpectKarpenterLeaseOwnerChanged()
@@ -465,6 +485,7 @@ type PrometheusMetric struct {
 
 func (env *Environment) ExpectPodMetrics() (res []PrometheusMetric) {
 	GinkgoHelper()
+	env.RequireInClusterController("scraping karpenter metrics")
 
 	ctx, cancel := context.WithCancel(env.Context)
 	defer cancel()
@@ -546,6 +567,7 @@ func (env *Environment) EventuallyExpectRollout(name, namespace string) {
 
 func (env *Environment) ExpectKarpenterPods() []*corev1.Pod {
 	GinkgoHelper()
+	env.RequireInClusterController("listing karpenter pods")
 	podList := &corev1.PodList{}
 	Expect(env.Client.List(env.Context, podList, client.MatchingLabels{
 		"app.kubernetes.io/instance": "karpenter",
@@ -553,8 +575,20 @@ func (env *Environment) ExpectKarpenterPods() []*corev1.Pod {
 	return lo.Map(podList.Items, func(p corev1.Pod, _ int) *corev1.Pod { return &p })
 }
 
+func (env *Environment) ExpectControllerRoleName() string {
+	GinkgoHelper()
+	if env.ExternalController != nil && env.ExternalController.RoleName != "" {
+		return env.ExternalController.RoleName
+	}
+	pods := env.ExpectKarpenterPods()
+	sa := &corev1.ServiceAccount{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: pods[0].Namespace, Name: pods[0].Spec.ServiceAccountName}, sa)).To(Succeed())
+	return strings.Split(sa.Annotations["eks.amazonaws.com/role-arn"], "/")[1]
+}
+
 func (env *Environment) ExpectActiveKarpenterPodName() string {
 	GinkgoHelper()
+	env.RequireInClusterController("finding the karpenter leader")
 	lease := &coordinationv1.Lease{}
 	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "kube-system"}, lease)).To(Succeed())
 
@@ -627,7 +661,7 @@ func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector
 
 	Eventually(func(g Gomega) {
 		pods := env.Monitor.RunningPods(selector)
-		nodeNames := sets.NewString()
+		nodeNames := sets.New[string]()
 		for _, pod := range pods {
 			nodeNames.Insert(pod.Spec.NodeName)
 		}
@@ -955,6 +989,9 @@ func (env *Environment) GetNode(nodeName string) corev1.Node {
 
 func (env *Environment) ExpectNoCrashes() {
 	GinkgoHelper()
+	if env.ExternalController != nil {
+		return
+	}
 	for k, v := range env.Monitor.RestartCount("kube-system") {
 		if strings.Contains(k, "karpenter") && v > 0 {
 			Fail("expected karpenter containers to not crash")
@@ -967,6 +1004,9 @@ var (
 )
 
 func (env *Environment) printControllerLogs(options *corev1.PodLogOptions) {
+	if env.ExternalController != nil {
+		return
+	}
 	fmt.Println("------- START CONTROLLER LOGS -------")
 	defer fmt.Println("------- END CONTROLLER LOGS -------")
 

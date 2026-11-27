@@ -54,6 +54,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancestatus"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -97,8 +98,8 @@ var _ = BeforeSuite(func() {
 	sqsProvider = lo.Must(sqs.NewDefaultProvider(sqsapi, fmt.Sprintf("https://sqs.%s.amazonaws.com/%s/test-cluster", fake.DefaultRegion, fake.DefaultAccount)))
 	cloudProvider := cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
-	controller = interruption.NewController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache, awsEnv.CapacityReservationProvider)
-	instanceStatusController = interruption.NewInstanceStatusController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
+	controller = interruption.NewController(env.Client, fakeClock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, servicesqs.NewFromConfig(aws.Config{}), unavailableOfferingsCache)
+	instanceStatusController = interruption.NewInstanceStatusController(env.Client, awsEnv.Clock, cloudProvider, events.NewRecorder(&record.FakeRecorder{}), awsEnv.InstanceStatusProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -146,6 +147,57 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+		})
+		It("should only interrupt managed NodeClaims when receiving SQS messages", func() {
+			unmanagedNodeClaim, unmanagedNode := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{Group: "eks.amazonaws.com", Kind: "NodeClass", Name: "default"},
+				},
+				Status: karpv1.NodeClaimStatus{ProviderID: fake.RandomProviderID()},
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node, unmanagedNodeClaim, unmanagedNode)
+			ExpectMessagesCreated(
+				spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+				spotInterruptionMessage(lo.Must(utils.ParseInstanceID(unmanagedNodeClaim.Status.ProviderID))),
+			)
+
+			ExpectSingletonReconciled(ctx, controller)
+
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+			Expect(ExpectExists(ctx, env.Client, unmanagedNodeClaim).DeletionTimestamp.IsZero()).To(BeTrue())
+			ExpectMetricCounterValue(metrics.NodeClaimsDisruptedTotal, 1, map[string]string{
+				metrics.ReasonLabel: "spot_interrupted",
+			})
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(2))
+		})
+		It("should ignore unmanaged NodeClaims for instance status actions and dry-run metrics", func() {
+			nodeClaim.Spec.NodeClassRef = &karpv1.NodeClassReference{Group: "eks.amazonaws.com", Kind: "NodeClass", Name: "default"}
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{{
+					InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+					InstanceStatus: &ec2types.InstanceStatusSummary{
+						Status: ec2types.SummaryStatusImpaired,
+						Details: []ec2types.InstanceStatusDetails{{
+							Status: ec2types.StatusTypeFailed, Name: ec2types.StatusNameReachability,
+							ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+						}},
+					},
+				}},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			DeferCleanup(func() { interruption.InstanceStatusDryRun = false })
+			for _, dryRun := range []bool{true, false} {
+				interruption.InstanceStatusDryRun = dryRun
+				ExpectSingletonReconciled(ctx, instanceStatusController)
+				stored := ExpectExists(ctx, env.Client, nodeClaim)
+				Expect(stored.DeletionTimestamp.IsZero()).To(BeTrue())
+				Expect(stored.Annotations).ToNot(HaveKey(karpv1.NodeClaimTerminationTimestampAnnotationKey))
+				_, unhealthy := FindMetricWithLabelValues("karpenter_interruption_instance_status_unhealthy_total", map[string]string{"category": "InstanceStatus"})
+				Expect(unhealthy).To(BeFalse())
+				_, disrupted := FindMetricWithLabelValues("karpenter_nodeclaims_disrupted_total", map[string]string{metrics.ReasonLabel: "instance_status"})
+				Expect(disrupted).To(BeFalse())
+			}
 		})
 		It("should delete the NodeClaim when receiving a capacity reservation interruption warning", func() {
 			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
@@ -267,6 +319,64 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
+		It("should not observe MessageLatency for no-op messages", func() {
+			// Regression test for https://github.com/aws/karpenter-provider-aws/issues/9523.
+			// EventParser.Parse returns a bare noop.Message{} with a zero-valued
+			// StartTime for empty or unrecognized SQS bodies. Observing latency
+			// against that zero time produces math.MaxInt64-nanosecond values
+			// (~9.22e9 seconds) that permanently skew histogram averages.
+			interruption.MessageLatency.Reset()
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(""),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a no-op message")
+
+			// A well-formed interruption message should still record latency.
+			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			ExpectMetricHistogramSampleCountValue("karpenter_interruption_message_queue_duration_seconds", 1, nil)
+			// Pin the actual observed value: the pre-fix bug would have recorded
+			// ~9.22e9 seconds (math.MaxInt64 nanoseconds), so anything on the order
+			// of test wall time (< 1h) is a real observation.
+			metric, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeTrue())
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically(">", 0))
+			Expect(metric.GetHistogram().GetSampleSum()).To(BeNumerically("<", 3600))
+		})
+		It("should not observe MessageLatency when a well-formed message is missing the EventBridge time field", func() {
+			// A body that matches a known parser's source/detail-type/version but
+			// omits `time` unmarshals with StartTime==zero. Kind() is a valid
+			// message kind, so guarding only on Kind would still let time.Since
+			// saturate against the zero value and corrupt the histogram.
+			interruption.MessageLatency.Reset()
+			instanceID := lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))
+			body := fmt.Sprintf(`{
+				"version":     "0",
+				"account":     %q,
+				"detail-type": "EC2 Spot Instance Interruption Warning",
+				"id":          %q,
+				"region":      %q,
+				"resources":   ["arn:aws:ec2:%s:instance/%s"],
+				"source":      "aws.ec2",
+				"detail":      {"instance-id": %q, "instance-action": "terminate"}
+			}`, defaultAccountID, string(uuid.NewUUID()), fake.DefaultRegion, fake.DefaultRegion, instanceID, instanceID)
+
+			ExpectMessagesCreated(&sqstypes.Message{
+				Body:      aws.String(body),
+				MessageId: aws.String(string(uuid.NewUUID())),
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, controller)
+			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			_, ok := FindMetricWithLabelValues("karpenter_interruption_message_queue_duration_seconds", nil)
+			Expect(ok).To(BeFalse(), "no latency should be recorded for a message with no usable StartTime")
+		})
 		It("should delete a state change message when the state isn't in accepted states", func() {
 			ExpectMessagesCreated(stateChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)), "creating"))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
@@ -293,13 +403,13 @@ var _ = Describe("InterruptionHandling", func() {
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
 			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
-		It("should mark the capacity reservation as unavailable when getting an interruption warning", func() {
-			awsEnv.CapacityReservationProvider.SetAvailableInstanceCount("cr-56fac701cc1951b03", 10)
-
+		It("should mark the reserved offering unavailable when getting a capacity reservation interruption warning", func() {
 			nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						karpv1.NodePoolLabelKey:         "default",
+						corev1.LabelInstanceTypeStable:  "m5.large",
+						corev1.LabelTopologyZone:        "coretest-zone-1a",
 						v1.LabelCapacityReservationID:   "cr-56fac701cc1951b03",
 						v1.LabelCapacityReservationType: "default",
 					},
@@ -316,7 +426,15 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
-			Expect(awsEnv.CapacityReservationProvider.GetAvailableInstanceCount("cr-56fac701cc1951b03")).To(Equal(0))
+			// A reservation interruption is a non-capacity unavailability: it marks the reserved offering in the shared
+			// UnavailableOfferings cache (driving Available=false), rather than zeroing the reservation manager's count.
+			// The entry is scoped to the interrupted reservation ID...
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeReserved, awscache.WithReservationID("cr-56fac701cc1951b03"))).To(BeTrue())
+			// ...so another reservation sharing the same instance type + zone is NOT poisoned by this interruption.
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeReserved, awscache.WithReservationID("cr-other"))).To(BeFalse())
+			// ...and the SPOT capacity type for this instance type + zone is likewise untouched: a reserved-offering
+			// interruption must not spill over into the spot ICE cache.
+			Expect(unavailableOfferingsCache.IsUnavailable("m5.large", "coretest-zone-1a", []string{}, karpv1.CapacityTypeSpot)).To(BeFalse())
 		})
 		It("should forcefully terminate the NodeClaim when an instance is unhealthy due to EC2 system status checks", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
@@ -510,6 +628,93 @@ var _ = Describe("InterruptionHandling", func() {
 			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(nodeClaim.Annotations[karpv1.NodeClaimTerminationTimestampAnnotationKey]).To(Equal(originalTimestamp))
 			Expect(nodeClaim.ResourceVersion).To(Equal(originalResourceVersion))
+		})
+		It("should not terminate the NodeClaim before a status check failure exceeds the unhealthy threshold", func() {
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(instancestatus.UnhealthyThreshold - time.Second)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectExists(ctx, env.Client, nodeClaim)
+		})
+		It("should leave status check failures to Node Repair but still handle scheduled maintenance events when NodeRepair is enabled", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			impairedNodeClaim, impairedNode := coretest.NodeClaimAndNode(karpv1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{karpv1.NodePoolLabelKey: "default"}},
+				Status:     karpv1.NodeClaimStatus{ProviderID: fake.RandomProviderID()},
+			})
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(impairedNodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						Events: []ec2types.InstanceStatusEvent{
+							{
+								Code: ec2types.EventCodeInstanceRetirement,
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node, impairedNodeClaim, impairedNode)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectExists(ctx, env.Client, impairedNodeClaim)
+			ExpectNotFound(ctx, env.Client, nodeClaim)
+		})
+		It("should still terminate the NodeClaim for status check failures with legacy node repair", func() {
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{NodeRepair: lo.ToPtr(true)}, LegacyNodeRepair: lo.ToPtr(true)}))
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))
+			awsEnv.EC2API.DescribeInstanceStatusOutput.Set(&ec2.DescribeInstanceStatusOutput{
+				InstanceStatuses: []ec2types.InstanceStatus{
+					{
+						InstanceId: lo.ToPtr(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))),
+						InstanceStatus: &ec2types.InstanceStatusSummary{
+							Status: ec2types.SummaryStatusImpaired,
+							Details: []ec2types.InstanceStatusDetails{
+								{
+									Status:        ec2types.StatusTypeFailed,
+									Name:          ec2types.StatusNameReachability,
+									ImpairedSince: lo.ToPtr(awsEnv.Clock.Now()),
+								},
+							},
+						},
+					},
+				},
+			})
+			awsEnv.Clock.Step(time.Hour)
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ExpectSingletonReconciled(ctx, instanceStatusController)
+			ExpectNotFound(ctx, env.Client, nodeClaim)
 		})
 		It("should delete the NodeClaim when an instance has a scheduled maintenance event", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{InterruptionQueue: lo.ToPtr("")}))

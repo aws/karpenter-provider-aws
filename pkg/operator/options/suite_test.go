@@ -60,38 +60,47 @@ var _ = Describe("Options", func() {
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
+			"--pricing-endpoint-region", "us-east-1",
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
 			"--reserved-enis", "10",
 			"--disable-dry-run",
+			"--aws-sdk-debug-log",
 			"--ami-refresh-interval", "15m",
-			"--subnet-refresh-interval", "15m")
+			"--subnet-refresh-interval", "15m",
+			"--security-group-refresh-interval", "15m")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
-			DisableDryRun:           lo.ToPtr(true),
-			AMIRefreshInterval:      lo.ToPtr(15 * time.Minute),
-			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
+			ClusterCABundle:              lo.ToPtr("env-bundle"),
+			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			PricingEndpointRegion:        lo.ToPtr("us-east-1"),
+			IsolatedVPC:                  lo.ToPtr(true),
+			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			ReservedENIs:                 lo.ToPtr(10),
+			DisableDryRun:                lo.ToPtr(true),
+			AWSSDKDebugLog:               lo.ToPtr(true),
+			AMIRefreshInterval:           lo.ToPtr(15 * time.Minute),
+			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
+			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
 		os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
 		os.Setenv("CLUSTER_NAME", "env-cluster")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
+		os.Setenv("PRICING_ENDPOINT_REGION", "us-east-1")
 		os.Setenv("ISOLATED_VPC", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 		os.Setenv("RESERVED_ENIS", "10")
 		os.Setenv("DISABLE_DRY_RUN", "false")
+		os.Setenv("AWS_SDK_DEBUG_LOG", "true")
 		os.Setenv("AMI_REFRESH_INTERVAL", "30m")
 		os.Setenv("SUBNET_REFRESH_INTERVAL", "15m")
+		os.Setenv("SECURITY_GROUP_REFRESH_INTERVAL", "15m")
 
 		// Add flags after we set the environment variables so that the parsing logic correctly refers
 		// to the new environment variable values
@@ -99,16 +108,19 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			ClusterCABundle:         lo.ToPtr("env-bundle"),
-			ClusterName:             lo.ToPtr("env-cluster"),
-			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			IsolatedVPC:             lo.ToPtr(true),
-			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-			InterruptionQueue:       lo.ToPtr("env-cluster"),
-			ReservedENIs:            lo.ToPtr(10),
-			DisableDryRun:           lo.ToPtr(false),
-			AMIRefreshInterval:      lo.ToPtr(30 * time.Minute),
-			SubnetRefreshInterval:   lo.ToPtr(15 * time.Minute),
+			ClusterCABundle:              lo.ToPtr("env-bundle"),
+			ClusterName:                  lo.ToPtr("env-cluster"),
+			ClusterEndpoint:              lo.ToPtr("https://env-cluster"),
+			PricingEndpointRegion:        lo.ToPtr("us-east-1"),
+			IsolatedVPC:                  lo.ToPtr(true),
+			VMMemoryOverheadPercent:      lo.ToPtr[float64](0.1),
+			InterruptionQueue:            lo.ToPtr("env-cluster"),
+			ReservedENIs:                 lo.ToPtr(10),
+			DisableDryRun:                lo.ToPtr(false),
+			AWSSDKDebugLog:               lo.ToPtr(true),
+			AMIRefreshInterval:           lo.ToPtr(30 * time.Minute),
+			SubnetRefreshInterval:        lo.ToPtr(15 * time.Minute),
+			SecurityGroupRefreshInterval: lo.ToPtr(15 * time.Minute),
 		}))
 	})
 
@@ -126,6 +138,13 @@ var _ = Describe("Options", func() {
 		Expect(opts.SubnetRefreshInterval).To(Equal(time.Minute))
 	})
 
+	It("should correctly use default security-group-refresh-interval when not specified", func() {
+		opts.AddFlags(fs)
+		err := opts.Parse(fs, "--cluster-name", "test-cluster")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(opts.SecurityGroupRefreshInterval).To(Equal(time.Minute))
+	})
+
 	Context("FeatureGates", func() {
 		BeforeEach(func() {
 			opts.AddFlags(fs)
@@ -134,7 +153,26 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(opts.FeatureGates.NodeClassCEL).To(BeFalse())
+			Expect(opts.FeatureGates.DRANVIDIAGPU).To(BeFalse())
+			Expect(opts.FeatureGates.DRAEFA).To(BeFalse())
+			Expect(opts.FeatureGates.RebootForRepair).To(BeFalse())
 		})
+		It("should enable RebootForRepair from the CLI flag", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "RebootForRepair=true")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(opts.FeatureGates.RebootForRepair).To(BeTrue())
+		})
+		DescribeTable("should set the DRA driver gates independently",
+			func(gates string, nvidia, efa bool) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", gates)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(opts.FeatureGates.DRANVIDIAGPU).To(Equal(nvidia))
+				Expect(opts.FeatureGates.DRAEFA).To(Equal(efa))
+			},
+			Entry("NVIDIA only", "DRANVIDIAGPU=true", true, false),
+			Entry("EFA only", "DRAEFA=true", false, true),
+			Entry("both", "DRANVIDIAGPU=true,DRAEFA=true", true, true),
+		)
 		It("should set gates from the CLI flag", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--aws-feature-gates", "NodeClassCEL=true")
 			Expect(err).ToNot(HaveOccurred())
@@ -181,6 +219,31 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--cluster-endpoint", "00000000000000000000000.gr7.us-west-2.eks.amazonaws.com")
 			Expect(err).To(HaveOccurred())
 		})
+		DescribeTable("should accept supported pricingEndpointRegion",
+			func(region string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--pricing-endpoint-region", region)
+				Expect(err).ToNot(HaveOccurred())
+			},
+			Entry("US endpoint", "us-east-1"),
+			Entry("Asia Pacific endpoint", "ap-south-1"),
+			Entry("Europe endpoint", "eu-central-1"),
+			Entry("China endpoint", "cn-northwest-1"),
+			Entry("European isolated endpoint", "eu-isoe-west-1"),
+			Entry("European sovereign endpoint", "eusc-de-east-1"),
+			Entry("US isolated endpoint", "us-iso-east-1"),
+			Entry("US isolated B endpoint", "us-isob-east-1"),
+			Entry("US isolated F endpoint", "us-isof-south-1"),
+		)
+		DescribeTable("should fail when pricingEndpointRegion is invalid",
+			func(region string) {
+				err := opts.Parse(fs, "--cluster-name", "test-cluster", "--pricing-endpoint-region", region)
+				Expect(err).To(HaveOccurred())
+			},
+			Entry("unsupported endpoint region", "us-west-2"),
+			Entry("URL", "https://api.pricing.us-east-1.amazonaws.com"),
+			Entry("uppercase", "US-EAST-1"),
+			Entry("whitespace", " us-east-1"),
+		)
 		It("should fail when vmMemoryOverheadPercent is negative", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--vm-memory-overhead-percent", "-0.01")
 			Expect(err).To(HaveOccurred())
@@ -197,6 +260,10 @@ var _ = Describe("Options", func() {
 			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--subnet-refresh-interval", "30s")
 			Expect(err).To(HaveOccurred())
 		})
+		It("should fail when security-group-refresh-interval is less than 1m", func() {
+			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--security-group-refresh-interval", "30s")
+			Expect(err).To(HaveOccurred())
+		})
 	})
 })
 
@@ -205,12 +272,15 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
+	Expect(optsA.PricingEndpointRegion).To(Equal(optsB.PricingEndpointRegion))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 	Expect(optsA.DisableDryRun).To(Equal(optsB.DisableDryRun))
+	Expect(optsA.AWSSDKDebugLog).To(Equal(optsB.AWSSDKDebugLog))
 	Expect(optsA.AMIRefreshInterval).To(Equal(optsB.AMIRefreshInterval))
 	Expect(optsA.SubnetRefreshInterval).To(Equal(optsB.SubnetRefreshInterval))
+	Expect(optsA.SecurityGroupRefreshInterval).To(Equal(optsB.SecurityGroupRefreshInterval))
 	Expect(optsA.FeatureGates.NodeClassCEL).To(Equal(optsB.FeatureGates.NodeClassCEL))
 }

@@ -200,6 +200,17 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}, subnets)
 		})
+		It("should not query subnets for a term without filters", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{},
+				},
+			}
+			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(subnets).To(BeEmpty())
+			Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(BeZero())
+		})
 		It("should discover subnets by multiple tag values", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{

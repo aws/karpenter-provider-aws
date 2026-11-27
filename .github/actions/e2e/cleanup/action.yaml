@@ -17,7 +17,7 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.202.0
+    default: v0.217.0
   private_cluster:
     description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
     default: 'false'
@@ -37,7 +37,7 @@ runs:
         CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
         eksctl delete cluster --name "$CLUSTER_NAME" --timeout 60m --wait || true
-    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+    - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
       with:
         go-version-file: test/hack/resource/go.mod
         cache-dependency-path: test/hack/resource/go.sum
@@ -50,3 +50,29 @@ runs:
       run: |
         go run main.go --cluster-name "$CLUSTER_NAME"
       working-directory: ./test/hack/resource/clean
+    # Deletes by name so untagged stacks go too. Runs last so the instance profiles holding the node role are gone.
+    - name: delete iam stack
+      if: always()
+      shell: bash
+      env:
+        STACK_NAME: iam-${{ inputs.cluster_name }}
+        AWS_RETRY_MODE: standard
+        AWS_MAX_ATTEMPTS: "10"
+      run: |
+        if ! status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1); then
+          if [[ "$status" != *"does not exist"* ]]; then
+            echo "::warning::Could not describe $STACK_NAME: $status"
+          fi
+          exit 0
+        fi
+        # DeleteStack is rejected while another operation is in progress
+        for _ in {1..40}; do
+          [[ "$status" == *_IN_PROGRESS && "$status" != REVIEW_IN_PROGRESS && "$status" != DELETE_IN_PROGRESS ]] || break
+          sleep 15
+          status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1 || true)
+        done
+        echo "Deleting $STACK_NAME from $status"
+        if ! aws cloudformation delete-stack --stack-name "$STACK_NAME" || ! aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"; then
+          status=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].StackStatus" --output text 2>&1 || true)
+          echo "::warning::$STACK_NAME was not deleted: $status"
+        fi

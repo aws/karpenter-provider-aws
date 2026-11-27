@@ -6,16 +6,24 @@
 {{ $pagePath := replace .Page.RelPermalink "docs" "" }}
 {{ $pagePath = replace $pagePath $pageDir "" }}
 {{ $pagePath = trim $pagePath "/" }}
+{{ $lts := slice }}
+{{ range .Site.Params.lts_versions }}
+	{{ $lts = $lts | append .version }}
+	{{/* Fail the build rather than publish a site that is missing the docs of a supported LTS minor */}}
+	{{ if not ($.Site.GetPage (printf "/%s" .version)) }}
+		{{ errorf "params.lts_versions lists %s, but website/content/en/%s does not exist. Restore the docs of every supported LTS minor." .version .version }}
+	{{ end }}
+{{ end }}
 
 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-	{{ $pageDir }} {{ if eq (index .Site.Params.versions 0) $pageDir }} (latest) {{ end }}
+	{{ $pageDir }} {{ if eq (index .Site.Params.versions 0) $pageDir }} (latest) {{ end }} {{ if in $lts $pageDir }} (LTS) {{ end }}
 </a>
 <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="navbarVersionSelector">
 	{{ range $index, $version := .Site.Params.versions }}
 	<a class="dropdown-item"
 		href='/{{ $version }}{{ if not (hasPrefix $pagePath "/") }}{{ "/" }}{{ end }}{{ $pagePath }}'
 		data-docs-version="{{ $version }}">
-		{{ $version }} {{ if eq $index 0 }} (latest) {{ end }}
+		{{ $version }} {{ if eq $index 0 }} (latest) {{ end }} {{ if in $lts $version }} (LTS) {{ end }}
 	</a>
 	{{ end }}
 </div>

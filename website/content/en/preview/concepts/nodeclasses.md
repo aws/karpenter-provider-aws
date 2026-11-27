@@ -57,7 +57,7 @@ spec:
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
   # Optional, dictates UserData generation and default block device mappings.
-  # May be ommited when using an `alias` amiSelectorTerm, otherwise required.
+  # May be omitted when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
@@ -114,6 +114,10 @@ spec:
         karpenter.sh/discovery: ${CLUSTER_NAME}
     - id: cr-123
     - instanceMatchCriteria: open
+
+  # Optional, enables Nitro Enclaves on launched instances
+  enclaveOptions:
+    enabled: true
 
   # Optional, the terms are exclusive
   placementGroupSelector:
@@ -266,13 +270,16 @@ These are all optional and provide support for additional customization and use 
 Adjust these only if you know you need to do so.
 For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
 
-Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version are configurable. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
+Any `KubeletConfiguration` field from the Kubernetes library bundled with this Karpenter version is configurable. This version of Karpenter is built against `k8s.io/kubelet` `v0.37.0`, so the fields of the Kubernetes `1.37` `KubeletConfiguration` are accepted. Karpenter doesn't check fields against your nodes' Kubernetes version: a field newer than the kubelet running on the node is accepted by Karpenter but ignored by the kubelet, which only logs a message at startup. Karpenter reads the fields relevant to scheduling (`maxPods`, `podsPerCore`,
 `kubeReserved`, `systemReserved`, and `evictionHard`) and passes all others through to the node
 unchanged. Passing arbitrary fields through requires an AMI family that accepts a full kubelet
 configuration; see [AMI Family Support]({{< ref "#ami-family-support" >}}) below.
 
 Field names and values are validated by Karpenter, so an invalid
-configuration is accepted on apply and reported on the EC2NodeClass afterwards:
+configuration is accepted on apply and reported on the EC2NodeClass afterwards. In addition to
+checking field names and types, Karpenter validates the keys and values of `evictionHard`,
+`evictionSoft`, `evictionSoftGracePeriod`, and `evictionMinimumReclaim`, and rejects
+`registerWithTaints`, which Karpenter sets itself from the NodeClaim's taints:
 
 ```sh
 kubectl get ec2nodeclass default -o jsonpath='{.status.conditions[?(@.type=="ValidationSucceeded")]}'
@@ -474,7 +481,7 @@ Rounding is always *up*, so a reservation is never smaller than the expression a
 Expressions are validated on the EC2NodeClass and surfaced on the `ValidationSucceeded` status condition. They are not rejected at admission. Validation happens in two stages:
 
 1. **Compile-time**, per expression: the expression must parse, type-check against the available variables, and return an int or double. Failures set reason `KubeletExpressionInvalid`.
-2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvalFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
+2. **Evaluation-time**, per expression *per known instance type*: the expression must evaluate without error and produce a usable value (non-negative, and within int32 range for `maxPods`). Failures set reason `KubeletExpressionEvaluationFailed`. This stage catches errors that depend on an instance type's actual values, such as a subtraction that only goes negative on small instances.
 
 A NodeClass with a failing expression goes `NotReady` and launches no nodes until it is corrected. Validation confirms that an expression compiles and evaluates, but it cannot tell whether an expression produces the values you *intended*. Ensure to test expressions against your target instance types before applying them to a live cluster.
 
@@ -911,7 +918,7 @@ alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
 
-The following commands can be used to determine the versions availble for an alias in your region:
+The following commands can be used to determine the versions available for an alias in your region:
 
 {{< tabpane text=true right=false >}}
   {{% tab "AL2023" %}}
@@ -1265,7 +1272,7 @@ spec:
     # Root device
     - deviceName: /dev/xvda
       ebs:
-        volumeSize: 4Gi
+        volumeSize: 6Gi
         volumeType: gp3
         encrypted: true
     # Data device: Container resources such as images and logs
@@ -1414,6 +1421,12 @@ aws ssm get-parameter --name "<parameter-name>" --region <region> --with-decrypt
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
+
+{{% alert title="Warning" color="warning" %}}
+During an [EKS cluster certificate authority (CA) rotation](https://docs.aws.amazon.com/eks/latest/userguide/certificate-authority-rotation.html#_updating_your_kubernetes_clients), your cluster goes through a dual trust period where its trust bundle contains two CA certificates: the outgoing CA and the successor CA. Karpenter embeds your cluster's CA data in the UserData it generates, so your total user data grows while both CAs are trusted.
+
+If your `spec.userData` is close to the [EC2 user data limit](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html), the addition of the successor CA can cause launch template creation to fail, which prevents Karpenter from provisioning new nodes. Karpenter does not compress user data, so reduce the size of your `spec.userData` before the dual trust period begins &mdash; for example, by baking configuration into your AMI or having your script fetch its contents at boot instead of inlining them.
+{{% /alert %}}
 
 ### AL2
 
@@ -1801,6 +1814,60 @@ If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePubl
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
 
+## spec.enclaveOptions
+
+The `enclaveOptions` field controls whether Karpenter enables AWS Nitro Enclaves in the generated EC2 launch template.
+
+```yaml
+spec:
+  enclaveOptions:
+    enabled: true
+```
+
+{{% alert title="Note" color="primary" %}}
+The behavior depends on whether `enclaveOptions` is specified:
+
+- When omitted or `enabled` is `false`, Nitro Enclaves are disabled.
+- When specified, `enabled` is required.
+- When `enabled` is `true`, Karpenter enables Nitro Enclaves and excludes instance types whose EC2 `NitroEnclavesSupport` value is not `supported`.
+
+Adding, removing, or changing `enclaveOptions` participates in EC2NodeClass drift, so it replaces affected NodeClaims according to the NodePool's disruption settings.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter does not install the Nitro Enclaves CLI or device plugin, configure the allocator, or reserve enclave CPU, memory, or hugepages. Configure these on the node and keep the `NodeOverlay` capacity consistent with the resources advertised by the device plugin and kubelet; see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) for details.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+[Nitro Enclaves are not supported in AWS Local Zones, AWS Wavelength Zones, or AWS Outposts](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html). Configure `subnetSelectorTerms` to resolve only subnets in standard Availability Zones. Karpenter filters instance types based on EC2's `NitroEnclavesSupport` value, but does not filter these unsupported locations. EC2 can reject launch attempts that target them. If only unsupported locations match, the workload remains pending.
+{{% /alert %}}
+
+### Example
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: enclave-enabled
+spec:
+  amiFamily: AL2023
+  enclaveOptions:
+    enabled: true
+  amiSelectorTerms:
+    - alias: al2023@latest
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+```
+
+The example uses `@latest` for brevity; follow the [AMI pinning guidance]({{< ref "../tasks/managing-amis#pinning-amis" >}}) for production.
+
+For detailed configuration examples, including the default device-plugin label and expected extended resources, see [Using Nitro Enclaves]({{< ref "../tasks/nitro-enclaves" >}}) and the [AL2023 Nitro Enclaves user data example](https://github.com/aws/karpenter-provider-aws/blob{{< githubRelRef >}}examples/v1/al2023-nitro-enclaves-custom-userdata.yaml).
+
 ## spec.ipPrefixCount
 
 This value is a integer field that controls how many ip prefixes will be assigned to `NodeClaim`. See the [EC2 Launch Template Network Interface Spec](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-properties-ec2-launchtemplate-networkinterface.html) for more information. Sets ipv4PrefixCount if you are using an IPv4 Cluster, or ipv6PrefixCount if you are using IPv6.
@@ -1997,5 +2064,15 @@ NodeClasses have the following status conditions:
 | PlacementGroupReady  | Referenced placement groups are discovered.                                                                                                                                                                                       |
 | CapacityReservationsReady | Referenced capacity reservations are discovered. Only present when the capacity reservation feature is enabled.                                                                                                                   |
 | Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
+
+The following `ValidationSucceeded=False` reasons are specific to [`spec.kubelet`]({{< ref "#speckubelet" >}}):
+
+| Reason                              | Description                                                                                                                                                       |
+|-------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| InvalidKubeletConfiguration         | `spec.kubelet` has an unknown field, a value of the wrong type, or a value that fails Karpenter's semantic checks.                                                |
+| KubeletExpressionsDisabled          | `spec.kubelet` contains a [CEL expression]({{< ref "#dynamic-kubelet-configuration-via-expressions" >}}), but the `NodeClassCEL` feature gate is disabled.       |
+| KubeletExpressionInvalid            | A kubelet expression fails to compile or type-check.                                                                                                              |
+| UnsupportedKubeletConfiguration     | `spec.kubelet` sets a field the NodeClass's AMI family doesn't apply. See [AMI Family Support]({{< ref "#ami-family-support" >}}).                               |
+| KubeletExpressionEvaluationFailed   | A kubelet expression fails to evaluate, or produces an unusable value, for at least one known instance type.                                                     |
 
 If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.

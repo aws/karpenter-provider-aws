@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
+	testv1alpha1 "sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -47,15 +47,21 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1alpha1 "sigs.k8s.io/karpenter/pkg/apis/v1alpha1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/overlay"
 	"sigs.k8s.io/karpenter/pkg/controllers/dynamicresources/deviceallocation"
+	"sigs.k8s.io/karpenter/pkg/controllers/nodeoverlay"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/state/prediction"
+	"sigs.k8s.io/karpenter/pkg/state/virtualpods"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
@@ -94,7 +100,7 @@ func TestAWS(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(
 		coretest.WithCRDs(test.DisableCapacityReservationIDValidation(apis.CRDs)...),
-		coretest.WithCRDs(v1alpha1.CRDs...),
+		coretest.WithCRDs(testv1alpha1.CRDs...),
 		coretest.WithFieldIndexers(coretest.NodePoolNodeClassRefFieldIndexer(ctx)),
 	)
 	ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{FeatureGates: coretest.FeatureGates{ReservedCapacity: lo.ToPtr(true)}}))
@@ -107,7 +113,7 @@ var _ = BeforeSuite(func() {
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.CapacityReservationProvider, awsEnv.PlacementGroupProvider, awsEnv.InstanceTypeStore, lo.ToPtr(""))
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client))
+	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster, fakeClock, deviceallocation.NewController(env.Client), virtualpods.NewVirtualPodCache(env.Client), prediction.NewStore(env.Client))
 })
 
 var _ = AfterSuite(func() {
@@ -397,7 +403,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod1)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts1 := sets.NewString()
+			lts1 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts1.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
@@ -413,11 +419,39 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod2)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			lts2 := sets.NewString()
+			lts2 := sets.New[string]()
 			for _, ltConfig := range createFleetInput.LaunchTemplateConfigs {
 				lts2.Insert(*ltConfig.LaunchTemplateSpecification.LaunchTemplateName)
 			}
 			Expect(lts1.Equal(lts2)).To(BeTrue())
+		})
+		It("should create uncached launch templates without a failed DescribeLaunchTemplates call", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			Expect(awsEnv.EC2API.NotFoundDescribeLaunchTemplatesInput.Len()).To(Equal(0))
+		})
+		It("should reuse a launch template that exists in EC2 but not in the cache", func() {
+			labels := map[string]string{"test-group": "uncached-reuse"}
+			podOpts := coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				PodAntiRequirements: []corev1.PodAffinityTerm{{
+					LabelSelector: &metav1.LabelSelector{MatchLabels: labels},
+					TopologyKey:   corev1.LabelHostname,
+				}},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.LaunchTemplateCache.Flush()
+			pod = coretest.UnschedulablePod(podOpts)
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateFleetBehavior.SuccessfulCalls()).To(BeNumerically("==", 2))
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
 			nodeClass.Spec.Kubelet = test.MustMakeKubeletConfiguration(v1.ParsedKubeletConfig{MaxPods: lo.ToPtr(intstr.FromInt32(1))})
@@ -775,7 +809,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(2))
 				// Bottlerocket control volume
-				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(4)))
+				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize)).To(Equal(int32(6)))
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal(ec2types.VolumeType("gp3")))
 				Expect(lo.FromPtr(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops)).To(Equal(int32(0)))
 				// Bottlerocket user volume
@@ -2407,6 +2441,7 @@ eviction-max-pod-grace-period = 10
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
 				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
 				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
+				Entry("MIME with cloud-config", lo.ToPtr("al2023_nitro_enclaves_userdata_input.golden"), "al2023_nitro_enclaves_userdata_merged.golden"),
 				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
 			)
 			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
@@ -2751,8 +2786,8 @@ eviction-max-pod-grace-period = 10
 			})
 		})
 	})
-	Context("Enclave Options", func() {
-		It("should default enclave options to disabled", func() {
+	Context("Default Enclave Options", func() {
+		It("should disable enclave options when the field is omitted", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2760,38 +2795,6 @@ eviction-max-pod-grace-period = 10
 			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically("==", 5))
 			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
-			})
-		})
-		It("should enable enclave options when nitro-sandbox is in the nodeclaim's resource requests", func() {
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-
-			// Build a NodeClaim with nitro-sandbox already in Spec.Resources.Requests,
-			// simulating what the scheduler sets when pods request that resource
-			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
-				Spec: karpv1.NodeClaimSpec{
-					Resources: karpv1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							v1.ResourceNitroSandbox: resource.MustParse("1"),
-						},
-					},
-					NodeClassRef: &karpv1.NodeClassReference{
-						Group: "karpenter.k8s.aws",
-						Kind:  "EC2NodeClass",
-						Name:  nodeClass.Name,
-					},
-				},
-			})
-
-			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(instanceTypes).ToNot(BeEmpty())
-
-			_, err = awsEnv.LaunchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, karpv1.CapacityTypeOnDemand, nodeClass.Spec.Tags, "default")
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">=", 1))
-			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
 			})
 		})
 	})
@@ -3054,6 +3057,112 @@ eviction-max-pod-grace-period = 10
 			Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].PrimaryIpv6)).To(Equal(false))
 			Expect(input.LaunchTemplateData.NetworkInterfaces[1].Ipv6AddressCount).To(BeNil())
 		})
+		DescribeTable("ResolvedNetworkInterface fields",
+			func(setup func(*amifamily.LaunchTemplate), ipFamily corev1.IPFamily, assertFn func(*ec2.CreateLaunchTemplateInput)) {
+				opts := &amifamily.LaunchTemplate{
+					Options: &amifamily.Options{
+						SecurityGroups: []v1.SecurityGroup{{ID: "sg-default1"}, {ID: "sg-default2"}},
+						IPPrefixCount:  lo.ToPtr(int32(1)),
+					},
+					MetadataOptions: &v1.MetadataOptions{
+						HTTPEndpoint:            lo.ToPtr("enabled"),
+						HTTPProtocolIPv6:        lo.ToPtr("disabled"),
+						HTTPPutResponseHopLimit: lo.ToPtr(int64(2)),
+						HTTPTokens:              lo.ToPtr("required"),
+					},
+				}
+				setup(opts)
+				input := launchtemplate.NewCreateLaunchTemplateInputBuilder(opts, ipFamily, "").Build(ctx)
+				assertFn(input)
+			},
+			Entry("should fallback to IPPrefixCount when SecondaryIPPrefixCount is nil for IPv4",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPPrefixCount: lo.ToPtr(int32(5))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv4PrefixCount)).To(Equal(int32(1)))
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[1].Ipv4PrefixCount)).To(Equal(int32(5)))
+				},
+			),
+			Entry("should not set Ipv6AddressCount when Ipv6PrefixCount is non-nil",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount)).To(Equal(int32(1)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount).To(BeNil())
+				},
+			),
+			Entry("should set Ipv6AddressCount to 1 when no prefix counts are configured",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.IPPrefixCount = nil
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+					}
+				},
+				corev1.IPv6Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6PrefixCount).To(BeNil())
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].Ipv6AddressCount)).To(Equal(int32(1)))
+				},
+			),
+			Entry("should set SecondaryPrivateIpAddressCount from SecondaryIPCount for ENA interfaces only",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryIPCount: lo.ToPtr(int32(10))},
+						{NetworkCardIndex: 0, DeviceIndex: 1, InterfaceType: v1.InterfaceTypeEFAOnly, SecondaryIPCount: lo.ToPtr(int32(10))},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SecondaryPrivateIpAddressCount)).To(Equal(int32(10)))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[1].SecondaryPrivateIpAddressCount).To(BeNil())
+				},
+			),
+			Entry("should use SecondaryENISecurityGroups on non-primary interface",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface},
+						{NetworkCardIndex: 1, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SecondaryENISecurityGroups: []v1.SecurityGroup{{ID: "sg-sec1"}}},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal([]string{"sg-default1", "sg-default2"}))
+					Expect(input.LaunchTemplateData.NetworkInterfaces[1].Groups).To(Equal([]string{"sg-sec1"}))
+				},
+			),
+			Entry("should set SubnetId when configured",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeInterface, SubnetID: "subnet-custom"},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(lo.FromPtr(input.LaunchTemplateData.NetworkInterfaces[0].SubnetId)).To(Equal("subnet-custom"))
+				},
+			),
+			Entry("should not set AssociatePublicIpAddress on EFA-only interfaces",
+				func(opts *amifamily.LaunchTemplate) {
+					opts.AssociatePublicIPAddress = lo.ToPtr(true)
+					opts.NetworkInterfaces = []*amifamily.ResolvedNetworkInterface{
+						{NetworkCardIndex: 0, DeviceIndex: 0, InterfaceType: v1.InterfaceTypeEFAOnly},
+					}
+				},
+				corev1.IPv4Protocol,
+				func(input *ec2.CreateLaunchTemplateInput) {
+					Expect(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeNil())
+				},
+			),
+		)
 	})
 	Context("Tenancy", func() {
 		DescribeTable("should set tenancy on launch template",
@@ -3263,6 +3372,125 @@ eviction-max-pod-grace-period = 10
 		Entry("enabled", true),
 		Entry("disabled", false),
 	)
+	Context("EC2NodeClass Enclave Options", func() {
+		BeforeEach(func() {
+			// The generated test data predates NitroEnclavesSupport. Mark the fake instance types
+			// as supported so the NodeClass compatibility filter can exercise launch behavior.
+			out, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, nil)
+			Expect(err).ToNot(HaveOccurred())
+			for i := range out.InstanceTypes {
+				out.InstanceTypes[i].NitroEnclavesSupport = ec2types.NitroEnclavesSupportSupported
+			}
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(out)
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+		})
+		It("should enable enclave options when specified", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+		It("should disable enclave options when explicitly set to false", func() {
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: false}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeFalse())
+			})
+		})
+		It("should provision an enclave workload from NodeOverlay resources without a NodePool selector", func() {
+			const devicePluginLabel = "aws-nitro-enclaves-k8s-dp"
+			enclaveSlots := corev1.ResourceName("aws.ec2.nitro/nitro_enclaves")
+			enclaveCPUs := corev1.ResourceName("aws.ec2.nitro/nitro_enclaves_cpus")
+			hugepages1Gi := corev1.ResourceName("hugepages-1Gi")
+
+			ctx = coreoptions.ToContext(ctx, coretest.Options(coretest.OptionsFields{
+				FeatureGates: coretest.FeatureGates{
+					NodeOverlay:      lo.ToPtr(true),
+					ReservedCapacity: lo.ToPtr(true),
+				},
+			}))
+			nodeClass.Spec.EnclaveOptions = &v1.EnclaveOptions{Enabled: true}
+			nodePool.Spec.Template.Labels[devicePluginLabel] = "enabled"
+			nodeOverlay := coretest.NodeOverlay(karpv1alpha1.NodeOverlay{
+				Spec: karpv1alpha1.NodeOverlaySpec{
+					Requirements: []karpv1alpha1.NodeSelectorRequirement{
+						{
+							Key:      devicePluginLabel,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"enabled"},
+						},
+						{
+							Key:      v1.LabelInstanceCPU,
+							Operator: corev1.NodeSelectorOpGt,
+							Values:   []string{"2"},
+						},
+						{
+							Key:      v1.LabelInstanceMemory,
+							Operator: corev1.NodeSelectorOpGt,
+							Values:   []string{"4096"},
+						},
+					},
+					Capacity: corev1.ResourceList{
+						enclaveSlots: resource.MustParse("4"),
+						enclaveCPUs:  resource.MustParse("2"),
+						hugepages1Gi: resource.MustParse("4Gi"),
+					},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, nodeClass, nodePool, nodeOverlay)
+			overlaidCloudProvider := overlay.Decorate(cloudProvider, env.Client, awsEnv.InstanceTypeStore)
+			overlaidCluster := state.NewCluster(awsEnv.Clock, env.Client, overlaidCloudProvider)
+			nodeOverlayController := nodeoverlay.NewController(awsEnv.Clock, env.Client, cloudProvider, awsEnv.InstanceTypeStore, overlaidCluster)
+			ExpectReconciled(ctx, nodeOverlayController, reconcile.Request{})
+
+			overlaidProvisioner := provisioning.NewProvisioner(
+				env.Client,
+				recorder,
+				overlaidCloudProvider,
+				overlaidCluster,
+				awsEnv.Clock,
+				deviceallocation.NewController(env.Client),
+				virtualpods.NewVirtualPodCache(env.Client),
+				prediction.NewStore(env.Client),
+			)
+			pod := coretest.UnschedulablePod()
+			pod.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU: resource.MustParse("250m"),
+					enclaveSlots:       resource.MustParse("1"),
+					enclaveCPUs:        resource.MustParse("2"),
+					hugepages1Gi:       resource.MustParse("4Gi"),
+				},
+				Limits: corev1.ResourceList{
+					enclaveSlots: resource.MustParse("1"),
+					enclaveCPUs:  resource.MustParse("2"),
+					hugepages1Gi: resource.MustParse("4Gi"),
+				},
+			}
+			Expect(pod.Spec.NodeSelector).To(BeEmpty())
+			ExpectProvisioned(ctx, env.Client, overlaidCluster, overlaidCloudProvider, overlaidProvisioner, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+
+			Expect(awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.Len()).To(BeNumerically(">", 0))
+			awsEnv.EC2API.CreateLaunchTemplateBehavior.CalledWithInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.EnclaveOptions).ToNot(BeNil())
+				Expect(aws.ToBool(ltInput.LaunchTemplateData.EnclaveOptions.Enabled)).To(BeTrue())
+			})
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found

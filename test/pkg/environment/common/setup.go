@@ -26,6 +26,7 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -111,7 +112,11 @@ func (env *Environment) ExpectCleanCluster() {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
-		Expect(env.Client.List(env.Context, metaList, client.Limit(1))).To(Succeed())
+		if err := env.Client.List(env.Context, metaList, client.Limit(1)); meta.IsNoMatchError(err) {
+			continue
+		} else {
+			Expect(err).ToNot(HaveOccurred())
+		}
 		Expect(metaList.Items).To(HaveLen(0), fmt.Sprintf("expected no %s to exist", gvk.Kind))
 	}
 }
@@ -138,7 +143,11 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				// This only gets the metadata for the objects since we don't need all the details of the objects
 				metaList := &metav1.PartialObjectMetadataList{}
 				metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
-				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+				if err := env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel})); meta.IsNoMatchError(err) {
+					return
+				} else {
+					g.Expect(err).ToNot(HaveOccurred())
+				}
 				// Limit the concurrency of these calls to 50 workers per object so that we try to limit how aggressively we
 				// are deleting so that we avoid getting client-side throttled
 				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
@@ -155,6 +164,24 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 		})
 	}
 	wg.Wait()
+}
+
+// ExpectTestingFinalizerAdded adds the TestingFinalizer to each object using an optimistic-locked merge patch,
+// retrying on conflict. Only the finalizer change is sent, so concurrent controller writes (e.g. Karpenter
+// adding the karpenter.sh/initialized label to a Node) are never overwritten. Each object is refreshed in place.
+func (env *Environment) ExpectTestingFinalizerAdded(objects ...client.Object) {
+	GinkgoHelper()
+	for _, obj := range objects {
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+			if lo.Contains(obj.GetFinalizers(), TestingFinalizer) {
+				return
+			}
+			stored := obj.DeepCopyObject().(client.Object)
+			obj.SetFinalizers(append(obj.GetFinalizers(), TestingFinalizer))
+			g.Expect(env.Client.Patch(env, obj, client.MergeFromWithOptions(stored, client.MergeFromWithOptimisticLock{}))).To(Succeed())
+		}).WithTimeout(10 * time.Second).Should(Succeed())
+	}
 }
 
 func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {

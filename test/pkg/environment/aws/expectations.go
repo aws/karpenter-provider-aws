@@ -27,6 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
 
 	"github.com/aws/aws-sdk-go-v2/service/fis"
 	fistypes "github.com/aws/aws-sdk-go-v2/service/fis/types"
@@ -35,17 +36,20 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 
+	"github.com/aws/smithy-go"
 	"github.com/samber/lo"
+	"github.com/samber/lo/mutable"
 	"go.uber.org/multierr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -61,6 +65,7 @@ const (
 
 func (env *Environment) ExpectWindowsIPAMEnabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=true")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "true",
 	})
@@ -68,6 +73,7 @@ func (env *Environment) ExpectWindowsIPAMEnabled() {
 
 func (env *Environment) ExpectWindowsIPAMDisabled() {
 	GinkgoHelper()
+	env.RequireVPCCNI("enable-windows-ipam=false")
 	env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "kube-system", Name: "amazon-vpc-cni"}, map[string]string{
 		"enable-windows-ipam": "false",
 	})
@@ -78,7 +84,11 @@ func (env *Environment) ExpectInstance(nodeName string) Assertion {
 }
 
 func (env *Environment) ExpectIPv6ClusterDNS() string {
+	GinkgoHelper()
 	dnsService, err := env.Environment.KubeClient.CoreV1().Services("kube-system").Get(env.Context, "kube-dns", metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:kube-dns-service] cluster %s has no kube-system/kube-dns Service", env.ClusterName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	kubeDNSIP := net.ParseIP(dnsService.Spec.ClusterIP)
 	Expect(kubeDNSIP.To4()).To(BeNil())
@@ -116,7 +126,33 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 	Expect(err).ToNot(HaveOccurred())
 	experiment, err := env.FISAPI.StartExperiment(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
 	Expect(err).ToNot(HaveOccurred())
+	env.expectExperimentActionsStarted(experiment.Experiment)
 	return experiment.Experiment
+}
+
+func (env *Environment) expectExperimentActionsStarted(experiment *fistypes.Experiment) {
+	GinkgoHelper()
+	var failed *fistypes.ExperimentActionState
+	Eventually(func(g Gomega) {
+		out, err := env.FISAPI.GetExperiment(env.Context, &fis.GetExperimentInput{Id: experiment.Id})
+		g.Expect(err).ToNot(HaveOccurred())
+		for _, a := range out.Experiment.Actions {
+			if a.State != nil && a.State.Status == fistypes.ExperimentActionStatusFailed {
+				failed = a.State
+				return
+			}
+			g.Expect(a.State).ToNot(BeNil())
+			g.Expect(a.State.Status).To(BeElementOf(fistypes.ExperimentActionStatusRunning, fistypes.ExperimentActionStatusCompleted))
+		}
+	}).WithTimeout(time.Minute).WithPolling(2 * time.Second).Should(Succeed())
+	if failed == nil {
+		return
+	}
+	env.ExpectExperimentTemplateDeleted(lo.FromPtr(experiment.ExperimentTemplateId))
+	if env.ExternalController != nil && strings.Contains(lo.FromPtr(failed.Reason), "Not enough privileges") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] %s denied the FIS experiment on its instances: %s", env.ExternalController.Name, lo.FromPtr(failed.Reason)))
+	}
+	Fail(fmt.Sprintf("FIS experiment %s failed: %s", lo.FromPtr(experiment.Id), lo.FromPtr(failed.Reason)))
 }
 
 func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
@@ -168,6 +204,7 @@ func (env *Environment) ExpectInstanceStopped(nodeName string) {
 		Force:       aws.Bool(true),
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
 }
 
@@ -177,7 +214,15 @@ func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	_, err := env.EC2API.TerminateInstances(env.Context, &ec2.TerminateInstancesInput{
 		InstanceIds: []string{env.ExpectParsedProviderID(node.Spec.ProviderID)},
 	})
+	skipIfProtectedInstance(err)
 	Expect(err).To(Succeed())
+}
+
+func skipIfProtectedInstance(err error) {
+	GinkgoHelper()
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "UnauthorizedOperation" && strings.Contains(apiErr.ErrorMessage(), "resource-based policy") {
+		Skip(fmt.Sprintf("[unsupported:protected-instances] instance is protected by a resource-based policy: %s", strings.SplitN(apiErr.ErrorMessage(), " Encoded", 2)[0]))
+	}
 }
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2types.Instance {
@@ -218,6 +263,41 @@ func (env *Environment) GetNetworkInterfaces(ids ...string) []ec2types.NetworkIn
 	return dnio.NetworkInterfaces
 }
 
+// EventuallyExpectBranchENIsDeleted deletes the cluster's detached branch ENIs and waits until none remain.
+// The VPC resource controller only reclaims them every 30m, and they block deleting the cluster's subnets.
+func (env *Environment) EventuallyExpectBranchENIsDeleted() {
+	GinkgoHelper()
+	By("waiting for the cluster's branch ENIs to be deleted")
+	Eventually(func(g Gomega) {
+		var enis []ec2types.NetworkInterface
+		paginator := ec2.NewDescribeNetworkInterfacesPaginator(env.EC2API, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{Name: aws.String("description"), Values: []string{"aws-k8s-branch-eni"}},
+				{Name: aws.String("tag:eks:eni:owner"), Values: []string{"eks-vpc-resource-controller"}},
+				{Name: aws.String(fmt.Sprintf("tag:kubernetes.io/cluster/%s", env.ClusterName)), Values: []string{"owned"}},
+			},
+		})
+		for paginator.HasMorePages() {
+			out, err := paginator.NextPage(env.Context)
+			g.Expect(err).ToNot(HaveOccurred())
+			enis = append(enis, out.NetworkInterfaces...)
+		}
+		for _, eni := range enis {
+			if eni.Status != ec2types.NetworkInterfaceStatusAvailable {
+				continue
+			}
+			_, err := env.EC2API.DeleteNetworkInterface(env.Context, &ec2.DeleteNetworkInterfaceInput{NetworkInterfaceId: eni.NetworkInterfaceId})
+			if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && apiErr.ErrorCode() == "InvalidNetworkInterfaceID.NotFound" {
+				continue
+			}
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+		g.Expect(lo.Map(enis, func(eni ec2types.NetworkInterface, _ int) string {
+			return fmt.Sprintf("%s (%s)", aws.ToString(eni.NetworkInterfaceId), eni.Status)
+		})).To(BeEmpty())
+	}).WithTimeout(5 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+}
+
 func FindNetworkInterface(interfaces []ec2types.InstanceNetworkInterface, networkCardIndex, deviceIndex int32) (ec2types.InstanceNetworkInterface, bool) {
 	return lo.Find(interfaces, func(ni ec2types.InstanceNetworkInterface) bool {
 		return ni.Attachment != nil &&
@@ -236,9 +316,25 @@ func (env *Environment) GetSpotInstance(id string) ec2types.SpotInstanceRequest 
 	return siro.SpotInstanceRequests[0]
 }
 
-// GetSubnets returns all subnets matching the label selector
-// mapped from AZ -> {subnet-ids...}
-func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+func (env *Environment) DiscoveryTags() map[string]string {
+	return map[string]string{"karpenter.sh/discovery": env.ClusterName}
+}
+
+func (env *Environment) subnetDiscoveryFilters() []ec2types.Filter {
+	if len(env.SubnetIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("subnet-id"), Values: env.SubnetIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func (env *Environment) securityGroupDiscoveryFilters() []ec2types.Filter {
+	if len(env.SecurityGroupIDs) > 0 {
+		return []ec2types.Filter{{Name: aws.String("group-id"), Values: env.SecurityGroupIDs}}
+	}
+	return tagFilters(env.DiscoveryTags())
+}
+
+func tagFilters(tags map[string]string) []ec2types.Filter {
 	var filters []ec2types.Filter
 	for key, val := range tags {
 		filters = append(filters, ec2types.Filter{
@@ -246,6 +342,20 @@ func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
 			Values: []string{val},
 		})
 	}
+	return filters
+}
+
+// GetSubnets returns all subnets matching the label selector
+// mapped from AZ -> {subnet-ids...}
+func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
+	return env.getSubnets(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnets() map[string][]string {
+	return env.getSubnets(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnets(filters []ec2types.Filter) map[string][]string {
 	subnets := map[string][]string{}
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -275,13 +385,14 @@ type SubnetInfo struct {
 
 // GetSubnetInfo returns all subnets matching the label selector
 func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSubnetInfo(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSubnetInfo() []SubnetInfo {
+	return env.getSubnetInfo(env.subnetDiscoveryFilters())
+}
+
+func (env *Environment) getSubnetInfo(filters []ec2types.Filter) []SubnetInfo {
 	var subnetInfo []SubnetInfo
 	input := &ec2.DescribeSubnetsInput{
 		Filters: filters,
@@ -318,13 +429,14 @@ type SecurityGroup struct {
 
 // GetSecurityGroups returns all getSecurityGroups matching the label selector
 func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGroup {
-	var filters []ec2types.Filter
-	for key, val := range tags {
-		filters = append(filters, ec2types.Filter{
-			Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-			Values: []string{val},
-		})
-	}
+	return env.getSecurityGroups(tagFilters(tags))
+}
+
+func (env *Environment) DiscoveredSecurityGroups() []SecurityGroup {
+	return env.getSecurityGroups(env.securityGroupDiscoveryFilters())
+}
+
+func (env *Environment) getSecurityGroups(filters []ec2types.Filter) []SecurityGroup {
 	var securityGroups []SecurityGroup
 	input := &ec2.DescribeSecurityGroupsInput{
 		Filters: filters,
@@ -350,6 +462,9 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 
 func (env *Environment) ExpectMessagesCreated(msgs ...any) {
 	GinkgoHelper()
+	if env.SQSProvider == nil {
+		Skip("[unsupported:interruption-queue] " + env.NoInterruptionQueueCause)
+	}
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
@@ -542,6 +657,9 @@ func (env *Environment) ExpectSpotInterruptionRole() *iamtypes.Role {
 	out, err := env.IAMAPI.GetRole(env.Context, &iam.GetRoleInput{
 		RoleName: aws.String(fisRoleName),
 	})
+	if awserrors.IsNotFound(err) {
+		Skip(fmt.Sprintf("[unsupported:fis] IAM role %s does not exist", fisRoleName))
+	}
 	Expect(err).ToNot(HaveOccurred())
 	return out.Role
 }
@@ -553,7 +671,10 @@ func (env *Environment) ExpectAccountID() string {
 	return aws.ToString(identity.Account)
 }
 
+// ExpectInstanceProfileCreated creates an instance profile holding roleName. Register ExpectInstanceProfileDeleted
+// before calling it, so that a failure partway through doesn't leak the profile.
 func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleName string) {
+	GinkgoHelper()
 	By("creating an instance profile")
 	createInstanceProfile := &iam.CreateInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
@@ -561,6 +682,11 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 			{
 				Key:   aws.String(coretest.DiscoveryLabel),
 				Value: aws.String(env.ClusterName),
+			},
+			// The sweeper only selects expired instance profiles tagged with its region
+			{
+				Key:   aws.String(corev1.LabelTopologyRegion),
+				Value: aws.String(env.Region),
 			},
 		},
 	}
@@ -575,20 +701,35 @@ func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleNa
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
 }
 
-func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleName string) {
-	By("deleting an instance profile")
-	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-		RoleName:            aws.String(roleName),
-	}
-	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, removeRoleFromInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
+// ExpectInstanceProfileDeleted removes every role from the instance profile and deletes it. It's a no-op if the
+// profile doesn't exist. The variadic argument is ignored. It keeps the old (name, roleName) calls compiling.
+func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("deleting instance profile %s", instanceProfileName))
+	Eventually(func(g Gomega) {
+		g.Expect(env.deleteInstanceProfile(instanceProfileName)).To(Succeed())
+	}).WithTimeout(time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+}
 
-	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
+func (env *Environment) deleteInstanceProfile(instanceProfileName string) error {
+	out, err := env.IAMAPI.GetInstanceProfile(env.Context, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
+	})
+	if err != nil {
+		return awserrors.IgnoreNotFound(err)
 	}
-	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, deleteInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	for _, role := range out.InstanceProfile.Roles {
+		if _, err = env.IAMAPI.RemoveRoleFromInstanceProfile(env.Context, &iam.RemoveRoleFromInstanceProfileInput{
+			InstanceProfileName: aws.String(instanceProfileName),
+			RoleName:            role.RoleName,
+		}); awserrors.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	_, err = env.IAMAPI.DeleteInstanceProfile(env.Context, &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+	})
+	return awserrors.IgnoreNotFound(err)
 }
 
 func ignoreAlreadyContainsRole(err error) error {
@@ -600,25 +741,18 @@ func ignoreAlreadyContainsRole(err error) error {
 	return err
 }
 
-func ExpectInterruptibleCapacityReservationCreated(
+// ExpectInterruptibleCapacityAllocationCreated allocates interruptible capacity from the source reservation and returns the
+// ID of the resulting interruptible reservation.
+func ExpectInterruptibleCapacityAllocationCreated(
 	ctx context.Context,
 	ec2api *ec2.Client,
-	instanceType ec2types.InstanceType,
-	zone string,
-	totalCapacity int32,
+	sourceReservationID string,
 	interruptibleCapacity int32,
-	tags map[string]string,
-) (string, string) {
+) string {
 	GinkgoHelper()
-	odcrID := ExpectCapacityReservationCreated(ctx, ec2api, instanceType, zone, totalCapacity, nil, tags)
-
 	_, err := ec2api.CreateInterruptibleCapacityReservationAllocation(ctx, &ec2.CreateInterruptibleCapacityReservationAllocationInput{
-		CapacityReservationId: &odcrID,
+		CapacityReservationId: &sourceReservationID,
 		InstanceCount:         lo.ToPtr(interruptibleCapacity),
-		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
-			ResourceType: ec2types.ResourceTypeCapacityReservation,
-			Tags:         utils.EC2MergeTags(tags),
-		}}, nil),
 	})
 	Expect(err).ToNot(HaveOccurred())
 
@@ -626,7 +760,7 @@ func ExpectInterruptibleCapacityReservationCreated(
 	var out *ec2.DescribeCapacityReservationsOutput
 	Eventually(func(g Gomega) {
 		out, err = ec2api.DescribeCapacityReservations(ctx, &ec2.DescribeCapacityReservationsInput{
-			CapacityReservationIds: []string{odcrID},
+			CapacityReservationIds: []string{sourceReservationID},
 		})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(Not(BeNil()))
@@ -634,7 +768,7 @@ func ExpectInterruptibleCapacityReservationCreated(
 		Expect(out.CapacityReservations[0].InterruptibleCapacityAllocation).To(Not(BeNil()))
 	}).WithTimeout(15 * time.Second).WithPolling(2 * time.Second).Should(Succeed())
 
-	return odcrID, *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
+	return *out.CapacityReservations[0].InterruptibleCapacityAllocation.InterruptibleCapacityReservationId
 }
 
 func ExpectModifyInterruptibleCapacity(
@@ -658,6 +792,10 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 	interrutibleReservationID string,
 ) {
 	GinkgoHelper()
+	// the reservations were never created if the BeforeAll failed
+	if sourceReservationId == "" {
+		return
+	}
 	_, err := ec2api.UpdateInterruptibleCapacityReservationAllocation(ctx, &ec2.UpdateInterruptibleCapacityReservationAllocationInput{
 		CapacityReservationId: lo.ToPtr(sourceReservationId),
 		TargetInstanceCount:   aws.Int32(0),
@@ -684,39 +822,111 @@ func ExpectInterruptibleAndSourceCapacityCanceled(
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &sourceReservationId,
 		})
-		Expect(err).ToNot(HaveOccurred())
+		g.Expect(err).ToNot(HaveOccurred())
 	}).WithTimeout(4 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 }
 
-func ExpectCapacityReservationCreated(
-	ctx context.Context,
-	ec2api *ec2.Client,
-	instanceType ec2types.InstanceType,
-	zone string,
-	capacity int32,
-	endDate *time.Time,
-	tags map[string]string,
-) string {
+// capacityReservationFamilies are the instance families E2E capacity reservations are drawn from. Each contributes its large
+// and xlarge sizes, and all of them satisfy the default NodePool's requirements.
+var capacityReservationFamilies = []string{
+	"m5", "m5a", "m6i", "m6a", "m7i", "m7a", "m6g", "m7g",
+	"c5", "c6i", "c6a", "c7i", "c7g",
+	"r5", "r6i",
+}
+
+type CapacityReservation struct {
+	ID           string
+	InstanceType string
+	Zone         string
+}
+
+// ExpectCapacityReservationCreated creates a targeted ODCR for a random instance type and zone. Creating an ODCR for any
+// single offering is frequently ICE'd, so offerings are tried in a random order, which also keeps concurrent suites from
+// contending for the same one.
+func (env *Environment) ExpectCapacityReservationCreated(capacity int32) CapacityReservation {
 	GinkgoHelper()
-	out, err := ec2api.CreateCapacityReservation(ctx, &ec2.CreateCapacityReservationInput{
+	type offering struct{ instanceType, zone string }
+	var offerings []offering
+	for _, family := range capacityReservationFamilies {
+		for _, size := range []string{"large", "xlarge"} {
+			for _, zone := range env.capacityReservationZones() {
+				offerings = append(offerings, offering{instanceType: fmt.Sprintf("%s.%s", family, size), zone: zone})
+			}
+		}
+	}
+	mutable.Shuffle(offerings)
+	for _, o := range offerings {
+		cr, err := env.tryCreateCapacityReservation(o.instanceType, o.zone, capacity)
+		Expect(err).ToNot(HaveOccurred())
+		if cr != nil {
+			return *cr
+		}
+	}
+	Fail("failed to create a capacity reservation, all offerings had insufficient capacity")
+	return CapacityReservation{}
+}
+
+// ExpectCapacityReservationPairCreated creates ODCRs for the large and xlarge sizes of a random instance family in the same
+// zone, for tests that rely on the large being the cheaper of the two.
+func (env *Environment) ExpectCapacityReservationPairCreated(largeCapacity, xlargeCapacity int32) (CapacityReservation, CapacityReservation) {
+	GinkgoHelper()
+	type offering struct{ family, zone string }
+	var offerings []offering
+	for _, family := range capacityReservationFamilies {
+		for _, zone := range env.capacityReservationZones() {
+			offerings = append(offerings, offering{family: family, zone: zone})
+		}
+	}
+	mutable.Shuffle(offerings)
+	for _, o := range offerings {
+		large, err := env.tryCreateCapacityReservation(o.family+".large", o.zone, largeCapacity)
+		Expect(err).ToNot(HaveOccurred())
+		if large == nil {
+			continue
+		}
+		xlarge, err := env.tryCreateCapacityReservation(o.family+".xlarge", o.zone, xlargeCapacity)
+		if err != nil || xlarge == nil {
+			ExpectCapacityReservationsCanceled(env.Context, env.EC2API, large.ID)
+		}
+		Expect(err).ToNot(HaveOccurred())
+		if xlarge != nil {
+			return *large, *xlarge
+		}
+	}
+	Fail("failed to create a pair of capacity reservations, all offerings had insufficient capacity")
+	return CapacityReservation{}, CapacityReservation{}
+}
+
+// capacityReservationZones returns the availability zones covered by the cluster's discovery subnets
+func (env *Environment) capacityReservationZones() []string {
+	return lo.Uniq(lo.FilterMap(env.DiscoveredSubnetInfo(), func(s SubnetInfo, _ int) (string, bool) {
+		return s.Zone, s.ZoneType == "availability-zone"
+	}))
+}
+
+// tryCreateCapacityReservation returns a nil reservation if the offering can't currently be reserved
+func (env *Environment) tryCreateCapacityReservation(instanceType, zone string, capacity int32) (*CapacityReservation, error) {
+	out, err := env.EC2API.CreateCapacityReservation(env.Context, &ec2.CreateCapacityReservationInput{
 		InstanceCount:         lo.ToPtr(capacity),
-		InstanceType:          lo.ToPtr(string(instanceType)),
+		InstanceType:          lo.ToPtr(instanceType),
 		InstancePlatform:      ec2types.CapacityReservationInstancePlatformLinuxUnix,
 		AvailabilityZone:      lo.ToPtr(zone),
-		EndDate:               endDate,
 		InstanceMatchCriteria: ec2types.InstanceMatchCriteriaTargeted,
-		TagSpecifications: lo.Ternary(len(tags) != 0, []ec2types.TagSpecification{{
-			ResourceType: ec2types.ResourceTypeCapacityReservation,
-			Tags:         utils.EC2MergeTags(tags),
-		}}, nil),
 	})
-	Expect(err).ToNot(HaveOccurred())
-	return *out.CapacityReservation.CapacityReservationId
+	if apiErr, ok := lo.ErrorsAs[smithy.APIError](err); ok && lo.Contains([]string{"InsufficientInstanceCapacity", "Unsupported"}, apiErr.ErrorCode()) {
+		GinkgoWriter.Printf("Skipping capacity reservation for %s in %s: %s\n", instanceType, zone, apiErr.ErrorCode())
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	By(fmt.Sprintf("created capacity reservation %s for %s in %s", *out.CapacityReservation.CapacityReservationId, instanceType, zone))
+	return &CapacityReservation{ID: *out.CapacityReservation.CapacityReservationId, InstanceType: instanceType, Zone: zone}, nil
 }
 
 func ExpectCapacityReservationsCanceled(ctx context.Context, ec2api *ec2.Client, reservationIDs ...string) {
 	GinkgoHelper()
-	for _, id := range reservationIDs {
+	for _, id := range lo.Compact(reservationIDs) {
 		_, err := ec2api.CancelCapacityReservation(ctx, &ec2.CancelCapacityReservationInput{
 			CapacityReservationId: &id,
 		})
@@ -798,38 +1008,90 @@ func (env *Environment) EventuallyExpectNodeRoleCreated(roleName string) {
 	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 }
 
-// Deletes a role and cleans up associated resources. This includes removing the EKS access entry that authorizes nodes
-// to join the cluster, detaching standard node policies (container registry, CNI, worker node, and SSM policies), and
-// finally deleting the IAM role itself.
+// ExpectNodeRoleDeleted deletes a role made by EventuallyExpectNodeRoleCreated, its access entry, and everything that
+// would block DeleteRole. It's a no-op for parts that don't exist, so register it before creating the role.
 func (env *Environment) ExpectNodeRoleDeleted(roleName string) {
 	GinkgoHelper()
+	By(fmt.Sprintf("deleting node role %s", roleName))
+	// Checked last, so an STS or EKS error can't stop the IAM cleanup
+	accessEntryErr := env.deleteNodeRoleAccessEntry(roleName)
+	// Retried because DeleteRole can conflict with a profile Karpenter is still creating or deleting
+	Eventually(func(g Gomega) {
+		g.Expect(env.deleteRole(roleName)).To(Succeed())
+	}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
+	Expect(accessEntryErr).ToNot(HaveOccurred())
+}
 
-	_, err := env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
+func (env *Environment) deleteNodeRoleAccessEntry(roleName string) error {
+	identity, err := env.STSAPI.GetCallerIdentity(env.Context, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return err
+	}
+	_, err = env.EKSAPI.DeleteAccessEntry(env.Context, &eks.DeleteAccessEntryInput{
 		ClusterName:  aws.String(env.ClusterName),
-		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", env.ExpectAccountID(), roleName)),
+		PrincipalArn: aws.String(fmt.Sprintf("arn:aws:iam::%s:role/%s", aws.ToString(identity.Account), roleName)),
 	})
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
-
-	requiredPolicies := []string{
-		"arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPullOnly",
-		"arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
-		"arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
-		"arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+	if _, ok := lo.ErrorsAs[*ekstypes.ResourceNotFoundException](err); ok {
+		return nil
 	}
-	// Detach all policies
-	for _, policyArn := range requiredPolicies {
-		_, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
-			RoleName:  aws.String(roleName),
-			PolicyArn: &policyArn,
-		})
-		Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
-	}
+	return err
+}
 
-	// Delete role
-	_, err = env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{
-		RoleName: aws.String(roleName),
+// EventuallyExpectNodeRoleCreated never adds inline policies, so there are none to delete.
+func (env *Environment) deleteRole(roleName string) error {
+	if err := env.deleteRoleInstanceProfiles(roleName); err != nil {
+		return err
+	}
+	if err := env.detachRolePolicies(roleName); err != nil {
+		return err
+	}
+	_, err := env.IAMAPI.DeleteRole(env.Context, &iam.DeleteRoleInput{RoleName: aws.String(roleName)})
+	return awserrors.IgnoreNotFound(err)
+}
+
+// A spec that fails before its EC2NodeClass is finalized leaves Karpenter's instance profile holding the role.
+// The role is unique to the spec, so any profile holding it is safe to delete. Karpenter creates its profiles under
+// the cluster's path, so listing that path finds them without ListInstanceProfilesForRole.
+func (env *Environment) deleteRoleInstanceProfiles(roleName string) error {
+	profiles := iam.NewListInstanceProfilesPaginator(env.IAMAPI, &iam.ListInstanceProfilesInput{
+		PathPrefix: aws.String(instanceprofile.FormatPath("karpenter", env.Region, env.ClusterName)),
 	})
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+	for profiles.HasMorePages() {
+		out, err := profiles.NextPage(env.Context)
+		if err != nil {
+			return err
+		}
+		for _, profile := range out.InstanceProfiles {
+			if !lo.ContainsBy(profile.Roles, func(r iamtypes.Role) bool { return lo.FromPtr(r.RoleName) == roleName }) {
+				continue
+			}
+			if err = env.deleteInstanceProfile(lo.FromPtr(profile.InstanceProfileName)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// detachRolePolicies detaches the role's managed policies. The CI role can only detach the four node policies that
+// EventuallyExpectNodeRoleCreated attaches, so any other policy fails with AccessDenied.
+func (env *Environment) detachRolePolicies(roleName string) error {
+	attached := iam.NewListAttachedRolePoliciesPaginator(env.IAMAPI, &iam.ListAttachedRolePoliciesInput{RoleName: aws.String(roleName)})
+	for attached.HasMorePages() {
+		out, err := attached.NextPage(env.Context)
+		if err != nil {
+			return awserrors.IgnoreNotFound(err)
+		}
+		for _, policy := range out.AttachedPolicies {
+			if _, err = env.IAMAPI.DetachRolePolicy(env.Context, &iam.DetachRolePolicyInput{
+				RoleName:  aws.String(roleName),
+				PolicyArn: policy.PolicyArn,
+			}); awserrors.IgnoreNotFound(err) != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (env *Environment) ExpectSecurityGroupDeleted(groupID *string) {
@@ -938,4 +1200,24 @@ func ExpectPlacementGroupDeleted(ctx context.Context, ec2api *ec2.Client, name s
 		GroupName: lo.ToPtr(name),
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (env *Environment) EventuallyExpectClusterToZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeTrue())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectClusterToNotHaveZonalShift(zoneId string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting no zonal shift on cluster %s away from %s", env.ClusterName, zoneId))
+	Eventually(func(g Gomega) {
+		g.Expect(env.ZonalShiftProvider.UpdateZonalShifts(env.Context)).To(Succeed())
+		shifted := env.ZonalShiftProvider.IsZonalShifted(env.Context, zoneId)
+		g.Expect(shifted).To(BeFalse())
+	}).WithTimeout(60 * time.Second).WithPolling(10 * time.Second).Should(Succeed())
 }

@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/awslabs/operatorpkg/option"
 	"github.com/awslabs/operatorpkg/serrors"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -40,6 +41,7 @@ import (
 	kubeletcel "github.com/aws/karpenter-provider-aws/pkg/cel"
 	karpopts "github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/efa"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
@@ -64,9 +66,20 @@ type ENILookup func(instanceTypeName string) (ENILimits, bool)
 
 // DefaultResolver is able to fill-in dynamic launch template parameters
 type DefaultResolver struct {
-	region    string
-	eniLookup ENILookup
-	celEnv    *kubeletcel.CELEnvironment
+	region      string
+	eniLookup   ENILookup
+	celEnv      *kubeletcel.CELEnvironment
+	efaProvider efa.Provider
+}
+
+type DefaultResolverOpts = option.Function[DefaultResolver]
+
+// WithEFAProvider decides whether launch templates attach EFA interfaces with p instead of efa.DefaultProvider. Pass
+// the same Provider to the instance provider (instance.WithEFAProvider) so the two agree.
+func WithEFAProvider(p efa.Provider) DefaultResolverOpts {
+	return func(resolver *DefaultResolver) {
+		resolver.efaProvider = p
+	}
 }
 
 // Options define the static launch template parameters
@@ -101,7 +114,7 @@ type LaunchTemplate struct {
 	InstanceTypes                    []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring               bool
 	EFACount                         int
-	EnclaveEnabled                   bool
+	EnclaveEnabled                   bool // Resolvers other than DefaultResolver may set this from their own signals
 	NetworkInterfaces                []*ResolvedNetworkInterface
 	CapacityType                     string
 	CapacityReservationID            string
@@ -155,12 +168,13 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // NewDefaultResolver constructs a new launch template DefaultResolver
-func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.CELEnvironment) *DefaultResolver {
-	return &DefaultResolver{
-		region:    region,
-		eniLookup: eniLookup,
-		celEnv:    celEnv,
-	}
+func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.CELEnvironment, opts ...DefaultResolverOpts) *DefaultResolver {
+	return option.Resolve(append([]DefaultResolverOpts{func(resolver *DefaultResolver) {
+		resolver.region = region
+		resolver.eniLookup = eniLookup
+		resolver.celEnv = celEnv
+		resolver.efaProvider = efa.DefaultProvider{}
+	}}, opts...)...)
 }
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
@@ -169,6 +183,7 @@ func NewDefaultResolver(region string, eniLookup ENILookup, celEnv *kubeletcel.C
 //nolint:gocyclo
 func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, tenancyType string, options *Options, placementGroupID string, placementGroupPartition int32) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.AMIFamily(), options)
+	enclaveEnabled := nodeClass.Spec.EnclaveOptions != nil && nodeClass.Spec.EnclaveOptions.Enabled
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
@@ -257,8 +272,9 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 					"instance-type", it.Name)
 			}
 			return launchTemplateParams{
+				// Shares its efa.Provider with the instance provider, which records the EFA count on the instance.
 				efaCount: lo.Ternary(
-					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceEFA),
+					r.efaProvider.Enabled(nodeClaim, nodeClass),
 					int(lo.ToPtr(it.Capacity[v1.ResourceEFA]).Value()),
 					0,
 				),
@@ -284,7 +300,7 @@ func (r DefaultResolver) Resolve(ctx context.Context, nodeClass *v1.EC2NodeClass
 
 		for params, instanceTypes := range paramsToInstanceTypes {
 			reservationIDs := strings.Split(params.reservationIDs, ",")
-			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet)...)
+			resolvedTemplates = append(resolvedTemplates, r.resolveLaunchTemplates(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, reservationIDs, params.reservationType, params.reservationInterruptible, options, tenancyType, placementGroupID, placementGroupPartition, deserializeResourceMap(params.resolvedKubeReserved), deserializeResourceMap(params.resolvedSystemReserved), parsedKubelet, enclaveEnabled)...)
 		}
 	}
 	return resolvedTemplates, nil
@@ -361,6 +377,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 	resolvedKubeReserved map[string]string,
 	resolvedSystemReserved map[string]string,
 	parsedKubelet *v1.ParsedKubeletConfig,
+	enclaveEnabled bool,
 ) []*LaunchTemplate {
 	// Copied rather than re-parsed because the fields below are mutated per launch template -- maxPods
 	// and the resolved reservations differ by instance type -- so each template needs its own copy.
@@ -459,7 +476,7 @@ func (r DefaultResolver) resolveLaunchTemplates(
 			Tenancy:                          tenancyType,
 			PlacementGroupID:                 placementGroupID,
 			PlacementGroupPartition:          placementGroupPartition,
-			EnclaveEnabled:                   lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1.ResourceNitroSandbox),
+			EnclaveEnabled:                   enclaveEnabled,
 			ConnectionTracking:               nodeClass.Spec.ConnectionTracking,
 		}
 		if len(resolved.BlockDeviceMappings) == 0 {

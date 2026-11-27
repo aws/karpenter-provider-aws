@@ -5,6 +5,9 @@ on:
       - 'main'
       - 'release-v*'
       - 'staging/*'
+# A newer run replaces any older run still waiting to start; in-flight runs finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   snapshot:
     permissions:
@@ -18,7 +21,7 @@ jobs:
       - uses: ./.github/actions/install-deps
         with:
           use-cache: false
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.SNAPSHOT_ACCOUNT_ID }}:role/${{ vars.SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.SNAPSHOT_REGION }}
