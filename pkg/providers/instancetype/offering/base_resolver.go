@@ -17,6 +17,8 @@ package offering
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 	"sync"
 
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -33,7 +35,6 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype/compatibility"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -56,20 +57,19 @@ func (r *BaseResolver) ResolveOfferings(
 	it *cloudprovider.InstanceType,
 	offerings cloudprovider.Offerings,
 	instanceTypeInfo ec2types.InstanceTypeInfo,
-	nodeClass NodeClass,
+	_ NodeClass,
 	allZones sets.Set[string],
-	shiftedZones sets.Set[string],
+	_ sets.Set[string],
 	pg *placementgroup.PlacementGroup,
 	rc *ResolveContext,
 ) cloudprovider.Offerings {
-	itZones := sets.New(it.Requirements.Get(corev1.LabelTopologyZone).Values()...)
 	// ZoneInfo and the cache-key builder are pre-computed once per InjectOfferings call and passed
 	// in via ResolveContext, since they're constant across instance types and expensive to recompute.
-	zoneInfo := rc.ZoneInfo
 	keyBuilder := rc.cacheKeyBuilder
-	// Not all instance types are compatible with the NodeClass.
-	// In the event it is not, we mark the offering as unavailable.
-	isCompatibleWithNodeClass := compatibility.IsCompatibleWithNodeClass(instanceTypeInfo, nodeClass, pg)
+
+	// Values() allocates, so read each requirement once.
+	itZoneValues := it.Requirements.Get(corev1.LabelTopologyZone).Values()
+	capacityTypeValues := it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
 
 	// If the sequence number has changed for the unavailable offerings, we know that we can't use the previously cached value
 	lastSeqNum, ok := r.LastUnavailableOfferingsSeqNum.Load(ec2types.InstanceType(it.Name))
@@ -77,94 +77,87 @@ func (r *BaseResolver) ResolveOfferings(
 		lastSeqNum = 0
 	}
 	seqNum := r.UnavailableOfferings.SeqNum(ec2types.InstanceType(it.Name))
-	cacheKey := keyBuilder.cacheKeyFromInstanceType(it)
+	cacheKey := keyBuilder.cacheKeyFromInstanceType(it, itZoneValues, capacityTypeValues)
 	if ofs, ok := r.Cache.Get(cacheKey); ok && lastSeqNum == seqNum {
-		offerings = append(offerings, ofs.([]*cloudprovider.Offering)...)
-	} else {
-		var pgOpts []awscache.UnavailableOfferingsOption
-		if pg != nil {
-			pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
-		}
-		var cachedOfferings []*cloudprovider.Offering
-		for zone := range allZones {
-			var subnetIDs []string
-			isZonalShifted := false
-			zonalInfo, zonefound := lo.Find(zoneInfo, func(i v1.ZoneInfo) bool {
-				return i.Zone == zone
-			})
-			if zonefound {
-				subnetIDs = zonalInfo.SubnetIDs
-				isZonalShifted = r.ZonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
-			}
-			for _, capacityType := range it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values() {
-				// Reserved capacity types are constructed separately
-				if capacityType == karpv1.CapacityTypeReserved {
-					continue
-				}
-				// Additional capacity types registered by the cloud provider get their offerings from an additional resolver
-				if _, builtIn := cloudprovider.DefaultCapacityTypeClasses[capacityType]; !builtIn && lo.Contains(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), capacityType) {
-					continue
-				}
-				// Check both the general ICE signal and the PG-scoped signal.
-				// An offering is unavailable if either the general key or the PG-specific key is in the cache.
-				isUnavailable := r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
-				if !isUnavailable && len(pgOpts) > 0 {
-					isUnavailable = r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType, pgOpts...)
-				}
-				var price float64
-				var hasPrice bool
-				switch capacityType {
-				case karpv1.CapacityTypeOnDemand:
-					price, hasPrice = r.PricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name))
-				case karpv1.CapacityTypeSpot:
-					price, hasPrice = r.PricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
-				default:
-					panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
-				}
-				if !hasPrice {
-					if overlayPrice, ok := r.GetOverlayPrice(ctx, it.Name); ok {
-						price = overlayPrice
-						hasPrice = true
-					}
-				}
-				offering := &cloudprovider.Offering{
-					Requirements: scheduling.NewRequirements(
-						scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
-						scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
-						scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
-						scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist),
-						scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
-					),
-					Price:     price,
-					Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
-					// Only NodeClass incompatibility is permanent; ICE, a zonal shift and a missing price may all recover, so
-					// they leave the offering Compatible. A zone the type isn't offered in (or has no subnet in) also leaves
-					// it Compatible: that zone is already outside the instance type's zone requirement, so nothing waits on it.
-					Compatible: isCompatibleWithNodeClass,
-				}
-				if zonefound {
-					offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
-				}
-				cachedOfferings = append(cachedOfferings, offering)
-			}
-		}
-		r.Cache.SetDefault(cacheKey, cachedOfferings)
-		r.LastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
-		offerings = append(offerings, cachedOfferings...)
+		return append(offerings, ofs.([]*cloudprovider.Offering)...)
 	}
-	return offerings
+	itZones := sets.New(itZoneValues...)
+	// Not all instance types are compatible with the NodeClass.
+	// In the event it is not, we mark the offering as unavailable.
+	isCompatibleWithNodeClass := rc.Compatibility.IsCompatible(instanceTypeInfo)
+	var pgOpts []awscache.UnavailableOfferingsOption
+	if pg != nil {
+		pgOpts = append(pgOpts, awscache.WithPlacementGroup(pg.ID))
+	}
+	var cachedOfferings []*cloudprovider.Offering
+	for zone := range allZones {
+		var subnetIDs []string
+		isZonalShifted := false
+		zonalInfo, zonefound := rc.ZoneInfoByZone[zone]
+		if zonefound {
+			subnetIDs = zonalInfo.SubnetIDs
+			isZonalShifted = r.ZonalshiftProvider.IsZonalShifted(ctx, zonalInfo.ZoneID)
+		}
+		for _, capacityType := range capacityTypeValues {
+			// Reserved capacity types are constructed separately
+			if capacityType == karpv1.CapacityTypeReserved {
+				continue
+			}
+			// Additional capacity types registered by the cloud provider get their offerings from an additional resolver
+			if _, builtIn := cloudprovider.DefaultCapacityTypeClasses[capacityType]; !builtIn && lo.Contains(cloudprovider.CapacityTypesOf(cloudprovider.CapacityTypeClassOnDemand), capacityType) {
+				continue
+			}
+			// Check both the general ICE signal and the PG-scoped signal.
+			// An offering is unavailable if either the general key or the PG-specific key is in the cache.
+			isUnavailable := r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType)
+			if !isUnavailable && len(pgOpts) > 0 {
+				isUnavailable = r.UnavailableOfferings.IsUnavailable(ec2types.InstanceType(it.Name), zone, subnetIDs, capacityType, pgOpts...)
+			}
+			var price float64
+			var hasPrice bool
+			switch capacityType {
+			case karpv1.CapacityTypeOnDemand:
+				price, hasPrice = r.PricingProvider.OnDemandPrice(ec2types.InstanceType(it.Name))
+			case karpv1.CapacityTypeSpot:
+				price, hasPrice = r.PricingProvider.SpotPrice(ec2types.InstanceType(it.Name), zone)
+			default:
+				panic(fmt.Sprintf("invalid capacity type %q in requirements for instance type %q", capacityType, it.Name))
+			}
+			if !hasPrice {
+				if overlayPrice, ok := r.GetOverlayPrice(ctx, it.Name); ok {
+					price = overlayPrice
+					hasPrice = true
+				}
+			}
+			offering := &cloudprovider.Offering{
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
+					scheduling.NewRequirement(cloudprovider.ReservationIDLabel, corev1.NodeSelectorOpDoesNotExist),
+					scheduling.NewRequirement(v1.LabelCapacityReservationType, corev1.NodeSelectorOpDoesNotExist),
+					scheduling.NewRequirement(v1.LabelCapacityReservationInterruptible, corev1.NodeSelectorOpDoesNotExist),
+				),
+				Price:     price,
+				Available: isCompatibleWithNodeClass && !isUnavailable && hasPrice && itZones.Has(zone) && !isZonalShifted,
+				// Only NodeClass incompatibility is permanent; ICE, a zonal shift and a missing price may all recover, so
+				// they leave the offering Compatible. A zone the type isn't offered in (or has no subnet in) also leaves
+				// it Compatible: that zone is already outside the instance type's zone requirement, so nothing waits on it.
+				Compatible: isCompatibleWithNodeClass,
+			}
+			if zonefound {
+				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, zonalInfo.ZoneID))
+			}
+			cachedOfferings = append(cachedOfferings, offering)
+		}
+	}
+	r.Cache.SetDefault(cacheKey, cachedOfferings)
+	r.LastUnavailableOfferingsSeqNum.Store(ec2types.InstanceType(it.Name), seqNum)
+	return append(offerings, cachedOfferings...)
 }
 
-// capacityTypesKey is used as a map key for pre-computed capacity type hashes.
-type capacityTypesKey struct {
-	hasOnDemand bool
-	hasSpot     bool
-}
-
-// cacheKeyBuilder pre-computes some cache key components to avoid redundant hashing.
+// cacheKeyBuilder pre-computes the NodeClass-level cache key components to avoid redundant hashing.
 type cacheKeyBuilder struct {
-	baseSuffix          string                      // non-instance-type specific hashes
-	capacityTypesHashes map[capacityTypesKey]uint64 // capacity requirements -> hash
+	baseSuffix string // non-instance-type specific hashes
 }
 
 func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZones sets.Set[string], pg *placementgroup.PlacementGroup) *cacheKeyBuilder {
@@ -192,74 +185,59 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
 	}
+	// The AMI family affects compatibility (a1 is unsupported on AL2023), which the cached offerings carry.
+	amiFamilyHash, _ := hashstructure.Hash(nodeClass.AMIFamily(), hashstructure.FormatV2, nil)
 
-	b := &cacheKeyBuilder{
-		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
-			networkInterfaceHash,
-			subnetsHash,
-			shiftedZonesHash,
-			connectionTrackingHash,
-			enclavesEnabledHash,
-			nestedVirtualizationEnabledHash,
-			placementGroupHash,
-		),
-		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),
+	baseHash, _ := hashstructure.Hash([]uint64{
+		networkInterfaceHash,
+		subnetsHash,
+		shiftedZonesHash,
+		connectionTrackingHash,
+		enclavesEnabledHash,
+		nestedVirtualizationEnabledHash,
+		placementGroupHash,
+		amiFamilyHash,
+	}, hashstructure.FormatV2, nil)
+
+	return &cacheKeyBuilder{
+		baseSuffix: fmt.Sprintf("%016x", baseHash),
 	}
-	for _, hasOnDemand := range []bool{false, true} {
-		for _, hasSpot := range []bool{false, true} {
-			capacityTypes := []string{}
-			if hasOnDemand {
-				capacityTypes = append(capacityTypes, karpv1.CapacityTypeOnDemand)
-			}
-			if hasSpot {
-				capacityTypes = append(capacityTypes, karpv1.CapacityTypeSpot)
-			}
-			hash, _ := hashstructure.Hash(
-				capacityTypes,
-				hashstructure.FormatV2,
-				&hashstructure.HashOptions{SlicesAsSets: true},
-			)
-			b.capacityTypesHashes[capacityTypesKey{hasOnDemand: hasOnDemand, hasSpot: hasSpot}] = hash
-		}
-	}
-	return b
 }
 
-func (b *cacheKeyBuilder) cacheKeyFromInstanceType(it *cloudprovider.InstanceType) string {
-	zonesHash, _ := hashstructure.Hash(
-		it.Requirements.Get(corev1.LabelTopologyZone).Values(),
-		hashstructure.FormatV2,
-		&hashstructure.HashOptions{SlicesAsSets: true},
-	)
-
-	capacityTypes := it.Requirements.Get(karpv1.CapacityTypeLabelKey).Values()
-	var capacityTypesHash uint64
-	if key, ok := capacityTypesKeyFor(capacityTypes); ok {
-		capacityTypesHash = b.capacityTypesHashes[key]
-	} else {
-		// we try to use the pre-computed capacity types hash but fallback
-		// on unknown capacity type combinations (i.e. reserved)
-		capacityTypesHash, _ = hashstructure.Hash(
-			capacityTypes,
-			hashstructure.FormatV2,
-			&hashstructure.HashOptions{SlicesAsSets: true},
-		)
-	}
-	return fmt.Sprintf("%s-%016x-%016x-%s", it.Name, zonesHash, capacityTypesHash, b.baseSuffix)
+// cacheKeyFromInstanceType writes the zone and capacity type values into the key literally; both sets are
+// small, so this is cheaper than hashing them.
+func (b *cacheKeyBuilder) cacheKeyFromInstanceType(it *cloudprovider.InstanceType, zoneValues, capacityTypeValues []string) string {
+	var key strings.Builder
+	key.Grow(len(it.Name) + valuesLen(zoneValues) + valuesLen(capacityTypeValues) + len(b.baseSuffix) + 1)
+	key.WriteString(it.Name)
+	writeSortedValues(&key, zoneValues)
+	writeSortedValues(&key, capacityTypeValues)
+	key.WriteByte(keySeparator)
+	key.WriteString(b.baseSuffix)
+	return key.String()
 }
 
-func capacityTypesKeyFor(capacityTypes []string) (capacityTypesKey, bool) {
-	var key capacityTypesKey
-	for _, ct := range capacityTypes {
-		switch ct {
-		case karpv1.CapacityTypeOnDemand:
-			key.hasOnDemand = true
-		case karpv1.CapacityTypeSpot:
-			key.hasSpot = true
-		default:
-			return capacityTypesKey{}, false
-		}
+const (
+	keySeparator   = '|'
+	valueSeparator = ','
+)
+
+func valuesLen(values []string) int {
+	n := 1
+	for _, v := range values {
+		n += len(v) + 1
 	}
-	return key, true
+	return n
+}
+
+// writeSortedValues sorts values in place.
+func writeSortedValues(key *strings.Builder, values []string) {
+	slices.Sort(values)
+	key.WriteByte(keySeparator)
+	for i, v := range values {
+		if i > 0 {
+			key.WriteByte(valueSeparator)
+		}
+		key.WriteString(v)
+	}
 }
