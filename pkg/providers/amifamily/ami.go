@@ -38,7 +38,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -188,90 +187,84 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass, 
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI queries, %w", err)
 	}
-	// Each query is cached independently (one DescribeImages call), so NodeClasses
-	// resolving to the same query share the cache entry (see #9063).
+	// Raw DescribeImages output is cached per request, so NodeClasses issuing the same request share
+	// the cache entry (see #9063). Requirements and deprecation are derived on every call: they
+	// depend on the query's KnownRequirements and the current time, neither of which is part of
+	// the request.
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		key := imageQueryCacheKey(query)
-		if !skipCache {
-			if cached, ok := p.cache.Get(key); ok {
-				mergeAMIs(images, cached.(AMIs))
+		queryImages, err := p.describeImages(ctx, query.DescribeImagesInput(), skipCache)
+		if err != nil {
+			return nil, err
+		}
+		for _, image := range queryImages {
+			arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
+			if !ok {
 				continue
 			}
-		}
-		queryImages := map[uint64]AMI{}
-		paginator := ec2.NewDescribeImagesPaginator(p.ec2api, query.DescribeImagesInput())
-		for paginator.HasMorePages() {
-			page, err := paginator.NextPage(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("describing images, %w", err)
-			}
-			for _, image := range page.Images {
-				arch, ok := v1.AWSToKubeArchitectures[string(image.Architecture)]
-				if !ok {
-					continue
+			// Each image may have multiple associated sets of requirements. For example, an image may be compatible with Neuron instances
+			// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
+			for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
+				// Checks and store for AMIs
+				// Following checks are needed in order to always priortize non deprecated AMIs
+				// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
+				// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
+				reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+				candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
+				ami := AMI{
+					Name:         lo.FromPtr(image.Name),
+					AmiID:        lo.FromPtr(image.ImageId),
+					CreationDate: lo.FromPtr(image.CreationDate),
+					Deprecated:   candidateDeprecated,
+					Requirements: reqs,
 				}
-				// Each image may have multiple associated sets of requirements. For example, an image may be compatible with Neuron instances
-				// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
-				for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
-					// Checks and store for AMIs
-					// Following checks are needed in order to always priortize non deprecated AMIs
-					// If we already have an image with the same set of requirements, but this image (candidate) is newer, replace the previous (existing) image.
-					// If we already have an image with the same set of requirements which is deprecated, but this image (candidate) is newer or non deprecated, replace the previous (existing) image
-					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-					candidateDeprecated := parseTimeWithDefault(lo.FromPtr(image.DeprecationTime), maxTime).Unix() <= p.clk.Now().Unix()
-					ami := AMI{
-						Name:         lo.FromPtr(image.Name),
-						AmiID:        lo.FromPtr(image.ImageId),
-						CreationDate: lo.FromPtr(image.CreationDate),
-						Deprecated:   candidateDeprecated,
-						Requirements: reqs,
+				if v, ok := images[reqsHash]; ok {
+					if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
+						continue
 					}
-					if v, ok := queryImages[reqsHash]; ok {
-						if cmpResult := compareAMI(v, ami); cmpResult <= 0 {
-							continue
-						}
-					}
-					queryImages[reqsHash] = ami
 				}
+				images[reqsHash] = ami
 			}
 		}
-		queryAMIs := AMIs(lo.Values(queryImages))
-		p.cache.SetDefault(key, queryAMIs)
-		mergeAMIs(images, queryAMIs)
 	}
 	return lo.Values(images), nil
 }
 
-// mergeAMIs merges amis into the accumulator keyed by requirements hash, keeping the
-// preferred AMI (see compareAMI) when multiple AMIs share a set of requirements.
-func mergeAMIs(into map[uint64]AMI, amis AMIs) {
-	for i := range amis {
-		reqsHash := lo.Must(hashstructure.Hash(amis[i].Requirements.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-		if v, ok := into[reqsHash]; ok {
-			if cmpResult := compareAMI(v, amis[i]); cmpResult <= 0 {
-				continue
-			}
+// describeImages returns every image matching the input, from the cache unless skipCache is set.
+// Fresh results are always written back to the cache. The returned slice is shared with the cache
+// and must not be modified.
+func (p *DefaultProvider) describeImages(ctx context.Context, input *ec2.DescribeImagesInput, skipCache bool) ([]ec2types.Image, error) {
+	key := describeImagesCacheKey(input)
+	if !skipCache {
+		if cached, ok := p.cache.Get(key); ok {
+			return cached.([]ec2types.Image), nil
 		}
-		into[reqsHash] = amis[i]
 	}
+	var images []ec2types.Image
+	paginator := ec2.NewDescribeImagesPaginator(p.ec2api, input)
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("describing images, %w", err)
+		}
+		images = append(images, page.Images...)
+	}
+	p.cache.SetDefault(key, images)
+	return images, nil
 }
 
-// imageQueryCacheKey keys a DescribeImages query on its owners, filters, and known requirements.
-// Sharing an entry between queries that differ only by owner would surface AMIs from an
-// account the user never authorized. Known requirements (e.g. from an alias's SSM parameters)
-// are baked into the cached AMIs, so an alias query must not share an entry with an ID query
-// for the same image.
-func imageQueryCacheKey(query DescribeImageQuery) string {
-	ownersHash := lo.Must(hashstructure.Hash(lo.Uniq(query.Owners), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	// scheduling.Requirements has no exported fields, so hash its NodeSelectorRequirements instead
-	knownRequirements := lo.MapValues(query.KnownRequirements, func(reqs []scheduling.Requirements, _ string) [][]karpv1.NodeSelectorRequirementWithMinValues {
-		return lo.Map(reqs, func(r scheduling.Requirements, _ int) []karpv1.NodeSelectorRequirementWithMinValues {
-			return r.NodeSelectorRequirements()
-		})
-	})
-	knownRequirementsHash := lo.Must(hashstructure.Hash(knownRequirements, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-	return fmt.Sprintf("%016x-%016x-%016x", ownersHash, utils.FilterSetHash(query.Filters), knownRequirementsHash)
+// describeImagesCacheKey keys the cache on the DescribeImages request itself, so the key covers
+// exactly what was sent to EC2 (including any field added to the request later). Filters and
+// Owners are hashed as sets since EC2 doesn't depend on their order; every other field is hashed
+// as-is.
+func describeImagesCacheKey(input *ec2.DescribeImagesInput) string {
+	rest := *input
+	rest.Filters, rest.Owners = nil, nil
+	return fmt.Sprintf("%016x-%016x-%016x",
+		utils.FilterSetHash(input.Filters),
+		lo.Must(hashstructure.Hash(lo.Uniq(input.Owners), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})),
+		lo.Must(hashstructure.Hash(rest, hashstructure.FormatV2, nil)),
+	)
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes

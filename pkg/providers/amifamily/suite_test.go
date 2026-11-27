@@ -640,13 +640,13 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(BeNil())
 
 			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
-			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.([]ec2types.Image)
 			Expect(cachedImages).To(ContainElements(
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"AmiID": Equal("ami-123"),
+					"ImageId": gstruct.PointTo(Equal("ami-123")),
 				}),
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"AmiID": Equal("ami-456"),
+					"ImageId": gstruct.PointTo(Equal("ami-456")),
 				}),
 			))
 		})
@@ -682,16 +682,16 @@ var _ = Describe("AMIProvider", func() {
 
 			// Each name selector term is a distinct query, cached independently
 			Expect(awsEnv.AMICache.Items()).To(HaveLen(2))
-			cachedImages := amifamily.AMIs{}
+			cachedImages := []ec2types.Image{}
 			for _, item := range awsEnv.AMICache.Items() {
-				cachedImages = append(cachedImages, item.Object.(amifamily.AMIs)...)
+				cachedImages = append(cachedImages, item.Object.([]ec2types.Image)...)
 			}
 			Expect(cachedImages).To(ContainElements(
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": Equal("ami-name-1"),
+					"Name": gstruct.PointTo(Equal("ami-name-1")),
 				}),
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": Equal("ami-name-2"),
+					"Name": gstruct.PointTo(Equal("ami-name-2")),
 				}),
 			))
 		})
@@ -723,13 +723,13 @@ var _ = Describe("AMIProvider", func() {
 			Expect(err).To(BeNil())
 
 			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
-			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.(amifamily.AMIs)
+			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.([]ec2types.Image)
 			Expect(cachedImages).To(ContainElements(
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": Equal("ami-name-1"),
+					"Name": gstruct.PointTo(Equal("ami-name-1")),
 				}),
 				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": Equal("ami-name-2"),
+					"Name": gstruct.PointTo(Equal("ami-name-2")),
 				}),
 			))
 		})
@@ -804,25 +804,25 @@ var _ = Describe("AMIProvider", func() {
 			cacheItems := awsEnv.AMICache.Items()
 			// Caching is per query: one entry for the AND set, one for each OR set
 			Expect(cacheItems).To(HaveLen(3))
-			cachedImages := make([]amifamily.AMIs, 0, len(cacheItems))
+			cachedImages := make([][]ec2types.Image, 0, len(cacheItems))
 			for _, item := range cacheItems {
-				cachedImages = append(cachedImages, item.Object.(amifamily.AMIs))
+				cachedImages = append(cachedImages, item.Object.([]ec2types.Image))
 			}
 
 			Expect(cachedImages).To(ConsistOf(
 				ConsistOf(
 					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-						"Name": Equal("ami-name-3"),
+						"Name": gstruct.PointTo(Equal("ami-name-3")),
 					}),
 				),
 				ConsistOf(
 					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-						"Name": Equal("ami-name-1"),
+						"Name": gstruct.PointTo(Equal("ami-name-1")),
 					}),
 				),
 				ConsistOf(
 					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-						"Name": Equal("ami-name-2"),
+						"Name": gstruct.PointTo(Equal("ami-name-2")),
 					}),
 				),
 			))
@@ -1412,7 +1412,7 @@ var _ = Describe("AMIProvider cache sharing", func() {
 		k8sVersion = awsEnv.VersionProvider.Get(ctx)
 		nodeClass = test.EC2NodeClass()
 	})
-	Context("KnownRequirements in the cache key", func() {
+	Context("KnownRequirements with a shared cache entry", func() {
 		var aliasNC, idNC *v1.EC2NodeClass
 		BeforeEach(func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{windowsParam(): amd64AMI}
@@ -1451,9 +1451,25 @@ var _ = Describe("AMIProvider cache sharing", func() {
 			Expect(amis).To(HaveLen(1))
 			Expect(amis[0].Requirements.Has(corev1.LabelOSStable)).To(BeFalse(), "ID-term AMI picked up alias requirements: %s", amis[0].Requirements)
 		})
-		It("should not share a cache entry between aliases whose requirements differ for the same AMI", func() {
-			// Both Windows aliases resolve to the same AMI ID, so their queries share owners and filters and
-			// differ only in the values of their known requirements (windows-build)
+		It("should share one DescribeImages call between an alias and an ID term for the same AMI", func() {
+			amis, err := awsEnv.AMIProvider.List(ctx, aliasNC)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(hasWindowsReqs(amis[0])).To(BeTrue())
+
+			amis, err = awsEnv.AMIProvider.List(ctx, idNC)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis[0].Requirements.Has(corev1.LabelOSStable)).To(BeFalse())
+
+			// Both send the same DescribeImages request, so the raw result is shared while each
+			// NodeClass derives its own requirements
+			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
+			Expect(awsEnv.EC2API.CalledWithDescribeImagesInput.Len()).To(Equal(1))
+		})
+		It("should resolve each alias's own requirements when two aliases resolve the same AMI", func() {
+			// Both Windows aliases resolve to the same AMI ID, so they send the same DescribeImages
+			// request and differ only in the values of their known requirements (windows-build)
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				windowsParam(): amd64AMI,
 				fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", k8sVersion): amd64AMI,
@@ -1492,6 +1508,28 @@ var _ = Describe("AMIProvider cache sharing", func() {
 			Expect(amis).To(HaveLen(1))
 			Expect(amis[0].Requirements.Has(v1.LabelInstanceGPUCount)).To(BeTrue(), "nvidia variant lost GPU requirement: %s", amis[0].Requirements)
 		})
+	})
+	It("should compute deprecation from the current time on a cache hit", func() {
+		awsEnv.Clock.SetTime(time.Now())
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{{
+			Name: aws.String(amd64AMI), ImageId: aws.String(amd64AMI), Architecture: "x86_64",
+			CreationDate:    aws.String(time.Time{}.Format(time.RFC3339)),
+			DeprecationTime: aws.String(awsEnv.Clock.Now().Add(time.Hour).Format(time.RFC3339)),
+			State:           ec2types.ImageStateAvailable,
+		}}})
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amd64AMI}}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+		Expect(amis[0].Deprecated).To(BeFalse())
+
+		// The deprecation time passes while the result is still cached
+		awsEnv.Clock.Step(2 * time.Hour)
+		amis, err = awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+		Expect(amis[0].Deprecated).To(BeTrue())
+		Expect(awsEnv.EC2API.CalledWithDescribeImagesInput.Len()).To(Equal(1))
 	})
 	It("should write SkipCache results through to the cache", func() {
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amd64AMI}}
