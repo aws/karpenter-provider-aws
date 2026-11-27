@@ -91,6 +91,12 @@ var _ = Describe("AMIProvider cache", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amiIDs(amis)).To(ConsistOf("ami-page1", "ami-page2"))
 		Expect(paged.calls).To(Equal(2))
+
+		// SkipCache re-reads every page
+		amis, err = provider.List(ctx, nc, amifamily.SkipCache)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amiIDs(amis)).To(ConsistOf("ami-page1", "ami-page2"))
+		Expect(paged.calls).To(Equal(4))
 	})
 	It("should cache a query that succeeded earlier in the same List that later failed", func() {
 		failing := &failingNameEC2API{EC2API: awsEnv.EC2API, failName: "fail-me"}

@@ -15,17 +15,11 @@ limitations under the License.
 package amifamily
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
-	"github.com/patrickmn/go-cache"
-	clock "k8s.io/utils/clock/testing"
-
-	sdk "github.com/aws/karpenter-provider-aws/pkg/aws"
 )
 
 func keyInput(owners []string, filters ...ec2types.Filter) *ec2.DescribeImagesInput {
@@ -69,38 +63,5 @@ func TestDescribeImagesCacheKey(t *testing.T) {
 		if describeImagesCacheKey(base) == describeImagesCacheKey(in) {
 			t.Errorf("%s: expected distinct keys", name)
 		}
-	}
-}
-
-// pagingEC2API serves DescribeImages in two pages; every other EC2 method is unimplemented
-type pagingEC2API struct {
-	sdk.EC2API
-	calls int
-}
-
-func (p *pagingEC2API) DescribeImages(_ context.Context, in *ec2.DescribeImagesInput, _ ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error) {
-	p.calls++
-	if in.NextToken == nil {
-		return &ec2.DescribeImagesOutput{Images: []ec2types.Image{{ImageId: aws.String("ami-page-1")}}, NextToken: aws.String("page-2")}, nil
-	}
-	return &ec2.DescribeImagesOutput{Images: []ec2types.Image{{ImageId: aws.String("ami-page-2")}}}, nil
-}
-
-func TestDescribeImagesCachesEveryPage(t *testing.T) {
-	api := &pagingEC2API{}
-	p := &DefaultProvider{clk: clock.NewFakeClock(time.Now()), cache: cache.New(time.Hour, time.Hour), ec2api: api}
-	input := keyInput([]string{"self"}, keyFilter("tag:a", "1"))
-	for _, skip := range []bool{false, false, true} {
-		images, err := p.describeImages(context.Background(), input, skip)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(images) != 2 || aws.ToString(images[0].ImageId) != "ami-page-1" || aws.ToString(images[1].ImageId) != "ami-page-2" {
-			t.Fatalf("skipCache=%v: expected images from both pages, got %v", skip, images)
-		}
-	}
-	// two pages for the first call, served from cache for the second, two pages for the SkipCache call
-	if api.calls != 4 {
-		t.Fatalf("expected 4 DescribeImages calls, got %d", api.calls)
 	}
 }
