@@ -254,6 +254,7 @@ var (
 		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
 		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
 		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total",
+		"node_status_condition", "node_termination",
 		"nodeclaim_status_condition", "nodeclaim_termination",
 		"nodepool_status_condition", "nodepool_termination",
 		"ec2nodeclass_status_condition", "ec2nodeclass_termination"}
@@ -299,9 +300,8 @@ func main() {
 	collectLabelSlices(allPackages)
 	allMetrics := getMetricsFromPackages(allPackages...)
 
-	// per-object status metrics are created at runtime from status.NewController[T]()
-	// and can't be read from a declaration; synthesize them from the registration
-	// sites (+ client_go).
+	// Per-object status metrics are created at runtime. Synthesize them from
+	// the status controller registrations.
 	statusObjects := parseStatusControllerObjects(allPackages)
 	allMetrics = append(allMetrics, perObjectStatusMetrics(statusObjects)...)
 	allMetrics = append(allMetrics, hardcodedMetrics()...)
@@ -546,15 +546,14 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	}
 }
 
-// statusObject is a type that has a status controller registered via
-// status.NewController[T](), parsed from the registration sites.
+// statusObject identifies a type with an operatorpkg status controller.
 type statusObject struct {
 	kind      string // the object Kind, e.g. "NodeClaim"
 	subsystem string // the metric subsystem prefix, e.g. "nodeclaim"
 }
 
-// finds status.NewController[T]() registrations — the self-maintaining source for
-// which per-object metrics exist (replacing a hardcoded list).
+// parseStatusControllerObjects finds the types passed to status.NewController
+// and status.NewGenericObjectController for per-object metrics.
 func parseStatusControllerObjects(packages []*ast.Package) []statusObject {
 	seen := map[string]statusObject{}
 	for _, pkg := range packages {
@@ -564,8 +563,8 @@ func parseStatusControllerObjects(packages []*ast.Package) []statusObject {
 				if !ok {
 					return true
 				}
-				// A generic call fn[T](...) parses as a call whose Fun is an IndexExpr
-				// (one type arg) or IndexListExpr (several). status.NewController[T]().
+				// A generic call parses as an IndexExpr with one type argument
+				// or an IndexListExpr with several.
 				var fun ast.Expr
 				var typeArg ast.Expr
 				switch idx := ce.Fun.(type) {
@@ -579,10 +578,8 @@ func parseStatusControllerObjects(packages []*ast.Package) []statusObject {
 				default:
 					return true
 				}
-				// Match operatorpkg's status.NewController[T](), not any generic function
-				// that happens to be named NewController.
 				sel, ok := fun.(*ast.SelectorExpr)
-				if !ok || sel.Sel.Name != "NewController" {
+				if !ok || (sel.Sel.Name != "NewController" && sel.Sel.Name != "NewGenericObjectController") {
 					return true
 				}
 				if pkgIdent, ok := sel.X.(*ast.Ident); !ok || pkgIdent.Name != "status" {

@@ -262,6 +262,34 @@ The current amount of time in seconds that a status condition has been in a spec
 The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
 - Stability Level: BETA
 
+## CapacityBuffer Termination Metrics
+
+### `operator_capacitybuffer_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Stability Level: ALPHA
+
+### `operator_capacitybuffer_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Stability Level: ALPHA
+
+## CapacityBuffer Status Condition Metrics
+
+### `operator_capacitybuffer_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: ALPHA
+
+### `operator_capacitybuffer_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: ALPHA
+
+### `operator_capacitybuffer_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Stability Level: ALPHA
+
+### `operator_capacitybuffer_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
+- Stability Level: ALPHA
+
 ## Voluntary Disruption Metrics
 
 ### `karpenter_voluntary_disruption_queue_failures_total`

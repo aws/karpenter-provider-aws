@@ -703,6 +703,150 @@ The number of a condition for a given object, type and status. e.g. Alarm := Ava
     - `Unknown` — The condition's state has not yet been determined.
   - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
 
+## Node Termination Metrics
+
+### `operator_node_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+
+### `operator_node_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: BETA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+
+## Node Status Condition Metrics
+
+### `operator_node_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: BETA
+- Dimensions:
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
+### `operator_node_status_condition_transition_seconds`
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: BETA
+- Dimensions:
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `to_status` — The status a condition transitioned to, for transition metrics.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+
+### `operator_node_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: BETA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
+### `operator_node_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: BETA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
+## Capacitybuffer Termination Metrics
+
+### `operator_capacitybuffer_termination_duration_seconds`
+The amount of time taken by an object to terminate completely.
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+
+### `operator_capacitybuffer_termination_current_time_seconds`
+The current amount of time in seconds that an object has been in terminating state.
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+
+## Capacitybuffer Status Condition Metrics
+
+### `operator_capacitybuffer_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Type: [Counter](https://prometheus.io/docs/concepts/metric_types/#counter)
+- Stability Level: ALPHA
+- Dimensions:
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
+### `operator_capacitybuffer_status_condition_transition_seconds`
+The amount of time a condition was in a given state (status) before transitioning to another state (to_status). e.g. Alarm := P99(Updated=False) > 5 minutes
+- Type: [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram)
+- Stability Level: ALPHA
+- Dimensions:
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `to_status` — The status a condition transitioned to, for transition metrics.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+
+### `operator_capacitybuffer_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
+### `operator_capacitybuffer_status_condition_count`
+The number of a condition for a given object, type and status. e.g. Alarm := Available=False > 0
+- Type: [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge)
+- Stability Level: ALPHA
+- Dimensions:
+  - `namespace` — The namespace of the object the metric describes.
+  - `name` — The name of the object the metric describes.
+  - `type` — The type dimension. For status-condition metrics it is the status condition type (e.g. `Ready`); for event metrics it is the Kubernetes event type (`Normal` or `Warning`).
+  - `status` — The status of a status condition (e.g. the `Ready` condition). For transition metrics this is the state being left.
+    - `True` — The condition holds.
+    - `False` — The condition does not hold.
+    - `Unknown` — The condition's state has not yet been determined.
+  - `reason` — The reason dimension. For status-condition metrics it is the condition reason; for event metrics it is the Kubernetes event reason.
+
 ## Voluntary Disruption Metrics
 
 ### `karpenter_voluntary_disruption_terminate_first_decisions_total`
