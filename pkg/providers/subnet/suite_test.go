@@ -593,34 +593,28 @@ var _ = Describe("SubnetProvider", func() {
 				// Each launch deducts 50 inflight IPs: a(100) -> b(90) -> a(50), leaving a=0 and b=40 tracked
 				Expect([]string{pick(), pick(), pick()}).To(Equal([]string{"subnet-a", "subnet-b", "subnet-a"}))
 			})
-			It("should reset inflight IP tracking when List refreshes subnets from EC2", func() {
-				awsEnv.SubnetCache.Flush()
-				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-				Expect(err).To(BeNil())
+			// A second NodeClass with the same selector term calls List after the launches above
+			DescribeTable("inflight IP tracking after another List",
+				func(setup func(), wantCalls int, want string) {
+					setup()
+					nodeClass2 := test.EC2NodeClass()
+					nodeClass2.UID = "nodeclass-2-uid"
+					nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms
+					_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2)
+					Expect(err).To(BeNil())
+					Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(wantCalls))
+					Expect(pick()).To(Equal(want))
+				},
 				// The refresh replaces the inflight estimates with the observed counts
-				Expect(pick()).To(Equal("subnet-a"))
-			})
-			It("should keep inflight IP tracking when List is served from the subnet cache", func() {
-				// e.g. another NodeClass sharing the selector term: no EC2 call, so the inflight estimates still apply
-				nodeClass2 := test.EC2NodeClass()
-				nodeClass2.UID = "nodeclass-2-uid"
-				nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms
-				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2)
-				Expect(err).To(BeNil())
-				Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(1))
-				Expect(pick()).To(Equal("subnet-b"))
-			})
-			It("should not let a cache hit overwrite an ICE'd subnet's available IP count with the cached count", func() {
+				Entry("should reset inflight IP tracking when List refreshes subnets from EC2",
+					func() { awsEnv.SubnetCache.Flush() }, 2, "subnet-a"),
+				// No EC2 call, so the inflight estimates still apply
+				Entry("should keep inflight IP tracking when List is served from the subnet cache",
+					func() {}, 1, "subnet-b"),
 				// subnet-a is marked as out of capacity, so subnet-b (40 inflight) must be picked
-				awsEnv.SubnetProvider.UpdateICEdSubnet("subnet-a")
-				nodeClass2 := test.EC2NodeClass()
-				nodeClass2.UID = "nodeclass-2-uid"
-				nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms
-				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2)
-				Expect(err).To(BeNil())
-				Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(1))
-				Expect(pick()).To(Equal("subnet-b"))
-			})
+				Entry("should not let a cache hit overwrite an ICE'd subnet's available IP count with the cached count",
+					func() { awsEnv.SubnetProvider.UpdateICEdSubnet("subnet-a") }, 1, "subnet-b"),
+			)
 		})
 	})
 	It("should not cause data races when calling List() simultaneously", func() {
