@@ -610,130 +610,53 @@ var _ = Describe("AMIProvider", func() {
 		})
 	})
 	Context("Provider Cache", func() {
-		It("should resolve AMIs from cache that are filtered by id", func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
-				{
-					Name:         aws.String(coretest.RandomName()),
-					ImageId:      aws.String("ami-123"),
-					Architecture: "x86_64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-				{
-					Name:         aws.String(coretest.RandomName()),
-					ImageId:      aws.String("ami-456"),
-					Architecture: "arm64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-			}})
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID: "ami-123",
-				},
-				{
-					ID: "ami-456",
-				},
-			}
-			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
+		DescribeTable("should resolve AMIs from cache that are filtered by",
+			func(terms []v1.AMISelectorTerm, wantEntries int) {
+				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+					{
+						Name:         aws.String("ami-name-1"),
+						ImageId:      aws.String("ami-123"),
+						Architecture: "x86_64",
+						Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
+					},
+					{
+						Name:         aws.String("ami-name-2"),
+						ImageId:      aws.String("ami-456"),
+						Architecture: "arm64",
+						Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						State:        ec2types.ImageStateAvailable,
+					},
+				}})
+				nodeClass.Spec.AMISelectorTerms = terms
+				_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
 
-			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
-			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.([]ec2types.Image)
-			Expect(cachedImages).To(ContainElements(
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"ImageId": gstruct.PointTo(Equal("ami-123")),
-				}),
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"ImageId": gstruct.PointTo(Equal("ami-456")),
-				}),
-			))
-		})
-		It("should resolve AMIs from cache that are filtered by name", func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
-				{
-					Name:         aws.String("ami-name-1"),
-					ImageId:      aws.String("ami-123"),
-					Architecture: "x86_64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-				{
-					Name:         aws.String("ami-name-2"),
-					ImageId:      aws.String("ami-456"),
-					Architecture: "arm64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-			}})
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					Name: "ami-name-1",
-				},
-				{
-					Name: "ami-name-2",
-				},
-			}
-			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-
-			// Each name selector term is a distinct query, cached independently
-			Expect(awsEnv.AMICache.Items()).To(HaveLen(2))
-			cachedImages := []ec2types.Image{}
-			for _, item := range awsEnv.AMICache.Items() {
-				cachedImages = append(cachedImages, item.Object.([]ec2types.Image)...)
-			}
-			Expect(cachedImages).To(ContainElements(
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": gstruct.PointTo(Equal("ami-name-1")),
-				}),
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": gstruct.PointTo(Equal("ami-name-2")),
-				}),
-			))
-		})
-		It("should resolve AMIs from cache that are filtered by tags", func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
-				{
-					Name:         aws.String("ami-name-1"),
-					ImageId:      aws.String("ami-123"),
-					Architecture: "x86_64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-				{
-					Name:         aws.String("ami-name-2"),
-					ImageId:      aws.String("ami-456"),
-					Architecture: "arm64",
-					Tags:         []ec2types.Tag{{Key: lo.ToPtr("test"), Value: lo.ToPtr("test")}},
-					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					State:        ec2types.ImageStateAvailable,
-				},
-			}})
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					Tags: map[string]string{"test": "test"},
-				},
-			}
-			_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
-
-			Expect(awsEnv.AMICache.Items()).To(HaveLen(1))
-			cachedImages := lo.Values(awsEnv.AMICache.Items())[0].Object.([]ec2types.Image)
-			Expect(cachedImages).To(ContainElements(
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": gstruct.PointTo(Equal("ami-name-1")),
-				}),
-				gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
-					"Name": gstruct.PointTo(Equal("ami-name-2")),
-				}),
-			))
-		})
+				// One entry per DescribeImages request
+				Expect(awsEnv.AMICache.Items()).To(HaveLen(wantEntries))
+				cachedImages := []ec2types.Image{}
+				for _, item := range awsEnv.AMICache.Items() {
+					cachedImages = append(cachedImages, item.Object.([]ec2types.Image)...)
+				}
+				Expect(cachedImages).To(ContainElements(
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name":    gstruct.PointTo(Equal("ami-name-1")),
+						"ImageId": gstruct.PointTo(Equal("ami-123")),
+					}),
+					gstruct.MatchFields(gstruct.IgnoreExtras, gstruct.Fields{
+						"Name":    gstruct.PointTo(Equal("ami-name-2")),
+						"ImageId": gstruct.PointTo(Equal("ami-456")),
+					}),
+				))
+			},
+			// ID terms are batched into one image-id filter
+			Entry("id", []v1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}, 1),
+			// Each name term is a distinct query, cached independently
+			Entry("name", []v1.AMISelectorTerm{{Name: "ami-name-1"}, {Name: "ami-name-2"}}, 2),
+			Entry("tags", []v1.AMISelectorTerm{{Tags: map[string]string{"test": "test"}}}, 1),
+		)
 		It("should correctly disambiguate AND vs OR semantics for tags", func() {
 			// AND semantics
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
