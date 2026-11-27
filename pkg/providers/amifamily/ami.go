@@ -234,7 +234,7 @@ func (p *DefaultProvider) amis(ctx context.Context, nodeClass *v1.EC2NodeClass, 
 // Fresh results are always written back to the cache. The returned slice is shared with the cache
 // and must not be modified.
 func (p *DefaultProvider) describeImages(ctx context.Context, input *ec2.DescribeImagesInput, skipCache bool) ([]ec2types.Image, error) {
-	key := describeImagesCacheKey(input)
+	key := DescribeImagesCacheKey(input)
 	if !skipCache {
 		if cached, ok := p.cache.Get(key); ok {
 			return cached.([]ec2types.Image), nil
@@ -253,11 +253,11 @@ func (p *DefaultProvider) describeImages(ctx context.Context, input *ec2.Describ
 	return images, nil
 }
 
-// describeImagesCacheKey keys the cache on the DescribeImages request itself, so the key covers
+// DescribeImagesCacheKey keys the cache on the DescribeImages request itself, so the key covers
 // exactly what was sent to EC2 (including any field added to the request later). Filters and
 // Owners are hashed as sets since EC2 doesn't depend on their order; every other field is hashed
 // as-is.
-func describeImagesCacheKey(input *ec2.DescribeImagesInput) string {
+func DescribeImagesCacheKey(input *ec2.DescribeImagesInput) string {
 	rest := *input
 	rest.Filters, rest.Owners = nil, nil
 	return fmt.Sprintf("%016x-%016x-%016x",

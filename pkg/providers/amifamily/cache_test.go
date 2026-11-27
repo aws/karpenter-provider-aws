@@ -328,3 +328,41 @@ var _ = Describe("AMIProvider cache sharing", func() {
 		Expect(amiIDs(amis)).To(ConsistOf("ami-id-arm64"))
 	})
 })
+
+var _ = Describe("DescribeImagesCacheKey", func() {
+	f := func(name string, values ...string) ec2types.Filter {
+		return ec2types.Filter{Name: aws.String(name), Values: values}
+	}
+	input := func(owners []string, filters ...ec2types.Filter) *ec2.DescribeImagesInput {
+		return &ec2.DescribeImagesInput{Filters: filters, Owners: owners, IncludeDeprecated: aws.Bool(true), MaxResults: aws.Int32(1000)}
+	}
+	a, b, state := f("tag:a", "1"), f("tag:b", "2"), f("state", "available")
+	base := input([]string{"self"}, a, state)
+
+	DescribeTable("keys requests that select the same images alike",
+		func(x, y *ec2.DescribeImagesInput) {
+			Expect(amifamily.DescribeImagesCacheKey(x)).To(Equal(amifamily.DescribeImagesCacheKey(y)))
+		},
+		// Filters built from a tag map are emitted in map iteration order
+		Entry("filter order", input(nil, a, b, state), input(nil, state, b, a)),
+		Entry("owner order", input([]string{"self", "amazon"}, a), input([]string{"amazon", "self"}, a)),
+		Entry("duplicate owners", input([]string{"self", "amazon", "self"}, a), input([]string{"amazon", "self"}, a)),
+		Entry("nil and empty owners", input(nil, a), input([]string{}, a)),
+	)
+	DescribeTable("keys requests that select different images differently",
+		func(other *ec2.DescribeImagesInput) {
+			Expect(amifamily.DescribeImagesCacheKey(base)).ToNot(Equal(amifamily.DescribeImagesCacheKey(other)))
+		},
+		Entry("owner", input([]string{"amazon"}, a, state)),
+		Entry("additional owner", input([]string{"self", "self", "amazon", "amazon"}, a, state)),
+		Entry("no owner", input(nil, a, state)),
+		Entry("filter value", input([]string{"self"}, f("tag:a", "2"), state)),
+		Entry("extra filter", input([]string{"self"}, a, b, state)),
+		Entry("different filter", input([]string{"self"}, b, state)),
+		Entry("state filter value", input([]string{"self"}, a, f("state", "pending"))),
+		// Every other request field is part of the key, including ones added later
+		Entry("MaxResults", &ec2.DescribeImagesInput{Filters: base.Filters, Owners: base.Owners, IncludeDeprecated: aws.Bool(true), MaxResults: aws.Int32(5)}),
+		Entry("IncludeDeprecated", &ec2.DescribeImagesInput{Filters: base.Filters, Owners: base.Owners, IncludeDeprecated: aws.Bool(false), MaxResults: aws.Int32(1000)}),
+		Entry("ImageIds", &ec2.DescribeImagesInput{Filters: base.Filters, Owners: base.Owners, IncludeDeprecated: aws.Bool(true), MaxResults: aws.Int32(1000), ImageIds: []string{"ami-1"}}),
+	)
+})
