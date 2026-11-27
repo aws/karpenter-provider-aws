@@ -192,10 +192,12 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 	if pg != nil {
 		placementGroupHash, _ = hashstructure.Hash(pg.ID, hashstructure.FormatV2, nil)
 	}
+	// The AMI family affects compatibility (a1 is unsupported on AL2023), which the cached offerings carry.
+	amiFamilyHash, _ := hashstructure.Hash(nodeClass.AMIFamily(), hashstructure.FormatV2, nil)
 
 	b := &cacheKeyBuilder{
 		baseSuffix: fmt.Sprintf(
-			"%016x-%016x-%016x-%016x-%016x-%016x-%016x",
+			"%016x-%016x-%016x-%016x-%016x-%016x-%016x-%016x",
 			networkInterfaceHash,
 			subnetsHash,
 			shiftedZonesHash,
@@ -203,6 +205,7 @@ func newCacheKeyBuilder(nodeClass NodeClass, zoneInfo []v1.ZoneInfo, shiftedZone
 			enclavesEnabledHash,
 			nestedVirtualizationEnabledHash,
 			placementGroupHash,
+			amiFamilyHash,
 		),
 		capacityTypesHashes: make(map[capacityTypesKey]uint64, 4),
 	}
