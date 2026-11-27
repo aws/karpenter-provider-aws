@@ -899,6 +899,9 @@ var _ = Describe("InstanceProvider", func() {
 		}
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		// Subnets are cached by selector content, so flush the cache hydrated by the
+		// BeforeEach to make the List below refresh availableIPAddressCache
+		awsEnv.SubnetCache.Flush()
 		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 		Expect(err).To(BeNil())
 

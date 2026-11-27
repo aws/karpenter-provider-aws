@@ -25,6 +25,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/awslabs/operatorpkg/serrors"
+	"github.com/mitchellh/hashstructure/v2"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -122,6 +123,24 @@ func GetTags(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, clusterNam
 	return lo.Assign(nodeClass.Spec.Tags, staticTags), nil
 }
 
-func GetNodeClassHash(nodeClass *v1.EC2NodeClass) string {
-	return fmt.Sprintf("%s-%d", nodeClass.UID, nodeClass.Generation)
+// FilterSetHash hashes the filters of a single Describe* call so that equivalent filter
+// sets share a cache key regardless of ordering. Duplicates are removed at both levels
+// first, since SlicesAsSets XORs set elements and duplicates would otherwise cancel and
+// alias distinct filter sets (see #8619).
+func FilterSetHash(filters []ec2types.Filter) uint64 {
+	type filter struct {
+		Name   string
+		Values []string
+	}
+	return lo.Must(hashstructure.Hash(
+		lo.UniqBy(
+			lo.Map(filters, func(f ec2types.Filter, _ int) filter {
+				return filter{Name: aws.ToString(f.Name), Values: lo.Uniq(f.Values)}
+			}),
+			func(f filter) uint64 {
+				return lo.Must(hashstructure.Hash(f, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
+			},
+		),
+		hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true},
+	))
 }

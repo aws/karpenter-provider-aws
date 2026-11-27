@@ -85,15 +85,16 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if len(filterSets) == 0 {
 		return []ec2types.Subnet{}, nil
 	}
-	hash := utils.GetNodeClassHash(nodeClass)
-	if subnets, ok := p.cache.Get(hash); ok {
-		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
-		// so that modifications to the ordering of the data don't affect the original
-		return append([]ec2types.Subnet{}, subnets.([]ec2types.Subnet)...), nil
-	}
-	// Ensure that all the subnets that are returned here are unique
-	subnets := map[string]ec2types.Subnet{}
+	// Results are cached per filter set (one DescribeSubnets call) rather than per
+	// NodeClass, so NodeClasses sharing a selector term share the cache entry (see #9063).
+	var subnets []ec2types.Subnet
 	for _, filters := range filterSets {
+		key := fmt.Sprintf("%016x", utils.FilterSetHash(filters))
+		if cached, ok := p.cache.Get(key); ok {
+			subnets = append(subnets, cached.([]ec2types.Subnet)...)
+			continue
+		}
+		var filterSetSubnets []ec2types.Subnet
 		paginator := ec2.NewDescribeSubnetsPaginator(p.ec2api, &ec2.DescribeSubnetsInput{
 			Filters:    filters,
 			MaxResults: lo.ToPtr(int32(500)),
@@ -103,19 +104,22 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 			if err != nil {
 				return nil, serrors.Wrap(fmt.Errorf("describing subnets with filters, %w", err), "filters", pretty.Concise(filters))
 			}
+			filterSetSubnets = append(filterSetSubnets, output.Subnets...)
 			for i := range output.Subnets {
-				subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
 				p.availableIPAddressCache.SetDefault(lo.FromPtr(output.Subnets[i].SubnetId), lo.FromPtr(output.Subnets[i].AvailableIpAddressCount))
 				// subnets can be leaked here, if a subnets is never called received from ec2
 				// we are accepting it for now, as this will be an insignificant amount of memory
 				delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
 			}
 		}
+		p.cache.SetDefault(key, filterSetSubnets)
+		subnets = append(subnets, filterSetSubnets...)
 	}
-	p.cache.SetDefault(hash, lo.Values(subnets))
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
+	// Ensure that all the subnets that are returned here are unique, since selector terms may overlap
+	subnets = lo.UniqBy(subnets, func(s ec2types.Subnet) string { return lo.FromPtr(s.SubnetId) })
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Map(subnets, func(s ec2types.Subnet, _ int) string { return lo.FromPtr(s.SubnetId) })) {
 		log.FromContext(ctx).
-			WithValues("subnets", lo.Map(lo.Values(subnets), func(s ec2types.Subnet, _ int) v1.Subnet {
+			WithValues("subnets", lo.Map(subnets, func(s ec2types.Subnet, _ int) v1.Subnet {
 				return v1.Subnet{
 					ID:     lo.FromPtr(s.SubnetId),
 					Zone:   lo.FromPtr(s.AvailabilityZone),
@@ -123,7 +127,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 				}
 			})).V(1).Info("discovered subnets")
 	}
-	return lo.Values(subnets), nil
+	return subnets, nil
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count

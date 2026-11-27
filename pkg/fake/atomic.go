@@ -75,6 +75,9 @@ type AtomicError struct {
 
 	calls    int
 	maxCalls int
+
+	skipped   int
+	skipCalls int
 }
 
 func (e *AtomicError) Reset() {
@@ -83,6 +86,8 @@ func (e *AtomicError) Reset() {
 	e.err = nil
 	e.calls = 0
 	e.maxCalls = 0
+	e.skipped = 0
+	e.skipCalls = 0
 }
 
 func (e *AtomicError) IsNil() bool {
@@ -96,6 +101,10 @@ func (e *AtomicError) IsNil() bool {
 func (e *AtomicError) Get() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	if e.skipped < e.skipCalls {
+		e.skipped++
+		return nil
+	}
 	if e.calls >= e.maxCalls {
 		return nil
 	}
@@ -124,6 +133,14 @@ func MaxCalls(maxCalls int) AtomicErrorOption {
 	}
 	return func(e *AtomicError) {
 		e.maxCalls = maxCalls
+	}
+}
+
+// SkipCalls lets the first skipCalls calls succeed before the error is returned
+func SkipCalls(skipCalls int) AtomicErrorOption {
+	return func(e *AtomicError) {
+		e.skipCalls = skipCalls
+		e.skipped = 0
 	}
 }
 

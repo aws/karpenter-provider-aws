@@ -29,9 +29,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 // The SSM Invalidation controller is responsible for invalidating "latest" SSM parameters when they point to deprecated
@@ -69,15 +66,13 @@ func (c *Controller) Reconcile(ctx context.Context) (reconciler.Result, error) {
 	amis := []amifamily.AMI{}
 	for _, nodeClass := range lo.Map(lo.Keys(amiIDsToParameters), func(amiID string, _ int) *v1.EC2NodeClass {
 		return &v1.EC2NodeClass{
-			ObjectMeta: metav1.ObjectMeta{
-				UID: uuid.NewUUID(), // ensures that this doesn't hit the AMI cache.
-			},
 			Spec: v1.EC2NodeClassSpec{
 				AMISelectorTerms: []v1.AMISelectorTerm{{ID: amiID}},
 			},
 		}
 	}) {
-		resolvedAMIs, err := c.amiProvider.List(ctx, nodeClass)
+		// Skip the AMI cache so we observe fresh deprecation status
+		resolvedAMIs, err := c.amiProvider.List(ctx, nodeClass, amifamily.SkipCache)
 		if err != nil {
 			return reconciler.Result{}, err
 		}

@@ -16,12 +16,14 @@ package invalidation_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
@@ -163,3 +165,44 @@ func deprecateAMIs(amiIDs ...string) {
 		}),
 	})
 }
+
+var _ = Describe("SSM Invalidation Controller", func() {
+	It("should invalidate deprecated AMIs on a later reconcile even when an earlier reconcile cached them as non-deprecated", func() {
+		nodeClass := &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "al2023@latest"}}}}
+		_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		currentEntries := getSSMCacheEntries()
+		Expect(currentEntries).To(HaveLen(5))
+		// First reconcile observes non-deprecated AMIs, and its results are written to the AMI cache
+		ExpectSingletonReconciled(ctx, invalidationController)
+		Expect(getSSMCacheEntries()).To(Equal(currentEntries))
+		deprecateAMIs(lo.Values(currentEntries)...)
+		// No cache flush here: the controller must not be served stale deprecation status
+		ExpectSingletonReconciled(ctx, invalidationController)
+		Expect(getSSMCacheEntries()).To(BeEmpty())
+	})
+	It("should keep Windows alias requirements after reconciling", func() {
+		k8sVersion := awsEnv.VersionProvider.Get(ctx)
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", k8sVersion): "ami-windows",
+		}
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{{
+			Name: lo.ToPtr("windows"), ImageId: lo.ToPtr("ami-windows"), Architecture: "x86_64",
+			CreationDate: lo.ToPtr(awsEnv.Clock.Now().Add(-24 * time.Hour).Format(time.RFC3339)),
+			State:        ec2types.ImageStateAvailable,
+		}}})
+		nodeClass := &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}}}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		Expect(amis).To(HaveLen(1))
+		Expect(amis[0].Requirements.Get(corev1.LabelOSStable).Has(string(corev1.Windows))).To(BeTrue())
+
+		ExpectSingletonReconciled(ctx, invalidationController)
+
+		amis, err = awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).To(BeNil())
+		Expect(amis).To(HaveLen(1))
+		Expect(amis[0].Requirements.Has(corev1.LabelOSStable)).To(BeTrue(), "requirements after reconcile: %s", amis[0].Requirements)
+		Expect(amis[0].Requirements.Has(corev1.LabelWindowsBuild)).To(BeTrue(), "requirements after reconcile: %s", amis[0].Requirements)
+	})
+})
