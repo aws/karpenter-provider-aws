@@ -30,6 +30,7 @@ practices.
 | `DeleteLaunchTemplate` | Cleanup | Removing launch templates Karpenter manages |
 | `DescribeSubnets` | Discovery / refresh | Resolving `subnetSelectorTerms` for each `EC2NodeClass` |
 | `DescribeSecurityGroups` | Discovery / refresh | Resolving `securityGroupSelectorTerms` for each `EC2NodeClass` |
+| `DescribeSecurityGroupVpcAssociations` | Diagnostics / refresh | Checking active security group VPC associations when resolved subnets and security groups belong to different VPCs |
 | `DescribeImages` | Discovery / refresh | Resolving `amiSelectorTerms` for each `EC2NodeClass` |
 | `DescribeCapacityReservations` | Discovery / refresh | Resolving `capacityReservationSelectorTerms` (On-Demand Capacity Reservations) |
 | `DescribeInstanceTypes`, `DescribeInstanceTypeOfferings` | Discovery / refresh | Resolving available instance types and their offerings |
