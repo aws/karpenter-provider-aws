@@ -100,6 +100,25 @@ var _ = Describe("EvaluateExpression", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(result).To(Equal(int64(11*58 + 255)))
 	})
+	It("should resolve a volume size in GiB, truncating doubles", func() {
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		size, err := celEnv.ResolveVolumeSize("max(vcpus, 60.5)", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(size.Cmp(resource.MustParse("60Gi"))).To(Equal(0))
+	})
+	It("should reject a volume size above the EBS limit", func() {
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		_, err := celEnv.ResolveVolumeSize("59001", vars)
+		Expect(err).To(HaveOccurred())
+		size, err := celEnv.ResolveVolumeSize("59000", vars)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(size.Cmp(resource.MustParse("59000Gi"))).To(Equal(0))
+	})
+	It("should reject a volume size below 1 GiB", func() {
+		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
+		_, err := celEnv.ResolveVolumeSize("vcpus - vcpus", vars)
+		Expect(err).To(HaveOccurred())
+	})
 	It("should evaluate min against max_pods", func() {
 		vars := cel.InstanceTypeVars{VCPUs: 4, MemoryMiB: 8192, DefaultENIs: 3, IPsPerENI: 10, MaxPods: 20}
 		result, err := celEnv.EvaluateExpression("min(110, max_pods)", vars)

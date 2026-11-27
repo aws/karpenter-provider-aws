@@ -24,7 +24,6 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -87,7 +86,7 @@ func (w Windows) UserData(kubeletConfig *v1.ParsedKubeletConfig, _ v1.KubeletCon
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
 func (w Windows) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	sda1EBS := DefaultEBS
-	sda1EBS.VolumeSize = lo.ToPtr(resource.MustParse("50Gi"))
+	sda1EBS.VolumeSize = aws.String("50Gi")
 	return []*v1.BlockDeviceMapping{{
 		DeviceName: w.EphemeralBlockDevice(),
 		EBS:        &sda1EBS,

@@ -125,8 +125,8 @@ func (in *BlockDevice) DeepCopyInto(out *BlockDevice) {
 	}
 	if in.VolumeSize != nil {
 		in, out := &in.VolumeSize, &out.VolumeSize
-		x := (*in).DeepCopy()
-		*out = &x
+		*out = new(string)
+		**out = **in
 	}
 	if in.VolumeType != nil {
 		in, out := &in.VolumeType, &out.VolumeType
