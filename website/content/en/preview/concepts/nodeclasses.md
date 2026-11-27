@@ -1298,6 +1298,55 @@ spec:
 
 The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
 
+### Root volumes
+
+Karpenter estimates the ephemeral-storage capacity of a node before it launches the node. To make this estimate, Karpenter uses the size of the block device mapping that sets `rootVolume: true`. Set `rootVolume: true` on the volume that holds the kubelet root directory.
+
+If no mapping sets `rootVolume`, Karpenter uses these sizes:
+
+* For known AMI families, the mapping whose `deviceName` is the default ephemeral device of the AMI family (for example, `/dev/xvdb` on Bottlerocket). If there is no such mapping, Karpenter uses the default size of the AMI family.
+* For the `Custom` AMI family, the `volumeSize` of the last mapping. If that mapping has no `volumeSize`, Karpenter uses 20Gi.
+
+Your AMI or UserData can combine several EBS volumes into the filesystem that holds the kubelet root directory. For example, it can create a RAID0 array or a striped LVM volume. In this case, set `rootVolume: true` on each of these volumes, and set `volumeSize` on each of them. Karpenter then uses the sum of their sizes as the ephemeral-storage capacity of the node.
+
+The sum is correct for RAID0 and for linear (concatenated) LVM volumes. For striped LVM volumes, the usable size is the number of volumes multiplied by the size of the smallest volume, so use volumes of equal size. Do not use this for RAID1, RAID5 or RAID10. Do not set `rootVolume: true` on a volume that is not part of the filesystem, for example the OS volume of Bottlerocket (`/dev/xvda`). If you do, Karpenter overestimates the capacity.
+
+```yaml
+spec:
+  blockDeviceMappings:
+    # OS volume. It is not part of the kubelet filesystem.
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 4Gi
+        volumeType: gp3
+    # The UserData combines these four volumes into one RAID0 array.
+    # Karpenter estimates 4 x 20Gi = 80Gi of ephemeral-storage.
+    - deviceName: /dev/xvdb
+      rootVolume: true
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+    - deviceName: /dev/xvdc
+      rootVolume: true
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+    - deviceName: /dev/xvdd
+      rootVolume: true
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+    - deviceName: /dev/xvde
+      rootVolume: true
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+```
+
+{{% alert title="Note" color="primary" %}}
+A change to `rootVolume` changes the EC2NodeClass hash. Karpenter then marks existing nodes as drifted and replaces them.
+{{% /alert %}}
+
 ## spec.networkInterfaces
 
 The `networkInterfaces` field allows you to configure network interface attachments for instances, including support for EFA (Elastic Fabric Adapter) devices for high-performance computing and machine learning workloads. For more information see the [AWS EFA docs](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html).

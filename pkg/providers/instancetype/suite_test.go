@@ -2668,6 +2668,108 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeInitializationRate).To(Equal(int32(100)))
 			})
 		})
+		Context("Multiple Root Volumes", func() {
+			rootVolume := func(deviceName string, size string) *v1.BlockDeviceMapping {
+				return &v1.BlockDeviceMapping{
+					DeviceName: aws.String(deviceName),
+					EBS:        &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse(size))},
+					RootVolume: true,
+				}
+			}
+			BeforeEach(func() {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			})
+			It("should sum the sizes of all root volumes", func() {
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					rootVolume("/dev/xvda", "9Gi"),
+					rootVolume("/dev/xvdb", "8Gi"),
+					rootVolume("/dev/xvdc", "8Gi"),
+					// a volume that is not a root volume is not part of the sum
+					{DeviceName: aws.String("/dev/xvdd"), EBS: &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("100Gi"))}},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Status.Capacity.StorageEphemeral().Cmp(resource.MustParse("25Gi"))).To(Equal(0), "got %s", node.Status.Capacity.StorageEphemeral())
+			})
+			It("should sum root volumes with mixed units", func() {
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					rootVolume("/dev/xvda", "10Gi"),
+					rootVolume("/dev/xvdb", "10G"),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Status.Capacity.StorageEphemeral().Value()).To(Equal(int64(10*1024*1024*1024 + 10*1000*1000*1000)))
+			})
+			It("should sum root volumes instead of using the ephemeral block device of a known AMI family", func() {
+				nodeClass.Spec.AMIFamily = nil
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					// /dev/xvda is the ephemeral block device of AL2023, but it does not set rootVolume
+					{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("100Gi"))}},
+					rootVolume("/dev/xvdb", "20Gi"),
+					rootVolume("/dev/xvdc", "30Gi"),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Status.Capacity.StorageEphemeral().Cmp(resource.MustParse("50Gi"))).To(Equal(0), "got %s", node.Status.Capacity.StorageEphemeral())
+			})
+			It("should schedule a pod that only fits in the sum of the root volumes", func() {
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					rootVolume("/dev/xvda", "9Gi"),
+					rootVolume("/dev/xvdb", "8Gi"),
+					rootVolume("/dev/xvdc", "8Gi"),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceEphemeralStorage: resource.MustParse("15Gi")},
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+			})
+			It("should sum the root volumes on the data volumes of Bottlerocket", func() {
+				nodeClass.Spec.AMIFamily = nil
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					// the OS volume is not part of the filesystem that holds the kubelet root dir
+					{DeviceName: aws.String("/dev/xvda"), EBS: &v1.BlockDevice{VolumeSize: lo.ToPtr(resource.MustParse("2Gi"))}},
+					rootVolume("/dev/xvdb", "18Gi"),
+					rootVolume("/dev/xvde", "20Gi"),
+					rootVolume("/dev/xvdf", "20Gi"),
+					rootVolume("/dev/xvdg", "20Gi"),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Status.Capacity.StorageEphemeral().Cmp(resource.MustParse("78Gi"))).To(Equal(0), "got %s", node.Status.Capacity.StorageEphemeral())
+			})
+			It("should use the instance store size instead of the root volumes when instanceStorePolicy is RAID0", func() {
+				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
+				nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
+					rootVolume("/dev/xvda", "10Gi"),
+					rootVolume("/dev/xvdb", "10Gi"),
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				node := ExpectScheduled(ctx, env.Client, pod)
+				Expect(node.Labels[corev1.LabelInstanceTypeStable]).To(Equal("m6idn.32xlarge"))
+				Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
+			})
+		})
 	})
 	Context("Volume Attachment Limits", func() {
 		DescribeTable("should only launch nodes that can attach every EBS volume a pod uses",

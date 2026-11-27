@@ -544,11 +544,9 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		}
 	}
 	if len(blockDeviceMappings) != 0 {
-		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping) bool {
-			return bdm.RootVolume
-		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
-			return blockDeviceMapping.EBS.VolumeSize
+		// First check if there are root volumes configured in blockDeviceMappings.
+		if size := rootVolumesSize(blockDeviceMappings); size != nil {
+			return size
 		}
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
@@ -571,6 +569,28 @@ func ephemeralStorage(info ec2types.InstanceTypeInfo, amiFamily amifamily.AMIFam
 		return ephemeralBlockDevice.EBS.VolumeSize
 	}
 	return amifamily.DefaultEBS.VolumeSize
+}
+
+// rootVolumesSize returns the size of the block device mappings that set rootVolume, or nil if no mapping sets it
+// or a root volume has no volumeSize. More than one root volume means that the volumes are combined into one
+// filesystem (for example, RAID0), so the size is the sum of their sizes.
+func rootVolumesSize(blockDeviceMappings []*v1.BlockDeviceMapping) *resource.Quantity {
+	rootVolumes := lo.Filter(blockDeviceMappings, func(bdm *v1.BlockDeviceMapping, _ int) bool {
+		return bdm.RootVolume
+	})
+	if len(rootVolumes) == 0 || !lo.EveryBy(rootVolumes, func(bdm *v1.BlockDeviceMapping) bool {
+		return bdm.EBS != nil && bdm.EBS.VolumeSize != nil
+	}) {
+		return nil
+	}
+	if len(rootVolumes) == 1 {
+		return rootVolumes[0].EBS.VolumeSize
+	}
+	total := rootVolumes[0].EBS.VolumeSize.DeepCopy()
+	for _, bdm := range rootVolumes[1:] {
+		total.Add(*bdm.EBS.VolumeSize)
+	}
+	return &total
 }
 
 // volumeAttachmentLimits returns EC2's maximum EBS attachments for the instance type, less one for the root volume.

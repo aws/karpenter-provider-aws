@@ -927,7 +927,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("BlockDeviceMappings", func() {
-		It("should succeed if more than one root volume is specified", func() {
+		It("should succeed if one root volume is specified", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -999,7 +999,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
-		It("should fail if more than one root volume is specified", func() {
+		It("should succeed if more than one blockDeviceMapping sets rootVolume", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
@@ -1025,7 +1025,115 @@ var _ = Describe("CEL/Validation", func() {
 					},
 				},
 			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should fail if more than one blockDeviceMapping sets rootVolume and one has no volumeSize", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								SnapshotID: aws.String("snap-0123456789"),
+							},
+							RootVolume: true,
+						},
+						{
+							DeviceName: aws.String("map-device-2"),
+							EBS: &v1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+							RootVolume: true,
+						},
+					},
+				},
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
+		})
+		It("should fail if more than one blockDeviceMapping sets rootVolume and one has no ebs", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							RootVolume: true,
+						},
+						{
+							DeviceName: aws.String("map-device-2"),
+							EBS: &v1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+							RootVolume: true,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
+		})
+		It("should succeed if more than one blockDeviceMapping sets rootVolume and a mapping without rootVolume has no volumeSize", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+							RootVolume: true,
+						},
+						{
+							DeviceName: aws.String("map-device-2"),
+							EBS: &v1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+							RootVolume: true,
+						},
+						{
+							DeviceName: aws.String("map-device-3"),
+							EBS: &v1.BlockDevice{
+								SnapshotID: aws.String("snap-0123456789"),
+							},
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
+		})
+		It("should succeed if one blockDeviceMapping sets rootVolume and has no volumeSize", func() {
+			nodeClass := &v1.EC2NodeClass{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
+					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
+					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
+					Role:                       nc.Spec.Role,
+					BlockDeviceMappings: []*v1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1.BlockDevice{
+								SnapshotID: aws.String("snap-0123456789"),
+							},
+							RootVolume: true,
+						},
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should fail VolumeSize is less then 1Gi/1G", func() {
 			nodeClass := &v1.EC2NodeClass{
