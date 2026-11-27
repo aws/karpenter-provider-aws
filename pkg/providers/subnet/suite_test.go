@@ -681,12 +681,9 @@ var _ = Describe("SubnetProvider cache sharing", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ids(subnets)).To(ConsistOf("subnet-test1", "subnet-test2"))
 	})
-	// Behavior change: before the PR a new NodeClass (new UID) or a spec change on an existing
-	// NodeClass (new Generation) missed the cache, so List refreshed availableIPAddressCache and
-	// cleared inflightIPs. Now a shared entry is hit and IP counts are only refreshed on TTL expiry.
 })
 
-var _ = Describe("SubnetProvider inflight IPs (mutation killers)", func() {
+var _ = Describe("SubnetProvider inflight IPs", func() {
 	var pick func() string
 	BeforeEach(func() {
 		awsEnv.EC2API.DescribeSubnetsBehavior.Output.Set(&ec2.DescribeSubnetsOutput{Subnets: []ec2types.Subnet{
@@ -728,6 +725,17 @@ var _ = Describe("SubnetProvider inflight IPs (mutation killers)", func() {
 	})
 	It("should keep inflight IP tracking when List is served from the subnet cache", func() {
 		// e.g. another NodeClass sharing the selector term: no EC2 call, so the inflight estimates still apply
+		nodeClass2 := test.EC2NodeClass()
+		nodeClass2.UID = "nodeclass-2-uid"
+		nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2)
+		Expect(err).To(BeNil())
+		Expect(awsEnv.EC2API.DescribeSubnetsBehavior.Calls()).To(Equal(1))
+		Expect(pick()).To(Equal("subnet-b"))
+	})
+	It("should not let a cache hit overwrite an ICE'd subnet's available IP count with the cached count", func() {
+		// subnet-a is marked as out of capacity, so subnet-b (40 inflight) must be picked
+		awsEnv.SubnetProvider.UpdateICEdSubnet("subnet-a")
 		nodeClass2 := test.EC2NodeClass()
 		nodeClass2.UID = "nodeclass-2-uid"
 		nodeClass2.Spec.SubnetSelectorTerms = nodeClass.Spec.SubnetSelectorTerms

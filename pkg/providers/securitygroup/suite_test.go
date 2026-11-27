@@ -722,4 +722,16 @@ var _ = Describe("SecurityGroupProvider cache sharing", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(ids(sgs)).To(ConsistOf("sg-test1", "sg-test2", "sg-test3"))
 	})
+	It("should keep distinct security groups that share a GroupName (e.g. in different VPCs)", func() {
+		awsEnv.EC2API.DescribeSecurityGroupsBehavior.Output.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []ec2types.SecurityGroup{
+			{GroupId: aws.String("sg-a"), GroupName: aws.String("shared")},
+			{GroupId: aws.String("sg-b"), GroupName: aws.String("shared")},
+		}})
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"foo": "bar"}}}
+		for range 2 {
+			sgs, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ids(sgs)).To(ConsistOf("sg-a", "sg-b"))
+		}
+	})
 })

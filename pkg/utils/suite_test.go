@@ -67,15 +67,6 @@ var _ = Describe("FilterSetHash", func() {
 	It("distinguishes different filter values", func() {
 		Expect(hash(filter("tag:a", "1"))).ToNot(Equal(hash(filter("tag:a", "2"))))
 	})
-})
-
-var _ = Describe("FilterSetHash", func() {
-	filter := func(name string, values ...string) ec2types.Filter {
-		return ec2types.Filter{Name: aws.String(name), Values: values}
-	}
-	hash := func(filters ...ec2types.Filter) uint64 {
-		return utils.FilterSetHash(filters)
-	}
 	// Tags {a: 1, b: 2} vs {a: 2, b: 1} select different resources
 	It("distinguishes filter sets that swap values between filter names", func() {
 		Expect(hash(filter("tag:a", "1"), filter("tag:b", "2"))).

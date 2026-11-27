@@ -802,7 +802,7 @@ var _ = Describe("AMIProvider", func() {
 			))
 
 			cacheItems := awsEnv.AMICache.Items()
-			// Caching is per query: one entry for the AND set, one for each OR set
+			// One entry per DescribeImages request: one for the AND term, one for each OR term
 			Expect(cacheItems).To(HaveLen(3))
 			cachedImages := make([][]ec2types.Image, 0, len(cacheItems))
 			for _, item := range cacheItems {
@@ -1634,6 +1634,33 @@ var _ = Describe("AMIProvider cache sharing", func() {
 		Expect(amis).To(HaveLen(n))
 		for _, a := range amis {
 			Expect(a.AmiID).ToNot(Equal("mutated"))
+		}
+	})
+	It("should treat an AMI as deprecated at exactly its deprecation time", func() {
+		now := time.Now().Truncate(time.Second)
+		awsEnv.Clock.SetTime(now)
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{{
+			Name: aws.String(amd64AMI), ImageId: aws.String(amd64AMI), Architecture: "x86_64",
+			CreationDate:    aws.String(time.Time{}.Format(time.RFC3339)),
+			DeprecationTime: aws.String(now.Format(time.RFC3339)),
+			State:           ec2types.ImageStateAvailable,
+		}}})
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amd64AMI}}
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+		Expect(amis[0].Deprecated).To(BeTrue())
+	})
+	It("should drop images whose architecture Karpenter does not support", func() {
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []ec2types.Image{
+			{Name: aws.String("img-x86"), ImageId: aws.String("ami-x86"), Architecture: "x86_64", CreationDate: aws.String("2022-01-01T00:00:00Z"), State: ec2types.ImageStateAvailable, Tags: []ec2types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+			{Name: aws.String("img-i386"), ImageId: aws.String("ami-i386"), Architecture: "i386", CreationDate: aws.String("2023-01-01T00:00:00Z"), State: ec2types.ImageStateAvailable, Tags: []ec2types.Tag{{Key: aws.String("foo"), Value: aws.String("bar")}}},
+		}})
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"foo": "bar"}}}
+		for range 2 {
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(lo.Map(amis, func(a amifamily.AMI, _ int) string { return a.AmiID })).To(ConsistOf("ami-x86"))
 		}
 	})
 })

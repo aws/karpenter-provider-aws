@@ -173,7 +173,7 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		Expect(err).To(BeNil())
 		currentEntries := getSSMCacheEntries()
 		Expect(currentEntries).To(HaveLen(5))
-		// First reconcile observes non-deprecated AMIs (and, without SkipCache, would cache them per-ID)
+		// First reconcile observes non-deprecated AMIs, and its results are written to the AMI cache
 		ExpectSingletonReconciled(ctx, invalidationController)
 		Expect(getSSMCacheEntries()).To(Equal(currentEntries))
 		deprecateAMIs(lo.Values(currentEntries)...)
@@ -181,7 +181,7 @@ var _ = Describe("SSM Invalidation Controller", func() {
 		ExpectSingletonReconciled(ctx, invalidationController)
 		Expect(getSSMCacheEntries()).To(BeEmpty())
 	})
-	It("should not strip Windows alias requirements from the shared AMI cache when reconciling", func() {
+	It("should keep Windows alias requirements after reconciling", func() {
 		k8sVersion := awsEnv.VersionProvider.Get(ctx)
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", k8sVersion): "ami-windows",
